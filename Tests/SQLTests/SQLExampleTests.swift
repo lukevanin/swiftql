@@ -578,6 +578,17 @@ extension GRDBDatabase {
             Where(person.name == name)
         }
     }
+
+    // Issue #681: the "Await a declared query" example.
+    @SQLQuery
+    func personNamed(name: String) async throws -> Person? {
+        sqlResult { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == name)
+        }
+    }
 }
 
 
@@ -3406,6 +3417,22 @@ extension XLDocumentationTests {
         // Issue #662: a declared query called on a transaction scope.
         let _: (XLQueriesContainerTests) -> () throws -> Void =
             XLQueriesContainerTests.testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite
+        // Issue #681: the awaited declaration, whose executor is `async throws`.
+        let _: (GRDBDatabase) -> (String) async throws -> Person? =
+            GRDBDatabase.fetchPersonNamed(name:)
+        let _: (XLDocumentationTests) -> () async throws -> Void =
+            XLDocumentationTests.testDocumentationAwaitedDeclaredQuery
+        let _: (XLAsyncRequestTests) -> () async throws -> Void =
+            XLAsyncRequestTests.testAsyncDeclaredQueryRendersOnceAcrossCalls
+    }
+
+    /// Runs the "Await a declared query" example in <doc:DeclaredQueries>.
+    func testDocumentationAwaitedDeclaredQuery() async throws {
+        let match = try await database.fetchPersonNamed(name: "John Doe")
+        let nobody = try await database.fetchPersonNamed(name: "Nobody")
+
+        XCTAssertEqual(match, johnDoe)
+        XCTAssertNil(nobody)
     }
 
     func testDocumentationNumericDateCodecs() throws {

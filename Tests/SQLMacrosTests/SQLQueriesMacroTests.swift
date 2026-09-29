@@ -730,7 +730,7 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             @SQLQueries
             extension MyDatabase {
                 struct Query {
-                    func allPeople() throws -> [Person] {
+                    func allPeople() rethrows -> [Person] {
                         sqlResult { schema in
                             let person = schema.table(Person.self)
                             Select(person)
@@ -743,7 +743,7 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             expandedSource: """
             extension MyDatabase {
                 struct Query {
-                    func allPeople() throws -> [Person] {
+                    func allPeople() rethrows -> [Person] {
                         sqlResult { schema in
                             let person = schema.table(Person.self)
                             Select(person)
@@ -755,13 +755,109 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'@SQLQueries' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement.",
+                    message: "'@SQLQueries' accepts only a plain 'throws' effect. The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have.",
                     line: 4,
                     column: 26
                 )
             ],
             macros: makeTestMacros()
         )
+    }
+
+    ///
+    /// A container runs its executors inside a synchronous transaction, so an
+    /// `async` specification is reported at its effects rather than generating
+    /// an executor that cannot await (issue #681).
+    ///
+    func test_asyncContainerSpec_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() async throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() async throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' cannot declare an 'async' specification. Its executors run inside a synchronous transaction, which has no asynchronous form yet. Declare the query with '@SQLQuery' to await it.",
+                    line: 4,
+                    column: 26
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The container's `async` diagnostic does not hide the body checks: an
+    /// unused parameter is reported in the same compile.
+    ///
+    func test_asyncContainerSpec_stillReportsBodyDiagnostics() throws {
+        let source = Parser.parse(source: """
+            func allPeople(id: String) async throws -> [Person] {
+                sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                }
+            }
+            """)
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+
+        XCTAssertThrowsError(
+            try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQueries"))),
+                declaration: function,
+                macroName: "@SQLQueries",
+                supportsAsync: false
+            )
+        ) { error in
+            let messages = (error as? DiagnosticsError)?.diagnostics.map(\.message) ?? []
+            XCTAssertEqual(messages.count, 2, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'id' is never referenced") }, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' cannot declare an 'async' specification.") }, "\(messages)")
+        }
+    }
+
+    /// A container specification without a body still reports that it is
+    /// `async`, so both problems surface in one compile.
+    func test_asyncContainerSpecWithoutBody_reportsBothProblems() throws {
+        let source = Parser.parse(source: "func allPeople() async throws -> [Person]")
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+
+        XCTAssertThrowsError(
+            try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQueries"))),
+                declaration: function,
+                macroName: "@SQLQueries",
+                supportsAsync: false
+            )
+        ) { error in
+            let messages = (error as? DiagnosticsError)?.diagnostics.map(\.message) ?? []
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' requires a function body") }, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' cannot declare an 'async' specification.") }, "\(messages)")
+        }
     }
 
     func test_nonExtensionDeclaration_emitsError() {

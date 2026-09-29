@@ -305,6 +305,29 @@ final class XLDataChangingExecutionTests: XCTestCase {
         XCTAssertEqual(try allTestRows(), [], "every matching row must be deleted, not only the row read")
     }
 
+    /// `fetchOne` on a `RETURNING` statement decodes its row inside the
+    /// statement's transaction, as `fetchAll` does. A row that fails to decode
+    /// rolls the statement back; before issue #681's review it was decoded
+    /// after the commit, so the caller got an error for a change that stayed.
+    func testFetchOneOnAReturningStatementRollsBackWhenTheRowFailsToDecode() throws {
+        try databasePool.write { db in
+            try db.execute(sql: "CREATE TABLE Test (id TEXT PRIMARY KEY, value INTEGER)")
+            try db.execute(sql: "INSERT INTO Test (id, value) VALUES ('a', NULL)")
+        }
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = delete(t)
+            .where(t.id == t.id)
+            .returning(projection)
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne())
+        let remaining = try databasePool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Test")
+        }
+        XCTAssertEqual(remaining, 1, "the DELETE must roll back")
+    }
+
     /// The fetch `@SQLQuery` generates for a bare-row return (`.exactlyOne`):
     /// `fetchAtMost(2, bindings:)`, then a count check. Copied from
     /// `SQLQueryMacro.makeFetchLines`, so the test runs the generated body.

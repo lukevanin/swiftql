@@ -48,7 +48,8 @@
 - **The driver scopes are asynchronous** (issue #676). This changes only code
   that conforms to `XLDatabaseDriver` or calls its scopes directly. Requests,
   `withTransaction(_:)` on a database, and the query macros keep their
-  synchronous signatures until #681.
+  synchronous signatures. Requests and `@SQLQuery` gained asynchronous forms
+  beside them in #681; see "Added" below.
   - `withReadConnection(_:)`, `withWriteConnection(_:)`, and
     `withTransaction(_:_:)` are `async`, and they no longer mutate the driver.
     `XLDatabaseDriver` refines `Sendable`. Each scope takes a `@Sendable`
@@ -92,6 +93,48 @@
     inside the batch's transaction, and a fetch through the root database
     from that sequence throws. On 1.9 it ran on another connection and
     silently missed the rows the batch had already inserted.
+- **`fetchOne()` on a `RETURNING` statement rolls back when its row fails to
+  decode** (issue #681). It decoded after the transaction committed, so it
+  threw for a change that stayed, while `fetchAll()` rolled the same
+  statement back. Now both roll back, synchronous and asynchronous alike. Code
+  that caught the decode error and treated the change as made must retry it.
+- **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
+  #681), with a default. A conformer outside SwiftQL keeps compiling: the
+  default runs its synchronous methods on a Dispatch global queue while the
+  awaiting task suspends, so it is not the thread that made the request. A
+  conformer whose request cannot be called from another thread overrides
+  `async`.
+
+### Added
+
+- **Requests and declared queries can be awaited** (issue #681).
+  - `try await request.async.fetchAll()`, and `fetchOne()`,
+    `fetchAtMost(_:bindings:)`, and the `bindings:` forms, run the same SQL
+    with the same packet as the synchronous fetches. A write request has
+    `try await request.async.execute()`. The calling task suspends while the
+    driver's asynchronous scope lends a connection, instead of blocking its
+    thread. A GRDB request's view carries the bindings set through
+    `set(parameter:value:)` when it is taken.
+  - The asynchronous forms are a separate view, not overloads. Swift prefers
+    an `async` overload inside an asynchronous function, so overloading would
+    have made every existing `try request.fetchAll()` there fail to compile.
+    The synchronous methods are unchanged.
+  - A cancelled task gets `CancellationError` before a connection is lent,
+    and with GRDB, cancelling a running fetch interrupts it. With GRDB, a
+    request made in a `withTransaction(_:)` scope has no asynchronous form:
+    awaiting it throws `XLTransactionScopeError.scopeEscaped`.
+  - `@SQLQuery` accepts a specification declared `async`, `throws`, or both.
+    An `async` specification gets an `async throws` executor that awaits the
+    request; its render-once cache, binding packet, and `PreparedQuery` and
+    `DeclaredQuery` peers are the ones a synchronous specification gets.
+    `throws` alone changes nothing, because every executor already throws. A
+    typed `throws(E)` or `rethrows` is still reported at the declaration. The
+    effects apply to the executor only: the body is copied into a synchronous,
+    nonthrowing statement builder, so a `try` or `await` in it is reported at
+    the declaration.
+  - A `@SQLQueries` container still rejects `async`, now with a message that
+    says why: its executors run inside a synchronous transaction, which has
+    no asynchronous form yet. It accepts `throws`.
 
 ## [1.9.0] - 2026-09-16
 

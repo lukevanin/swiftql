@@ -35,6 +35,8 @@ final class DeclaredQueryRenderProbe: @unchecked Sendable {
 
     static let containerScopedRows = DeclaredQueryRenderProbe()
 
+    static let peerAsyncRows = DeclaredQueryRenderProbe()
+
     private let lock = NSLock()
 
     private var value = 0

@@ -246,6 +246,70 @@ final class SQLRequestCompatibilityTests: XCTestCase {
         try request.execute(bindings: packet)
     }
 
+    // MARK: - #681 async view compatibility defaults
+    //
+    // `LegacyReadRequest` and `LegacyWriteRequest` predate `XLRequest.async`, like a
+    // third-party conformer. The protocol-extension default runs their synchronous
+    // methods, so awaiting them returns what calling them returns.
+
+    func testLegacyReadConformerAsyncViewCallsTheSynchronousFetches() async throws {
+        let request = LegacyReadRequest(rows: [82, 83])
+        let packet = XLInvocationBindings<XLSQLiteValue>(layout: .empty)
+
+        let all = try await request.async.fetchAll()
+        let allBound = try await request.async.fetchAll(bindings: packet)
+        let atMostOne = try await request.async.fetchAtMost(1, bindings: packet)
+        let one = try await request.async.fetchOne()
+        let oneBound = try await request.async.fetchOne(bindings: packet)
+
+        XCTAssertEqual(all, [82, 83])
+        XCTAssertEqual(allBound, [82, 83])
+        XCTAssertEqual(atMostOne, [82])
+        XCTAssertEqual(one, 82)
+        XCTAssertEqual(oneBound, 82)
+    }
+
+    func testLegacyWriteConformerAsyncViewCallsTheSynchronousExecute() async throws {
+        let request = LegacyWriteRequest()
+        let packet = XLInvocationBindings<XLSQLiteValue>(layout: .empty)
+
+        try await request.async.execute()
+        try await request.async.execute(bindings: packet)
+    }
+
+    func testLegacyConformerAsyncViewsThrowCancellationErrorForACancelledTask() async {
+        let readView = LegacyReadRequest(rows: [82]).async
+        let writeView = LegacyWriteRequest().async
+
+        let fetch = Task {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            return try await readView.fetchAll()
+        }
+        let execute = Task {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            try await writeView.execute()
+        }
+        fetch.cancel()
+        execute.cancel()
+
+        switch await fetch.result {
+        case .success(let rows):
+            XCTFail("A cancelled task fetched \(rows).")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+        switch await execute.result {
+        case .success:
+            XCTFail("A cancelled task executed the statement.")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+    }
+
     func testLegacyMutatingSetStillExecutesGRDBRequest() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("swiftql-request-compatibility-\(UUID().uuidString)")

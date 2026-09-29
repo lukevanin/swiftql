@@ -49,15 +49,11 @@ extension GRDBRequest {
         bindings: any XLInvocationBindingPacket,
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "withResultSet: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        let packet = try executor.validatedPacket(bindings, for: "withResultSet", logger: logger)
 
         if requiresWriteConnection {
-            let driver = executor.driver
-            var items: [Row] = []
-            try driver.withBlockingTransaction { connection in
-                items = try decodeRows(packet: packet, in: &connection)
+            let items = try executor.driver.withBlockingTransaction { connection in
+                try decodeRows(packet: packet, in: &connection)
             }
             // The shared eager fallback from `XLRequest` (see
             // `SQLDatabase.swift`). A `RETURNING` statement changes the

@@ -25,48 +25,44 @@ extension GRDBRequest {
     func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try decodeRows(packet: packet)
+        let packet = try executor.validatedPacket(bindings, for: "fetchAll", logger: logger)
+        return try withBlockingConnection { connection in
+            try decodeRows(packet: packet, in: &connection)
+        }
     }
 
-    func decodeRows(
-        packet: XLValidatedSQLitePacket
-    ) throws -> [Row] {
-        let driver = executor.driver
-        // Both branches accumulate into an outer array and return Void from
-        // the closure, instead of returning [Row] directly from
-        // withTransaction<Result>/withReadConnection<Result>. On the pinned
-        // Swift 5.9.2 compatibility cell, instantiating that specific generic
-        // reabstraction boundary with a 2+ generic-parameter Row type (e.g.
-        // #row's SQLRow2...6) crashes swift-frontend in IRGen
-        // (NativeConventionSchema::mapIntoNative) — and, because this is a
-        // compiler memory-safety bug rather than a clean type error, a single
-        // unpatched crossing point elsewhere in the same module can corrupt
-        // shared frontend state and surface as an unrelated-looking crash
-        // (e.g. ConformanceLookupTable::updateLookupTable,
-        // llvm::FoldingSetBase::FindNodeOrInsertPos) at a completely
-        // different file later in the same compilation. This shape has no
-        // cost on any other Row type, and it protects both of this file's
-        // fetchAll() boundaries from that crash — it is not a blanket fix for
-        // the bug class: the publish()/publishOne() paths below independently
-        // hit the same crash through their own generic publisher/witness-
-        // method return types, which is why #row's 2+-column shapes stay
-        // gated to Swift 6.1+ (SQLRowMacro.swift) rather than being unlocked
-        // by this change.
-        var items: [Row] = []
+    ///
+    /// Runs `operation` on the connection this request reads from: a pooled
+    /// reader for a query, or the writer inside a transaction for a
+    /// `RETURNING` statement (issue #643), because a pooled reader is
+    /// read-only.
+    ///
+    /// Every fetch decodes inside `operation`, so a `RETURNING` row that fails
+    /// to decode rolls the statement back instead of reporting an error for a
+    /// committed change. ``withConnection(_:)`` makes the same choice with the
+    /// driver's asynchronous scopes (issue #681).
+    ///
+    func withBlockingConnection<Result>(
+        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) throws -> Result {
         if requiresWriteConnection {
-            try driver.withBlockingTransaction { connection in
-                items = try decodeRows(packet: packet, in: &connection)
-            }
+            return try executor.driver.withBlockingTransaction(operation)
         }
-        else {
-            try driver.withBlockingReadConnection { connection in
-                items = try decodeRows(packet: packet, in: &connection)
-            }
+        return try executor.driver.withBlockingReadConnection(operation)
+    }
+
+    ///
+    /// The asynchronous form of ``withBlockingConnection(_:)``, for
+    /// `GRDBAsyncRequest` (issue #681): the same reader-or-writer choice, made
+    /// with the driver's asynchronous scopes.
+    ///
+    func withConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        if requiresWriteConnection {
+            return try await executor.driver.withTransaction(operation)
         }
-        return items
+        return try await executor.driver.withReadConnection(operation)
     }
 
     func decodeRows(
@@ -89,50 +85,24 @@ extension GRDBRequest {
         }
         return items
     }
-    
+
+    ///
+    /// Fetches at most `limit` rows. On a `RETURNING` statement this is still
+    /// safe to stop early: SQLite applies every change of the statement during
+    /// its first step, so the rows left unread are only output, never
+    /// unapplied work. The commit needs the statement to be reset first,
+    /// because SQLite refuses to commit while a statement is still in
+    /// progress; the GRDB row cursor behind `forEachRow` resets it when it is
+    /// released, before the transaction returns.
+    ///
     func fetchAtMost(
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "fetchAtMost(\(limit)): <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try decodeRows(packet: packet, limit: limit)
-    }
-
-    func decodeRows(
-        packet: XLValidatedSQLitePacket,
-        limit: Int
-    ) throws -> [Row] {
-        let driver = executor.driver
-        // Same accumulator/Void-return shape as the two decodeRows(packet:)
-        // overloads above, and for the same reason: this is
-        // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
-        // `.exactlyOne` cardinality) — an unpatched crossing point of the
-        // same IRGen crash class.
-        //
-        // The same read-or-write branch as decodeRows(packet:), too (issue
-        // #643). A `RETURNING` request changes the database, and a pooled
-        // reader connection is read-only, so it runs in a transaction on the
-        // writer. Stopping after `limit` rows is still safe there: SQLite
-        // applies every change of the statement during its first step, so the
-        // rows left unread are only output, never unapplied work. The commit
-        // needs the statement to be reset first, because SQLite refuses to
-        // commit while a statement is still in progress; the GRDB row cursor
-        // behind `forEachRow` resets it when it is released, before
-        // `withTransaction` returns.
-        var items: [Row] = []
-        if requiresWriteConnection {
-            try driver.withBlockingTransaction { connection in
-                items = try decodeRows(packet: packet, limit: limit, in: &connection)
-            }
+        let packet = try executor.validatedPacket(bindings, for: "fetchAtMost(\(limit))", logger: logger)
+        return try withBlockingConnection { connection in
+            try decodeRows(packet: packet, limit: limit, in: &connection)
         }
-        else {
-            try driver.withBlockingReadConnection { connection in
-                items = try decodeRows(packet: packet, limit: limit, in: &connection)
-            }
-        }
-        return items
     }
 
     func decodeRows(
@@ -165,26 +135,54 @@ extension GRDBRequest {
         try fetchOne(bindings: legacyBindings.packet())
     }
 
+    ///
+    /// Fetches the first row. A `RETURNING` statement decodes it inside its
+    /// transaction, so a row that fails to decode rolls the statement back. A
+    /// query decodes it after the reader is released, as it always has, so
+    /// the decode holds no connection.
+    ///
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> Row? {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        let values: [XLSQLiteValue]?
+        let packet = try executor.validatedPacket(bindings, for: "fetchOne", logger: logger)
         if requiresWriteConnection {
-            let driver = executor.driver
-            values = try driver.withBlockingTransaction { connection in
-                try executor.fetchOne(packet: packet, in: &connection)
+            return try executor.driver.withBlockingTransaction { connection in
+                try decode(executor.fetchOne(packet: packet, in: &connection))
             }
         }
-        else {
-            values = try executor.fetchOne(packet: packet)
+        let values = try executor.driver.withBlockingReadConnection { connection in
+            try executor.fetchOne(packet: packet, in: &connection)
         }
+        return try decode(values)
+    }
+
+    ///
+    /// The asynchronous form of ``fetchOne(bindings:)`` after validation, for
+    /// `GRDBAsyncRequest` (issue #681). It decodes where the synchronous form
+    /// does: a `RETURNING` row inside its transaction, a query's row after the
+    /// reader is released.
+    ///
+    func fetchOne(packet: XLValidatedSQLitePacket) async throws -> Row? {
+        let executor = executor
+        if requiresWriteConnection {
+            // The decode runs in the driver's `@Sendable` operation, so the
+            // request travels in its `Sendable` view.
+            let view = GRDBAsyncRequest(request: self)
+            return try await executor.driver.withTransaction { connection in
+                try view.request.decode(executor.fetchOne(packet: packet, in: &connection))
+            }
+        }
+        let values = try await executor.driver.withReadConnection { connection in
+            try executor.fetchOne(packet: packet, in: &connection)
+        }
+        return try decode(values)
+    }
+
+    /// Decodes the values of one row, or returns `nil` when there is none.
+    func decode(_ values: [XLSQLiteValue]?) throws -> Row? {
         guard let values else {
             return nil
         }
-
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
 }

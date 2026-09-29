@@ -72,9 +72,8 @@ struct GRDBWriteRequest: XLWriteRequest {
     func execute(
         bindings: any XLInvocationBindingPacket
     ) throws {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        try executor.execute(packet: packet)
+        try executor.execute(
+            packet: executor.validatedPacket(bindings, for: "execute", logger: logger)
+        )
     }
 }

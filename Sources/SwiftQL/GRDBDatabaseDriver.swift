@@ -573,15 +573,6 @@ struct GRDBInvocationExecutor: Sendable {
         }
     }
 
-    /// Reads on a connection this executor takes for the call.
-    func fetchOne(
-        packet: XLValidatedSQLitePacket
-    ) throws -> [XLSQLiteValue]? {
-        return try driver.withBlockingReadConnection { connection in
-            try fetchOne(packet: packet, in: &connection)
-        }
-    }
-
     func fetchOne(
         packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
@@ -612,6 +603,27 @@ struct GRDBInvocationExecutor: Sendable {
         in connection: inout GRDBDatabaseDriverConnection
     ) throws {
         try connection.execute(boundStatement(packet: packet, in: &connection))
+    }
+
+    ///
+    /// Checks `bindings` with ``sqlitePacket(_:)`` and logs the statement, as
+    /// every request does before it takes a connection. The read and write
+    /// requests, synchronous and asynchronous (issue #681), share it.
+    ///
+    /// - Parameter operation: The request method, named in the log line. It
+    ///   is formatted only when there is a logger.
+    ///
+    func validatedPacket(
+        _ bindings: any XLInvocationBindingPacket,
+        for operation: @autoclosure () -> String,
+        logger: XLLogger?
+    ) throws -> XLValidatedSQLitePacket {
+        let packet = try sqlitePacket(bindings)
+        if let logger {
+            logger.debug(
+                "\(operation()): <<<\(logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        }
+        return packet
     }
 
     /// Checks an invocation packet against this statement's parameter layout,
