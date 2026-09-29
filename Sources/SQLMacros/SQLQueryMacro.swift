@@ -30,6 +30,11 @@ import SwiftSyntaxMacros
 /// one, and a bare `Row` fetches exactly one row, throwing if the query
 /// matches zero or more than one row.
 ///
+/// A specification may be declared `async`, `throws`, or both (issue #681).
+/// An `async` specification gets an `async throws` executor that awaits the
+/// request through `XLRequest.async`. Every executor throws, whatever the
+/// specification declares, because binding and fetching can fail.
+///
 public struct SQLQueryMacro {
 }
 
@@ -141,6 +146,10 @@ internal struct SQLQueryBuilder {
 
     let rewrittenBodyText: String
 
+    /// Whether the specification is declared `async`, so its executor awaits
+    /// the request's asynchronous fetch (issue #681).
+    let isAsync: Bool
+
     /// The user-facing attribute name used in diagnostics — `@SQLQuery` for
     /// the per-function peer macro, `@SQLQueries` when specifications are
     /// parsed out of a container by the member macro.
@@ -149,7 +158,8 @@ internal struct SQLQueryBuilder {
     init(
         node: AttributeSyntax,
         declaration: some DeclSyntaxProtocol,
-        macroName: String = "@SQLQuery"
+        macroName: String = "@SQLQuery",
+        supportsAsync: Bool = true
     ) throws {
         self.macroName = macroName
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
@@ -188,15 +198,12 @@ internal struct SQLQueryBuilder {
             )
         }
 
-        if let effectSpecifiers = function.signature.effectSpecifiers {
-            diagnostics.append(
-                Diagnostic(
-                    node: effectSpecifiers,
-                    id: "sqlquery-effect-specifiers",
-                    message: "'\(macroName)' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement."
-                )
-            )
-        }
+        self.isAsync = Self.checkEffectSpecifiers(
+            of: function,
+            macroName: macroName,
+            supportsAsync: supportsAsync,
+            diagnostics: &diagnostics
+        )
 
         self.parameters = Self.makeParameters(
             of: function,
@@ -590,6 +597,58 @@ internal struct SQLQueryBuilder {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
     }
 
+    ///
+    /// Reads the specification's effects and reports any the executor cannot
+    /// honor. Returns whether the specification is `async`.
+    ///
+    /// Plain `async` and `throws` are accepted (issue #681). The executor
+    /// always throws `any Error`, so a typed `throws(E)` cannot be kept, and
+    /// `rethrows` and `reasync` describe closure parameters a specification
+    /// does not have.
+    ///
+    /// The effects are read token by token rather than through
+    /// `throwsSpecifier` or `throwsClause`, so the check does not depend on
+    /// which of the two the resolved swift-syntax offers. swift-syntax 509
+    /// cannot parse a typed `throws(E)`: it ends the effects at `throws` and
+    /// leaves `(E)` as unexpected code. A `(` right after the effects is
+    /// therefore reported as a typed throw too.
+    ///
+    private static func checkEffectSpecifiers(
+        of function: FunctionDeclSyntax,
+        macroName: String,
+        supportsAsync: Bool,
+        diagnostics: inout [Diagnostic]
+    ) -> Bool {
+        guard let effectSpecifiers = function.signature.effectSpecifiers else {
+            return false
+        }
+        let tokens = effectSpecifiers.tokens(viewMode: .sourceAccurate).map(\.text)
+        let nextToken = effectSpecifiers.lastToken(viewMode: .sourceAccurate)?
+            .nextToken(viewMode: .sourceAccurate)
+        guard tokens.allSatisfy({ $0 == "async" || $0 == "throws" }),
+              nextToken?.tokenKind != .leftParen else {
+            diagnostics.append(
+                Diagnostic(
+                    node: effectSpecifiers,
+                    id: "sqlquery-effect-specifiers",
+                    message: "'\(macroName)' accepts only plain 'async' and 'throws' effects. The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have."
+                )
+            )
+            return false
+        }
+        let isAsync = tokens.contains("async")
+        if isAsync, !supportsAsync {
+            diagnostics.append(
+                Diagnostic(
+                    node: effectSpecifiers,
+                    id: "sqlqueries-async-specification",
+                    message: "'\(macroName)' cannot declare an 'async' specification. Its executors run inside a synchronous transaction, which has no asynchronous form yet. Declare the query with '@SQLQuery' to await it."
+                )
+            )
+        }
+        return isAsync
+    }
+
     private var preparedQueryFunctionName: String {
         "\(function.name.text)PreparedQuery"
     }
@@ -658,14 +717,17 @@ internal struct SQLQueryBuilder {
     /// matches many rows cheap to reject.
     ///
     func makeFetchLines(requestVariable: String, packetVariable: String) -> [String] {
+        // An `async` specification awaits the request's asynchronous view,
+        // which runs the same SQL with the same packet (issue #681).
+        let call = isAsync ? "try await \(requestVariable).async" : "try \(requestVariable)"
         switch returnShape.cardinality {
         case .many:
-            return ["return try \(requestVariable).fetchAll(bindings: \(packetVariable))"]
+            return ["return \(call).fetchAll(bindings: \(packetVariable))"]
         case .one:
-            return ["return try \(requestVariable).fetchOne(bindings: \(packetVariable))"]
+            return ["return \(call).fetchOne(bindings: \(packetVariable))"]
         case .exactlyOne:
             return [
-                "let __xlRows = try \(requestVariable).fetchAtMost(2, bindings: \(packetVariable))",
+                "let __xlRows = \(call).fetchAtMost(2, bindings: \(packetVariable))",
                 "switch __xlRows.count {",
                 "case 0:",
                 "    throw XLQueryCardinalityError.noRowsMatched",
@@ -678,11 +740,19 @@ internal struct SQLQueryBuilder {
         }
     }
 
+    ///
+    /// The effects every executor declares: `async throws` for an `async`
+    /// specification, and `throws` otherwise.
+    ///
+    var executorEffects: String {
+        isAsync ? "async throws" : "throws"
+    }
+
     func makeExecutorFunction() -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
         let resultType = executorResultType
         var lines: [String] = []
-        lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
+        lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) \(executorEffects) -> \(resultType) {")
         lines.append(
             contentsOf: makeExecutorBodyLines(
                 preparing: statementFunctionName,

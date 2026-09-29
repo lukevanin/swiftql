@@ -107,7 +107,8 @@ extension SQLQueriesMacro: MemberMacro {
                 builders.append(try SQLQueryBuilder(
                     node: node,
                     declaration: function,
-                    macroName: "@SQLQueries"
+                    macroName: "@SQLQueries",
+                    supportsAsync: false
                 ))
             }
             catch let error as DiagnosticsError {

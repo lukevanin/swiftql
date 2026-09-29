@@ -1499,12 +1499,167 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
         )
     }
 
-    func test_throwingFunction_emitsError() {
+    ///
+    /// A declared `async throws` specification gets an `async throws` executor
+    /// that awaits the request's asynchronous view (issue #681). The statement
+    /// builder, render-once cache, prepared-query peer, and declared-query
+    /// peer are the ones a synchronous specification gets.
+    ///
+    func test_asyncThrowingFunction_awaitsAsynchronousFetch() {
         assertMacroExpansion(
             """
             extension MyDatabase {
                 @SQLQuery
-                func allPeople() throws -> any XLQueryStatement<Person> {
+                func personByExactName(name: String) async throws -> Person? {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByExactName(name: String) async throws -> Person? {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+
+                func personByExactNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                    }
+                }
+
+                private static let __xlPersonByExactNameCache = XLRenderOnceCache<Person>()
+
+                func fetchPersonByExactName(name: String) async throws -> Person? {
+                    let __xlRequest = Self.__xlPersonByExactNameCache.request(for: self) {
+                        personByExactNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try await __xlRequest.async.fetchOne(bindings: __xlPacket)
+                }
+
+                func personByExactNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByExactNameCache.request(for: self) {
+                        personByExactNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
+                func personByExactNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByExactNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByExactName",
+                        cardinality: .zeroOrOne,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// For every result shape, an `async` specification's peers differ from
+    /// the synchronous ones only in the executor's effects and its fetch
+    /// call. The render-once cache, the preparation lines that build the
+    /// binding packet, and every other peer are identical, so both forms bind
+    /// and render the same way (issue #681).
+    ///
+    func test_asyncSpecification_changesOnlyTheExecutorEffectsAndFetch() throws {
+        let shapes: [(result: String, fetch: String)] = [
+            ("[Person]", "fetchAll(bindings: __xlPacket)"),
+            ("Person?", "fetchOne(bindings: __xlPacket)"),
+            ("Person", "fetchAtMost(2, bindings: __xlPacket)"),
+        ]
+        for shape in shapes {
+            let synchronous = try makeBuilder(effects: "", result: shape.result)
+            let asynchronous = try makeBuilder(effects: "async throws", result: shape.result)
+            XCTAssertFalse(synchronous.isAsync)
+            XCTAssertTrue(asynchronous.isAsync)
+
+            XCTAssertEqual(asynchronous.makeStatementFunction(), synchronous.makeStatementFunction())
+            XCTAssertEqual(asynchronous.makeRenderOnceCacheDeclaration(), synchronous.makeRenderOnceCacheDeclaration())
+            XCTAssertEqual(asynchronous.makePreparedQueryFunction(), synchronous.makePreparedQueryFunction())
+            XCTAssertEqual(asynchronous.makeDeclaredQueryPeer(), synchronous.makeDeclaredQueryPeer())
+
+            let synchronousLines = synchronous.makeExecutorFunction().components(separatedBy: "\n")
+            let asynchronousLines = asynchronous.makeExecutorFunction().components(separatedBy: "\n")
+            XCTAssertEqual(asynchronousLines.count, synchronousLines.count)
+            let differing = zip(synchronousLines, asynchronousLines).filter { $0 != $1 }
+            XCTAssertEqual(differing.map(\.0), [
+                "func fetchPeopleNamed(name: String) throws -> \(shape.result) {",
+                synchronousLines.first { $0.contains(shape.fetch) }!,
+            ], "shape \(shape.result)")
+            XCTAssertEqual(differing.map(\.1), [
+                "func fetchPeopleNamed(name: String) async throws -> \(shape.result) {",
+                asynchronousLines.first { $0.contains(shape.fetch) }!,
+            ], "shape \(shape.result)")
+            XCTAssertTrue(
+                differing[1].1.contains("try await __xlRequest.async.\(shape.fetch)"),
+                "shape \(shape.result): \(differing[1].1)"
+            )
+        }
+    }
+
+    ///
+    /// Plain `throws` changes nothing: every executor already throws, so a
+    /// throwing specification expands exactly as a nonthrowing one does. So
+    /// does `async` without `throws`, which gets the `async throws` executor
+    /// an `async throws` specification gets.
+    ///
+    func test_throwsAlone_expandsLikeNoEffects_andAsyncAloneLikeAsyncThrows() throws {
+        let none = try makeBuilder(effects: "", result: "[Person]")
+        let throwing = try makeBuilder(effects: "throws", result: "[Person]")
+        let asynchronous = try makeBuilder(effects: "async", result: "[Person]")
+        let asyncThrowing = try makeBuilder(effects: "async throws", result: "[Person]")
+
+        XCTAssertFalse(throwing.isAsync)
+        XCTAssertEqual(throwing.makeExecutorFunction(), none.makeExecutorFunction())
+        XCTAssertEqual(throwing.makePreparedQueryFunction(), none.makePreparedQueryFunction())
+
+        XCTAssertTrue(asynchronous.isAsync)
+        XCTAssertEqual(asynchronous.makeExecutorFunction(), asyncThrowing.makeExecutorFunction())
+    }
+
+    func test_rethrowingFunction_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func allPeople() rethrows -> any XLQueryStatement<Person> {
                     sql { schema in
                         let person = schema.table(Person.self)
                         Select(person)
@@ -1515,7 +1670,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             expandedSource: """
             extension MyDatabase {
-                func allPeople() throws -> any XLQueryStatement<Person> {
+                func allPeople() rethrows -> any XLQueryStatement<Person> {
                     sql { schema in
                         let person = schema.table(Person.self)
                         Select(person)
@@ -1526,12 +1681,64 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'@SQLQuery' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement.",
+                    message: "'@SQLQuery' accepts only plain 'async' and 'throws' effects. The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have.",
                     line: 3,
                     column: 22
                 )
             ],
             macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A typed `throws(E)` is reported at the effects. swift-syntax 509, which
+    /// the manifest resolves, cannot parse it and leaves `(E)` as unexpected
+    /// code after `throws`, so the builder is checked directly for the
+    /// effects diagnostic, whatever else the unparsed code causes.
+    ///
+    func test_typedThrowingFunction_emitsEffectsError() throws {
+        let source = Parser.parse(source: """
+            func allPeople() throws(MyError) -> [Person] {
+                sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                }
+            }
+            """)
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+
+        XCTAssertThrowsError(
+            try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQuery"))),
+                declaration: function
+            )
+        ) { error in
+            let messages = (error as? DiagnosticsError)?.diagnostics.map(\.message) ?? []
+            XCTAssertTrue(
+                messages.contains { $0.hasPrefix("'@SQLQuery' accepts only plain 'async' and 'throws' effects.") },
+                "\(messages)"
+            )
+        }
+    }
+
+    /// A builder for `peopleNamed(name:)` with the given effects and result.
+    private func makeBuilder(effects: String, result: String) throws -> SQLQueryBuilder {
+        let spelledEffects = effects.isEmpty ? "" : effects + " "
+        let source = Parser.parse(source: """
+            func peopleNamed(name: String) \(spelledEffects)-> \(result) {
+                sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name)
+                }
+            }
+            """)
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+        return try SQLQueryBuilder(
+            node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQuery"))),
+            declaration: function
         )
     }
 

@@ -730,7 +730,7 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             @SQLQueries
             extension MyDatabase {
                 struct Query {
-                    func allPeople() throws -> [Person] {
+                    func allPeople() rethrows -> [Person] {
                         sqlResult { schema in
                             let person = schema.table(Person.self)
                             Select(person)
@@ -743,7 +743,7 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             expandedSource: """
             extension MyDatabase {
                 struct Query {
-                    func allPeople() throws -> [Person] {
+                    func allPeople() rethrows -> [Person] {
                         sqlResult { schema in
                             let person = schema.table(Person.self)
                             Select(person)
@@ -755,7 +755,52 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'@SQLQueries' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement.",
+                    message: "'@SQLQueries' accepts only plain 'async' and 'throws' effects. The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have.",
+                    line: 4,
+                    column: 26
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A container runs its executors inside a synchronous transaction, so an
+    /// `async` specification is reported at its effects rather than generating
+    /// an executor that cannot await (issue #681).
+    ///
+    func test_asyncContainerSpec_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() async throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() async throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' cannot declare an 'async' specification. Its executors run inside a synchronous transaction, which has no asynchronous form yet. Declare the query with '@SQLQuery' to await it.",
                     line: 4,
                     column: 26
                 )

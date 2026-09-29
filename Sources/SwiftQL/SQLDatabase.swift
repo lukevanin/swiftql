@@ -221,6 +221,17 @@ public protocol XLRequest<Row> {
     ) throws -> Result
 
     ///
+    /// The asynchronous fetches of this request (issue #681).
+    ///
+    /// `try await request.async.fetchAll()` runs the same SQL with the same
+    /// bindings as `try request.fetchAll()`, but suspends the calling task
+    /// instead of blocking its thread while it waits for a connection. The
+    /// view carries the bindings set through `set(parameter:value:)` when it
+    /// is taken. See ``XLAsyncRequest``.
+    ///
+    var async: any XLAsyncRequest<Row> { get }
+
+    ///
     /// Creates a Combine Publisher that observes and emits all rows from the query.
     ///
     /// Observation starts when a subscriber first requests positive demand. Each subscriber receives a
@@ -643,6 +654,17 @@ public protocol XLWriteRequest {
 
     /// Executes the statement with one immutable per-invocation binding packet.
     func execute(bindings: any XLInvocationBindingPacket) throws
+
+    ///
+    /// The asynchronous execution of this statement (issue #681).
+    ///
+    /// `try await request.async.execute()` runs the same SQL with the same
+    /// bindings as `try request.execute()`, but suspends the calling task
+    /// instead of blocking its thread. The view carries the bindings set
+    /// through `set(parameter:value:)` when it is taken. See
+    /// ``XLAsyncWriteRequest``.
+    ///
+    var async: any XLAsyncWriteRequest { get }
 }
 
 extension XLWriteRequest {

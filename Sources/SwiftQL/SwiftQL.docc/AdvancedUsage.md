@@ -49,6 +49,17 @@ packet-backed publisher. Creating a request translates the SwiftQL statement
 into SQL but does not prepare it immediately. On execution, GRDB obtains a
 cached SQLite statement for that SQL on the connection performing the work.
 
+Every request can also be awaited through its `async` view:
+`try await request.async.fetchAll(bindings:)`, `fetchOne(bindings:)`, and
+`fetchAtMost(_:bindings:)`, and `try await request.async.execute(bindings:)`
+for a write. The view runs the same SQL with the same packet, but the calling
+task suspends while the driver's asynchronous scope lends a connection, instead
+of blocking its thread. It is a separate view rather than `async` overloads, so
+a synchronous `try request.fetchAll()` inside an asynchronous function keeps
+compiling. A request made in a `withTransaction(_:)` scope has no asynchronous
+form: its connection belongs to the synchronous body, and awaiting it throws
+`XLTransactionScopeError.scopeEscaped`.
+
 For a statement with named bindings, `@SQLBindings` generates both the typed
 references the statement uses and the packet for each call, so a binding name
 is checked at compile time. See "Named bindings for a statement value" in

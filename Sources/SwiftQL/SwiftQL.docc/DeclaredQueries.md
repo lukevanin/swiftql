@@ -85,6 +85,38 @@ The macro derives everything from the signature:
   packets built against the one cached request; a bound value is never part
   of the query's static identity.
 
+### Await a declared query
+
+Since 2.0 ([#681](https://github.com/lukevanin/swiftql/issues/681)), a
+specification may be declared `async`. Its executor is then `async throws`,
+and the calling task suspends while it waits for a connection instead of
+blocking its thread:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+extension GRDBDatabase {
+
+    @SQLQuery
+    func personNamed(name: String) async throws -> Person? {
+        sqlResult { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == name)
+        }
+    }
+}
+
+let match = try await database.fetchPersonNamed(name: "John Doe")
+```
+
+`async` changes only how the executor waits. It renders through the same
+render-once cache and binds the same packet as a synchronous executor, and
+the `PreparedQuery` and `DeclaredQuery` peers are unchanged. `throws` is
+accepted too and changes nothing, because every executor already throws:
+binding and fetching can fail. A typed `throws(E)` or `rethrows` is reported
+at the declaration.
+
 Container form (`@SQLQueries`) generates the same executor shape, but reads
 every specification out of a nested container in one expansion and gives the
 executor its own name instead of a `fetch`-prefixed one:
@@ -455,11 +487,11 @@ generated code.
 ## Diagnostics point at the declaration
 
 Every diagnostic above — and every structural one (non-function declaration,
-static/class method, generic function, throwing/async function, variadic or
-unnamed parameter, missing or unsupported return type, missing body) — is
-reported on the specification's own source location, not on the generated
-code. A malformed declaration therefore never produces a confusing error deep
-inside macro-expanded output.
+static/class method, generic function, typed-throws or `rethrows` function,
+`async` container specification, variadic or unnamed parameter, missing or
+unsupported return type, missing body) — is reported on the specification's
+own source location, not on the generated code. A malformed declaration
+therefore never produces a confusing error deep inside macro-expanded output.
 
 ## Static descriptors and build validation
 
@@ -569,9 +601,10 @@ function.
 - **No collection parameters.** A fixed set of scalar parameters or the
   `in(_:)` expression forms are today's alternative to a variable-length
   `IN` list.
-- **No async executor yet.** The generated executor is synchronous and
-  throwing; an `async` variant is additive future work, not a breaking
-  change to what exists today.
+- **No asynchronous container executors.** A `@SQLQueries` container
+  rejects an `async` specification, because its executors run inside a
+  synchronous transaction, and a transaction has no asynchronous form yet.
+  Declare a query you want to await with `@SQLQuery`.
 - **Same-name overloads collide.** Generated peer and member names are
   derived from the specification's base name only, so two `@SQLQuery`
   functions that share a base name but differ only in parameter list
