@@ -95,9 +95,10 @@
     silently missed the rows the batch had already inserted.
 - **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
   #681), with a default. A conformer outside SwiftQL keeps compiling: the
-  default runs its synchronous methods on the awaiting task's thread, which
-  is usually not the thread that made the request. A conformer whose request
-  cannot be called from another thread overrides `async`.
+  default runs its synchronous methods on a Dispatch global queue while the
+  awaiting task suspends, so it is not the thread that made the request. A
+  conformer whose request cannot be called from another thread overrides
+  `async`.
 
 ### Added
 
@@ -113,7 +114,8 @@
     an `async` overload inside an asynchronous function, so overloading would
     have made every existing `try request.fetchAll()` there fail to compile.
     The synchronous methods are unchanged.
-  - A cancelled task gets `CancellationError` before a connection is lent. A
+  - A cancelled task gets `CancellationError` before a connection is lent,
+    and with GRDB, cancelling a running fetch interrupts it. With GRDB, a
     request made in a `withTransaction(_:)` scope has no asynchronous form:
     awaiting it throws `XLTransactionScopeError.scopeEscaped`.
   - `@SQLQuery` accepts a specification declared `async`, `throws`, or both.

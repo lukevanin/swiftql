@@ -76,9 +76,18 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         bindings: any XLInvocationBindingPacket
     ) async throws -> Row? {
         let packet = try request.executor.validatedPacket(bindings, for: "fetchOne", logger: request.logger)
-        return try await request.withConnection { connection in
-            try request.decodeOne(packet: packet, in: &connection)
+        let executor = request.executor
+        // As the synchronous `fetchOne`: a `RETURNING` row is decoded inside
+        // its transaction, and a query's row after the reader is released.
+        if request.requiresWriteConnection {
+            return try await executor.driver.withTransaction { connection in
+                try request.decode(executor.fetchOne(packet: packet, in: &connection))
+            }
         }
+        let values = try await executor.driver.withReadConnection { connection in
+            try executor.fetchOne(packet: packet, in: &connection)
+        }
+        return try request.decode(values)
     }
 }
 

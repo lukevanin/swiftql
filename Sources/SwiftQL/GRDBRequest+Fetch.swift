@@ -135,20 +135,30 @@ extension GRDBRequest {
         try fetchOne(bindings: legacyBindings.packet())
     }
 
+    ///
+    /// Fetches the first row. A `RETURNING` statement decodes it inside its
+    /// transaction, so a row that fails to decode rolls the statement back. A
+    /// query decodes it after the reader is released, as it always has, so
+    /// the decode holds no connection.
+    ///
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> Row? {
         let packet = try executor.validatedPacket(bindings, for: "fetchOne", logger: logger)
-        return try withBlockingConnection { connection in
-            try decodeOne(packet: packet, in: &connection)
+        if requiresWriteConnection {
+            return try executor.driver.withBlockingTransaction { connection in
+                try decode(executor.fetchOne(packet: packet, in: &connection))
+            }
         }
+        let values = try executor.driver.withBlockingReadConnection { connection in
+            try executor.fetchOne(packet: packet, in: &connection)
+        }
+        return try decode(values)
     }
 
-    func decodeOne(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> Row? {
-        guard let values = try executor.fetchOne(packet: packet, in: &connection) else {
+    /// Decodes the values of one row, or returns `nil` when there is none.
+    func decode(_ values: [XLSQLiteValue]?) throws -> Row? {
+        guard let values else {
             return nil
         }
         return try GRDBRowDecoder(reader: reader).decode(values: values)

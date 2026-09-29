@@ -1815,6 +1815,70 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
         XCTAssertEqual(accepted, [])
     }
 
+    ///
+    /// Every catch-all spelling handles the `do` body's errors: `catch`,
+    /// `catch let error`, `catch _`, and `catch let error as any Error`. A
+    /// clause with a `where` clause or a narrower type does not.
+    ///
+    func test_catchAllSpellings_handleTheDoBody() throws {
+        for clause in ["catch", "catch let error", "catch _", "catch let error as any Error", "catch var error as Error"] {
+            let diagnostics = try builderDiagnostics(for: """
+                func people(name: String) throws -> [Person] {
+                    let threshold: Int
+                    do {
+                        threshold = try loadThreshold()
+                    }
+                    \(clause) {
+                        threshold = 0
+                    }
+                    return sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name && person.age >= threshold)
+                    }
+                }
+                """)
+            XCTAssertEqual(diagnostics, [], clause)
+        }
+        for clause in ["catch let error where error is DecodingError", "catch let error as DecodingError"] {
+            let diagnostics = try builderDiagnostics(for: """
+                func people(name: String) throws -> [Person] {
+                    do {
+                        _ = try loadThreshold()
+                    }
+                    \(clause) {
+                    }
+                    return sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+                """)
+            XCTAssertEqual(diagnostics.count, 1, clause)
+            XCTAssertTrue(diagnostics.first?.hasPrefix("'@SQLQuery' cannot use 'try'") == true, clause)
+        }
+    }
+
+    /// `async let` starts a child task, which a synchronous builder cannot.
+    func test_asyncLetInSpecificationBody_emitsError() throws {
+        let diagnostics = try builderDiagnostics(for: """
+            func people(name: String) async throws -> [Person] {
+                async let threshold = loadThreshold()
+                return sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name)
+                }
+            }
+            """)
+        XCTAssertEqual(diagnostics.count, 1, "\(diagnostics)")
+        XCTAssertTrue(diagnostics.first?.hasPrefix("'@SQLQuery' cannot use 'async' in a specification body.") == true, "\(diagnostics)")
+    }
+
     /// The diagnostics the builder reports for `source`, or none.
     private func builderDiagnostics(for source: String) throws -> [String] {
         let parsed = Parser.parse(source: source)

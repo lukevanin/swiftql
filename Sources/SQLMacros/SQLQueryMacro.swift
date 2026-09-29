@@ -1017,7 +1017,7 @@ internal final class SQLQueryQualifiedEntryPointVisitor: SyntaxVisitor {
 /// reported here instead.
 ///
 /// A `try` or `throw` inside a `do` with a catch-all clause is handled, and so
-/// is `try?` or `try!`. Closures and nested declarations are not searched: the
+/// is `try?` or `try!`. An `async let` is reported like `await`. Closures and nested declarations are not searched: the
 /// statement-builder closures are synchronous and nonthrowing, so the compiler
 /// already reports a `try` or `await` in one at the declaration, and a nested
 /// function, initializer, accessor, subscript, or type brings its own effects.
@@ -1065,11 +1065,19 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
         return .visitChildren
     }
 
+    override func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+        // `async let` starts a child task, which a synchronous builder cannot.
+        if let asyncModifier = node.modifiers.first(where: { $0.name.text == "async" }) {
+            report(asyncModifier.name)
+        }
+        return .visitChildren
+    }
+
     override func visit(_ node: DoStmtSyntax) -> SyntaxVisitorContinueKind {
-        // A catch clause with no pattern catches every error, so the `do`
-        // body's errors never leave the statement. The catch clauses
-        // themselves are outside that handling.
-        guard node.catchClauses.contains(where: { $0.catchItems.isEmpty }) else {
+        // A catch-all clause catches every error, so the `do` body's errors
+        // never leave the statement. The catch clauses themselves are outside
+        // that handling.
+        guard node.catchClauses.contains(where: Self.catchesEverything) else {
             return .visitChildren
         }
         handledDepth += 1
@@ -1079,6 +1087,37 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
             walk(clause)
         }
         return .skipChildren
+    }
+
+    ///
+    /// Whether `clause` catches every error: `catch`, `catch let error`,
+    /// `catch _`, or `catch let error as any Error`, with no `where` clause.
+    /// The pattern is read as text so the check does not depend on how the
+    /// resolved swift-syntax models a cast pattern.
+    ///
+    private static func catchesEverything(_ clause: CatchClauseSyntax) -> Bool {
+        guard let item = clause.catchItems.first else {
+            return true
+        }
+        guard clause.catchItems.count == 1, item.whereClause == nil, let pattern = item.pattern else {
+            return false
+        }
+        let words = pattern.trimmedDescription.split(whereSeparator: \.isWhitespace).map(String.init)
+        var remaining = words[...]
+        if let first = remaining.first, first == "let" || first == "var" {
+            remaining = remaining.dropFirst()
+        }
+        guard let name = remaining.first, name == "_" || name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            return false
+        }
+        remaining = remaining.dropFirst()
+        if remaining.isEmpty {
+            return words.first == "let" || words.first == "var" || name == "_"
+        }
+        return Array(remaining) == ["as", "Error"]
+            || Array(remaining) == ["as", "any", "Error"]
+            || Array(remaining) == ["as", "Swift.Error"]
+            || Array(remaining) == ["as", "any", "Swift.Error"]
     }
 
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {

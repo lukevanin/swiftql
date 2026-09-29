@@ -31,9 +31,12 @@ import Foundation
 /// its task is cancelled; the GRDB adapter does, and a fetch that reads the
 /// rows of a `RETURNING` statement then rolls the statement back.
 ///
-/// A request made from a ``XLTransactionalDatabase/withTransaction(_:)`` scope
-/// has no asynchronous form: its connection belongs to the synchronous body.
-/// Awaiting it throws ``XLTransactionScopeError/scopeEscaped``.
+/// With the GRDB adapter, a request made from a
+/// ``XLTransactionalDatabase/withTransaction(_:)`` scope has no asynchronous
+/// form: its connection belongs to the synchronous body, and awaiting it throws
+/// ``XLTransactionScopeError/scopeEscaped``. Another adapter's view decides for
+/// itself; the ``XLRequest/async`` default calls the synchronous fetch, which
+/// is only as safe outside the scope as the adapter's request is.
 ///
 public protocol XLAsyncRequest<Row>: Sendable {
 
@@ -97,17 +100,16 @@ extension XLRequest {
     ///
     /// Compatibility default for request adapters that predate
     /// ``XLAsyncRequest``: each asynchronous fetch checks for cancellation,
-    /// then calls the synchronous fetch of the same name on the awaiting
-    /// task's thread.
+    /// then calls the synchronous fetch of the same name on a Dispatch global
+    /// queue, and suspends the awaiting task until it returns.
     ///
-    /// It keeps an existing adapter compiling, but the fetch still blocks
-    /// that thread, one of Swift's cooperative pool, while it waits for the
-    /// database. The view is `Sendable`, so code on an actor can await it, and
-    /// the fetch then runs on a thread that is usually not the one that made
-    /// the request.
-    /// The default therefore assumes the adapter's request can be called from
-    /// another thread. An adapter that can suspend instead, or whose request
-    /// cannot be called from another thread, overrides this property.
+    /// It keeps an existing adapter compiling without blocking a thread of
+    /// Swift's cooperative pool. A running fetch cannot be interrupted, and it
+    /// runs on a thread other than the one that made the request. The view is
+    /// `Sendable`, so code on an actor can await it. The default therefore
+    /// assumes the adapter's request can be called from another thread. An
+    /// adapter that can suspend on its own connection, or whose request cannot
+    /// be called from another thread, overrides this property.
     ///
     public var async: any XLAsyncRequest<Row> {
         XLBlockingAsyncRequest(request: self)
@@ -120,8 +122,8 @@ extension XLWriteRequest {
     ///
     /// Compatibility default for request adapters that predate
     /// ``XLAsyncWriteRequest``: asynchronous execution checks for
-    /// cancellation, then calls the synchronous ``execute()`` on the awaiting
-    /// task's thread. It makes the same assumption about the adapter's request
+    /// cancellation, then calls the synchronous ``execute()`` on a Dispatch
+    /// global queue. It makes the same assumption about the adapter's request
     /// as ``XLRequest/async``.
     ///
     public var async: any XLAsyncWriteRequest {
@@ -131,8 +133,8 @@ extension XLWriteRequest {
 
 
 ///
-/// The ``XLRequest/async`` default: the synchronous fetches, called from an
-/// asynchronous context.
+/// The ``XLRequest/async`` default: the synchronous fetches, run on a Dispatch
+/// global queue while the awaiting task suspends.
 ///
 /// `@unchecked Sendable` because the view must be `Sendable`, so code on an
 /// actor can await it, while the wrapped request need not be. That is the
@@ -145,28 +147,23 @@ struct XLBlockingAsyncRequest<Request: XLRequest>: XLAsyncRequest, @unchecked Se
     let request: Request
 
     func fetchAll() async throws -> [Request.Row] {
-        try Task.checkCancellation()
-        return try request.fetchAll()
+        try await xlRunOffCooperativePool { try request.fetchAll() }
     }
 
     func fetchAll(bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
-        try Task.checkCancellation()
-        return try request.fetchAll(bindings: bindings)
+        try await xlRunOffCooperativePool { try request.fetchAll(bindings: bindings) }
     }
 
     func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
-        try Task.checkCancellation()
-        return try request.fetchAtMost(limit, bindings: bindings)
+        try await xlRunOffCooperativePool { try request.fetchAtMost(limit, bindings: bindings) }
     }
 
     func fetchOne() async throws -> Request.Row? {
-        try Task.checkCancellation()
-        return try request.fetchOne()
+        try await xlRunOffCooperativePool { try request.fetchOne() }
     }
 
     func fetchOne(bindings: any XLInvocationBindingPacket) async throws -> Request.Row? {
-        try Task.checkCancellation()
-        return try request.fetchOne(bindings: bindings)
+        try await xlRunOffCooperativePool { try request.fetchOne(bindings: bindings) }
     }
 }
 
@@ -180,12 +177,28 @@ struct XLBlockingAsyncWriteRequest<Request: XLWriteRequest>: XLAsyncWriteRequest
     let request: Request
 
     func execute() async throws {
-        try Task.checkCancellation()
-        try request.execute()
+        try await xlRunOffCooperativePool { try request.execute() }
     }
 
     func execute(bindings: any XLInvocationBindingPacket) async throws {
-        try Task.checkCancellation()
-        try request.execute(bindings: bindings)
+        try await xlRunOffCooperativePool { try request.execute(bindings: bindings) }
+    }
+}
+
+
+///
+/// Runs a blocking synchronous call for an asynchronous caller: checks for
+/// cancellation, then runs `body` on a Dispatch global queue and suspends the
+/// caller until it returns, so the wait holds a Dispatch thread rather than one
+/// of Swift's cooperative pool.
+///
+private func xlRunOffCooperativePool<Value: Sendable>(
+    _ body: @escaping @Sendable () throws -> Value
+) async throws -> Value {
+    try Task.checkCancellation()
+    return try await withCheckedThrowingContinuation { continuation in
+        DispatchQueue.global().async {
+            continuation.resume(with: Result { try body() })
+        }
     }
 }
