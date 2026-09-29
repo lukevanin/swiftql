@@ -112,7 +112,7 @@ extension XLRequest {
     /// be called from another thread, overrides this property.
     ///
     public var async: any XLAsyncRequest<Row> {
-        XLBlockingAsyncRequest(request: self)
+        XLBlockingAsyncRequest<Row>(request: self)
     }
 }
 
@@ -142,27 +142,32 @@ extension XLWriteRequest {
 /// called from a thread other than the one that made it. An adapter for which
 /// that is false overrides `async`.
 ///
-struct XLBlockingAsyncRequest<Request: XLRequest>: XLAsyncRequest, @unchecked Sendable {
+/// The request is held as an existential rather than a generic parameter. A
+/// closure that calls a generic parameter's methods captures its metatype,
+/// which Swift 6.2 and later report as a non-`Sendable` capture; `Row` is
+/// `Sendable`, so its metatype is too.
+///
+struct XLBlockingAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
 
-    let request: Request
+    let request: any XLRequest<Row>
 
-    func fetchAll() async throws -> [Request.Row] {
+    func fetchAll() async throws -> [Row] {
         try await xlRunOffCooperativePool { try request.fetchAll() }
     }
 
-    func fetchAll(bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
+    func fetchAll(bindings: any XLInvocationBindingPacket) async throws -> [Row] {
         try await xlRunOffCooperativePool { try request.fetchAll(bindings: bindings) }
     }
 
-    func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
+    func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) async throws -> [Row] {
         try await xlRunOffCooperativePool { try request.fetchAtMost(limit, bindings: bindings) }
     }
 
-    func fetchOne() async throws -> Request.Row? {
+    func fetchOne() async throws -> Row? {
         try await xlRunOffCooperativePool { try request.fetchOne() }
     }
 
-    func fetchOne(bindings: any XLInvocationBindingPacket) async throws -> Request.Row? {
+    func fetchOne(bindings: any XLInvocationBindingPacket) async throws -> Row? {
         try await xlRunOffCooperativePool { try request.fetchOne(bindings: bindings) }
     }
 }
@@ -170,11 +175,12 @@ struct XLBlockingAsyncRequest<Request: XLRequest>: XLAsyncRequest, @unchecked Se
 
 ///
 /// The ``XLWriteRequest/async`` default. `@unchecked Sendable` for the reason
-/// given on ``XLBlockingAsyncRequest``.
+/// given on ``XLBlockingAsyncRequest``, and holds the request as an
+/// existential for the same reason.
 ///
-struct XLBlockingAsyncWriteRequest<Request: XLWriteRequest>: XLAsyncWriteRequest, @unchecked Sendable {
+struct XLBlockingAsyncWriteRequest: XLAsyncWriteRequest, @unchecked Sendable {
 
-    let request: Request
+    let request: any XLWriteRequest
 
     func execute() async throws {
         try await xlRunOffCooperativePool { try request.execute() }
