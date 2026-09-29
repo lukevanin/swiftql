@@ -46,12 +46,14 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     let request: GRDBRequest<Row>
 
     func fetchAll() async throws -> [Row] {
-        try await fetchAll(bindings: request.legacyBindings.packet())
+        try Task.checkCancellation()
+        return try await fetchAll(bindings: request.legacyBindings.packet())
     }
 
     func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
+        try Task.checkCancellation()
         let packet = try request.executor.validatedPacket(bindings, for: "fetchAll", logger: request.logger)
         return try await request.withConnection { connection in
             try request.decodeRows(packet: packet, in: &connection)
@@ -62,6 +64,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
+        try Task.checkCancellation()
         let packet = try request.executor.validatedPacket(bindings, for: "fetchAtMost(\(limit))", logger: request.logger)
         return try await request.withConnection { connection in
             try request.decodeRows(packet: packet, limit: limit, in: &connection)
@@ -69,25 +72,16 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     }
 
     func fetchOne() async throws -> Row? {
-        try await fetchOne(bindings: request.legacyBindings.packet())
+        try Task.checkCancellation()
+        return try await fetchOne(bindings: request.legacyBindings.packet())
     }
 
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) async throws -> Row? {
+        try Task.checkCancellation()
         let packet = try request.executor.validatedPacket(bindings, for: "fetchOne", logger: request.logger)
-        let executor = request.executor
-        // As the synchronous `fetchOne`: a `RETURNING` row is decoded inside
-        // its transaction, and a query's row after the reader is released.
-        if request.requiresWriteConnection {
-            return try await executor.driver.withTransaction { connection in
-                try request.decode(executor.fetchOne(packet: packet, in: &connection))
-            }
-        }
-        let values = try await executor.driver.withReadConnection { connection in
-            try executor.fetchOne(packet: packet, in: &connection)
-        }
-        return try request.decode(values)
+        return try await request.fetchOne(packet: packet)
     }
 }
 
@@ -101,6 +95,7 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
     let request: GRDBWriteRequest
 
     func execute() async throws {
+        try Task.checkCancellation()
         try await execute(bindings: request.legacyBindings.packet())
     }
 
@@ -108,6 +103,7 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
         bindings: any XLInvocationBindingPacket
     ) async throws {
         let executor = request.executor
+        try Task.checkCancellation()
         let packet = try executor.validatedPacket(bindings, for: "execute", logger: request.logger)
         try await executor.driver.withTransaction { connection in
             try executor.execute(packet: packet, in: &connection)

@@ -1764,19 +1764,17 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
 
     ///
     /// A `throw` whose error leaves the body is reported like a `try`. A `try`
-    /// or `throw` inside a `do` with a catch-all clause is handled there, and a
-    /// local type's throwing initializer brings its own effects, so neither is
-    /// reported. A `do` whose catch clauses match only some errors can still
-    /// throw, so a `try` in it is reported.
+    /// or `throw` inside a `do` with catch clauses is left to the compiler,
+    /// whatever the clauses match, so no body that compiled in a nonthrowing
+    /// function is rejected. A local type's throwing initializer brings its
+    /// own effects and is not reported either.
     ///
-    func test_throwInSpecificationBody_emitsError_unlessHandled() throws {
+    func test_throwInSpecificationBody_emitsError_unlessInsideADoWithCatches() throws {
         let rejected = try builderDiagnostics(for: """
             func people(name: String) throws -> [Person] {
                 guard isEnabled() else { throw Disabled() }
                 do {
                     _ = try loadThreshold()
-                }
-                catch is DecodingError {
                 }
                 return sqlResult { schema in
                     let person = schema.table(Person.self)
@@ -1790,46 +1788,24 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
         XCTAssertTrue(rejected[0].hasPrefix("'@SQLQuery' cannot use 'throw' in a specification body."), rejected[0])
         XCTAssertTrue(rejected[1].hasPrefix("'@SQLQuery' cannot use 'try' in a specification body."), rejected[1])
 
-        let accepted = try builderDiagnostics(for: """
-            func people(name: String) throws -> [Person] {
-                let threshold: Int
-                do {
-                    threshold = try loadThreshold()
-                    if threshold < 0 { throw NegativeThreshold() }
-                }
-                catch {
-                    threshold = 0
-                }
-                struct Limits {
-                    let value: Int
-                    init() throws { value = try loadThreshold() }
-                }
-                return sqlResult { schema in
-                    let person = schema.table(Person.self)
-                    Select(person)
-                    From(person)
-                    Where(person.name == name && person.age >= threshold)
-                }
-            }
-            """)
-        XCTAssertEqual(accepted, [])
-    }
-
-    ///
-    /// Every catch-all spelling handles the `do` body's errors: `catch`,
-    /// `catch let error`, `catch _`, and `catch let error as any Error`. A
-    /// clause with a `where` clause or a narrower type does not.
-    ///
-    func test_catchAllSpellings_handleTheDoBody() throws {
-        for clause in ["catch", "catch let error", "catch _", "catch let error as any Error", "catch var error as Error"] {
-            let diagnostics = try builderDiagnostics(for: """
+        for clause in [
+            "catch", "catch let error", "catch _", "catch is Error",
+            "catch let error as any Error", "catch let error as DecodingError",
+            "catch let error where error is DecodingError",
+        ] {
+            let accepted = try builderDiagnostics(for: """
                 func people(name: String) throws -> [Person] {
                     let threshold: Int
                     do {
                         threshold = try loadThreshold()
+                        if threshold < 0 { throw NegativeThreshold() }
                     }
                     \(clause) {
                         threshold = 0
+                    }
+                    struct Limits {
+                        let value: Int
+                        init() throws { value = try loadThreshold() }
                     }
                     return sqlResult { schema in
                         let person = schema.table(Person.self)
@@ -1839,26 +1815,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                     }
                 }
                 """)
-            XCTAssertEqual(diagnostics, [], clause)
-        }
-        for clause in ["catch let error where error is DecodingError", "catch let error as DecodingError"] {
-            let diagnostics = try builderDiagnostics(for: """
-                func people(name: String) throws -> [Person] {
-                    do {
-                        _ = try loadThreshold()
-                    }
-                    \(clause) {
-                    }
-                    return sqlResult { schema in
-                        let person = schema.table(Person.self)
-                        Select(person)
-                        From(person)
-                        Where(person.name == name)
-                    }
-                }
-                """)
-            XCTAssertEqual(diagnostics.count, 1, clause)
-            XCTAssertTrue(diagnostics.first?.hasPrefix("'@SQLQuery' cannot use 'try'") == true, clause)
+            XCTAssertEqual(accepted, [], clause)
         }
     }
 

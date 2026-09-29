@@ -640,11 +640,12 @@ internal struct SQLQueryBuilder {
             .nextToken(viewMode: .sourceAccurate)
         guard tokens.allSatisfy({ $0 == "async" || $0 == "throws" }),
               nextToken?.tokenKind != .leftParen else {
+            let accepted = supportsAsync ? "plain 'async' and 'throws' effects" : "a plain 'throws' effect"
             diagnostics.append(
                 Diagnostic(
                     node: effectSpecifiers,
                     id: "sqlquery-effect-specifiers",
-                    message: "'\(macroName)' accepts only plain 'async' and 'throws' effects. The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have."
+                    message: "'\(macroName)' accepts only \(accepted). The generated executor always throws 'any Error', so a typed 'throws(...)' cannot be kept, and 'rethrows' or 'reasync' need a closure parameter a specification does not have."
                 )
             )
             return false
@@ -1016,8 +1017,9 @@ internal final class SQLQueryQualifiedEntryPointVisitor: SyntaxVisitor {
 /// error is not handled, would fail to compile there, in generated code. It is
 /// reported here instead.
 ///
-/// A `try` or `throw` inside a `do` with a catch-all clause is handled, and so
-/// is `try?` or `try!`. An `async let` is reported like `await`. Closures and nested declarations are not searched: the
+/// A `try` or `throw` inside a `do` with catch clauses is left to the
+/// compiler, and so is `try?` or `try!`. An `async let` is reported like
+/// `await`. Closures and nested declarations are not searched: the
 /// statement-builder closures are synchronous and nonthrowing, so the compiler
 /// already reports a `try` or `await` in one at the declaration, and a nested
 /// function, initializer, accessor, subscript, or type brings its own effects.
@@ -1028,7 +1030,7 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
 
     private(set) var diagnostics: [Diagnostic] = []
 
-    /// How many enclosing `do` statements have a catch-all clause.
+    /// How many enclosing `do` statements have catch clauses.
     private var handledDepth = 0
 
     init(macroName: String) {
@@ -1074,10 +1076,13 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
     }
 
     override func visit(_ node: DoStmtSyntax) -> SyntaxVisitorContinueKind {
-        // A catch-all clause catches every error, so the `do` body's errors
-        // never leave the statement. The catch clauses themselves are outside
-        // that handling.
-        guard node.catchClauses.contains(where: Self.catchesEverything) else {
+        // A `do` with catch clauses is treated as handling its body's errors,
+        // without checking that the clauses are exhaustive: that analysis is
+        // the compiler's. A `throws` specification whose clauses miss an
+        // error still fails, in the generated builder, but no body that
+        // compiled in a nonthrowing function is rejected here. The catch
+        // clauses themselves are outside that handling.
+        guard !node.catchClauses.isEmpty else {
             return .visitChildren
         }
         handledDepth += 1
@@ -1087,37 +1092,6 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
             walk(clause)
         }
         return .skipChildren
-    }
-
-    ///
-    /// Whether `clause` catches every error: `catch`, `catch let error`,
-    /// `catch _`, or `catch let error as any Error`, with no `where` clause.
-    /// The pattern is read as text so the check does not depend on how the
-    /// resolved swift-syntax models a cast pattern.
-    ///
-    private static func catchesEverything(_ clause: CatchClauseSyntax) -> Bool {
-        guard let item = clause.catchItems.first else {
-            return true
-        }
-        guard clause.catchItems.count == 1, item.whereClause == nil, let pattern = item.pattern else {
-            return false
-        }
-        let words = pattern.trimmedDescription.split(whereSeparator: \.isWhitespace).map(String.init)
-        var remaining = words[...]
-        if let first = remaining.first, first == "let" || first == "var" {
-            remaining = remaining.dropFirst()
-        }
-        guard let name = remaining.first, name == "_" || name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
-            return false
-        }
-        remaining = remaining.dropFirst()
-        if remaining.isEmpty {
-            return words.first == "let" || words.first == "var" || name == "_"
-        }
-        return Array(remaining) == ["as", "Error"]
-            || Array(remaining) == ["as", "any", "Error"]
-            || Array(remaining) == ["as", "Swift.Error"]
-            || Array(remaining) == ["as", "any", "Swift.Error"]
     }
 
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {

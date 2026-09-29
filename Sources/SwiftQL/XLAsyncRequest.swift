@@ -188,17 +188,35 @@ struct XLBlockingAsyncWriteRequest<Request: XLWriteRequest>: XLAsyncWriteRequest
 
 ///
 /// Runs a blocking synchronous call for an asynchronous caller: checks for
-/// cancellation, then runs `body` on a Dispatch global queue and suspends the
-/// caller until it returns, so the wait holds a Dispatch thread rather than one
-/// of Swift's cooperative pool.
+/// cancellation, then runs `body` on the Dispatch global queue that matches
+/// the task's priority and suspends the caller until it returns, so the wait
+/// holds a Dispatch thread rather than one of Swift's cooperative pool.
+///
+/// Dispatch bounds how many threads its global queues start, so many
+/// concurrent calls wait for a thread there rather than growing without limit.
 ///
 private func xlRunOffCooperativePool<Value: Sendable>(
     _ body: @escaping @Sendable () throws -> Value
 ) async throws -> Value {
     try Task.checkCancellation()
+    let queue = DispatchQueue.global(qos: xlDispatchQoS(for: Task.currentPriority))
     return try await withCheckedThrowingContinuation { continuation in
-        DispatchQueue.global().async {
+        queue.async {
             continuation.resume(with: Result { try body() })
         }
     }
+}
+
+/// The Dispatch quality of service that matches a task priority.
+private func xlDispatchQoS(for priority: TaskPriority) -> DispatchQoS.QoSClass {
+    if priority >= .high {
+        return .userInitiated
+    }
+    if priority >= .medium {
+        return .default
+    }
+    if priority >= .low {
+        return .utility
+    }
+    return .background
 }

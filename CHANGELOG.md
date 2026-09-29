@@ -93,6 +93,11 @@
     inside the batch's transaction, and a fetch through the root database
     from that sequence throws. On 1.9 it ran on another connection and
     silently missed the rows the batch had already inserted.
+- **`fetchOne()` on a `RETURNING` statement rolls back when its row fails to
+  decode** (issue #681). It decoded after the transaction committed, so it
+  threw for a change that stayed, while `fetchAll()` rolled the same
+  statement back. Now both roll back, synchronous and asynchronous alike. Code
+  that caught the decode error and treated the change as made must retry it.
 - **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
   #681), with a default. A conformer outside SwiftQL keeps compiling: the
   default runs its synchronous methods on a Dispatch global queue while the

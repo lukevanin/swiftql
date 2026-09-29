@@ -281,6 +281,28 @@ final class XLAsyncRequestTests: XCTestCase {
         XCTAssertFalse(try allRows().contains(TestTable(id: "delta", value: 4)))
     }
 
+    /// A cancelled task gets `CancellationError` before anything else, even
+    /// when its bindings are incomplete and would otherwise fail validation.
+    func testCancelledTaskIsReportedBeforeItsBindingsAreValidated() async throws {
+        try seed()
+        let view = database.makeRequest(with: rowsMatchingIDStatement()).async
+
+        let fetch = Task {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            return try await view.fetchAll()
+        }
+        fetch.cancel()
+
+        switch await fetch.result {
+        case .success(let rows):
+            XCTFail("A cancelled task fetched \(rows).")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+    }
+
     /// GRDB's view suspends in the driver's asynchronous scope, which
     /// interrupts a running statement when its task is cancelled. The
     /// blocking default could only check for cancellation before it starts,
