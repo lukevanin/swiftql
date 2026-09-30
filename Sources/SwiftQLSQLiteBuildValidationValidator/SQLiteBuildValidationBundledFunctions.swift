@@ -55,10 +55,8 @@ enum SQLiteBuildValidationBundledFunctions {
 
     /// The functions SwiftQL supplies at runtime: SwiftQLCore's own table,
     /// so the validator and the runtime cannot disagree (issue #683).
-    static var all: [XLCustomFunctionRegistration] {
-        XLCustomFunctionRegistration.bundled.values.sorted {
-            $0.definition < $1.definition
-        }
+    static let all: [XLCustomFunctionRegistration] = XLCustomFunctionRegistration.bundled.values.sorted {
+        $0.definition < $1.definition
     }
 
     /// A GRDB function that evaluates `registration`, as the runtime's does.

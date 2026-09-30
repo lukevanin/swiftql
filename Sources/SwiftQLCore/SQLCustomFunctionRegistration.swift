@@ -37,7 +37,12 @@ public typealias XLCustomFunctionEvaluator = @Sendable ([XLSQLiteValue]) throws 
 /// A registration holds no database library's types, so any adapter can build
 /// its own function object from it.
 ///
-public struct XLCustomFunctionRegistration: Sendable {
+/// Two registrations are equal when they install the same way: the same
+/// ``definition``, ``defersToExistingRegistration``, and ``isPure``. The
+/// evaluator is a closure, which cannot be compared, and registrations that
+/// share a definition are interchangeable anyway.
+///
+public struct XLCustomFunctionRegistration: Hashable, Sendable {
 
     /// The SQLite registration signature. Two registrations sharing a
     /// definition register the same SQLite function and are interchangeable.
@@ -126,6 +131,18 @@ public struct XLCustomFunctionRegistration: Sendable {
         self.isPure = isPure
         self.retainedValues = retainedValues
         self.makeEvaluator = makeEvaluator
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.definition == rhs.definition
+            && lhs.defersToExistingRegistration == rhs.defersToExistingRegistration
+            && lhs.isPure == rhs.isPure
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(definition)
+        hasher.combine(defersToExistingRegistration)
+        hasher.combine(isPure)
     }
 
     /// This registration, additionally holding `values`.

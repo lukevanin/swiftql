@@ -267,6 +267,10 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
     ///
     /// The connection makes each one available before it prepares the
     /// statement; see ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``.
+    /// Each is keyed by its own ``XLCustomFunctionRegistration/definition``,
+    /// whatever key it was passed under, so every adapter installs the same
+    /// signature. Statements compare their functions as
+    /// ``XLCustomFunctionRegistration`` compares, without the evaluators.
     public let requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
 
     public init(
@@ -282,7 +286,10 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
         self.sql = sql
         self.entities = entities
         self.parameterLayout = parameterLayout
-        self.requiredFunctions = requiredFunctions
+        self.requiredFunctions = Dictionary(
+            requiredFunctions.values.map { ($0.definition, $0) },
+            uniquingKeysWith: { _, last in last }
+        )
     }
 
     /// This statement for another database, keeping everything rendering
@@ -296,40 +303,6 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
             parameterLayout: parameterLayout,
             requiredFunctions: requiredFunctions
         )
-    }
-
-    /// Two statements are equal when they would execute the same way: the
-    /// same database, requirement, SQL, entities, and layout, and the same
-    /// required functions installed the same way. A registration's evaluator
-    /// is a closure, which cannot be compared, so a function compares by its
-    /// signature, whether it defers to an existing function, and whether it
-    /// is pure.
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.databaseIdentifier == rhs.databaseIdentifier
-            && lhs.dialectRequirement == rhs.dialectRequirement
-            && lhs.sql == rhs.sql
-            && lhs.entities == rhs.entities
-            && lhs.parameterLayout == rhs.parameterLayout
-            && lhs.requiredFunctions.count == rhs.requiredFunctions.count
-            && lhs.requiredFunctions.allSatisfy { definition, registration in
-                guard let other = rhs.requiredFunctions[definition] else {
-                    return false
-                }
-                return registration.defersToExistingRegistration == other.defersToExistingRegistration
-                    && registration.isPure == other.isPure
-            }
-    }
-
-    /// Hashes everything `==` compares except the functions themselves,
-    /// whose count stands in for them: a dictionary has no stable order to
-    /// hash its entries in, and equal statements have equal counts.
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(databaseIdentifier)
-        hasher.combine(dialectRequirement)
-        hasher.combine(sql)
-        hasher.combine(entities)
-        hasher.combine(parameterLayout)
-        hasher.combine(requiredFunctions.count)
     }
 }
 

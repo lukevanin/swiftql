@@ -91,6 +91,15 @@ final class RequiredFunctionTests: XCTestCase {
             statement([definition: XLCustomFunctionRegistration(definition: definition, isPure: true) { { _ in .integer(2) } }])
         )
 
+        // A registration passed under another key is stored under its own
+        // signature, so every adapter installs the same function.
+        let misfiled = statement([
+            XLCustomFunctionDefinition(name: "other", numberOfArguments: 1):
+                XLCustomFunctionRegistration(definition: definition) { { _ in .integer(2) } },
+        ])
+        XCTAssertEqual(misfiled.requiredFunctions.keys.sorted(), [definition])
+        XCTAssertEqual(misfiled, first)
+
         let other = XLDatabaseIdentifier(rawValue: UUID())
         let rebound = first.rebound(to: other)
         XCTAssertEqual(rebound.databaseIdentifier, other)
@@ -161,7 +170,7 @@ private struct FunctionConnection: XLDatabaseDriverConnection {
 
 
 /// A connection written before required functions: it implements no
-/// installation, so it gets the refusing default.
+/// installation, so it gets the default, which installs nothing.
 private struct PlainConnection: XLDatabaseDriverConnection {
 
     let driverIdentifier = XLDriverIdentifier(rawValue: "plain-test")
