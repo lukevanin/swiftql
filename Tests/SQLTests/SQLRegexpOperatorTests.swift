@@ -719,6 +719,38 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
     }
 
+    /// Issue #683: a statement that calls the application's own `regexp/2`
+    /// and also uses the `REGEXP` operator carries the application's
+    /// registration, whichever the renderer met first. Before, the latest one
+    /// rendered won, so the operator could replace the application's function.
+    func testStatementCallingBothRegexpsCarriesTheApplicationsInEitherOrder() throws {
+        database = try makeDatabase()
+        let applicationFirst: any XLQueryStatement<String> = sql { schema in
+            let phrase = schema.table(RegexpPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(ApplicationRegexpCall(pattern: "[0-9]+$", subject: phrase.text) && phrase.text.regexp("a"))
+        }
+        let operatorFirst: any XLQueryStatement<String> = sql { schema in
+            let phrase = schema.table(RegexpPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp("a") && ApplicationRegexpCall(pattern: "[0-9]+$", subject: phrase.text))
+        }
+        for statement in [applicationFirst, operatorFirst] {
+            let request = try XCTUnwrap(database.makeRequest(with: statement) as? GRDBRequest<String>)
+            let registration = try XCTUnwrap(
+                request.executor.logicalStatement.requiredFunctions[XLRegexpFunction.definition]
+            )
+            XCTAssertFalse(registration.defersToExistingRegistration)
+            XCTAssertTrue(
+                try XLStaticStatementDefinition(validating: database.encoder.makeSQL(statement))
+                    .bundledFunctions.isEmpty,
+                "The static path must not record SwiftQL's regexp in place of the application's."
+            )
+        }
+    }
+
     /// The application-wins rule still holds for an installed bundled function:
     /// the first statement on the connection that calls the application's own
     /// `XLCustomFunction` of the same signature replaces the bundled one.

@@ -297,7 +297,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
             database.add(function: registration.makeGRDBFunction())
             XCTAssertThrowsError(try Double.fetchOne(database, sql: "SELECT directNotANumber()")) { error in
                 XCTAssertTrue(
-                    ((error as? DatabaseError)?.message ?? "").contains("realBindingWouldBecomeNull"),
+                    ((error as? DatabaseError)?.message ?? "").contains("directNotANumber/0 returned NaN"),
                     "\(error)"
                 )
             }

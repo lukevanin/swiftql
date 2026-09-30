@@ -17,7 +17,8 @@ import Foundation
 /// It receives the call's arguments as SQLite values, in order, and returns
 /// the result as one. An error it throws fails the statement that made the
 /// call. A NaN `REAL` result is an error too: SQLite would store it as
-/// `NULL`, so an adapter refuses it rather than change what the function
+/// `NULL`, so a registration's evaluator refuses it with
+/// ``XLCustomFunctionResultError`` rather than change what the function
 /// returned.
 ///
 public typealias XLCustomFunctionEvaluator = @Sendable ([XLSQLiteValue]) throws -> XLSQLiteValue
@@ -86,7 +87,9 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
     /// An adapter calls it once each time it installs the function on a
     /// physical connection, so an evaluator can keep state that belongs to
     /// that connection, such as the compiled-pattern cache the bundled
-    /// `regexp` keeps.
+    /// `regexp` keeps. The evaluator it makes already refuses a NaN result
+    /// with ``XLCustomFunctionResultError``, so an adapter passes the result
+    /// to its database unchanged.
     public let makeEvaluator: @Sendable () -> XLCustomFunctionEvaluator
 
     /// Values the rendered statement depends on for as long as it can execute.
@@ -117,7 +120,18 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
             defersToExistingRegistration: defersToExistingRegistration,
             isPure: isPure,
             retainedValues: [],
-            makeEvaluator: makeEvaluator
+            makeEvaluator: {
+                // Checked here, once, so every adapter refuses a NaN result
+                // without having to remember to.
+                let evaluate = makeEvaluator()
+                return { arguments in
+                    let result = try evaluate(arguments)
+                    if case .real(let real) = result, real.isNaN {
+                        throw XLCustomFunctionResultError(definition: definition)
+                    }
+                    return result
+                }
+            }
         )
     }
 
@@ -147,35 +161,52 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
         hasher.combine(isPure)
     }
 
+    /// The registration a statement keeps when it calls two for one
+    /// signature, holding the retained values of both.
+    ///
+    /// One that does not defer wins over one that does, as the application's
+    /// own function wins over a bundled one wherever both are installed. When
+    /// both defer or neither does, `incoming` wins, so the latest one
+    /// rendered is kept, as it always was.
+    package static func preferring(
+        _ existing: XLCustomFunctionRegistration?,
+        _ incoming: XLCustomFunctionRegistration
+    ) -> XLCustomFunctionRegistration {
+        guard let existing else {
+            return incoming
+        }
+        let incomingWins = existing.defersToExistingRegistration
+            || !incoming.defersToExistingRegistration
+        let winner = incomingWins ? incoming : existing
+        let loser = incomingWins ? existing : incoming
+        return winner.retaining(loser.retainedValues)
+    }
+
     /// `registrations` keyed by each registration's own ``definition``.
     ///
-    /// Two entries for one signature collapse to one, the same way every
-    /// time: a registration that does not defer wins, as the application's
-    /// own function wins over a bundled one when both are installed; then one
-    /// already filed under its own signature. Their retained values are
-    /// merged, so neither entry's retained values are released early.
+    /// Two entries for one signature collapse as ``preferring(_:_:)`` does,
+    /// and the same way every time: entries are taken in key order, with one
+    /// filed under its own signature last, so it wins a tie.
     package static func keyedByDefinition(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) -> [XLCustomFunctionDefinition: XLCustomFunctionRegistration] {
-        var keyed: [XLCustomFunctionDefinition: (registration: XLCustomFunctionRegistration, filed: Bool)] = [:]
-        for (key, registration) in registrations.sorted(by: { $0.key < $1.key }) {
-            let filed = key == registration.definition
-            guard let existing = keyed[registration.definition] else {
-                keyed[registration.definition] = (registration, filed)
-                continue
-            }
-            let incomingWins: Bool
-            if existing.registration.defersToExistingRegistration != registration.defersToExistingRegistration {
-                incomingWins = existing.registration.defersToExistingRegistration
-            }
-            else {
-                incomingWins = filed && !existing.filed
-            }
-            let winner = incomingWins ? registration : existing.registration
-            let loser = incomingWins ? existing.registration : registration
-            keyed[registration.definition] = (winner.retaining(loser.retainedValues), incomingWins ? filed : existing.filed)
+        // The renderer already keys by definition, so this is the usual case.
+        if registrations.allSatisfy({ $0.key == $0.value.definition }) {
+            return registrations
         }
-        return keyed.mapValues(\.registration)
+        let ordered = registrations.sorted { lhs, rhs in
+            let lhsFiled = lhs.key == lhs.value.definition
+            let rhsFiled = rhs.key == rhs.value.definition
+            if lhsFiled != rhsFiled {
+                return !lhsFiled
+            }
+            return lhs.key < rhs.key
+        }
+        var keyed: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        for (_, registration) in ordered {
+            keyed[registration.definition] = preferring(keyed[registration.definition], registration)
+        }
+        return keyed
     }
 
     /// This registration, additionally holding `values`.
@@ -248,4 +279,29 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
             }
         }
     )
+}
+
+
+///
+/// A custom function returned NaN, which SQLite would store as `NULL`.
+///
+/// SwiftQL refuses the result rather than change what the function returned,
+/// as it refuses a NaN parameter.
+///
+public struct XLCustomFunctionResultError: Error, Equatable, Sendable, LocalizedError, CustomStringConvertible {
+
+    /// The function that returned NaN.
+    public let definition: XLCustomFunctionDefinition
+
+    public init(definition: XLCustomFunctionDefinition) {
+        self.definition = definition
+    }
+
+    public var description: String {
+        "Function \(definition.name)/\(definition.numberOfArguments) returned NaN, which SQLite would store as NULL."
+    }
+
+    public var errorDescription: String? {
+        description
+    }
 }
