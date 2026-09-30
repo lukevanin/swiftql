@@ -45,7 +45,10 @@ index, binding key, value type, nullability, coding context, and selected codec
 identity. Runtime values are separate. Put them in a fresh
 `XLInvocationBindings` packet for each call, then pass that packet to
 `fetchAll(bindings:)`, `fetchOne(bindings:)`, `execute(bindings:)`, or a
-packet-backed publisher. Creating a request translates the SwiftQL statement
+packet-backed publisher. `execute()` and `execute(bindings:)` return an
+`XLExecutionResult`: the rows the statement changed, and whether it could
+write. To learn an inserted row's id, add a `RETURNING` clause and fetch it.
+Creating a request translates the SwiftQL statement
 into SQL but does not prepare it immediately. On execution, GRDB obtains a
 cached SQLite statement for that SQL on the connection performing the work.
 
@@ -143,10 +146,15 @@ values across repeated calls in the request's supported isolation context.
 Driver integrations can use the `prepareValidated`, `bindValidated`,
 `fetchAllValidated`, `fetchOneValidated`, `executeValidated`, and
 `withValidatedTransaction` helpers to normalize transport failures into
-`XLDatabaseContractError` categories. The existing GRDB compatibility facade
-keeps raw `DatabaseError` and `XLColumnReadError` values where its retry policy
-and established decoding API need to inspect them; database and dialect
-mismatches are still rejected before physical preparation in both paths.
+`XLDatabaseContractError` categories. A failure the database itself reports
+reaches the caller as an `XLDatabaseError`, whose portable `code`, such as
+`.busy` or `.constraint`, does not depend on the driver, and the helpers pass
+it through unchanged. The GRDB driver reports every GRDB `DatabaseError` this
+way, including a `BEGIN` or `COMMIT` that fails, and keeps GRDB's error as the
+`underlying` value; `nativeCode` is SQLite's extended result code. An
+`XLColumnReadError` still reaches the caller unchanged for the established
+decoding API. Database and dialect mismatches are still rejected before
+physical preparation in both paths.
 
 ## Cross-task raw-value execution
 

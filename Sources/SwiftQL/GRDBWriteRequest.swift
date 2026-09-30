@@ -65,13 +65,15 @@ struct GRDBWriteRequest: XLWriteRequest {
         legacyBindings.set(value, named: reference.name)
     }
     
-    func execute() throws {
+    @discardableResult
+    func execute() throws -> XLExecutionResult {
         try execute(bindings: try legacyBindings.packet())
     }
 
+    @discardableResult
     func execute(
         bindings: any XLInvocationBindingPacket
-    ) throws {
+    ) throws -> XLExecutionResult {
         try executor.execute(
             packet: executor.validatedPacket(bindings, for: "execute", logger: logger)
         )

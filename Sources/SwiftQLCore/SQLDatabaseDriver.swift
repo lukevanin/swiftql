@@ -94,7 +94,10 @@ public protocol XLDatabaseDriverConnection {
 
     mutating func fetchOne(_ statement: PhysicalStatement) throws -> [Dialect.Value]?
 
-    mutating func execute(_ statement: PhysicalStatement) throws
+    /// Runs a statement that returns no rows, and reports what it did
+    /// (issue #679).
+    @discardableResult
+    mutating func execute(_ statement: PhysicalStatement) throws -> XLExecutionResult
 }
 
 
@@ -178,9 +181,10 @@ extension XLStreamingDatabaseDriverConnection {
 
 
 /// The `*Validated` helpers report a transport failure as a structured
-/// ``XLDatabaseContractError``. A `CancellationError` passes through
-/// unchanged: a driver may interrupt a statement because its task was
-/// cancelled, and that is not a failure of the statement.
+/// ``XLDatabaseContractError``. An ``XLDatabaseError`` is already structured,
+/// so it passes through unchanged, and so does a `CancellationError`: a
+/// driver may interrupt a statement because its task was cancelled, and that
+/// is not a failure of the statement.
 extension XLDatabaseDriverConnection {
 
     /// Rejects database and dialect requirement mismatches before preparation.
@@ -213,13 +217,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try prepare(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.prepareFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -236,13 +237,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try bind(value, to: key, in: statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.bindFailure(
                 driver: driverIdentifier,
                 key: key,
@@ -257,13 +255,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try fetchAll(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -277,13 +272,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try fetchOne(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -291,23 +283,34 @@ extension XLDatabaseDriverConnection {
         }
     }
 
-    public mutating func executeValidated(_ statement: PhysicalStatement) throws {
+    @discardableResult
+    public mutating func executeValidated(
+        _ statement: PhysicalStatement
+    ) throws -> XLExecutionResult {
         do {
-            try execute(statement)
-        }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
+            return try execute(statement)
         }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
             )
         }
     }
+}
+
+
+/// Whether `error` is already structured, so a validated helper rethrows it
+/// unchanged rather than flattening it into a contract error's text: an
+/// ``XLDatabaseContractError``, an ``XLDatabaseError``, or a
+/// `CancellationError`.
+func xlIsStructuredDriverError(_ error: any Error) -> Bool {
+    error is XLDatabaseContractError
+        || error is XLDatabaseError
+        || error is CancellationError
 }
 
 
@@ -425,9 +428,9 @@ extension XLDatabaseDriver {
 
     /// Wraps transport transaction failures while preserving structured errors.
     ///
-    /// An error thrown by `operation`, a ``XLDatabaseContractError``, a
-    /// `CancellationError`, and a driver's own typed refusal to lend a
-    /// connection are rethrown unchanged. Any other failure is reported as
+    /// An error thrown by `operation`, a ``XLDatabaseContractError``, an
+    /// ``XLDatabaseError``, a `CancellationError`, and a driver's own typed
+    /// refusal to lend a connection are rethrown unchanged. Any other failure is reported as
     /// ``XLDatabaseContractError/transactionFailure(driver:message:)``.
     ///
     /// A `nil` kind uses the driver's ``defaultTransactionKind``.
@@ -462,7 +465,9 @@ public protocol XLDriverScopeRefusal: Error {}
 
 /// Records the error a validated transaction's own operation threw, so
 /// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` can tell it apart from
-/// a failure of the transaction itself.
+/// a failure of the transaction itself. A driver's scopes can use it the same
+/// way, to report their own failures in a portable form while rethrowing the
+/// operation's error unchanged (issue #679).
 ///
 /// The error is recorded beside the transaction rather than wrapped, so the
 /// driver's `withTransaction(_:_:)` sees exactly the error the operation
@@ -496,6 +501,13 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         }
     }
 
+    /// The error the operation's last run threw, or `nil` when it returned.
+    package var recordedError: (any Error)? {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded
+    }
+
     /// The error a validated transaction reports when its transaction threw
     /// `error`: the operation's own error when its last run threw one,
     /// otherwise `error` itself when it is structured, otherwise a
@@ -511,16 +523,10 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         for error: any Error,
         driver: XLDriverIdentifier
     ) -> any Error {
-        lock.lock()
-        let operationError = recorded
-        lock.unlock()
-        if let operationError {
+        if let operationError = recordedError {
             return operationError
         }
-        if error is XLDatabaseContractError
-            || error is CancellationError
-            || error is any XLDriverScopeRefusal
-        {
+        if xlIsStructuredDriverError(error) || error is any XLDriverScopeRefusal {
             return error
         }
         return XLDatabaseContractError.transactionFailure(

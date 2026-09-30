@@ -899,7 +899,7 @@ private struct FakeConnection:
         }
     }
 
-    mutating func execute(_ statement: FakePhysicalStatement) throws {
+    mutating func execute(_ statement: FakePhysicalStatement) throws -> XLExecutionResult {
         guard statement.connectionID == connectionID else {
             throw FakeFailure.execute
         }
@@ -907,6 +907,7 @@ private struct FakeConnection:
             throw FakeFailure.execute
         }
         recorder.executedConnectionIDs.append(connectionID)
+        return XLExecutionResult(rowsAffected: 1, access: .write)
     }
 
     private func orderedValues(in statement: FakePhysicalStatement) -> [XLSQLiteValue] {

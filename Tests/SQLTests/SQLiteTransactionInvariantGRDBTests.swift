@@ -160,10 +160,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 )
             },
             errorAssertion: { error in
-                XCTAssertEqual(
-                    (error as? DatabaseError)?.resultCode,
-                    .SQLITE_CONSTRAINT
-                )
+                XCTAssertEqual((error as? XLDatabaseError)?.code, .constraint)
             }
         )
 
@@ -230,10 +227,8 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 _ = try connection.prepare(invalidSQL)
             },
             errorAssertion: { error in
-                XCTAssertEqual(
-                    (error as? DatabaseError)?.resultCode,
-                    .SQLITE_ERROR
-                )
+                XCTAssertEqual((error as? XLDatabaseError)?.code, .other)
+                XCTAssertEqual((error as? XLDatabaseError)?.nativeCode, 1)
             }
         )
 
@@ -434,7 +429,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 )
                 """
         )
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
         }
     }
@@ -579,7 +574,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             sql: "SELECT id, value FROM transaction_contract ORDER BY id"
         )
 
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
         }
         try await driver.withValidatedTransaction { connection in

@@ -649,12 +649,16 @@ public protocol XLWriteRequest {
     mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable
     
     ///
-    /// Executes the statement.
+    /// Executes the statement, and reports what it did: the rows it changed,
+    /// and whether it could write (issue #679).
     ///
-    func execute() throws
+    @discardableResult
+    func execute() throws -> XLExecutionResult
 
-    /// Executes the statement with one immutable per-invocation binding packet.
-    func execute(bindings: any XLInvocationBindingPacket) throws
+    /// Executes the statement with one immutable per-invocation binding
+    /// packet, and reports what it did.
+    @discardableResult
+    func execute(bindings: any XLInvocationBindingPacket) throws -> XLExecutionResult
 
     ///
     /// The asynchronous execution of this statement (issue #681).
@@ -678,9 +682,10 @@ extension XLWriteRequest {
 
     /// Compatibility default for existing adapters. Empty packets preserve the
     /// original zero-argument execution path; nonempty packets fail explicitly.
+    @discardableResult
     public func execute(
         bindings: any XLInvocationBindingPacket
-    ) throws {
+    ) throws -> XLExecutionResult {
         guard bindings.layout.isEmpty,
               bindings.bindingCount == 0,
               bindings.isComplete else {
@@ -689,7 +694,7 @@ extension XLWriteRequest {
                 layout: bindings.layout
             )
         }
-        try execute()
+        return try execute()
     }
     
     ///

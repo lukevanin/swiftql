@@ -50,6 +50,14 @@ import GRDB
 ///   match can run, but they do not stop an exponential pattern, so validate
 ///   a pattern that comes from untrusted input.
 ///
+/// These errors are raised inside SQLite, which keeps only their text. The
+/// statement fails, and the caller receives an `XLDatabaseError` whose
+/// `XLDatabaseError.message` is the raised error's description, such as the
+/// invalid pattern and why it is invalid. The typed error does not reach the
+/// caller, so `catch let error as XLRegexpFunctionError` around a fetch does
+/// not match. When you need the typed error, check a pattern with
+/// `XLRegexpMatcher.matches(pattern:in:cache:)` before it reaches a statement.
+///
 /// ## Cost
 ///
 /// SQLite calls the function once per candidate row and passes the pattern each

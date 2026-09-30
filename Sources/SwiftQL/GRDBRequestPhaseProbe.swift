@@ -187,7 +187,8 @@ package final class GRDBRequestPhaseConnection {
     }
 
     /// The execution phase of a write: executes `statement` once.
-    package func execute(_ statement: GRDBRequestPhaseStatement) throws {
+    @discardableResult
+    package func execute(_ statement: GRDBRequestPhaseStatement) throws -> XLExecutionResult {
         try connection.execute(statement.physicalStatement)
     }
 

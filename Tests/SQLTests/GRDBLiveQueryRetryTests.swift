@@ -193,9 +193,104 @@ private final class InjectedBusyFunctionState: @unchecked Sendable {
 /// do -- keep passing unchanged now that `publish()` is a Combine adapter over `stream()`.
 final class XLGRDBLiveQueryRetryTests: XCTestCase {
 
+    /// Issue #679: a statement reports the portable `XLDatabaseError`, and the
+    /// policy classifies it by its portable code, not by a GRDB type.
+    func testRetryPresetClassifiesThePortableBusyCode() {
+        func portable(_ code: XLDatabaseErrorCode, native: Int32) -> XLDatabaseError {
+            XLDatabaseError(
+                code: code,
+                nativeCode: native,
+                message: nil,
+                sql: nil,
+                driver: XLDriverIdentifier(rawValue: "grdb"),
+                underlying: CancellationError()
+            )
+        }
+
+        XCTAssertEqual(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.busy, native: 5),
+                retryNumber: 0
+            ),
+            0.1
+        )
+        XCTAssertEqual(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.busy, native: 517),
+                retryNumber: 1
+            ),
+            0.2
+        )
+        XCTAssertNil(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.locked, native: 6),
+                retryNumber: 0
+            )
+        )
+        XCTAssertNil(
+            GRDBLiveQueryRetryPolicy.terminal.retryDelay(
+                after: portable(.busy, native: 5),
+                retryNumber: 0
+            )
+        )
+    }
+
+    /// Issue #679: GRDB can fail while it starts an observation, outside any
+    /// SwiftQL statement. The stream still ends with the portable error.
+    func testStreamReportsAFailureGRDBRaisesItselfAsThePortableError() async {
+        let bridge = GRDBLiveQueryAsyncBridge<Int>(
+            policy: .terminal,
+            scheduler: .queue(DispatchQueue(label: "SwiftQL.RetryTests.raw")),
+            makeSource: { onError, _ in
+                onError(DatabaseError(resultCode: .SQLITE_BUSY, message: "observation start"))
+                return AnyDatabaseCancellable(cancel: {})
+            }
+        )
+
+        do {
+            _ = try await bridge.next()
+            XCTFail("The observation failed to start.")
+        }
+        catch {
+            guard let error = error as? XLDatabaseError else {
+                return XCTFail("Expected an XLDatabaseError, received \(error).")
+            }
+            XCTAssertEqual(error.code, .busy)
+            XCTAssertEqual(error.message, "observation start")
+            XCTAssertTrue(error.underlying is DatabaseError)
+        }
+    }
+
+    /// A BUSY failure GRDB raises itself is retried like a statement's, and
+    /// the stream ends with the portable error once the retries run out.
+    func testRetryBusyRetriesAFailureGRDBRaisesItself() async {
+        let attempts = LockedValue(0)
+        let scheduler = GRDBLiveQueryRetryScheduler { _ in
+            Just(()).eraseToAnyPublisher()
+        }
+        let bridge = GRDBLiveQueryAsyncBridge<Int>(
+            policy: .retryBusy,
+            scheduler: scheduler,
+            makeSource: { onError, _ in
+                attempts.withValue { $0 += 1 }
+                onError(DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT))
+                return AnyDatabaseCancellable(cancel: {})
+            }
+        )
+
+        do {
+            _ = try await bridge.next()
+            XCTFail("Every attempt failed.")
+        }
+        catch {
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .busy, "\(error)")
+        }
+        XCTAssertEqual(attempts.read(), 4, "One attempt and three retries.")
+    }
+
     func testRetryPresetAcceptsOnlyPrimaryBusyCodesAndUsesExactDelays() {
-        let primaryBusy = DatabaseError(resultCode: .SQLITE_BUSY)
-        let extendedBusy = DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT)
+        let primaryBusy = XLDatabaseError(DatabaseError(resultCode: .SQLITE_BUSY), driver: .grdb)
+        let extendedBusy = XLDatabaseError(DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT), driver: .grdb)
 
         XCTAssertEqual(
             GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
@@ -232,7 +327,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         )
         XCTAssertNil(
             GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
-                after: DatabaseError(resultCode: .SQLITE_LOCKED),
+                after: XLDatabaseError(DatabaseError(resultCode: .SQLITE_LOCKED), driver: .grdb),
                 retryNumber: 0
             )
         )
@@ -270,8 +365,8 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         XCTAssertTrue(receivedValues.read().isEmpty)
         XCTAssertEqual(completionErrors.read().count, 1)
         XCTAssertEqual(
-            (completionErrors.read().first as? DatabaseError)?.resultCode,
-            .SQLITE_BUSY
+            (completionErrors.read().first as? XLDatabaseError)?.code,
+            .busy
         )
         XCTAssertEqual(fixture.functionState.invocationCount, 1)
         withExtendedLifetime(cancellable) {}
@@ -413,8 +508,8 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         XCTAssertTrue(scheduler.pendingDelays.isEmpty)
         XCTAssertEqual(completionErrors.read().count, 1)
         XCTAssertEqual(
-            (completionErrors.read().first as? DatabaseError)?.resultCode,
-            .SQLITE_BUSY
+            (completionErrors.read().first as? XLDatabaseError)?.code,
+            .busy
         )
         withExtendedLifetime(cancellable) {}
     }
@@ -462,12 +557,18 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
                 failure: .nullValue
             )
         )
+        // No retry was scheduled: the decode failure ended the only attempt.
         XCTAssertTrue(scheduler.recordedDelays.isEmpty)
         XCTAssertTrue(scheduler.pendingDelays.isEmpty)
-        XCTAssertEqual(
-            fixture.functionState.invocationCount,
-            1,
-            "The permanent decode failure must terminate after one real query attempt."
+        // That one attempt can run the query twice. Where SQLite has no WAL
+        // snapshots, as on Linux, GRDB fetches on a reader, decodes that
+        // value on its reduce queue, and meanwhile fetches again on the writer
+        // to start observing. The decode failure cancels the observation, and
+        // whether the writer's fetch ran first is a race.
+        XCTAssertTrue(
+            (1...2).contains(fixture.functionState.invocationCount),
+            "The permanent decode failure must terminate the one query attempt; "
+                + "ran \(fixture.functionState.invocationCount) fetches."
         )
         withExtendedLifetime(cancellable) {}
     }

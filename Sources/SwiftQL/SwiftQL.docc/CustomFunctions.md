@@ -357,3 +357,15 @@ packet without mutating or copying `distanceToRestaurantsRequest`. The legacy
 makes value isolation visible. Packets are `Sendable` when their normalized
 dialect values are; the current request facade does not itself promise
 cross-task use.
+
+## Errors from a function
+
+An error that `execute(reader:)` throws fails the statement that called the
+function. SQLite keeps only the error's text, so the caller receives an
+`XLDatabaseError`, not the error you threw: its `message` is your error's
+description, and its `code` is `.other`, unless you threw a GRDB
+`DatabaseError`, whose result code SQLite keeps. `catch let error as MyFunctionError`
+around a fetch therefore does not match. Put what the caller needs to know in
+the error's description, or check the input before it reaches a statement when
+the caller needs a typed error. The same holds for the functions SwiftQL
+supplies, such as `regexp`.

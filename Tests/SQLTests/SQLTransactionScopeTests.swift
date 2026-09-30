@@ -388,7 +388,7 @@ final class SQLTransactionScopeTests: XCTestCase {
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 999))).execute()
             }
         ) { error in
-            XCTAssertEqual((error as? DatabaseError)?.resultCode, .SQLITE_CONSTRAINT)
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .constraint)
         }
 
         XCTAssertEqual(try freshRows(), [], "alpha and beta must both roll back with the failing statement.")
@@ -411,7 +411,8 @@ final class SQLTransactionScopeTests: XCTestCase {
                 ).fetchAll()
             }
         ) { error in
-            XCTAssertEqual((error as? DatabaseError)?.resultCode, .SQLITE_ERROR)
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .other)
+            XCTAssertEqual((error as? XLDatabaseError)?.nativeCode, 1)
         }
 
         XCTAssertEqual(try freshRows(), [])

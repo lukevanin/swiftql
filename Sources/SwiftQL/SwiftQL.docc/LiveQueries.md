@@ -352,9 +352,11 @@ The retry preset starts a fresh GRDB value observation after delays of 0.1, 0.2,
 for at most three additional attempts. The delays are deterministic, capped below one second, and
 have no jitter. A successfully delivered value resets this consecutive retry budget.
 
-Only a GRDB `DatabaseError` whose primary result code is `SQLITE_BUSY` is retried, including extended
-BUSY result codes. `SQLITE_LOCKED`, query-decoding, schema, corruption, authorization, I/O,
-interruption, and custom errors terminate immediately with the original error. Intermediate BUSY
+Only a failure whose portable code is `XLDatabaseErrorCode.busy` is retried, including extended
+BUSY result codes. A database failure reaches the observation as an `XLDatabaseError`, whether a
+statement raised it or GRDB raised it while it started the observation. `SQLITE_LOCKED`,
+query-decoding, schema, corruption, authorization, I/O, interruption, and custom errors terminate
+immediately with that error. Intermediate BUSY
 errors are hidden; if the retry budget is exhausted, the publisher terminates once with the last
 BUSY error.
 

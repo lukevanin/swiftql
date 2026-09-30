@@ -79,6 +79,11 @@ public protocol XLTransactionalDatabase: XLDatabase {
     ///   connection pool; or `CancellationError` if the calling task was
     ///   already cancelled before the transaction began.
     ///
+    /// The result is discardable, so a body that only writes, such as one
+    /// ending in `execute()`, which reports an `XLExecutionResult`, needs
+    /// no `_ =` (issue #679).
+    ///
+    @discardableResult
     func withTransaction<Result>(
         _ body: (Self) throws -> Result
     ) throws -> Result

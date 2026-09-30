@@ -220,6 +220,16 @@ final class XLRegexpOperatorTests: XCTestCase {
                 message.contains("[unterminated"),
                 "the error should name the pattern, got: \(message)"
             )
+            // Issue #679: SQLite keeps only the text of an error a function
+            // raises, so the caller receives the statement's portable error
+            // with that text, not the typed `XLRegexpFunctionError`. The
+            // documentation says so.
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .other)
+            XCTAssertTrue(
+                (error as? XLDatabaseError)?.message?.contains("[unterminated") == true,
+                "the database message should name the pattern, got: \(message)"
+            )
+            XCTAssertNil(error as? XLRegexpFunctionError)
         }
     }
 

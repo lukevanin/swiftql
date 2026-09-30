@@ -507,5 +507,9 @@ private struct LegacyWriteRequest: XLWriteRequest {
         assignedValue = value as? Int
     }
 
-    func execute() throws {}
+    // Since issue #679, `execute()` reports what it did. A conformer written
+    // before that returns a result it computes, or an empty one.
+    func execute() throws -> XLExecutionResult {
+        XLExecutionResult(rowsAffected: 0, access: .write)
+    }
 }

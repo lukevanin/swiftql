@@ -94,18 +94,20 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
 
     let request: GRDBWriteRequest
 
-    func execute() async throws {
+    @discardableResult
+    func execute() async throws -> XLExecutionResult {
         try Task.checkCancellation()
-        try await execute(bindings: request.legacyBindings.packet())
+        return try await execute(bindings: request.legacyBindings.packet())
     }
 
+    @discardableResult
     func execute(
         bindings: any XLInvocationBindingPacket
-    ) async throws {
+    ) async throws -> XLExecutionResult {
         let executor = request.executor
         try Task.checkCancellation()
         let packet = try executor.validatedPacket(bindings, for: "execute", logger: request.logger)
-        try await executor.driver.withTransaction { connection in
+        return try await executor.driver.withTransaction { connection in
             try executor.execute(packet: packet, in: &connection)
         }
     }

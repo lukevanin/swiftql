@@ -680,7 +680,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "current `XLRequest` facade itself is not `Sendable`",
             "Its `GRDBPreparedInvocation` result is",
             "normalize transport failures",
-            "keeps raw `DatabaseError` and `XLColumnReadError`",
+            "reports every GRDB `DatabaseError` this",
             "fail later on a newly leased connection",
         ] {
             XCTAssertTrue(
