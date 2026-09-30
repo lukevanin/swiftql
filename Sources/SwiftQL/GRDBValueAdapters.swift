@@ -18,21 +18,14 @@ import OpenCombine
 
 
 /// Reads a GRDB row's values positionally, as a custom function's
-/// `execute(reader:)` sees them.
-///
-/// Deliberately only an ``XLColumnReader``: it does not forward
-/// ``XLStaticColumnReader/dialectValue(at:using:)`` to the
-/// ``XLSQLiteValueReader`` it wraps, so asking it for a raw dialect value
-/// throws `rawDialectValuesUnavailable`. That is not a gap. A custom function
-/// reads intrinsic values by position; a static row layout is a different
-/// contract, and production decoding reaches the reader that supports it
-/// directly through ``GRDBRowDecoder``.
+/// `execute(reader:)` sees them: an ``XLFunctionArgumentReader`` over the
+/// values' SQLite form.
 struct GRDBValuesAdapter: XLColumnReader {
 
-    private let reader: XLSQLiteValueReader
+    private let reader: XLFunctionArgumentReader
 
     init(values: [GRDB.DatabaseValue]) {
-        self.reader = XLSQLiteValueReader(
+        self.reader = XLFunctionArgumentReader(
             values: values.map(\.sqliteDialectValue)
         )
     }

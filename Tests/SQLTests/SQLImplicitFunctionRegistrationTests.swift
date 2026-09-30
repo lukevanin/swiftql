@@ -193,6 +193,25 @@ private struct SharedSignatureSecondFunction: XLCustomFunction {
 }
 
 
+/// Returns NaN, which SQLite would store as `NULL`.
+private struct ImplicitNotANumberFunction: XLCustomFunction {
+    typealias T = Double
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "implicitNotANumber",
+        numberOfArguments: 0
+    )
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Double {
+        .nan
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -252,6 +271,42 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
     }
 
     // MARK: - Implicit registration correctness
+
+    /// Issue #683: a function's result is bound back to SQLite the way a
+    /// parameter is, so a NaN is refused rather than silently stored as NULL.
+    func testNaNResultIsRefusedRatherThanStoredAsNull() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitNotANumberFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(message.contains("NaN") || message.contains("nan"), message)
+        }
+    }
+
+    /// Issue #683: the functions a statement calls travel on its logical
+    /// statement, so a render-once request rebound to another database
+    /// still installs them there.
+    func testRequiredFunctionsTravelOnTheLogicalStatement() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitSquareFunction(7)) }
+        let request = try XCTUnwrap(database.makeRequest(with: statement) as? GRDBRequest<Int>)
+
+        XCTAssertEqual(
+            request.executor.logicalStatement.requiredFunctions.keys.sorted(),
+            [ImplicitSquareFunction.definition]
+        )
+
+        let otherURL = databaseDirectoryURL.appendingPathComponent("other.sqlite", isDirectory: false)
+        let other = try GRDBDatabaseBuilder(url: otherURL, configuration: Configuration(), logger: nil).build()
+        let rebound = request.rebound(to: other.driver)
+        XCTAssertEqual(
+            rebound.executor.logicalStatement.requiredFunctions.keys.sorted(),
+            [ImplicitSquareFunction.definition]
+        )
+        XCTAssertEqual(try rebound.fetchOne(), 49)
+    }
+
 
     /// The issue's real correctness test: build a `GRDBDatabase` without calling `addFunction` upfront,
     /// execute a query that references a custom function opted into implicit registration, and confirm it

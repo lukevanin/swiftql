@@ -262,18 +262,62 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
     /// Immutable static parameter metadata captured while rendering `sql`.
     public let parameterLayout: XLParameterLayout
 
+    /// The scalar functions `sql` calls that SwiftQL can supply, keyed by
+    /// their SQLite signature (issue #683).
+    ///
+    /// The connection makes each one available before it prepares the
+    /// statement; see ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``.
+    public let requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+
     public init(
         databaseIdentifier: XLDatabaseIdentifier,
         dialectRequirement: XLDialectRequirement,
         sql: String,
         entities: Set<String> = [],
-        parameterLayout: XLParameterLayout = .empty
+        parameterLayout: XLParameterLayout = .empty,
+        requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
     ) {
         self.databaseIdentifier = databaseIdentifier
         self.dialectRequirement = dialectRequirement
         self.sql = sql
         self.entities = entities
         self.parameterLayout = parameterLayout
+        self.requiredFunctions = requiredFunctions
+    }
+
+    /// This statement for another database, keeping everything rendering
+    /// produced.
+    public func rebound(to databaseIdentifier: XLDatabaseIdentifier) -> XLLogicalPreparedStatement {
+        XLLogicalPreparedStatement(
+            databaseIdentifier: databaseIdentifier,
+            dialectRequirement: dialectRequirement,
+            sql: sql,
+            entities: entities,
+            parameterLayout: parameterLayout,
+            requiredFunctions: requiredFunctions
+        )
+    }
+
+    /// Two statements are equal when they would execute the same way: the
+    /// same database, requirement, SQL, entities, and layout, and the same
+    /// required function signatures. A registration's evaluator is a closure,
+    /// which cannot be compared, so functions compare by signature.
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.databaseIdentifier == rhs.databaseIdentifier
+            && lhs.dialectRequirement == rhs.dialectRequirement
+            && lhs.sql == rhs.sql
+            && lhs.entities == rhs.entities
+            && lhs.parameterLayout == rhs.parameterLayout
+            && Set(lhs.requiredFunctions.keys) == Set(rhs.requiredFunctions.keys)
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(databaseIdentifier)
+        hasher.combine(dialectRequirement)
+        hasher.combine(sql)
+        hasher.combine(entities)
+        hasher.combine(parameterLayout)
+        hasher.combine(Set(requiredFunctions.keys))
     }
 }
 

@@ -451,7 +451,7 @@ extension XLFunction: XLNamedFunction {
 ///   decoding.
 ///
 /// The `XLEnum` protocol provides default implementations for most of the required methods which can
-/// be overridden as required. Reading an unknown stored raw value throws ``XLColumnReadError``.
+/// be overridden as required. Reading an unknown stored raw value throws `XLColumnReadError`.
 ///
 public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     

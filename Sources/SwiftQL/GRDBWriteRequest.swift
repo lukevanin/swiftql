@@ -35,15 +35,13 @@ struct GRDBWriteRequest: XLWriteRequest {
         logger: XLLogger?,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil,
-        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
         self.executor = GRDBInvocationExecutor(
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,
-            valueEncodingError: valueEncodingError,
-            customFunctions: customFunctions
+            valueEncodingError: valueEncodingError
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger

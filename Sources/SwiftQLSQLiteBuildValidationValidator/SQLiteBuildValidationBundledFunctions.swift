@@ -48,57 +48,63 @@ enum SQLiteBuildValidationBundledFunctions {
         // provides none of these" and registers all of them -- the same
         // reading the runtime probe gives an unanswerable pragma.
         let rows = (try? Row.fetchAll(database, sql: "PRAGMA function_list")) ?? []
-        for function in all where !hasFunction(matching: function, in: rows) {
-            database.add(function: function.databaseFunction())
+        for registration in all where !hasFunction(matching: registration.definition, in: rows) {
+            database.add(function: databaseFunction(for: registration))
         }
     }
 
-    /// The signature and implementation of each supplied function.
-    static let all: [Supplied] = [
-        Supplied(name: "regexp", numberOfArguments: 2) { values in
-            guard values.count == 2 else {
-                return nil
-            }
-            guard
-                let pattern = String.fromDatabaseValue(values[0]),
-                let subject = String.fromDatabaseValue(values[1])
-            else {
-                // A NULL or non-text argument yields NULL here rather than the
-                // runtime's typed column-read error. The validator only needs
-                // the statement to prepare; a decoding failure raised from a
-                // connection that never executes the statement would be noise.
-                return nil
-            }
-            return try XLRegexpMatcher.matches(pattern: pattern, in: subject)
-        },
-    ]
-
-    /// One function SwiftQL supplies, as the validator registers it.
-    struct Supplied {
-
-        let name: String
-
-        let numberOfArguments: Int
-
-        let body: @Sendable ([DatabaseValue]) throws -> (any DatabaseValueConvertible)?
-
-        init(
-            name: String,
-            numberOfArguments: Int,
-            body: @escaping @Sendable ([DatabaseValue]) throws -> (any DatabaseValueConvertible)?
-        ) {
-            self.name = name
-            self.numberOfArguments = numberOfArguments
-            self.body = body
+    /// The functions SwiftQL supplies at runtime: SwiftQLCore's own table,
+    /// so the validator and the runtime cannot disagree (issue #683).
+    static var all: [XLCustomFunctionRegistration] {
+        XLCustomFunctionRegistration.bundled.values.sorted {
+            $0.definition < $1.definition
         }
+    }
 
-        func databaseFunction() -> DatabaseFunction {
-            DatabaseFunction(
-                name,
-                argumentCount: numberOfArguments,
-                pure: true,
-                function: body
-            )
+    /// A GRDB function that evaluates `registration`, as the runtime's does.
+    ///
+    /// The validator only prepares statements, so the function is never
+    /// called; it has to exist, with the right name and argument count, for
+    /// SQLite to resolve the call.
+    static func databaseFunction(for registration: XLCustomFunctionRegistration) -> DatabaseFunction {
+        let evaluate = registration.makeEvaluator()
+        return DatabaseFunction(
+            registration.definition.name,
+            argumentCount: registration.definition.numberOfArguments,
+            pure: registration.isPure,
+            function: { values in
+                try databaseValue(evaluate(values.map(sqliteValue)))
+            }
+        )
+    }
+
+    private static func sqliteValue(_ value: DatabaseValue) -> XLSQLiteValue {
+        switch value.storage {
+        case .null:
+            return .null
+        case .int64(let integer):
+            return .integer(integer)
+        case .double(let real):
+            return .real(real)
+        case .string(let text):
+            return .text(text)
+        case .blob(let blob):
+            return .blob(blob)
+        }
+    }
+
+    private static func databaseValue(_ value: XLSQLiteValue) -> DatabaseValue {
+        switch value {
+        case .null:
+            return .null
+        case .integer(let integer):
+            return integer.databaseValue
+        case .real(let real):
+            return real.databaseValue
+        case .text(let text):
+            return text.databaseValue
+        case .blob(let blob):
+            return blob.databaseValue
         }
     }
 
@@ -111,7 +117,7 @@ enum SQLiteBuildValidationBundledFunctions {
     /// `rows` is one `PRAGMA function_list` capture, read once by the caller
     /// and tested against every supplied function.
     private static func hasFunction(
-        matching function: Supplied,
+        matching function: XLCustomFunctionDefinition,
         in rows: [Row]
     ) -> Bool {
         let folded = sqliteASCIIFolded(function.name)

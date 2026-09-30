@@ -98,6 +98,48 @@ public protocol XLDatabaseDriverConnection {
     /// (issue #679).
     @discardableResult
     mutating func execute(_ statement: PhysicalStatement) throws -> XLExecutionResult
+
+    /// Makes each function a statement calls available on this connection
+    /// before the statement is prepared (issue #683).
+    ///
+    /// ``prepare(_:)`` calls this with the statement's
+    /// ``XLLogicalPreparedStatement/requiredFunctions``. The connection builds
+    /// its own function object from each registration's
+    /// ``XLCustomFunctionRegistration/makeEvaluator``. Whether a function is
+    /// already on the connection is the connection's to decide: a
+    /// registration that ``XLCustomFunctionRegistration/defersToExistingRegistration``
+    /// keeps a function the connection already provides for its signature,
+    /// and any other registration is installed so the statement calls it.
+    /// Installing the same registration twice on one connection must be
+    /// harmless.
+    ///
+    /// The default implementation installs nothing, and throws
+    /// ``XLDatabaseContractError/prepareFailure(driver:message:)`` naming the
+    /// functions when `functions` is not empty.
+    mutating func installRequiredFunctions(
+        _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) throws
+}
+
+
+extension XLDatabaseDriverConnection {
+
+    /// A connection that cannot install functions refuses a statement that
+    /// needs one, rather than failing later with SQLite's "no such function".
+    public mutating func installRequiredFunctions(
+        _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) throws {
+        guard !functions.isEmpty else {
+            return
+        }
+        let signatures = functions.keys.sorted()
+            .map { "\($0.name)/\($0.numberOfArguments)" }
+            .joined(separator: ", ")
+        throw XLDatabaseContractError.prepareFailure(
+            driver: driverIdentifier,
+            message: "This connection cannot install the functions the statement calls: \(signatures)."
+        )
+    }
 }
 
 
@@ -199,11 +241,15 @@ extension XLDatabaseDriverConnection {
         try statement.dialectRequirement.validate(dialect.descriptor)
     }
 
-    /// Validates a logical statement before dispatching physical preparation.
+    /// Validates a logical statement, installs the functions it calls, then
+    /// dispatches physical preparation.
     public mutating func prepare(
         _ statement: XLLogicalPreparedStatement
     ) throws -> PhysicalStatement {
         try validate(statement)
+        // SQLite resolves a function when it prepares a statement, so the
+        // functions the statement calls go on the connection first.
+        try installRequiredFunctions(statement.requiredFunctions)
         return try preparePhysical(
             XLValidatedLogicalPreparedStatement(statement)
         )

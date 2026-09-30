@@ -136,6 +136,33 @@
   - `XLTransactionalDatabase.withTransaction(_:)` is now `@discardableResult`,
     so a body that ends in `execute()` needs no `_ =`. A generic helper of
     your own that returns its closure's result may need one.
+- **Custom functions no longer carry GRDB types** (issue #683).
+  `XLCustomFunctionRegistration` now lives in SwiftQLCore and holds its
+  signature, `defersToExistingRegistration`, `isPure`, and `makeEvaluator`, a
+  factory for an `XLCustomFunctionEvaluator` over SQLite values, instead of a
+  GRDB `DatabaseFunction` closure. SwiftQL re-exports SwiftQLCore, so code that
+  names the type compiles unchanged.
+  - `XLCustomFunctionRegistration.make(_:)`,
+    `XLBuilder.customFunctionCall(_:parameters:)`, and
+    `GRDBDatabaseBuilder.addFunction(_:)` require the function's result `T` to
+    be `XLBindable & Sendable` instead of GRDB's `DatabaseValueConvertible`.
+    `Bool`, `Int`, `Double`, `String`, `Data`, their optionals, and your own
+    `XLLiteral` types qualify. A function that returned a GRDB-only type such
+    as `Date`, `UUID`, `Int64`, or `Float` must return one of these instead.
+  - The result is bound back to SQLite the way a parameter is, so a function
+    that returns NaN now fails its statement instead of producing `NULL`.
+  - A statement carries the functions it calls in
+    `XLLogicalPreparedStatement.requiredFunctions`, and
+    `XLDatabaseDriverConnection.prepare(_:)` installs them first through a new
+    `installRequiredFunctions(_:)` requirement. Its default refuses a
+    statement that needs a function, so a connection outside SwiftQL keeps
+    compiling and reports the missing function instead of SQLite's "no such
+    function". The GRDB adapter installs them as before.
+  - `XLColumnReadError` and `XLRegexpFunction` moved to SwiftQLCore, re-exported
+    unchanged. `XLRegexpFunction.evaluate(_:cache:)` evaluates a call from its
+    SQLite values, and `XLCustomFunctionRegistration.bundled` lists the
+    functions SwiftQL supplies. The SQLite build validator installs exactly
+    that list.
 - **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
   #681), with a default. A conformer outside SwiftQL keeps compiling: the
   default runs its synchronous methods on a Dispatch global queue while the

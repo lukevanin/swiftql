@@ -58,7 +58,6 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil,
         requiresWriteConnection: Bool = false,
-        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:],
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) {
@@ -67,8 +66,7 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,
-            valueEncodingError: valueEncodingError,
-            customFunctions: customFunctions
+            valueEncodingError: valueEncodingError
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
@@ -107,23 +105,17 @@ extension GRDBRequest {
     /// `set(parameter:value:)` facade are not carried over; a render-once
     /// request is value-free.
     func rebound(to driver: GRDBDatabaseDriver) -> GRDBRequest<Row> {
-        let statement = executor.logicalStatement
-        return GRDBRequest(
+        GRDBRequest(
             driver: driver,
             codingConfiguration: codingConfiguration,
             logger: logger,
             reader: reader,
-            logicalStatement: XLLogicalPreparedStatement(
-                databaseIdentifier: driver.databaseIdentifier,
-                dialectRequirement: statement.dialectRequirement,
-                sql: statement.sql,
-                entities: statement.entities,
-                parameterLayout: statement.parameterLayout
+            logicalStatement: executor.logicalStatement.rebound(
+                to: driver.databaseIdentifier
             ),
             parameterLayoutError: executor.parameterLayoutError,
             valueEncodingError: executor.valueEncodingError,
             requiresWriteConnection: requiresWriteConnection,
-            customFunctions: executor.customFunctions,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
