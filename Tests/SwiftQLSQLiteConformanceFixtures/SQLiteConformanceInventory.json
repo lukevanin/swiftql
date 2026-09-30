@@ -9794,7 +9794,7 @@
         },
         {
           "symbol": "XLRegexpFunction",
-          "source_path": "Sources/SwiftQL/SQLRegexpFunction.swift",
+          "source_path": "Sources/SwiftQLCore/SQLRegexpFunction.swift",
           "source_tokens": [
             "XLRegexpFunction"
           ]
