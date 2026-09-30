@@ -289,8 +289,8 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
     }
 
     func testRetryPresetAcceptsOnlyPrimaryBusyCodesAndUsesExactDelays() {
-        let primaryBusy = DatabaseError(resultCode: .SQLITE_BUSY)
-        let extendedBusy = DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT)
+        let primaryBusy = XLDatabaseError(DatabaseError(resultCode: .SQLITE_BUSY), driver: .grdb)
+        let extendedBusy = XLDatabaseError(DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT), driver: .grdb)
 
         XCTAssertEqual(
             GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
@@ -327,7 +327,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         )
         XCTAssertNil(
             GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
-                after: DatabaseError(resultCode: .SQLITE_LOCKED),
+                after: XLDatabaseError(DatabaseError(resultCode: .SQLITE_LOCKED), driver: .grdb),
                 retryNumber: 0
             )
         )

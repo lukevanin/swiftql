@@ -35,14 +35,19 @@ public struct XLExecutionResult: Hashable, Sendable {
     /// `CREATE TABLE`, reports zero.
     public let rowsAffected: Int
 
-    /// The row id of the row the statement inserted, or `nil` when it set
-    /// none.
+    /// The row id of the row the statement inserted, or `nil` when it
+    /// inserted none.
     ///
     /// For a statement that inserts several rows, this is the last one's. It
-    /// is also `nil` for an insert that has no row id of its own: into a
-    /// `WITHOUT ROWID` table, into a view through an `INSTEAD OF` trigger, or
-    /// with an explicit row id of 0, which SQLite cannot tell apart from no
-    /// insert.
+    /// is also `nil` for an insert that sets no row id: into a
+    /// `WITHOUT ROWID` table, or into a view through an `INSTEAD OF` trigger.
+    ///
+    /// The GRDB driver reads the connection's last inserted row id before and
+    /// after the statement, without changing it, so SQL that calls
+    /// `last_insert_rowid()` sees what it always has. An insert whose row id
+    /// equals the one the connection last reported, such as deleting the
+    /// last inserted row and inserting it again, is therefore reported as
+    /// `nil`.
     public let lastInsertedRowID: Int64?
 
     /// Whether the statement can change the database.
@@ -83,10 +88,15 @@ public enum XLDatabaseErrorCode: Hashable, Sendable {
     /// The database, or the connection, is read-only.
     case readOnly
 
-    /// The statement was interrupted, or its transaction was rolled back
-    /// under it, for example because the database was interrupted or
-    /// suspended. SQLite's `SQLITE_INTERRUPT` and `SQLITE_ABORT`.
+    /// The statement was interrupted, for example because the database was
+    /// interrupted or suspended.
     case interrupted
+
+    /// The statement's transaction was rolled back before it finished: by a
+    /// conflict clause such as `OR ROLLBACK`, by a trigger's
+    /// `RAISE(ROLLBACK, ...)`, or after an interruption ended it. SQLite
+    /// reports this as `SQLITE_ABORT`.
+    case aborted
 
     /// The database or its disk is full.
     case full

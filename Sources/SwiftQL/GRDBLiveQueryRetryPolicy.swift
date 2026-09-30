@@ -36,7 +36,7 @@ public enum GRDBLiveQueryRetryPolicy: Hashable, Sendable {
         guard self == .retryBusy,
               retryNumber >= 0,
               retryNumber < Self.retryBusyDelays.count,
-              XLDatabaseErrorCode.of(error) == .busy
+              (error as? XLDatabaseError)?.code == .busy
         else {
             return nil
         }

@@ -50,11 +50,10 @@ extension XLDatabaseErrorCode {
             self = .constraint
         case SQLITE_READONLY:
             self = .readOnly
-        case SQLITE_INTERRUPT, SQLITE_ABORT:
-            // GRDB treats both as an interruption: `SQLITE_ABORT` is what a
-            // statement or `COMMIT` reports when `interrupt()` or a suspended
-            // database rolls its transaction back.
+        case SQLITE_INTERRUPT:
             self = .interrupted
+        case SQLITE_ABORT:
+            self = .aborted
         case SQLITE_FULL:
             self = .full
         case SQLITE_CORRUPT:
@@ -71,21 +70,6 @@ extension XLDatabaseErrorCode {
             self = .other
         }
     }
-
-    ///
-    /// The portable category of `error` when it is a database failure: an
-    /// ``XLDatabaseError``, or a GRDB `DatabaseError` classified as the driver
-    /// would map it.
-    ///
-    static func of(_ error: any Error) -> XLDatabaseErrorCode? {
-        if let error = error as? XLDatabaseError {
-            return error.code
-        }
-        if let error = error as? DatabaseError {
-            return XLDatabaseErrorCode(sqlitePrimaryResultCode: error.resultCode.rawValue)
-        }
-        return nil
-    }
 }
 
 
@@ -98,7 +82,12 @@ func xlMappingDatabaseErrors<Result>(
     driver: XLDriverIdentifier,
     _ body: () throws -> Result
 ) throws -> Result {
-    try xlMappingScopeErrors(driver: driver) { _ in try body() }
+    do {
+        return try body()
+    }
+    catch let error as DatabaseError {
+        throw XLDatabaseError(error, driver: driver)
+    }
 }
 
 

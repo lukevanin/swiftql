@@ -101,8 +101,9 @@
 - **Database failures are reported as `XLDatabaseError`** (issue #679). A
   statement SwiftQL runs, and a `BEGIN` or `COMMIT` it issues, no longer
   throws GRDB's `DatabaseError`. `XLDatabaseError` carries a portable `code`
-  (`.busy`, `.locked`, `.constraint`, `.readOnly`, `.interrupted`, `.full`,
-  `.corrupt`, `.ioError`, `.notADatabase`, `.tooBig`, `.misuse`, or `.other`),
+  (`.busy`, `.locked`, `.constraint`, `.readOnly`, `.interrupted`,
+  `.aborted`, `.full`, `.corrupt`, `.ioError`, `.notADatabase`, `.tooBig`,
+  `.misuse`, or `.other`),
   SQLite's extended result code as `nativeCode`, the message and SQL, and
   GRDB's error as `underlying`. Replace
   `catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT`
@@ -126,8 +127,9 @@
   `XLDatabaseDriverConnection.execute(_:)`, `executeValidated(_:)`, and the
   GRDB invocation and descriptor `execute(bindings:)` return it. All are
   `@discardableResult`, so existing call sites compile unchanged.
-  - A type outside SwiftQL that conforms to `XLWriteRequest` or
-    `XLDatabaseDriverConnection` must return a result from `execute`.
+  - A type outside SwiftQL that conforms to `XLWriteRequest`,
+    `XLAsyncWriteRequest`, or `XLDatabaseDriverConnection` must return a
+    result from `execute`.
   - `XLTransactionalDatabase.withTransaction(_:)` is now `@discardableResult`,
     so a body that ends in `execute()` needs no `_ =`. A generic helper of
     your own that returns its closure's result may need one.

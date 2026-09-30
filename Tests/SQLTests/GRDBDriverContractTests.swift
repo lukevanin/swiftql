@@ -1121,14 +1121,47 @@ final class GRDBDriverContractTests: XCTestCase {
         }
     }
 
-    /// Issue #679: GRDB treats `SQLITE_ABORT` as an interruption, and so does
-    /// the portable code.
-    func testInterruptAndAbortAreBothPortableInterruptions() {
-        for resultCode in [ResultCode.SQLITE_INTERRUPT, .SQLITE_ABORT, .SQLITE_ABORT_ROLLBACK] {
+    /// Issue #679: an interruption and a rolled-back transaction are
+    /// different portable codes, since `SQLITE_ABORT` also follows a
+    /// conflict clause that rolled the transaction back.
+    func testInterruptAndAbortHaveTheirOwnPortableCodes() {
+        let interrupt = XLDatabaseError(DatabaseError(resultCode: .SQLITE_INTERRUPT), driver: .grdb)
+        XCTAssertEqual(interrupt.code, .interrupted)
+        for resultCode in [ResultCode.SQLITE_ABORT, .SQLITE_ABORT_ROLLBACK] {
             let error = XLDatabaseError(DatabaseError(resultCode: resultCode), driver: .grdb)
-            XCTAssertEqual(error.code, .interrupted, "\(resultCode)")
+            XCTAssertEqual(error.code, .aborted, "\(resultCode)")
             XCTAssertEqual(error.nativeCode, resultCode.rawValue)
         }
+    }
+
+    /// Issue #679: reporting the inserted row id must not change what SQL
+    /// inside the statement sees from `last_insert_rowid()`.
+    func testExecuteLeavesLastInsertRowIDVisibleToTheStatement() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let driver = GRDBDatabaseDriver(
+            databasePool: fixture.pool,
+            dialect: XLSQLiteDialect()
+        )
+        let statements = [
+            "CREATE TABLE rowid_parent (id INTEGER PRIMARY KEY)",
+            "CREATE TABLE rowid_child (id INTEGER PRIMARY KEY, parent INTEGER)",
+            "INSERT INTO rowid_parent (id) VALUES (7)",
+            "INSERT INTO rowid_child (parent) VALUES (last_insert_rowid())",
+            "UPDATE rowid_child SET parent = parent + 1 WHERE rowid = last_insert_rowid()",
+        ].map { makeLogicalStatement(for: driver, sql: $0) }
+        let selectParent = makeLogicalStatement(for: driver, sql: "SELECT parent FROM rowid_child")
+
+        let (results, parent) = try driver.withBlockingWriteConnection { connection in
+            let results = try statements.map { try connection.execute(connection.prepare($0)) }
+            let parent = try connection.fetchOne(connection.prepare(selectParent))?.first
+            return (results, parent)
+        }
+
+        XCTAssertEqual(parent, .integer(8), "The child read the parent's row id, and the update found the child.")
+        XCTAssertEqual(results.map(\.lastInsertedRowID), [nil, nil, 7, 1, nil])
+        XCTAssertEqual(results.map(\.rowsAffected), [0, 0, 1, 1, 1])
     }
 
     /// Issue #679: a `COMMIT` that fails is GRDB's failure, not the

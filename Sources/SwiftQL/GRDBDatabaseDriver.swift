@@ -948,12 +948,29 @@ struct GRDBDatabaseDriverConnection:
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         try validateOwnership(of: statement)
-        // The callback's own error is the caller's, so it is recorded
-        // rather than mapped with the cursor's.
-        try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
+        // The callback's own error is the caller's, so it is kept aside
+        // rather than mapped with the cursor's. The callback runs on this
+        // thread and cannot escape, so a local needs no lock.
+        var callbackError: (any Error)?
+        do {
             try forEachRowUnmapped(statement) { values in
-                try operationError.recording { try body(values) }
+                do {
+                    return try body(values)
+                }
+                catch {
+                    callbackError = error
+                    throw error
+                }
             }
+        }
+        catch {
+            if let callbackError {
+                throw callbackError
+            }
+            if let error = error as? DatabaseError {
+                throw XLDatabaseError(error, driver: driverIdentifier)
+            }
+            throw error
         }
     }
 
@@ -1095,30 +1112,25 @@ struct GRDBDatabaseDriverConnection:
         let database = database
         return try mappingDatabaseErrors {
             let totalChangesBefore = database.totalChangesCount
-            // SQLite keeps the last inserted row id per connection, so a
-            // statement that inserts nothing would report an earlier
-            // statement's row. Clearing it first lets a zero after the
-            // statement mean that nothing was inserted; the connection's own
-            // value is restored in that case. An insert with an explicit row
-            // id of 0 is therefore reported as inserting none.
-            let sqliteConnection = database.sqliteConnection
+            // A snapshot, not a reset: the statement itself, or one of its
+            // triggers, can read `last_insert_rowid()`, so the connection's
+            // value is left as SQLite keeps it.
             let lastInsertedRowIDBefore = database.lastInsertedRowID
-            sqlite3_set_last_insert_rowid(sqliteConnection, 0)
-            defer {
-                if database.lastInsertedRowID == 0 {
-                    sqlite3_set_last_insert_rowid(sqliteConnection, lastInsertedRowIDBefore)
-                }
-            }
             try statement.statement.execute(arguments: arguments)
-            let lastInsertedRowID = database.lastInsertedRowID
             // `sqlite3_changes` keeps the count of the last INSERT, UPDATE,
             // or DELETE, so a statement that changed nothing, such as
             // `CREATE TABLE`, would report an earlier statement's count. The
             // total change count moves only when this statement changed rows.
             let changed = database.totalChangesCount != totalChangesBefore
+            // SQLite sets the row id only for a row inserted into a rowid
+            // table, and restores it when a trigger ends, so a changed value
+            // is this statement's insert. An insert that yields the value
+            // the connection already held is reported as none.
+            let lastInsertedRowID = database.lastInsertedRowID
+            let inserted = changed && lastInsertedRowID != lastInsertedRowIDBefore
             return XLExecutionResult(
                 rowsAffected: changed ? database.changesCount : 0,
-                lastInsertedRowID: lastInsertedRowID == 0 ? nil : lastInsertedRowID,
+                lastInsertedRowID: inserted ? lastInsertedRowID : nil,
                 access: statement.statement.isReadonly ? .read : .write
             )
         }
