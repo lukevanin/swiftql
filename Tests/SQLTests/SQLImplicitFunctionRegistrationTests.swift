@@ -212,6 +212,55 @@ private struct ImplicitNotANumberFunction: XLCustomFunction {
 }
 
 
+/// Returns text containing U+0000, which SQLite would cut short.
+private struct ImplicitNulTextFunction: XLCustomFunction {
+    typealias T = String
+
+    static let definition = XLCustomFunctionDefinition(name: "implicitNulText", numberOfArguments: 0)
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> String {
+        "a\u{0}b"
+    }
+}
+
+
+/// A result type whose `bind(context:)` swaps the context for its own.
+private struct ContextSwappingValue: XLBindable, Sendable {
+
+    private struct OtherContext: XLBindingContext {
+        mutating func bindNull() {}
+        mutating func bindInteger(value: Int) {}
+        mutating func bindReal(value: Double) {}
+        mutating func bindText(value: String) {}
+        mutating func bindBlob(value: Data) {}
+    }
+
+    func bind(context: inout XLBindingContext) {
+        context = OtherContext()
+    }
+}
+
+
+/// Returns a ``ContextSwappingValue``.
+private struct ImplicitContextSwappingFunction: XLCustomFunction {
+    typealias T = ContextSwappingValue
+
+    static let definition = XLCustomFunctionDefinition(name: "implicitContextSwap", numberOfArguments: 0)
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> ContextSwappingValue {
+        ContextSwappingValue()
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -281,14 +330,14 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
             let message = (error as? XLDatabaseError)?.message ?? ""
             XCTAssertTrue(
-                message.contains("realBindingWouldBecomeNull"),
+                message.contains("implicitNotANumber/0 returned NaN"),
                 "\(error)"
             )
         }
     }
 
-    /// The adapter refuses a NaN result from any evaluator, not only one
-    /// built by `XLCustomFunctionRegistration.make(_:)`.
+    /// A NaN result is refused from any evaluator, not only one built by
+    /// `XLCustomFunctionRegistration.make(_:)`.
     func testNaNFromAnEvaluatorBuiltDirectlyIsRefused() throws {
         let definition = XLCustomFunctionDefinition(name: "directNotANumber", numberOfArguments: 0)
         let registration = XLCustomFunctionRegistration(definition: definition) { { _ in .real(.nan) } }
@@ -301,6 +350,30 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
                     "\(error)"
                 )
             }
+        }
+    }
+
+    /// A text result containing U+0000 is refused rather than cut short, as
+    /// a text parameter containing one is (issue #657).
+    func testTextResultContainingNulIsRefused() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitNulTextFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(message.contains("implicitNulText/0 returned text containing U+0000"), "\(error)")
+        }
+    }
+
+    /// A result whose `bind(context:)` replaces the context fails the
+    /// statement instead of trapping inside SQLite's callback.
+    func testResultThatReplacesItsBindingContextFailsTheStatement() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitContextSwappingFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(message.contains("replaced the binding context"), "\(error)")
         }
     }
 

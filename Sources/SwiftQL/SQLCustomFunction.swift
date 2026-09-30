@@ -30,9 +30,10 @@ extension XLCustomFunctionRegistration {
     /// Creates a registration for one custom function type.
     ///
     /// The function's arguments reach ``XLCustomFunction/execute(reader:)``
-    /// through a column reader over the SQLite values, and its result is
-    /// bound back to a SQLite value the way a statement parameter is bound,
-    /// so a NaN result is an error rather than a silent `NULL`.
+    /// through a column reader over the SQLite values. Its result is bound
+    /// back to a SQLite value through its `bind(context:)`, and a value SQLite
+    /// would change, a NaN or text containing U+0000, is refused with
+    /// `XLCustomFunctionResultError` rather than stored differently.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
     where F: XLCustomFunction, F.T: XLBindable & Sendable {
         // Captured as plain values rather than the generic metatype `F.Type` itself, so the
@@ -57,14 +58,20 @@ extension XLCustomFunctionRegistration {
             makeEvaluator: {
                 { arguments in
                     let result = try executeFunction(XLFunctionArgumentReader(values: arguments))
-                    return try _xlCaptureSQLiteValue(
-                        result,
-                        valueType: String(describing: resultType),
-                        codingContext: XLValueCodingContext(
-                            site: .result,
-                            path: XLValueCodingPath(functionDefinition.name)
+                    // Not `_xlCapturedSQLiteValue`, which traps when a
+                    // conformer replaces the context: this runs inside
+                    // SQLite's callback, where failing the statement is the
+                    // right outcome, not ending the process. The registration
+                    // refuses a NaN or a NUL itself.
+                    var context: any XLBindingContext = XLSQLiteValueCapture()
+                    result.bind(context: &context)
+                    guard let capture = context as? XLSQLiteValueCapture else {
+                        throw XLCustomFunctionResultError(
+                            definition: functionDefinition,
+                            reason: .unboundResult(valueType: String(describing: resultType))
                         )
-                    )
+                    }
+                    return capture.value
                 }
             }
         )

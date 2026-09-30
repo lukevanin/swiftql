@@ -376,6 +376,8 @@ the error's description, or check the input before it reaches a statement when
 the caller needs a typed error. The same holds for the functions SwiftQL
 supplies, such as `regexp`.
 
-A result SQLite would change is an error too. SQLite stores a `Double.nan`
-result as `NULL`, so a function that returns NaN fails the statement rather
-than quietly producing `NULL`, as a NaN parameter does.
+A result SQLite would change is an error too, as the same value bound as a
+parameter is. SQLite stores a `Double.nan` result as `NULL`, and cuts text
+short at a U+0000 character, so a function that returns either fails the
+statement with `XLCustomFunctionResultError` in its message rather than
+quietly producing a different value.

@@ -93,8 +93,8 @@ extension GRDBDatabase {
             sql: descriptor.statement.sql,
             entities: descriptor.statement.entities,
             parameterLayout: descriptor.statement.parameterLayout,
-            requiredFunctions: bundledRegistrations(
-                for: descriptor.statement.bundledFunctions
+            requiredFunctions: Array(
+                bundledRegistrations(for: descriptor.statement.bundledFunctions).values
             )
         )
         let invocation = GRDBPreparedInvocation(

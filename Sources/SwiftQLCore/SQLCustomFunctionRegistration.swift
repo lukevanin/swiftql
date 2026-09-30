@@ -16,8 +16,9 @@ import Foundation
 ///
 /// It receives the call's arguments as SQLite values, in order, and returns
 /// the result as one. An error it throws fails the statement that made the
-/// call. A NaN `REAL` result is an error too: SQLite would store it as
-/// `NULL`, so a registration's evaluator refuses it with
+/// call. A result SQLite would change is an error too: a NaN `REAL`, which
+/// it would store as `NULL`, and `TEXT` containing U+0000, which it would cut
+/// short. A registration's evaluator refuses either with
 /// ``XLCustomFunctionResultError`` rather than change what the function
 /// returned.
 ///
@@ -87,9 +88,9 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
     /// An adapter calls it once each time it installs the function on a
     /// physical connection, so an evaluator can keep state that belongs to
     /// that connection, such as the compiled-pattern cache the bundled
-    /// `regexp` keeps. The evaluator it makes already refuses a NaN result
-    /// with ``XLCustomFunctionResultError``, so an adapter passes the result
-    /// to its database unchanged.
+    /// `regexp` keeps. The evaluator it makes already refuses a result SQLite
+    /// would change with ``XLCustomFunctionResultError``, so an adapter passes
+    /// the result to its database unchanged.
     public let makeEvaluator: @Sendable () -> XLCustomFunctionEvaluator
 
     /// Values the rendered statement depends on for as long as it can execute.
@@ -121,15 +122,19 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
             isPure: isPure,
             retainedValues: [],
             makeEvaluator: {
-                // Checked here, once, so every adapter refuses a NaN result
-                // without having to remember to.
+                // Checked here, once, so every adapter refuses a result SQLite
+                // would change without having to remember to.
                 let evaluate = makeEvaluator()
                 return { arguments in
                     let result = try evaluate(arguments)
-                    if case .real(let real) = result, real.isNaN {
-                        throw XLCustomFunctionResultError(definition: definition)
+                    switch result {
+                    case .real(let real) where real.isNaN:
+                        throw XLCustomFunctionResultError(definition: definition, reason: .notANumber)
+                    case .text(let text) where text.utf8.contains(0):
+                        throw XLCustomFunctionResultError(definition: definition, reason: .nulCharacterInText)
+                    default:
+                        return result
                     }
-                    return result
                 }
             }
         )
@@ -180,33 +185,6 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
         let winner = incomingWins ? incoming : existing
         let loser = incomingWins ? existing : incoming
         return winner.retaining(loser.retainedValues)
-    }
-
-    /// `registrations` keyed by each registration's own ``definition``.
-    ///
-    /// Two entries for one signature collapse as ``preferring(_:_:)`` does,
-    /// and the same way every time: entries are taken in key order, with one
-    /// filed under its own signature last, so it wins a tie.
-    package static func keyedByDefinition(
-        _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
-    ) -> [XLCustomFunctionDefinition: XLCustomFunctionRegistration] {
-        // The renderer already keys by definition, so this is the usual case.
-        if registrations.allSatisfy({ $0.key == $0.value.definition }) {
-            return registrations
-        }
-        let ordered = registrations.sorted { lhs, rhs in
-            let lhsFiled = lhs.key == lhs.value.definition
-            let rhsFiled = rhs.key == rhs.value.definition
-            if lhsFiled != rhsFiled {
-                return !lhsFiled
-            }
-            return lhs.key < rhs.key
-        }
-        var keyed: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
-        for (_, registration) in ordered {
-            keyed[registration.definition] = preferring(keyed[registration.definition], registration)
-        }
-        return keyed
     }
 
     /// This registration, additionally holding `values`.
@@ -283,22 +261,48 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
 
 
 ///
-/// A custom function returned NaN, which SQLite would store as `NULL`.
+/// A custom function returned a value SQLite would not store as returned.
 ///
 /// SwiftQL refuses the result rather than change what the function returned,
-/// as it refuses a NaN parameter.
+/// as it refuses such a value when it is bound as a parameter.
 ///
 public struct XLCustomFunctionResultError: Error, Equatable, Sendable, LocalizedError, CustomStringConvertible {
 
-    /// The function that returned NaN.
+    /// Why the result was refused.
+    public enum Reason: Equatable, Sendable {
+
+        /// A NaN `REAL`, which SQLite would store as `NULL`.
+        case notANumber
+
+        /// `TEXT` containing U+0000, which SQLite would cut short at it.
+        case nulCharacterInText
+
+        /// The result's `bind(context:)` replaced the binding context it was
+        /// given, so the value it wrote could not be read.
+        case unboundResult(valueType: String)
+    }
+
+    /// The function whose result was refused.
     public let definition: XLCustomFunctionDefinition
 
-    public init(definition: XLCustomFunctionDefinition) {
+    /// Why it was refused.
+    public let reason: Reason
+
+    public init(definition: XLCustomFunctionDefinition, reason: Reason) {
         self.definition = definition
+        self.reason = reason
     }
 
     public var description: String {
-        "Function \(definition.name)/\(definition.numberOfArguments) returned NaN, which SQLite would store as NULL."
+        let function = "Function \(definition.name)/\(definition.numberOfArguments)"
+        switch reason {
+        case .notANumber:
+            return "\(function) returned NaN, which SQLite would store as NULL."
+        case .nulCharacterInText:
+            return "\(function) returned text containing U+0000, which SQLite would cut short."
+        case .unboundResult(let valueType):
+            return "\(function) returned a \(valueType) whose bind(context:) replaced the binding context, so its value could not be read."
+        }
     }
 
     public var errorDescription: String? {

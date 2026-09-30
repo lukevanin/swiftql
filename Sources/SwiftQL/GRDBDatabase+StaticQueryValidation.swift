@@ -130,7 +130,7 @@ extension GRDBDatabase {
             sql: encoding.sql,
             entities: encoding.entities,
             parameterLayout: encoding.parameterLayout,
-            requiredFunctions: encoding.customFunctions
+            requiredFunctions: Array(encoding.customFunctions.values)
         )
     }
 }

@@ -149,10 +149,20 @@
     `Bool`, `Int`, `Double`, `String`, `Data`, their optionals, and your own
     `XLLiteral` types qualify. A function that returned a GRDB-only type such
     as `Date`, `UUID`, `Int64`, or `Float` must return one of these instead.
-  - The result is bound back to SQLite the way a parameter is, so a function
-    that returns NaN now fails its statement instead of producing `NULL`.
+  - A result SQLite would change fails the statement with the new
+    `XLCustomFunctionResultError` instead of being stored differently: a NaN,
+    which SQLite would store as `NULL`, and text containing U+0000, which it
+    would cut short. A parameter with either value was already refused.
+  - A statement that calls your own `XLCustomFunction` with a signature
+    SwiftQL bundles, such as `regexp/2`, and also uses the `REGEXP` operator
+    now carries your function whichever was rendered first. Before, the
+    later one won. As a static descriptor such a statement no longer carries
+    SwiftQL's `regexp`, so register your function upfront with
+    `GRDBDatabaseBuilder.addFunction(_:)`, as the static path already
+    requires for your own functions.
   - A statement carries the functions it calls in
-    `XLLogicalPreparedStatement.requiredFunctions`, and
+    `XLLogicalPreparedStatement.requiredFunctions`, passed to its initializer
+    as an array of registrations, and
     `XLDatabaseDriverConnection.prepare(_:)` installs them first through a new
     `installRequiredFunctions(_:)` requirement. Its default installs nothing,
     so a connection outside SwiftQL keeps compiling and behaves as before: a

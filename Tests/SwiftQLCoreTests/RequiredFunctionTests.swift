@@ -22,9 +22,7 @@ final class RequiredFunctionTests: XCTestCase {
             databaseIdentifier: databaseIdentifier,
             dialectRequirement: requirement,
             sql: "SELECT regexp(:pattern, :subject)",
-            requiredFunctions: [
-                XLRegexpFunction.definition: XLCustomFunctionRegistration.bundled[XLRegexpFunction.definition]!,
-            ]
+            requiredFunctions: [XLCustomFunctionRegistration.bundledRegexp]
         )
 
         var prepared = try connection.prepare(statement)
@@ -57,40 +55,54 @@ final class RequiredFunctionTests: XCTestCase {
             databaseIdentifier: databaseIdentifier,
             dialectRequirement: requirement,
             sql: "SELECT regexp('a', 'b')",
-            requiredFunctions: XLCustomFunctionRegistration.bundled
+            requiredFunctions: Array(XLCustomFunctionRegistration.bundled.values)
         )
         XCTAssertEqual(try connection.prepare(needsRegexp), needsRegexp.sql)
         XCTAssertEqual(connection.preparedCount, 1)
     }
 
-    /// Two entries for one signature collapse the same way every time: the
-    /// one that does not defer wins, and the retained values of both are kept.
-    func testEntriesSharingASignatureCollapseDeterministically() {
-        let definition = XLRegexpFunction.definition
-        let application = XLCustomFunctionRegistration(definition: definition) { { _ in .integer(7) } }
-        let bundled = XLCustomFunctionRegistration.bundledRegexp
-        for _ in 0..<20 {
+    /// Two registrations for one signature collapse the same way in either
+    /// order: the one that does not defer wins.
+    func testRegistrationsSharingASignatureCollapseInEitherOrder() throws {
+        let application = XLCustomFunctionRegistration(definition: XLRegexpFunction.definition) { { _ in .integer(7) } }
+        for functions in [
+            [XLCustomFunctionRegistration.bundledRegexp, application],
+            [application, XLCustomFunctionRegistration.bundledRegexp],
+        ] {
             let statement = XLLogicalPreparedStatement(
                 databaseIdentifier: databaseIdentifier,
                 dialectRequirement: requirement,
                 sql: "SELECT regexp('a', 'b')",
-                requiredFunctions: [
-                    definition: bundled,
-                    XLCustomFunctionDefinition(name: "misfiled", numberOfArguments: 2): application,
-                ]
+                requiredFunctions: functions
             )
-            let kept = statement.requiredFunctions[definition]
+            let kept = try XCTUnwrap(statement.requiredFunctions[XLRegexpFunction.definition])
             XCTAssertEqual(statement.requiredFunctions.count, 1)
-            XCTAssertEqual(kept?.defersToExistingRegistration, false, "The application's function wins.")
-            XCTAssertEqual(try kept?.makeEvaluator()([]), .integer(7))
+            XCTAssertFalse(kept.defersToExistingRegistration, "The application's function wins.")
+            XCTAssertEqual(try kept.makeEvaluator()([]), .integer(7))
         }
+    }
+
+    /// Every registration's evaluator refuses a result SQLite would change.
+    func testEvaluatorRefusesAResultSQLiteWouldChange() {
+        let definition = XLCustomFunctionDefinition(name: "result", numberOfArguments: 0)
+        func evaluate(_ result: XLSQLiteValue) throws -> XLSQLiteValue {
+            try XLCustomFunctionRegistration(definition: definition) { { _ in result } }.makeEvaluator()([])
+        }
+        XCTAssertThrowsError(try evaluate(.real(.nan))) { error in
+            XCTAssertEqual(error as? XLCustomFunctionResultError, XLCustomFunctionResultError(definition: definition, reason: .notANumber))
+        }
+        XCTAssertThrowsError(try evaluate(.text("a\u{0}b"))) { error in
+            XCTAssertEqual(error as? XLCustomFunctionResultError, XLCustomFunctionResultError(definition: definition, reason: .nulCharacterInText))
+        }
+        XCTAssertEqual(try evaluate(.real(.infinity)), .real(.infinity))
+        XCTAssertEqual(try evaluate(.text("ab")), .text("ab"))
     }
 
     /// A registration's evaluator is a closure, so statements compare and hash
     /// their required functions by signature.
     func testLogicalStatementsCompareRequiredFunctionsBySignature() {
         let definition = XLCustomFunctionDefinition(name: "twice", numberOfArguments: 1)
-        func statement(_ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]) -> XLLogicalPreparedStatement {
+        func statement(_ functions: [XLCustomFunctionRegistration]) -> XLLogicalPreparedStatement {
             XLLogicalPreparedStatement(
                 databaseIdentifier: databaseIdentifier,
                 dialectRequirement: requirement,
@@ -98,30 +110,21 @@ final class RequiredFunctionTests: XCTestCase {
                 requiredFunctions: functions
             )
         }
-        let first = statement([definition: XLCustomFunctionRegistration(definition: definition) { { _ in .integer(2) } }])
-        let second = statement([definition: XLCustomFunctionRegistration(definition: definition) { { _ in .integer(3) } }])
+        let first = statement([XLCustomFunctionRegistration(definition: definition) { { _ in .integer(2) } }])
+        let second = statement([XLCustomFunctionRegistration(definition: definition) { { _ in .integer(3) } }])
 
         XCTAssertEqual(first, second)
         XCTAssertEqual(first.hashValue, second.hashValue)
-        XCTAssertNotEqual(first, statement([:]))
+        XCTAssertNotEqual(first, statement([]))
         // The same signature installed another way is another statement.
         XCTAssertNotEqual(
             first,
-            statement([definition: XLCustomFunctionRegistration(definition: definition, defersToExistingRegistration: true) { { _ in .integer(2) } }])
+            statement([XLCustomFunctionRegistration(definition: definition, defersToExistingRegistration: true) { { _ in .integer(2) } }])
         )
         XCTAssertNotEqual(
             first,
-            statement([definition: XLCustomFunctionRegistration(definition: definition, isPure: true) { { _ in .integer(2) } }])
+            statement([XLCustomFunctionRegistration(definition: definition, isPure: true) { { _ in .integer(2) } }])
         )
-
-        // A registration passed under another key is stored under its own
-        // signature, so every adapter installs the same function.
-        let misfiled = statement([
-            XLCustomFunctionDefinition(name: "other", numberOfArguments: 1):
-                XLCustomFunctionRegistration(definition: definition) { { _ in .integer(2) } },
-        ])
-        XCTAssertEqual(misfiled.requiredFunctions.keys.sorted(), [definition])
-        XCTAssertEqual(misfiled, first)
 
         let other = XLDatabaseIdentifier(rawValue: UUID())
         let rebound = first.rebound(to: other)

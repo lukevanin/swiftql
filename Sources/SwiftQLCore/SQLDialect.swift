@@ -267,10 +267,9 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
     ///
     /// The connection makes each one available before it prepares the
     /// statement; see ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``.
-    /// Each is keyed by its own ``XLCustomFunctionRegistration/definition``,
-    /// whatever key it was passed under, so every adapter installs the same
-    /// signature. Statements compare their functions as
-    /// ``XLCustomFunctionRegistration`` compares, without the evaluators.
+    /// Each is keyed by its own ``XLCustomFunctionRegistration/definition``.
+    /// Statements compare their functions as ``XLCustomFunctionRegistration``
+    /// compares, without the evaluators.
     public let requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
 
     public init(
@@ -279,14 +278,23 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
         sql: String,
         entities: Set<String> = [],
         parameterLayout: XLParameterLayout = .empty,
-        requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        requiredFunctions: [XLCustomFunctionRegistration] = []
     ) {
         self.databaseIdentifier = databaseIdentifier
         self.dialectRequirement = dialectRequirement
         self.sql = sql
         self.entities = entities
         self.parameterLayout = parameterLayout
-        self.requiredFunctions = XLCustomFunctionRegistration.keyedByDefinition(requiredFunctions)
+        // Two registrations for one signature collapse as the renderer's
+        // registry collapses them; see `XLCustomFunctionRegistration.preferring(_:_:)`.
+        var keyed: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        for registration in requiredFunctions {
+            keyed[registration.definition] = XLCustomFunctionRegistration.preferring(
+                keyed[registration.definition],
+                registration
+            )
+        }
+        self.requiredFunctions = keyed
     }
 
     /// This statement for another database, keeping everything rendering
@@ -298,7 +306,7 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
             sql: sql,
             entities: entities,
             parameterLayout: parameterLayout,
-            requiredFunctions: requiredFunctions
+            requiredFunctions: Array(requiredFunctions.values)
         )
     }
 }
