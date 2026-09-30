@@ -300,24 +300,36 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
 
     /// Two statements are equal when they would execute the same way: the
     /// same database, requirement, SQL, entities, and layout, and the same
-    /// required function signatures. A registration's evaluator is a closure,
-    /// which cannot be compared, so functions compare by signature.
+    /// required functions installed the same way. A registration's evaluator
+    /// is a closure, which cannot be compared, so a function compares by its
+    /// signature, whether it defers to an existing function, and whether it
+    /// is pure.
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.databaseIdentifier == rhs.databaseIdentifier
             && lhs.dialectRequirement == rhs.dialectRequirement
             && lhs.sql == rhs.sql
             && lhs.entities == rhs.entities
             && lhs.parameterLayout == rhs.parameterLayout
-            && Set(lhs.requiredFunctions.keys) == Set(rhs.requiredFunctions.keys)
+            && lhs.requiredFunctions.count == rhs.requiredFunctions.count
+            && lhs.requiredFunctions.allSatisfy { definition, registration in
+                guard let other = rhs.requiredFunctions[definition] else {
+                    return false
+                }
+                return registration.defersToExistingRegistration == other.defersToExistingRegistration
+                    && registration.isPure == other.isPure
+            }
     }
 
+    /// Hashes everything `==` compares except the functions themselves,
+    /// whose count stands in for them: a dictionary has no stable order to
+    /// hash its entries in, and equal statements have equal counts.
     public func hash(into hasher: inout Hasher) {
         hasher.combine(databaseIdentifier)
         hasher.combine(dialectRequirement)
         hasher.combine(sql)
         hasher.combine(entities)
         hasher.combine(parameterLayout)
-        hasher.combine(Set(requiredFunctions.keys))
+        hasher.combine(requiredFunctions.count)
     }
 }
 

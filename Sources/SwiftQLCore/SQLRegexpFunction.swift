@@ -105,6 +105,7 @@ public enum XLRegexpFunction {
         // Argument 0 is the pattern and argument 1 is the subject: SQLite
         // rewrites `X REGEXP Y` to `regexp(Y, X)`, so the operator's right
         // operand arrives first.
+        //
         // Either NULL yields NULL before either argument is read as text, so a
         // NULL beside a non-text value is still NULL rather than an error.
         if arguments.indices.contains(0), arguments[0] == .null {
@@ -113,12 +114,8 @@ public enum XLRegexpFunction {
         if arguments.indices.contains(1), arguments[1] == .null {
             return nil
         }
-        guard
-            let pattern = try text(at: 0, in: arguments),
-            let subject = try text(at: 1, in: arguments)
-        else {
-            return nil
-        }
+        let pattern = try text(at: 0, in: arguments)
+        let subject = try text(at: 1, in: arguments)
         return try XLRegexpMatcher.matches(
             pattern: pattern,
             in: subject,
@@ -126,41 +123,12 @@ public enum XLRegexpFunction {
         )
     }
 
-    /// The argument at `index` as text, or `nil` when it is NULL.
-    ///
-    /// TEXT and UTF-8 BLOB read as text, as a SwiftQL column reader reads
-    /// them. Any other storage class is an error rather than a silent
-    /// conversion.
-    private static func text(at index: Int, in arguments: [XLSQLiteValue]) throws -> String? {
-        guard arguments.indices.contains(index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: "String",
-                failure: .indexOutOfBounds(valueCount: arguments.count)
-            )
-        }
-        switch arguments[index] {
-        case .null:
-            return nil
-        case .text(let text):
-            return text
-        case .blob(let blob):
-            if let text = String(data: blob, encoding: .utf8) {
-                return text
-            }
-            throw typeMismatch(at: index, storageClass: "BLOB")
-        case .integer:
-            throw typeMismatch(at: index, storageClass: "INTEGER")
-        case .real:
-            throw typeMismatch(at: index, storageClass: "REAL")
-        }
-    }
-
-    private static func typeMismatch(at index: Int, storageClass: String) -> XLColumnReadError {
-        XLColumnReadError(
-            index: index,
-            expectedType: "String",
-            failure: .typeMismatch(actualType: storageClass)
+    /// The argument at `index` read as text, by the same rule a SwiftQL
+    /// column reader applies. Called only once neither argument is NULL.
+    private static func text(at index: Int, in arguments: [XLSQLiteValue]) throws -> String {
+        try XLSQLiteValueReading.text(
+            XLSQLiteValueReading.value(at: index, in: arguments, expectedType: "String"),
+            at: index
         )
     }
 }

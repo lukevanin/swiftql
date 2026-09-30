@@ -48,32 +48,19 @@ final class RequiredFunctionTests: XCTestCase {
         XCTAssertTrue(regexp.isPure)
     }
 
-    /// A connection that predates required functions keeps compiling, and
-    /// refuses a statement that needs one instead of failing later with
-    /// SQLite's "no such function".
-    func testConnectionThatCannotInstallFunctionsRefusesAStatementThatNeedsOne() throws {
+    /// A connection that predates required functions keeps working: it
+    /// installs nothing, and a statement that calls a function prepares as it
+    /// always did, relying on the connection to have it.
+    func testConnectionThatCannotInstallFunctionsPreparesAsBefore() throws {
         var connection = PlainConnection(databaseIdentifier: databaseIdentifier)
-        let plain = XLLogicalPreparedStatement(
-            databaseIdentifier: databaseIdentifier,
-            dialectRequirement: requirement,
-            sql: "SELECT 1"
-        )
-        XCTAssertNoThrow(try connection.prepare(plain))
-
         let needsRegexp = XLLogicalPreparedStatement(
             databaseIdentifier: databaseIdentifier,
             dialectRequirement: requirement,
             sql: "SELECT regexp('a', 'b')",
             requiredFunctions: XLCustomFunctionRegistration.bundled
         )
-        XCTAssertThrowsError(try connection.prepare(needsRegexp)) { error in
-            guard case .prepareFailure(let driver, let message)? = error as? XLDatabaseContractError else {
-                return XCTFail("Expected a prepare failure, received \(error).")
-            }
-            XCTAssertEqual(driver, connection.driverIdentifier)
-            XCTAssertTrue(message.contains("regexp/2"), message)
-        }
-        XCTAssertEqual(connection.preparedCount, 1, "The refused statement was not prepared.")
+        XCTAssertEqual(try connection.prepare(needsRegexp), needsRegexp.sql)
+        XCTAssertEqual(connection.preparedCount, 1)
     }
 
     /// A registration's evaluator is a closure, so statements compare and hash
@@ -94,6 +81,15 @@ final class RequiredFunctionTests: XCTestCase {
         XCTAssertEqual(first, second)
         XCTAssertEqual(first.hashValue, second.hashValue)
         XCTAssertNotEqual(first, statement([:]))
+        // The same signature installed another way is another statement.
+        XCTAssertNotEqual(
+            first,
+            statement([definition: XLCustomFunctionRegistration(definition: definition, defersToExistingRegistration: true) { { _ in .integer(2) } }])
+        )
+        XCTAssertNotEqual(
+            first,
+            statement([definition: XLCustomFunctionRegistration(definition: definition, isPure: true) { { _ in .integer(2) } }])
+        )
 
         let other = XLDatabaseIdentifier(rawValue: UUID())
         let rebound = first.rebound(to: other)

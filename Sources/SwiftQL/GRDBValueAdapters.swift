@@ -2,8 +2,9 @@
 //  GRDBValueAdapters.swift
 //  SwiftQL
 //
-//  Reading GRDB values back as SwiftQL sees them: a positional column reader
-//  for custom functions, and the row decoder every fetch path decodes through.
+//  Reading GRDB values back as SwiftQL sees them: the row decoder every fetch
+//  path decodes through. A custom function's arguments are read by
+//  `XLFunctionArgumentReader` (issue #683).
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
@@ -15,45 +16,6 @@ import Combine
 #else
 import OpenCombine
 #endif
-
-
-/// Reads a GRDB row's values positionally, as a custom function's
-/// `execute(reader:)` sees them: an ``XLFunctionArgumentReader`` over the
-/// values' SQLite form.
-struct GRDBValuesAdapter: XLColumnReader {
-
-    private let reader: XLFunctionArgumentReader
-
-    init(values: [GRDB.DatabaseValue]) {
-        self.reader = XLFunctionArgumentReader(
-            values: values.map(\.sqliteDialectValue)
-        )
-    }
-
-    init(row: GRDB.Row) {
-        self.init(values: Array(row.databaseValues))
-    }
-    
-    func isNull(at index: Int) throws -> Bool {
-        try reader.isNull(at: index)
-    }
-    
-    func readInteger(at index: Int) throws -> Int {
-        try reader.readInteger(at: index)
-    }
-    
-    func readReal(at index: Int) throws -> Double {
-        try reader.readReal(at: index)
-    }
-    
-    func readText(at index: Int) throws -> String {
-        try reader.readText(at: index)
-    }
-    
-    func readBlob(at index: Int) throws -> Data {
-        try reader.readBlob(at: index)
-    }
-}
 
 
 /// Package-scoped decoding seam shared by the GRDB adapter and performance harness.

@@ -63,20 +63,10 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
     }
 
     public func readText(at index: Int) throws -> String {
-        let value = try value(at: index, expectedType: "String")
-        switch value {
-        case .text(let text):
-            return text
-        case .blob(let blob):
-            guard let text = String(data: blob, encoding: .utf8) else {
-                throw typeMismatch(value, at: index, expectedType: "String")
-            }
-            return text
-        case .null:
-            throw nullValue(at: index, expectedType: "String")
-        case .integer, .real:
-            throw typeMismatch(value, at: index, expectedType: "String")
-        }
+        try XLSQLiteValueReading.text(
+            value(at: index, expectedType: "String"),
+            at: index
+        )
     }
 
     public func readBlob(at index: Int) throws -> Data {
@@ -109,14 +99,7 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
     }
 
     private func value(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
-        guard values.indices.contains(index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: expectedType,
-                failure: .indexOutOfBounds(valueCount: values.count)
-            )
-        }
-        return values[index]
+        try XLSQLiteValueReading.value(at: index, in: values, expectedType: expectedType)
     }
 
     private func nullValue(at index: Int, expectedType: String) -> XLColumnReadError {
@@ -132,25 +115,6 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         at index: Int,
         expectedType: String
     ) -> XLColumnReadError {
-        XLColumnReadError(
-            index: index,
-            expectedType: expectedType,
-            failure: .typeMismatch(actualType: storageClassName(value))
-        )
-    }
-
-    private func storageClassName(_ value: XLSQLiteValue) -> String {
-        switch value {
-        case .null:
-            return "NULL"
-        case .integer:
-            return "INTEGER"
-        case .real:
-            return "REAL"
-        case .text:
-            return "TEXT"
-        case .blob:
-            return "BLOB"
-        }
+        XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: expectedType)
     }
 }

@@ -113,9 +113,10 @@ public protocol XLDatabaseDriverConnection {
     /// Installing the same registration twice on one connection must be
     /// harmless.
     ///
-    /// The default implementation installs nothing, and throws
-    /// ``XLDatabaseContractError/prepareFailure(driver:message:)`` naming the
-    /// functions when `functions` is not empty.
+    /// The default implementation installs nothing. The statement then
+    /// prepares as it would have before this requirement existed: a function
+    /// the connection already has, loaded as an extension or registered when
+    /// it opened, resolves, and a missing one fails at preparation.
     mutating func installRequiredFunctions(
         _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws
@@ -124,22 +125,12 @@ public protocol XLDatabaseDriverConnection {
 
 extension XLDatabaseDriverConnection {
 
-    /// A connection that cannot install functions refuses a statement that
-    /// needs one, rather than failing later with SQLite's "no such function".
+    /// Installs nothing, so a connection written before this requirement
+    /// keeps working: the functions a statement calls must already be on the
+    /// connection, as they always had to be for it.
     public mutating func installRequiredFunctions(
         _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
-    ) throws {
-        guard !functions.isEmpty else {
-            return
-        }
-        let signatures = functions.keys.sorted()
-            .map { "\($0.name)/\($0.numberOfArguments)" }
-            .joined(separator: ", ")
-        throw XLDatabaseContractError.prepareFailure(
-            driver: driverIdentifier,
-            message: "This connection cannot install the functions the statement calls: \(signatures)."
-        )
-    }
+    ) throws {}
 }
 
 

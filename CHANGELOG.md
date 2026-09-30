@@ -154,10 +154,10 @@
   - A statement carries the functions it calls in
     `XLLogicalPreparedStatement.requiredFunctions`, and
     `XLDatabaseDriverConnection.prepare(_:)` installs them first through a new
-    `installRequiredFunctions(_:)` requirement. Its default refuses a
-    statement that needs a function, so a connection outside SwiftQL keeps
-    compiling and reports the missing function instead of SQLite's "no such
-    function". The GRDB adapter installs them as before.
+    `installRequiredFunctions(_:)` requirement. Its default installs nothing,
+    so a connection outside SwiftQL keeps compiling and behaves as before: a
+    function it already has resolves, and a missing one fails at preparation.
+    The GRDB adapter installs them as before.
   - `XLColumnReadError` and `XLRegexpFunction` moved to SwiftQLCore, re-exported
     unchanged. `XLRegexpFunction.evaluate(_:cache:)` evaluates a call from its
     SQLite values, and `XLCustomFunctionRegistration.bundled` lists the
