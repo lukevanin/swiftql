@@ -557,12 +557,18 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
                 failure: .nullValue
             )
         )
+        // No retry was scheduled: the decode failure ended the only attempt.
         XCTAssertTrue(scheduler.recordedDelays.isEmpty)
         XCTAssertTrue(scheduler.pendingDelays.isEmpty)
-        XCTAssertEqual(
-            fixture.functionState.invocationCount,
-            1,
-            "The permanent decode failure must terminate after one real query attempt."
+        // That one attempt can run the query twice. Where SQLite has no WAL
+        // snapshots, as on Linux, GRDB fetches on a reader, decodes that
+        // value on its reduce queue, and meanwhile fetches again on the writer
+        // to start observing. The decode failure cancels the observation, and
+        // whether the writer's fetch ran first is a race.
+        XCTAssertTrue(
+            (1...2).contains(fixture.functionState.invocationCount),
+            "The permanent decode failure must terminate the one query attempt; "
+                + "ran \(fixture.functionState.invocationCount) fetches."
         )
         withExtendedLifetime(cancellable) {}
     }
