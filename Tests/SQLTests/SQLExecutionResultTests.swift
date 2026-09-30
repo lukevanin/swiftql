@@ -68,8 +68,8 @@ final class XLExecutionResultTests: XCTestCase {
         XCTAssertEqual(create, XLExecutionResult(rowsAffected: 0, lastInsertedRowID: nil, access: .write))
     }
 
-    /// Clearing the connection's last inserted row id to detect an insert must
-    /// not change what the connection reports afterward.
+    /// Reporting what a statement inserted must not change the connection's
+    /// last inserted row id.
     func testStatementThatInsertsNothingLeavesTheConnectionsLastInsertedRowID() throws {
         try createTestTable()
         let request = database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1)))

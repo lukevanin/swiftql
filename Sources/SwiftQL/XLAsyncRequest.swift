@@ -186,10 +186,12 @@ struct XLBlockingAsyncWriteRequest: XLAsyncWriteRequest, @unchecked Sendable {
 
     let request: any XLWriteRequest
 
+    @discardableResult
     func execute() async throws -> XLExecutionResult {
         try await xlRunOffCooperativePool { try request.execute() }
     }
 
+    @discardableResult
     func execute(bindings: any XLInvocationBindingPacket) async throws -> XLExecutionResult {
         try await xlRunOffCooperativePool { try request.execute(bindings: bindings) }
     }

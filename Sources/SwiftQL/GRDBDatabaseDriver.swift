@@ -949,28 +949,11 @@ struct GRDBDatabaseDriverConnection:
     ) throws {
         try validateOwnership(of: statement)
         // The callback's own error is the caller's, so it is kept aside
-        // rather than mapped with the cursor's. The callback runs on this
-        // thread and cannot escape, so a local needs no lock.
-        var callbackError: (any Error)?
-        do {
+        // rather than mapped with the cursor's.
+        try xlMappingScopeErrors(driver: driverIdentifier) { callbackError in
             try forEachRowUnmapped(statement) { values in
-                do {
-                    return try body(values)
-                }
-                catch {
-                    callbackError = error
-                    throw error
-                }
+                try callbackError.recording { try body(values) }
             }
-        }
-        catch {
-            if let callbackError {
-                throw callbackError
-            }
-            if let error = error as? DatabaseError {
-                throw XLDatabaseError(error, driver: driverIdentifier)
-            }
-            throw error
         }
     }
 
@@ -1138,7 +1121,7 @@ struct GRDBDatabaseDriverConnection:
 
     ///
     /// Runs `body`, reporting a GRDB `DatabaseError` it throws as an
-    /// ``XLDatabaseError`` from this connection's driver (issue #679).
+    /// `XLDatabaseError` from this connection's driver (issue #679).
     ///
     private func mappingDatabaseErrors<Result>(
         _ body: () throws -> Result

@@ -363,7 +363,8 @@ cross-task use.
 An error that `execute(reader:)` throws fails the statement that called the
 function. SQLite keeps only the error's text, so the caller receives an
 `XLDatabaseError`, not the error you threw: its `message` is your error's
-description, and its `code` is `.other`. `catch let error as MyFunctionError`
+description, and its `code` is `.other`, unless you threw a GRDB
+`DatabaseError`, whose result code SQLite keeps. `catch let error as MyFunctionError`
 around a fetch therefore does not match. Put what the caller needs to know in
 the error's description, or check the input before it reaches a statement when
 the caller needs a typed error. The same holds for the functions SwiftQL

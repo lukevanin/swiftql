@@ -94,11 +94,13 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
 
     let request: GRDBWriteRequest
 
+    @discardableResult
     func execute() async throws -> XLExecutionResult {
         try Task.checkCancellation()
         return try await execute(bindings: request.legacyBindings.packet())
     }
 
+    @discardableResult
     func execute(
         bindings: any XLInvocationBindingPacket
     ) async throws -> XLExecutionResult {

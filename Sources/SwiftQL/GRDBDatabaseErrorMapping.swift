@@ -23,7 +23,7 @@ extension XLDriverIdentifier {
 extension XLDatabaseError {
 
     /// The portable form of a GRDB database error, keeping the original as
-    /// ``XLDatabaseError/underlying``.
+    /// `XLDatabaseError.underlying`.
     init(_ error: DatabaseError, driver: XLDriverIdentifier) {
         self.init(
             code: XLDatabaseErrorCode(sqlitePrimaryResultCode: error.resultCode.rawValue),
@@ -75,7 +75,7 @@ extension XLDatabaseErrorCode {
 
 ///
 /// Runs `body`, reporting a GRDB `DatabaseError` it throws as an
-/// ``XLDatabaseError``. Every other error passes through unchanged,
+/// `XLDatabaseError`. Every other error passes through unchanged,
 /// including the `CancellationError` GRDB throws for a cancelled task.
 ///
 func xlMappingDatabaseErrors<Result>(
@@ -95,29 +95,36 @@ func xlMappingDatabaseErrors<Result>(
 /// Runs a scope that lends a connection to caller code, mapping only what
 /// GRDB itself throws.
 ///
-/// `body` runs the caller's code through the recorder it is given. A scope
-/// maps what GRDB throws around that code, such as a failing `BEGIN` or
-/// `COMMIT`, but the caller's own error is the caller's: the driver contract
-/// rethrows it as it was thrown, even when it happens to be a GRDB
-/// `DatabaseError`. The error is recorded beside the scope rather than
-/// wrapped, as ``XLTransactionOperationError`` documents, so no wrapper can
+/// `body` runs the caller's code through the slot it is given. A scope maps
+/// what GRDB throws around that code, such as a failing `BEGIN` or `COMMIT`,
+/// but the caller's own error is the caller's: the driver contract rethrows
+/// it as it was thrown, even when it happens to be a GRDB `DatabaseError`.
+/// The error is kept beside the scope rather than wrapped, so no wrapper can
 /// reach a caller.
+///
+/// The caller's code runs within this call, on this thread, so the slot is a
+/// local: it allocates nothing and takes no lock.
 ///
 func xlMappingScopeErrors<Result>(
     driver: XLDriverIdentifier,
-    _ body: (XLTransactionOperationError) throws -> Result
+    _ body: (inout XLOperationErrorSlot) throws -> Result
 ) throws -> Result {
-    let operationError = XLTransactionOperationError()
+    var slot = XLOperationErrorSlot()
     do {
-        return try body(operationError)
+        return try body(&slot)
     }
     catch {
-        throw operationError.mappedError(for: error, driver: driver)
+        throw xlMappedScopeError(error, operationError: slot.error, driver: driver)
     }
 }
 
 
+///
 /// The asynchronous form of ``xlMappingScopeErrors(driver:_:)``.
+///
+/// GRDB runs the caller's code on its own executor, so the error is kept in
+/// a locked `XLTransactionOperationError`, once per scope.
+///
 func xlMappingScopeErrors<Result: Sendable>(
     driver: XLDriverIdentifier,
     isolation: isolated (any Actor)? = #isolation,
@@ -128,23 +135,44 @@ func xlMappingScopeErrors<Result: Sendable>(
         return try await body(operationError)
     }
     catch {
-        throw operationError.mappedError(for: error, driver: driver)
+        throw xlMappedScopeError(error, operationError: operationError.recordedError, driver: driver)
     }
 }
 
 
-extension XLTransactionOperationError {
+/// Where a synchronous scope keeps the error its caller's code threw.
+struct XLOperationErrorSlot {
 
-    /// The error a scope reports when it threw `error`: the caller's own
-    /// error when its code threw one, otherwise `error`, as an
-    /// ``XLDatabaseError`` when it is a GRDB `DatabaseError`.
-    func mappedError(for error: any Error, driver: XLDriverIdentifier) -> any Error {
-        if let recorded = recordedError {
-            return recorded
+    /// The error the caller's code threw, or `nil` when it returned.
+    private(set) var error: (any Error)?
+
+    /// Runs the caller's code, keeping any error it throws before
+    /// rethrowing it.
+    mutating func recording<Result>(_ operation: () throws -> Result) throws -> Result {
+        do {
+            return try operation()
         }
-        if let error = error as? DatabaseError {
-            return XLDatabaseError(error, driver: driver)
+        catch {
+            self.error = error
+            throw error
         }
-        return error
     }
+}
+
+
+/// The error a scope reports when it threw `error`: the caller's own error
+/// when its code threw one, otherwise `error`, as an `XLDatabaseError` when
+/// it is a GRDB `DatabaseError`.
+func xlMappedScopeError(
+    _ error: any Error,
+    operationError: (any Error)?,
+    driver: XLDriverIdentifier
+) -> any Error {
+    if let operationError {
+        return operationError
+    }
+    if let error = error as? DatabaseError {
+        return XLDatabaseError(error, driver: driver)
+    }
+    return error
 }

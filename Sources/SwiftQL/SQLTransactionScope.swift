@@ -80,7 +80,7 @@ public protocol XLTransactionalDatabase: XLDatabase {
     ///   already cancelled before the transaction began.
     ///
     /// The result is discardable, so a body that only writes, such as one
-    /// ending in `execute()`, which reports an ``XLExecutionResult``, needs
+    /// ending in `execute()`, which reports an `XLExecutionResult`, needs
     /// no `_ =` (issue #679).
     ///
     @discardableResult
