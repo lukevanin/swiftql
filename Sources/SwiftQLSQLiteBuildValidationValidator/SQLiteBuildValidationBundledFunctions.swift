@@ -59,11 +59,15 @@ enum SQLiteBuildValidationBundledFunctions {
         $0.definition < $1.definition
     }
 
-    /// A GRDB function that evaluates `registration`, as the runtime's does.
+    /// A GRDB function that evaluates `registration`, as the runtime's does,
+    /// except that an argument it cannot read yields NULL.
     ///
-    /// The validator only prepares statements, so the function is never
-    /// called; it has to exist, with the right name and argument count, for
-    /// SQLite to resolve the call.
+    /// The validator mostly prepares statements, where the function only has
+    /// to exist, with the right name and argument count, for SQLite to
+    /// resolve the call. When it does run, as when an index candidate is built
+    /// over snapshot rows, a column-read error raised on a connection that
+    /// never executes the application's statement would be noise, so it reads
+    /// as NULL, as the validator's own copy of `regexp` did before issue #683.
     static func databaseFunction(for registration: XLCustomFunctionRegistration) -> DatabaseFunction {
         let evaluate = registration.makeEvaluator()
         return DatabaseFunction(
@@ -71,7 +75,12 @@ enum SQLiteBuildValidationBundledFunctions {
             argumentCount: registration.definition.numberOfArguments,
             pure: registration.isPure,
             function: { values in
-                try databaseValue(evaluate(values.map(sqliteValue)))
+                do {
+                    return try databaseValue(evaluate(values.map(sqliteValue)))
+                }
+                catch is XLColumnReadError {
+                    return DatabaseValue.null
+                }
             }
         )
     }

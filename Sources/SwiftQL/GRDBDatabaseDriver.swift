@@ -1733,8 +1733,19 @@ extension XLCustomFunctionRegistration {
             definition.name,
             argumentCount: definition.numberOfArguments,
             pure: isPure,
-            function: { values in
-                try evaluate(values.map(\.sqliteDialectValue)).databaseValue
+            function: { [definition] values in
+                let result = try evaluate(values.map(\.sqliteDialectValue))
+                // SQLite stores a NaN result as NULL. Refuse it, as a NaN
+                // parameter is refused, whatever built the evaluator.
+                if case .real(let real) = result,
+                   let error = XLSQLValueEncodingError.bindingFailure(
+                       for: real,
+                       valueType: "Double",
+                       context: XLValueCodingContext(site: .result, path: XLValueCodingPath(definition.name))
+                   ) {
+                    throw error
+                }
+                return result.databaseValue
             }
         )
     }

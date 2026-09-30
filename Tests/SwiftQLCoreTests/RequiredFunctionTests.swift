@@ -63,6 +63,29 @@ final class RequiredFunctionTests: XCTestCase {
         XCTAssertEqual(connection.preparedCount, 1)
     }
 
+    /// Two entries for one signature collapse the same way every time: the
+    /// one that does not defer wins, and the retained values of both are kept.
+    func testEntriesSharingASignatureCollapseDeterministically() {
+        let definition = XLRegexpFunction.definition
+        let application = XLCustomFunctionRegistration(definition: definition) { { _ in .integer(7) } }
+        let bundled = XLCustomFunctionRegistration.bundledRegexp
+        for _ in 0..<20 {
+            let statement = XLLogicalPreparedStatement(
+                databaseIdentifier: databaseIdentifier,
+                dialectRequirement: requirement,
+                sql: "SELECT regexp('a', 'b')",
+                requiredFunctions: [
+                    definition: bundled,
+                    XLCustomFunctionDefinition(name: "misfiled", numberOfArguments: 2): application,
+                ]
+            )
+            let kept = statement.requiredFunctions[definition]
+            XCTAssertEqual(statement.requiredFunctions.count, 1)
+            XCTAssertEqual(kept?.defersToExistingRegistration, false, "The application's function wins.")
+            XCTAssertEqual(try kept?.makeEvaluator()([]), .integer(7))
+        }
+    }
+
     /// A registration's evaluator is a closure, so statements compare and hash
     /// their required functions by signature.
     func testLogicalStatementsCompareRequiredFunctionsBySignature() {

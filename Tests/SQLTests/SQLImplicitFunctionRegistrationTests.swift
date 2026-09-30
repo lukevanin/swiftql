@@ -279,8 +279,28 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         let statement = sql { _ in Select(ImplicitNotANumberFunction()) }
 
         XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
-            let message = String(describing: error)
-            XCTAssertTrue(message.contains("NaN") || message.contains("nan"), message)
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(
+                message.contains("realBindingWouldBecomeNull"),
+                "\(error)"
+            )
+        }
+    }
+
+    /// The adapter refuses a NaN result from any evaluator, not only one
+    /// built by `XLCustomFunctionRegistration.make(_:)`.
+    func testNaNFromAnEvaluatorBuiltDirectlyIsRefused() throws {
+        let definition = XLCustomFunctionDefinition(name: "directNotANumber", numberOfArguments: 0)
+        let registration = XLCustomFunctionRegistration(definition: definition) { { _ in .real(.nan) } }
+        let pool = try DatabasePool(path: databaseDirectoryURL.appendingPathComponent("direct.sqlite").path)
+        try pool.write { database in
+            database.add(function: registration.makeGRDBFunction())
+            XCTAssertThrowsError(try Double.fetchOne(database, sql: "SELECT directNotANumber()")) { error in
+                XCTAssertTrue(
+                    ((error as? DatabaseError)?.message ?? "").contains("realBindingWouldBecomeNull"),
+                    "\(error)"
+                )
+            }
         }
     }
 

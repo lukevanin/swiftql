@@ -16,7 +16,9 @@ import Foundation
 ///
 /// It receives the call's arguments as SQLite values, in order, and returns
 /// the result as one. An error it throws fails the statement that made the
-/// call.
+/// call. A NaN `REAL` result is an error too: SQLite would store it as
+/// `NULL`, so an adapter refuses it rather than change what the function
+/// returned.
 ///
 public typealias XLCustomFunctionEvaluator = @Sendable ([XLSQLiteValue]) throws -> XLSQLiteValue
 
@@ -143,6 +145,37 @@ public struct XLCustomFunctionRegistration: Hashable, Sendable {
         hasher.combine(definition)
         hasher.combine(defersToExistingRegistration)
         hasher.combine(isPure)
+    }
+
+    /// `registrations` keyed by each registration's own ``definition``.
+    ///
+    /// Two entries for one signature collapse to one, the same way every
+    /// time: a registration that does not defer wins, as the application's
+    /// own function wins over a bundled one when both are installed; then one
+    /// already filed under its own signature. Their retained values are
+    /// merged, so neither entry's retained values are released early.
+    package static func keyedByDefinition(
+        _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) -> [XLCustomFunctionDefinition: XLCustomFunctionRegistration] {
+        var keyed: [XLCustomFunctionDefinition: (registration: XLCustomFunctionRegistration, filed: Bool)] = [:]
+        for (key, registration) in registrations.sorted(by: { $0.key < $1.key }) {
+            let filed = key == registration.definition
+            guard let existing = keyed[registration.definition] else {
+                keyed[registration.definition] = (registration, filed)
+                continue
+            }
+            let incomingWins: Bool
+            if existing.registration.defersToExistingRegistration != registration.defersToExistingRegistration {
+                incomingWins = existing.registration.defersToExistingRegistration
+            }
+            else {
+                incomingWins = filed && !existing.filed
+            }
+            let winner = incomingWins ? registration : existing.registration
+            let loser = incomingWins ? existing.registration : registration
+            keyed[registration.definition] = (winner.retaining(loser.retainedValues), incomingWins ? filed : existing.filed)
+        }
+        return keyed.mapValues(\.registration)
     }
 
     /// This registration, additionally holding `values`.

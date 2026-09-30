@@ -40,10 +40,15 @@ package enum XLSQLiteValueReading {
             }
             return text
         case .null:
-            throw XLColumnReadError(index: index, expectedType: "String", failure: .nullValue)
+            throw nullValue(at: index, expectedType: "String")
         case .integer, .real:
             throw typeMismatch(value, at: index, expectedType: "String")
         }
+    }
+
+    /// The error for a NULL read as a non-optional `expectedType`.
+    package static func nullValue(at index: Int, expectedType: String) -> XLColumnReadError {
+        XLColumnReadError(index: index, expectedType: expectedType, failure: .nullValue)
     }
 
     /// The error for a value whose storage class cannot be read as

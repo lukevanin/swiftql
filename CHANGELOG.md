@@ -158,8 +158,11 @@
     so a connection outside SwiftQL keeps compiling and behaves as before: a
     function it already has resolves, and a missing one fails at preparation.
     The GRDB adapter installs them as before.
-  - `XLColumnReadError` and `XLRegexpFunction` moved to SwiftQLCore, re-exported
-    unchanged. `XLRegexpFunction.evaluate(_:cache:)` evaluates a call from its
+  - `XLColumnReadError`, `XLRegexpFunction`, and `XLCustomFunctionRegistration`
+    moved to SwiftQLCore and are re-exported, so source that names them
+    compiles unchanged. Their module-qualified names change, for example to
+    `SwiftQLCore.XLColumnReadError`, and so does the bridged `NSError`
+    domain; code that matches those strings must be updated. `XLRegexpFunction.evaluate(_:cache:)` evaluates a call from its
     SQLite values, and `XLCustomFunctionRegistration.bundled` lists the
     functions SwiftQL supplies. The SQLite build validator installs exactly
     that list.

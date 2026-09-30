@@ -286,10 +286,7 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
         self.sql = sql
         self.entities = entities
         self.parameterLayout = parameterLayout
-        self.requiredFunctions = Dictionary(
-            requiredFunctions.values.map { ($0.definition, $0) },
-            uniquingKeysWith: { _, last in last }
-        )
+        self.requiredFunctions = XLCustomFunctionRegistration.keyedByDefinition(requiredFunctions)
     }
 
     /// This statement for another database, keeping everything rendering

@@ -49,7 +49,9 @@ extension XLCustomFunctionRegistration {
             F.execute(reader:) as (XLColumnReader) throws -> F.T,
             to: (@Sendable (XLColumnReader) throws -> F.T).self
         )
-        let resultTypeName = String(describing: F.T.self)
+        // The metatype, not its name: naming a type costs a demangle, and the
+        // name is read only when a result cannot be bound.
+        let resultType = F.T.self
         return XLCustomFunctionRegistration(
             definition: functionDefinition,
             makeEvaluator: {
@@ -57,7 +59,7 @@ extension XLCustomFunctionRegistration {
                     let result = try executeFunction(XLFunctionArgumentReader(values: arguments))
                     return try _xlCaptureSQLiteValue(
                         result,
-                        valueType: resultTypeName,
+                        valueType: String(describing: resultType),
                         codingContext: XLValueCodingContext(
                             site: .result,
                             path: XLValueCodingPath(functionDefinition.name)

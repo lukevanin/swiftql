@@ -27,7 +27,7 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         switch value {
         case .integer(let integer):
             guard let result = Int(exactly: integer) else {
-                throw typeMismatch(value, at: index, expectedType: "Int")
+                throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
             }
             return result
         case .real(let real):
@@ -38,13 +38,13 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
                 truncated >= Double(Int64.min),
                 truncated < upperBound
             else {
-                throw typeMismatch(value, at: index, expectedType: "Int")
+                throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
             }
             return Int(Int64(truncated))
         case .null:
-            throw nullValue(at: index, expectedType: "Int")
+            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Int")
         case .text, .blob:
-            throw typeMismatch(value, at: index, expectedType: "Int")
+            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
         }
     }
 
@@ -56,9 +56,9 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         case .real(let real):
             return real
         case .null:
-            throw nullValue(at: index, expectedType: "Double")
+            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Double")
         case .text, .blob:
-            throw typeMismatch(value, at: index, expectedType: "Double")
+            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Double")
         }
     }
 
@@ -77,9 +77,9 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         case .text(let text):
             return Data(text.utf8)
         case .null:
-            throw nullValue(at: index, expectedType: "Data")
+            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Data")
         case .integer, .real:
-            throw typeMismatch(value, at: index, expectedType: "Data")
+            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Data")
         }
     }
 
@@ -100,21 +100,5 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
 
     private func value(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
         try XLSQLiteValueReading.value(at: index, in: values, expectedType: expectedType)
-    }
-
-    private func nullValue(at index: Int, expectedType: String) -> XLColumnReadError {
-        XLColumnReadError(
-            index: index,
-            expectedType: expectedType,
-            failure: .nullValue
-        )
-    }
-
-    private func typeMismatch(
-        _ value: XLSQLiteValue,
-        at index: Int,
-        expectedType: String
-    ) -> XLColumnReadError {
-        XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: expectedType)
     }
 }
