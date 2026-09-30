@@ -907,7 +907,7 @@ private struct FakeConnection:
             throw FakeFailure.execute
         }
         recorder.executedConnectionIDs.append(connectionID)
-        return XLExecutionResult(rowsAffected: 1, lastInsertedRowID: nil, access: .write)
+        return XLExecutionResult(rowsAffected: 1, access: .write)
     }
 
     private func orderedValues(in statement: FakePhysicalStatement) -> [XLSQLiteValue] {

@@ -1068,7 +1068,7 @@ private struct CodecTestConnection: XLDatabaseDriverConnection {
 
     mutating func execute(_ statement: CodecTestPhysicalStatement) throws -> XLExecutionResult {
         _ = statement
-        return XLExecutionResult(rowsAffected: 0, lastInsertedRowID: nil, access: .write)
+        return XLExecutionResult(rowsAffected: 0, access: .write)
     }
 }
 

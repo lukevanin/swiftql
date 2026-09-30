@@ -346,6 +346,6 @@ private struct MarkerConnection: XLDatabaseDriverConnection, Sendable {
             )
         }
         count += 1
-        return XLExecutionResult(rowsAffected: 1, lastInsertedRowID: Int64(count), access: .write)
+        return XLExecutionResult(rowsAffected: 1, access: .write)
     }
 }

@@ -1095,25 +1095,14 @@ struct GRDBDatabaseDriverConnection:
         let database = database
         return try mappingDatabaseErrors {
             let totalChangesBefore = database.totalChangesCount
-            // A snapshot, not a reset: the statement itself, or one of its
-            // triggers, can read `last_insert_rowid()`, so the connection's
-            // value is left as SQLite keeps it.
-            let lastInsertedRowIDBefore = database.lastInsertedRowID
             try statement.statement.execute(arguments: arguments)
             // `sqlite3_changes` keeps the count of the last INSERT, UPDATE,
             // or DELETE, so a statement that changed nothing, such as
             // `CREATE TABLE`, would report an earlier statement's count. The
             // total change count moves only when this statement changed rows.
             let changed = database.totalChangesCount != totalChangesBefore
-            // SQLite sets the row id only for a row inserted into a rowid
-            // table, and restores it when a trigger ends, so a changed value
-            // is this statement's insert. An insert that yields the value
-            // the connection already held is reported as none.
-            let lastInsertedRowID = database.lastInsertedRowID
-            let inserted = changed && lastInsertedRowID != lastInsertedRowIDBefore
             return XLExecutionResult(
                 rowsAffected: changed ? database.changesCount : 0,
-                lastInsertedRowID: inserted ? lastInsertedRowID : nil,
                 access: statement.statement.isReadonly ? .read : .write
             )
         }

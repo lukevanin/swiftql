@@ -122,7 +122,9 @@
     The documentation had promised the typed error, such as
     `XLRegexpFunctionError`; it now says what the caller receives.
 - **`execute()` reports an `XLExecutionResult`** (issue #679): the rows the
-  statement changed, the row id it inserted, and whether it could write.
+  statement changed, and whether it could write. It carries no inserted row
+  id, because SQLite cannot reliably say whether a statement set one; add a
+  `RETURNING` clause to an insert to fetch its row's id.
   `XLWriteRequest.execute()` and `execute(bindings:)`, their `async` forms,
   `XLDatabaseDriverConnection.execute(_:)`, `executeValidated(_:)`, and the
   GRDB invocation and descriptor `execute(bindings:)` return it. All are

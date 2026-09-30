@@ -26,6 +26,10 @@ public enum XLStatementAccess: Hashable, Sendable {
 ///
 /// What one execution of a statement did (issue #679).
 ///
+/// It does not report an inserted row's id: SQLite offers no reliable way to
+/// tell whether a statement set one. To learn a new row's id, add a
+/// `RETURNING` clause to the insert and fetch it.
+///
 public struct XLExecutionResult: Hashable, Sendable {
 
     /// The rows the statement itself inserted, updated, or deleted.
@@ -35,31 +39,14 @@ public struct XLExecutionResult: Hashable, Sendable {
     /// `CREATE TABLE`, reports zero.
     public let rowsAffected: Int
 
-    /// The row id of the row the statement inserted, or `nil` when it
-    /// inserted none.
-    ///
-    /// For a statement that inserts several rows, this is the last one's. It
-    /// is also `nil` for an insert that sets no row id: into a
-    /// `WITHOUT ROWID` table, or into a view through an `INSTEAD OF` trigger.
-    ///
-    /// The GRDB driver reads the connection's last inserted row id before and
-    /// after the statement, without changing it, so SQL that calls
-    /// `last_insert_rowid()` sees what it always has. An insert whose row id
-    /// equals the one the connection last reported, such as deleting the
-    /// last inserted row and inserting it again, is therefore reported as
-    /// `nil`.
-    public let lastInsertedRowID: Int64?
-
     /// Whether the statement can change the database.
     public let access: XLStatementAccess
 
     public init(
         rowsAffected: Int,
-        lastInsertedRowID: Int64?,
         access: XLStatementAccess
     ) {
         self.rowsAffected = rowsAffected
-        self.lastInsertedRowID = lastInsertedRowID
         self.access = access
     }
 }

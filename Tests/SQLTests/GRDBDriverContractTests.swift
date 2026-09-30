@@ -1134,7 +1134,7 @@ final class GRDBDriverContractTests: XCTestCase {
         }
     }
 
-    /// Issue #679: reporting the inserted row id must not change what SQL
+    /// Issue #679: reporting what a statement did must not change what SQL
     /// inside the statement sees from `last_insert_rowid()`.
     func testExecuteLeavesLastInsertRowIDVisibleToTheStatement() throws {
         let fixture = try makeFixture()
@@ -1160,7 +1160,6 @@ final class GRDBDriverContractTests: XCTestCase {
         }
 
         XCTAssertEqual(parent, .integer(8), "The child read the parent's row id, and the update found the child.")
-        XCTAssertEqual(results.map(\.lastInsertedRowID), [nil, nil, 7, 1, nil])
         XCTAssertEqual(results.map(\.rowsAffected), [0, 0, 1, 1, 1])
     }
 

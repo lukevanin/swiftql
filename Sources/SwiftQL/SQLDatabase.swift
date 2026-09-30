@@ -650,7 +650,7 @@ public protocol XLWriteRequest {
     
     ///
     /// Executes the statement, and reports what it did: the rows it changed,
-    /// the row id it inserted, and whether it could write (issue #679).
+    /// and whether it could write (issue #679).
     ///
     @discardableResult
     func execute() throws -> XLExecutionResult

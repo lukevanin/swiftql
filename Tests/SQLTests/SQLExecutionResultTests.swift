@@ -35,17 +35,17 @@ final class XLExecutionResultTests: XCTestCase {
 
     // MARK: - Execution result
 
-    func testInsertReportsOneRowAndItsRowID() throws {
+    func testInsertReportsOneRow() throws {
         try createTestTable()
 
         let first = try database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
         let second = try database.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
 
-        XCTAssertEqual(first, XLExecutionResult(rowsAffected: 1, lastInsertedRowID: 1, access: .write))
-        XCTAssertEqual(second, XLExecutionResult(rowsAffected: 1, lastInsertedRowID: 2, access: .write))
+        XCTAssertEqual(first, XLExecutionResult(rowsAffected: 1, access: .write))
+        XCTAssertEqual(second, XLExecutionResult(rowsAffected: 1, access: .write))
     }
 
-    func testUpdateAndDeleteReportTheRowsTheyChangedAndNoInsertedRow() throws {
+    func testUpdateAndDeleteReportTheRowsTheyChanged() throws {
         try seed()
 
         let updated = try database.makeRequest(with: setEveryValue(to: 7)).execute()
@@ -53,8 +53,8 @@ final class XLExecutionResultTests: XCTestCase {
         let table = schema.into(TestTable.self)
         let deleted = try database.makeRequest(with: delete(table).where(table.id == "alpha")).execute()
 
-        XCTAssertEqual(updated, XLExecutionResult(rowsAffected: 3, lastInsertedRowID: nil, access: .write))
-        XCTAssertEqual(deleted, XLExecutionResult(rowsAffected: 2, lastInsertedRowID: nil, access: .write))
+        XCTAssertEqual(updated, XLExecutionResult(rowsAffected: 3, access: .write))
+        XCTAssertEqual(deleted, XLExecutionResult(rowsAffected: 2, access: .write))
     }
 
     /// `sqlite3_changes` keeps the previous INSERT's count, so a statement that
@@ -65,26 +65,7 @@ final class XLExecutionResultTests: XCTestCase {
 
         let create = try database.makeRequest(with: sqlCreate(TestNullablesTable.self)).execute()
 
-        XCTAssertEqual(create, XLExecutionResult(rowsAffected: 0, lastInsertedRowID: nil, access: .write))
-    }
-
-    /// Reporting what a statement inserted must not change the connection's
-    /// last inserted row id.
-    func testStatementThatInsertsNothingLeavesTheConnectionsLastInsertedRowID() throws {
-        try createTestTable()
-        let request = database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1)))
-        try databasePool.writeWithoutTransaction { db in
-            try db.execute(sql: "INSERT INTO Test (id, value) VALUES ('seed', 0)")
-            XCTAssertEqual(db.lastInsertedRowID, 1)
-        }
-
-        try database.makeRequest(with: setEveryValue(to: 7)).execute()
-
-        let lastInsertedRowID = databasePool.writeWithoutTransaction { db in
-            db.lastInsertedRowID
-        }
-        XCTAssertEqual(lastInsertedRowID, 1)
-        XCTAssertEqual(try request.execute().lastInsertedRowID, 2)
+        XCTAssertEqual(create, XLExecutionResult(rowsAffected: 0, access: .write))
     }
 
     func testAsyncExecuteReportsTheSameResult() async throws {
@@ -92,7 +73,7 @@ final class XLExecutionResultTests: XCTestCase {
 
         let result = try await database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).async.execute()
 
-        XCTAssertEqual(result, XLExecutionResult(rowsAffected: 1, lastInsertedRowID: 1, access: .write))
+        XCTAssertEqual(result, XLExecutionResult(rowsAffected: 1, access: .write))
     }
 
     func testWriteInsideATransactionScopeReportsItsResult() throws {
@@ -106,7 +87,6 @@ final class XLExecutionResultTests: XCTestCase {
         }
 
         XCTAssertEqual(results.map(\.rowsAffected), [1, 1])
-        XCTAssertEqual(results.map(\.lastInsertedRowID), [1, 2])
     }
 
 

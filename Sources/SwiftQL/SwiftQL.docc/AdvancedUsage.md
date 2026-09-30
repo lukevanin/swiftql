@@ -46,8 +46,9 @@ identity. Runtime values are separate. Put them in a fresh
 `XLInvocationBindings` packet for each call, then pass that packet to
 `fetchAll(bindings:)`, `fetchOne(bindings:)`, `execute(bindings:)`, or a
 packet-backed publisher. `execute()` and `execute(bindings:)` return an
-`XLExecutionResult`: the rows the statement changed, the row id it inserted,
-if any, and whether it could write. Creating a request translates the SwiftQL statement
+`XLExecutionResult`: the rows the statement changed, and whether it could
+write. To learn an inserted row's id, add a `RETURNING` clause and fetch it.
+Creating a request translates the SwiftQL statement
 into SQL but does not prepare it immediately. On execution, GRDB obtains a
 cached SQLite statement for that SQL on the connection performing the work.
 
