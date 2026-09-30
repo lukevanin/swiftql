@@ -112,6 +112,20 @@ final class XLExecutionResultTests: XCTestCase {
         }
     }
 
+    func testOpeningAFileThatIsNotADatabaseIsAPortableError() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: false)
+            .appendingPathExtension("sqlite")
+        try Data(repeating: 0x41, count: 4096).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        XCTAssertThrowsError(
+            try GRDBDatabaseBuilder(url: fileURL, configuration: Configuration(), logger: nil).build()
+        ) { error in
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .notADatabase, "\(error)")
+        }
+    }
+
     func testFailureFromAnAsyncFetchIsAPortableError() async throws {
         let request = database.makeRequest(
             with: sql { schema in

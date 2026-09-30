@@ -1049,7 +1049,7 @@ private extension SQLiteCombinatorialConformanceTests {
         // error. The signature keeps the primary result code, as before.
         if let error = error as? XLDatabaseError {
             return SQLiteCombinatorialFailureSignature(
-                errorType: "SwiftQL.XLDatabaseError",
+                errorType: String(reflecting: XLDatabaseError.self),
                 code: String(error.nativeCode & 0xFF),
                 message: error.message ?? "SQLite error"
             )

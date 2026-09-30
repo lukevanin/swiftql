@@ -102,8 +102,12 @@ func xlMappingDatabaseErrors<Result>(
 /// The error is kept beside the scope rather than wrapped, so no wrapper can
 /// reach a caller.
 ///
-/// The caller's code runs within this call, on this thread, so the slot is a
-/// local: it allocates nothing and takes no lock.
+/// The caller's code runs before this call returns, and this call's thread
+/// waits for it: GRDB's synchronous accessors may run it on their own queue,
+/// but only while this thread is blocked in `DispatchQueue.sync`, which
+/// orders the slot's writes before its read. So the slot is a local: it
+/// allocates nothing and takes no lock. A scope whose caller code could run
+/// after its call returns must use the asynchronous form.
 ///
 func xlMappingScopeErrors<Result>(
     driver: XLDriverIdentifier,
@@ -147,8 +151,10 @@ struct XLOperationErrorSlot {
     private(set) var error: (any Error)?
 
     /// Runs the caller's code, keeping any error it throws before
-    /// rethrowing it.
+    /// rethrowing it. Each run clears what an earlier run kept, as
+    /// ``XLTransactionOperationError`` does.
     mutating func recording<Result>(_ operation: () throws -> Result) throws -> Result {
+        error = nil
         do {
             return try operation()
         }
@@ -156,6 +162,11 @@ struct XLOperationErrorSlot {
             self.error = error
             throw error
         }
+    }
+
+    /// Keeps `error` as the one the caller's code threw.
+    mutating func record(_ error: any Error) {
+        self.error = error
     }
 }
 

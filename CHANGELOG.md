@@ -99,8 +99,9 @@
   statement back. Now both roll back, synchronous and asynchronous alike. Code
   that caught the decode error and treated the change as made must retry it.
 - **Database failures are reported as `XLDatabaseError`** (issue #679). A
-  statement SwiftQL runs, and a `BEGIN` or `COMMIT` it issues, no longer
-  throws GRDB's `DatabaseError`. `XLDatabaseError` carries a portable `code`
+  statement SwiftQL runs, a `BEGIN` or `COMMIT` it issues, and opening a
+  database through `GRDBDatabaseBuilder` or `GRDBDatabase(url:...)` no longer
+  throw GRDB's `DatabaseError`. `XLDatabaseError` carries a portable `code`
   (`.busy`, `.locked`, `.constraint`, `.readOnly`, `.interrupted`,
   `.aborted`, `.full`, `.corrupt`, `.ioError`, `.notADatabase`, `.tooBig`,
   `.misuse`, or `.other`),

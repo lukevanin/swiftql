@@ -11,14 +11,21 @@ import Foundation
 
 
 ///
-/// Whether a statement can change the database.
+/// Whether a statement makes direct changes to the database, as the database
+/// reports it.
+///
+/// For SQLite this is `sqlite3_stmt_readonly`. SQLite reports transaction
+/// control (`BEGIN`, `COMMIT`, `SAVEPOINT`, `RELEASE`) and some maintenance
+/// statements, such as `REINDEX`, `ATTACH`, and many `PRAGMA`s, as `.read`,
+/// because they make no direct change to table content, even though a
+/// `COMMIT` makes earlier writes permanent.
 ///
 public enum XLStatementAccess: Hashable, Sendable {
 
-    /// The statement only reads.
+    /// The database reports that the statement makes no direct change.
     case read
 
-    /// The statement can change the database or its schema.
+    /// The statement can change the database's content or schema.
     case write
 }
 
@@ -39,7 +46,8 @@ public struct XLExecutionResult: Hashable, Sendable {
     /// `CREATE TABLE`, reports zero.
     public let rowsAffected: Int
 
-    /// Whether the statement can change the database.
+    /// Whether the statement makes direct changes to the database, as
+    /// ``XLStatementAccess`` describes.
     public let access: XLStatementAccess
 
     public init(

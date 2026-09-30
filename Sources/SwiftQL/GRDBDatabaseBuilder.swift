@@ -136,8 +136,14 @@ public struct GRDBDatabaseBuilder {
     /// The one place a `DatabasePool` is opened from a URL. `GRDBDatabase`'s
     /// own URL initializer goes through here too (issue #560), so a change to
     /// how a pool is opened cannot apply to one path and not the other.
+    ///
+    /// A GRDB failure while opening, such as a file that is not a database,
+    /// is reported as an `XLDatabaseError` (issue #679), including one raised
+    /// by a `prepareDatabase` hook in the configuration.
     func makeDatabasePool() throws -> DatabasePool {
-        try DatabasePool(path: url.path, configuration: configuration)
+        try xlMappingDatabaseErrors(driver: .grdb) {
+            try DatabasePool(path: url.path, configuration: configuration)
+        }
     }
 
     /// The database configuration this builder was given.

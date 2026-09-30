@@ -951,16 +951,17 @@ struct GRDBDatabaseDriverConnection:
         // The callback's own error is the caller's, so it is kept aside
         // rather than mapped with the cursor's.
         try xlMappingScopeErrors(driver: driverIdentifier) { callbackError in
-            try forEachRowUnmapped(statement) { values in
-                try callbackError.recording { try body(values) }
-            }
+            try forEachRowUnmapped(statement, body, callbackError: &callbackError)
         }
     }
 
-    /// `forEachRow(_:_:)` before its GRDB errors are mapped.
+    /// `forEachRow(_:_:)` before its GRDB errors are mapped. An error `body`
+    /// throws is kept in `callbackError`, so the caller can tell it apart
+    /// from the cursor's.
     private func forEachRowUnmapped(
         _ statement: GRDBPhysicalStatement,
-        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl,
+        callbackError: inout XLOperationErrorSlot
     ) throws {
         let cursor = try Row.fetchCursor(
             statement.statement,
@@ -989,7 +990,15 @@ struct GRDBDatabaseDriverConnection:
                 for databaseValue in row.databaseValues {
                     values.append(databaseValue.sqliteDialectValue)
                 }
-                if try body(values) == .stop {
+                let control: XLRowStreamControl
+                do {
+                    control = try body(values)
+                }
+                catch {
+                    callbackError.record(error)
+                    throw error
+                }
+                if control == .stop {
                     return
                 }
             }
