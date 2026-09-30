@@ -112,9 +112,10 @@
   - The `*Validated` helpers and `withValidatedTransaction(_:_:)` pass an
     `XLDatabaseError` through unchanged, instead of flattening it into
     `prepareFailure`, `executeFailure`, or `transactionFailure` text.
-  - `GRDBLiveQueryRetryPolicy.retryBusy` classifies a failure by its portable
-    code. It still retries a GRDB BUSY error that GRDB raises while it starts
-    an observation.
+  - A live query that ends with a database failure ends with an
+    `XLDatabaseError`, including a failure GRDB raises while it starts the
+    observation. `GRDBLiveQueryRetryPolicy.retryBusy` classifies a failure by
+    its portable code.
   - An error a custom function throws, `regexp`'s included, still reaches the
     caller as text, now in an `XLDatabaseError` whose `message` describes it.
     The documentation had promised the typed error, such as

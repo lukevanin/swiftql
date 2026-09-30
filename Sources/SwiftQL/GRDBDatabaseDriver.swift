@@ -34,7 +34,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     typealias Connection = GRDBDatabaseDriverConnection
 
-    let driverIdentifier = XLDriverIdentifier(rawValue: "grdb")
+    let driverIdentifier = XLDriverIdentifier.grdb
 
     let databaseIdentifier: XLDatabaseIdentifier
 
@@ -143,11 +143,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         switch access {
         case .pool(let pool):
             try preconditionNotRootReentrant(.read)
-            return try xlMappingDatabaseErrors(driver: driverIdentifier) {
+            return try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
                 try pool.read { database in
                     try holding(.reader) {
                         var connection = makeConnection(database)
-                        return try xlMarkingOperationErrors { try operation(&connection) }
+                        return try operationError.recording { try operation(&connection) }
                     }
                 }
             }
@@ -163,11 +163,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         switch access {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
-            return try xlMappingDatabaseErrors(driver: driverIdentifier) {
+            return try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
                 try pool.writeWithoutTransaction { database in
                     try holding(.writer(database)) {
                         var connection = makeConnection(database)
-                        return try xlMarkingOperationErrors { try operation(&connection) }
+                        return try operationError.recording { try operation(&connection) }
                     }
                 }
             }
@@ -183,11 +183,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         switch access {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
-            return try xlMappingDatabaseErrors(driver: driverIdentifier) {
+            return try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
                 try pool.writeWithoutTransaction { database in
                     try runTransaction(on: database, kind: grdbDefaultTransactionKind) {
                         var connection = makeConnection(database)
-                        return try xlMarkingOperationErrors { try operation(&connection) }
+                        return try operationError.recording { try operation(&connection) }
                     }
                 }
             }
@@ -217,11 +217,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let pool = try asynchronousPool(for: .read)
-        return try await xlMappingDatabaseErrors(driver: driverIdentifier) {
+        return try await xlMappingScopeErrors(driver: driverIdentifier) { operationError in
             try await pool.read { database in
                 try holding(.reader) {
                     var connection = makeConnection(database)
-                    return try xlMarkingOperationErrors { try operation(&connection) }
+                    return try operationError.recording { try operation(&connection) }
                 }
             }
         }
@@ -231,11 +231,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let pool = try asynchronousPool(for: .write)
-        return try await xlMappingDatabaseErrors(driver: driverIdentifier) {
+        return try await xlMappingScopeErrors(driver: driverIdentifier) { operationError in
             try await pool.writeWithoutTransaction { database in
                 try holding(.writer(database)) {
                     var connection = makeConnection(database)
-                    return try xlMarkingOperationErrors { try operation(&connection) }
+                    return try operationError.recording { try operation(&connection) }
                 }
             }
         }
@@ -247,11 +247,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ) async throws -> Result {
         let pool = try asynchronousPool(for: .write)
         let transactionKind = try grdbTransactionKind(kind)
-        return try await xlMappingDatabaseErrors(driver: driverIdentifier) {
+        return try await xlMappingScopeErrors(driver: driverIdentifier) { operationError in
             try await pool.writeWithoutTransaction { database in
                 try runTransaction(on: database, kind: transactionKind) {
                     var connection = makeConnection(database)
-                    return try xlMarkingOperationErrors { try operation(&connection) }
+                    return try operationError.recording { try operation(&connection) }
                 }
             }
         }
@@ -281,13 +281,12 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         let kind = kind ?? grdbDefaultTransactionKind
         return try holding(.writer(database)) {
             var result: Result?
-            // A `BEGIN` or `COMMIT` that fails is reported as an
-            // `XLDatabaseError`, as a failing statement is (issue #679).
-            try xlMappingDatabaseErrors(driver: driverIdentifier) {
-                try database.inTransaction(kind) {
-                    result = try xlMarkingOperationErrors(body)
-                    return .commit
-                }
+            // Every caller maps what this throws around `body`, such as a
+            // failing `BEGIN` or `COMMIT`, with `xlMappingScopeErrors`, and
+            // records `body`'s own error so it is rethrown unchanged.
+            try database.inTransaction(kind) {
+                result = try body()
+                return .commit
             }
             // `inTransaction` returns only after `body` returned and the
             // transaction committed, so `result` is set.
@@ -949,8 +948,12 @@ struct GRDBDatabaseDriverConnection:
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         try validateOwnership(of: statement)
-        try mappingDatabaseErrors {
-            try forEachRowUnmapped(statement, body)
+        // The callback's own error is the caller's, so it is recorded
+        // rather than mapped with the cursor's.
+        try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
+            try forEachRowUnmapped(statement) { values in
+                try operationError.recording { try body(values) }
+            }
         }
     }
 
@@ -986,9 +989,7 @@ struct GRDBDatabaseDriverConnection:
                 for databaseValue in row.databaseValues {
                     values.append(databaseValue.sqliteDialectValue)
                 }
-                // The callback's own error is the caller's, so it is not
-                // mapped with the cursor's.
-                if try xlMarkingOperationErrors({ try body(values) }) == .stop {
+                if try body(values) == .stop {
                     return
                 }
             }
@@ -1103,19 +1104,13 @@ struct GRDBDatabaseDriverConnection:
             let sqliteConnection = database.sqliteConnection
             let lastInsertedRowIDBefore = database.lastInsertedRowID
             sqlite3_set_last_insert_rowid(sqliteConnection, 0)
-            do {
-                try statement.statement.execute(arguments: arguments)
-            }
-            catch {
+            defer {
                 if database.lastInsertedRowID == 0 {
                     sqlite3_set_last_insert_rowid(sqliteConnection, lastInsertedRowIDBefore)
                 }
-                throw error
             }
+            try statement.statement.execute(arguments: arguments)
             let lastInsertedRowID = database.lastInsertedRowID
-            if lastInsertedRowID == 0 {
-                sqlite3_set_last_insert_rowid(sqliteConnection, lastInsertedRowIDBefore)
-            }
             // `sqlite3_changes` keeps the count of the last INSERT, UPDATE,
             // or DELETE, so a statement that changed nothing, such as
             // `CREATE TABLE`, would report an earlier statement's count. The
@@ -1185,6 +1180,17 @@ struct GRDBDatabaseDriverConnection:
     ///   while a statement is active on the connection, or a preparation failure while reading a
     ///   marker.
     func registerCustomFunctions(
+        _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) throws {
+        // A marker probe prepares a statement through GRDB, so a failure
+        // there, such as `SQLITE_BUSY`, is reported as an `XLDatabaseError`.
+        try mappingDatabaseErrors {
+            try registerCustomFunctionsUnmapped(registrations)
+        }
+    }
+
+    /// `registerCustomFunctions(_:)` before its GRDB errors are mapped.
+    private func registerCustomFunctionsUnmapped(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {
         for registration in registrations.values {
@@ -1448,9 +1454,9 @@ struct GRDBDatabaseDriverConnection:
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Void
     ) throws {
         var connection = self
-        try mappingDatabaseErrors {
+        try xlMappingScopeErrors(driver: driverIdentifier) { operationError in
             try database.inSavepoint {
-                try xlMarkingOperationErrors { try operation(&connection) }
+                try operationError.recording { try operation(&connection) }
                 return .commit
             }
         }

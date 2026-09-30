@@ -235,6 +235,59 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         )
     }
 
+    /// Issue #679: GRDB can fail while it starts an observation, outside any
+    /// SwiftQL statement. The stream still ends with the portable error.
+    func testStreamReportsAFailureGRDBRaisesItselfAsThePortableError() async {
+        let bridge = GRDBLiveQueryAsyncBridge<Int>(
+            policy: .terminal,
+            scheduler: .queue(DispatchQueue(label: "SwiftQL.RetryTests.raw")),
+            makeSource: { onError, _ in
+                onError(DatabaseError(resultCode: .SQLITE_BUSY, message: "observation start"))
+                return AnyDatabaseCancellable(cancel: {})
+            }
+        )
+
+        do {
+            _ = try await bridge.next()
+            XCTFail("The observation failed to start.")
+        }
+        catch {
+            guard let error = error as? XLDatabaseError else {
+                return XCTFail("Expected an XLDatabaseError, received \(error).")
+            }
+            XCTAssertEqual(error.code, .busy)
+            XCTAssertEqual(error.message, "observation start")
+            XCTAssertTrue(error.underlying is DatabaseError)
+        }
+    }
+
+    /// A BUSY failure GRDB raises itself is retried like a statement's, and
+    /// the stream ends with the portable error once the retries run out.
+    func testRetryBusyRetriesAFailureGRDBRaisesItself() async {
+        let attempts = LockedValue(0)
+        let scheduler = GRDBLiveQueryRetryScheduler { _ in
+            Just(()).eraseToAnyPublisher()
+        }
+        let bridge = GRDBLiveQueryAsyncBridge<Int>(
+            policy: .retryBusy,
+            scheduler: scheduler,
+            makeSource: { onError, _ in
+                attempts.withValue { $0 += 1 }
+                onError(DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT))
+                return AnyDatabaseCancellable(cancel: {})
+            }
+        )
+
+        do {
+            _ = try await bridge.next()
+            XCTFail("Every attempt failed.")
+        }
+        catch {
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .busy, "\(error)")
+        }
+        XCTAssertEqual(attempts.read(), 4, "One attempt and three retries.")
+    }
+
     func testRetryPresetAcceptsOnlyPrimaryBusyCodesAndUsesExactDelays() {
         let primaryBusy = DatabaseError(resultCode: .SQLITE_BUSY)
         let extendedBusy = DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT)

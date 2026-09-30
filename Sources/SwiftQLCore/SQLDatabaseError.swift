@@ -35,10 +35,14 @@ public struct XLExecutionResult: Hashable, Sendable {
     /// `CREATE TABLE`, reports zero.
     public let rowsAffected: Int
 
-    /// The row id of the row the statement inserted, or `nil` when it
-    /// inserted none.
+    /// The row id of the row the statement inserted, or `nil` when it set
+    /// none.
     ///
-    /// For a statement that inserts several rows, this is the last one's.
+    /// For a statement that inserts several rows, this is the last one's. It
+    /// is also `nil` for an insert that has no row id of its own: into a
+    /// `WITHOUT ROWID` table, into a view through an `INSTEAD OF` trigger, or
+    /// with an explicit row id of 0, which SQLite cannot tell apart from no
+    /// insert.
     public let lastInsertedRowID: Int64?
 
     /// Whether the statement can change the database.
@@ -79,8 +83,9 @@ public enum XLDatabaseErrorCode: Hashable, Sendable {
     /// The database, or the connection, is read-only.
     case readOnly
 
-    /// The statement was interrupted, for example because its task was
-    /// cancelled.
+    /// The statement was interrupted, or its transaction was rolled back
+    /// under it, for example because the database was interrupted or
+    /// suspended. SQLite's `SQLITE_INTERRUPT` and `SQLITE_ABORT`.
     case interrupted
 
     /// The database or its disk is full.

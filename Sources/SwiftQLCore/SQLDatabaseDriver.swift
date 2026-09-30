@@ -484,7 +484,9 @@ public protocol XLDriverScopeRefusal: Error {}
 
 /// Records the error a validated transaction's own operation threw, so
 /// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` can tell it apart from
-/// a failure of the transaction itself.
+/// a failure of the transaction itself. A driver's scopes can use it the same
+/// way, to report their own failures in a portable form while rethrowing the
+/// operation's error unchanged (issue #679).
 ///
 /// The error is recorded beside the transaction rather than wrapped, so the
 /// driver's `withTransaction(_:_:)` sees exactly the error the operation
@@ -518,6 +520,13 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         }
     }
 
+    /// The error the operation's last run threw, or `nil` when it returned.
+    package var recordedError: (any Error)? {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded
+    }
+
     /// The error a validated transaction reports when its transaction threw
     /// `error`: the operation's own error when its last run threw one,
     /// otherwise `error` itself when it is structured, otherwise a
@@ -533,10 +542,7 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         for error: any Error,
         driver: XLDriverIdentifier
     ) -> any Error {
-        lock.lock()
-        let operationError = recorded
-        lock.unlock()
-        if let operationError {
+        if let operationError = recordedError {
             return operationError
         }
         if error is XLDatabaseContractError

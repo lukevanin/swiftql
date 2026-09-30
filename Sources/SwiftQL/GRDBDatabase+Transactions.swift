@@ -79,15 +79,20 @@ extension GRDBDatabase: XLTransactionalDatabase {
         // `preconditionNotRootReentrant(_:)` observes. Once the transaction
         // has committed, only root writes stay rejected, so a GRDB
         // `databaseDidCommit` observer can read.
-        return try databasePool.writeWithoutTransaction { database in
-            try driver.runTransaction(on: database) {
-                let box = GRDBPinnedConnectionBox(database)
-                defer { box.invalidate() }
-                let scope = GRDBDatabase(
-                    pinnedDriver: driver.pinned(to: box),
-                    pinnedFrom: self
-                )
-                return try body(scope)
+        //
+        // A `BEGIN` or `COMMIT` that fails is reported as an `XLDatabaseError`,
+        // and `body`'s own error is rethrown as it was thrown (issue #679).
+        return try xlMappingScopeErrors(driver: driver.driverIdentifier) { operationError in
+            try databasePool.writeWithoutTransaction { database in
+                try driver.runTransaction(on: database) {
+                    let box = GRDBPinnedConnectionBox(database)
+                    defer { box.invalidate() }
+                    let scope = GRDBDatabase(
+                        pinnedDriver: driver.pinned(to: box),
+                        pinnedFrom: self
+                    )
+                    return try operationError.recording { try body(scope) }
+                }
             }
         }
     }

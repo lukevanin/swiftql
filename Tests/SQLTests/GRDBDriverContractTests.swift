@@ -1121,6 +1121,16 @@ final class GRDBDriverContractTests: XCTestCase {
         }
     }
 
+    /// Issue #679: GRDB treats `SQLITE_ABORT` as an interruption, and so does
+    /// the portable code.
+    func testInterruptAndAbortAreBothPortableInterruptions() {
+        for resultCode in [ResultCode.SQLITE_INTERRUPT, .SQLITE_ABORT, .SQLITE_ABORT_ROLLBACK] {
+            let error = XLDatabaseError(DatabaseError(resultCode: resultCode), driver: .grdb)
+            XCTAssertEqual(error.code, .interrupted, "\(resultCode)")
+            XCTAssertEqual(error.nativeCode, resultCode.rawValue)
+        }
+    }
+
     /// Issue #679: a `COMMIT` that fails is GRDB's failure, not the
     /// operation's, so the scope reports it as the portable error.
     func testFailingCommitIsReportedAsAPortableError() throws {
