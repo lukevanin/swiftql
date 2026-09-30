@@ -44,6 +44,12 @@ public struct XLExecutionResult: Hashable, Sendable {
     /// Rows changed by triggers are not counted, and neither are rows a view's
     /// `INSTEAD OF` trigger changes. A statement that changes no rows, such as
     /// `CREATE TABLE`, reports zero.
+    ///
+    /// The GRDB driver reads the count when the statement returns. A
+    /// statement run outside a transaction commits as it finishes, and GRDB
+    /// calls its transaction observers' `databaseDidCommit` before it
+    /// returns, so a write made there is counted instead. SwiftQL's own
+    /// requests execute inside a transaction and are not affected.
     public let rowsAffected: Int
 
     /// Whether the statement makes direct changes to the database, as

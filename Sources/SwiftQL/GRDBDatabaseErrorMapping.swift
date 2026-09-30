@@ -85,8 +85,8 @@ func xlMappingDatabaseErrors<Result>(
     do {
         return try body()
     }
-    catch let error as DatabaseError {
-        throw XLDatabaseError(error, driver: driver)
+    catch {
+        throw xlPortableError(error, driver: driver)
     }
 }
 
@@ -182,6 +182,14 @@ func xlMappedScopeError(
     if let operationError {
         return operationError
     }
+    return xlPortableError(error, driver: driver)
+}
+
+
+/// `error` as an ``XLDatabaseError`` when it is a GRDB `DatabaseError`,
+/// otherwise `error` itself. Every GRDB-to-portable conversion goes through
+/// here.
+func xlPortableError(_ error: any Error, driver: XLDriverIdentifier) -> any Error {
     if let error = error as? DatabaseError {
         return XLDatabaseError(error, driver: driver)
     }

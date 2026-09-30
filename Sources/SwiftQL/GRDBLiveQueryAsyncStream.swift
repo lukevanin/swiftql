@@ -162,10 +162,7 @@ final class GRDBLiveQueryAsyncBridge<Value: Sendable>: @unchecked Sendable {
         // can also fail while it starts an observation, outside any SwiftQL
         // statement, so the stream reports that failure the same way
         // (issue #679).
-        var error = error
-        if let databaseError = error as? DatabaseError {
-            error = XLDatabaseError(databaseError, driver: .grdb)
-        }
+        let error = xlPortableError(error, driver: .grdb)
         if let delay = retryState.retryDelay(after: error, generation: generation) {
             scheduleRetry(after: delay, generation: generation)
         }

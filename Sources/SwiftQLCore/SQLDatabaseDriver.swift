@@ -217,16 +217,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try prepare(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as XLDatabaseError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.prepareFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -243,16 +237,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try bind(value, to: key, in: statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as XLDatabaseError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.bindFailure(
                 driver: driverIdentifier,
                 key: key,
@@ -267,16 +255,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try fetchAll(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as XLDatabaseError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -290,16 +272,10 @@ extension XLDatabaseDriverConnection {
         do {
             return try fetchOne(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as XLDatabaseError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
@@ -314,22 +290,27 @@ extension XLDatabaseDriverConnection {
         do {
             return try execute(statement)
         }
-        catch let error as XLDatabaseContractError {
-            throw error
-        }
-        catch let error as XLDatabaseError {
-            throw error
-        }
-        catch let error as CancellationError {
-            throw error
-        }
         catch {
+            if xlIsStructuredDriverError(error) {
+                throw error
+            }
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
                 message: String(describing: error)
             )
         }
     }
+}
+
+
+/// Whether `error` is already structured, so a validated helper rethrows it
+/// unchanged rather than flattening it into a contract error's text: an
+/// ``XLDatabaseContractError``, an ``XLDatabaseError``, or a
+/// `CancellationError`.
+func xlIsStructuredDriverError(_ error: any Error) -> Bool {
+    error is XLDatabaseContractError
+        || error is XLDatabaseError
+        || error is CancellationError
 }
 
 
@@ -545,11 +526,7 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         if let operationError = recordedError {
             return operationError
         }
-        if error is XLDatabaseContractError
-            || error is XLDatabaseError
-            || error is CancellationError
-            || error is any XLDriverScopeRefusal
-        {
+        if xlIsStructuredDriverError(error) || error is any XLDriverScopeRefusal {
             return error
         }
         return XLDatabaseContractError.transactionFailure(
