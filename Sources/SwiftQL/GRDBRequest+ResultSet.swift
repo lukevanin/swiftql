@@ -10,11 +10,6 @@
 
 import Foundation
 import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 extension GRDBRequest {
@@ -78,25 +73,4 @@ extension GRDBRequest {
             return try operation(resultSet)
         }
     }
-
-
-    // `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)` are Combine convenience
-    // adapters over `stream()`/`streamOne()` (issue #309): they never call `ValueObservation
-    // .publisher(in:)` or own a Combine-side retry pipeline. Observation, immutable-packet capture,
-    // retry, decoding, and buffering all come from the async stream; `xlLiveQueryPublisher(makeStream:)`
-    // only adapts Combine subscription/demand/cancellation and applies the documented main-queue
-    // delivery default.
-    //
-    // Two guard checks below stay eager (a synchronous `Fail`) instead of folding into the lazy stream
-    // adapter: `requiresWriteConnection` (a `RETURNING` statement is never observable) and a `nil`
-    // `databasePool` (a transaction-scoped driver, issue #284, has no pool to track). Both are pure,
-    // already-computed structural checks -- not observation, retry, or decoding logic -- and keeping
-    // them synchronous preserves a real regression contract: `SQLTransactionScopeTests
-    // .testPublishInsideATransactionFailsPredictablyInsteadOfObservingAnInvalidatedConnection` calls
-    // `.publish()` and synchronously waits on the *same* thread `withTransaction(_:)`'s body is running
-    // on. The pool's write access blocks the calling thread for that body's duration, so if this fast-
-    // fail error were instead delivered lazily through a `Task` plus `.receive(on: DispatchQueue.main)`
-    // (as `stream()`/`streamOne()` do), it could never be delivered while that same thread is the one
-    // blocked waiting for it -- a deadlock. `Fail` needs no dispatch queue and delivers synchronously,
-    // exactly like the pre-#309 implementation did for these two cases.
 }

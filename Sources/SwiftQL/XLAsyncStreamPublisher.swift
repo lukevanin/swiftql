@@ -2,13 +2,11 @@
 //  XLAsyncStreamPublisher.swift
 //
 
-import Dispatch
 import Foundation
 #if canImport(Combine)
 import Combine
 #else
 import OpenCombine
-import OpenCombineDispatch
 #endif
 
 
@@ -94,58 +92,63 @@ final class XLAsyncStreamSubscriptionTestHooks: @unchecked Sendable {
 #endif
 
 
-/// Combine convenience adapter over SwiftQL's canonical async live-query streams (issue #308),
-/// selected for `XLRequest.publish()`/`publishOne()` (and their `bindings:` variants) by issue #309.
+///
+/// The stream-to-publisher bridge: a Combine publisher over a live-query stream (issues #309 and
+/// #684).
+///
+/// SwiftQL builds ``XLRequest/publish()``, ``XLRequest/publishOne()``, and their `bindings:`
+/// variants on this type, over the request's stream members, so every request gets the same
+/// Combine behaviour whichever adapter made it. It is public so code with a live-query stream of
+/// its own can offer the same publisher:
+///
+/// ```swift
+/// let publisher = XLAsyncStreamPublisher(makeStream: { request.stream() })
+/// ```
 ///
 /// Combine owns only subscription, demand accounting, delivery, completion, and cancellation
 /// adaptation here. Database observation, immutable-packet capture, retry, decoding, and buffering
 /// (issue #291's bound-1 "newest wins" policy) all come from the `AsyncThrowingStream` `makeStream`
-/// produces -- in production, `GRDBRequest.stream()`/`streamOne()` (or their `bindings:` variants).
-/// This type never calls `ValueObservation.publisher(in:)`, never owns a Combine-side retry pipeline,
-/// and never shares one stream, iterator, or buffered snapshot across subscribers.
+/// produces. This type never shares one stream, iterator, or buffered snapshot across subscribers.
 ///
-/// `makeStream` is invoked exactly once per `Subscription` -- once per Combine subscriber -- and only
-/// the first time that subscriber grants positive demand: never at `Publisher` construction, and never
-/// merely because something subscribed. This mirrors #308's "observation begins with iteration" rule:
-/// building this publisher, and even subscribing to it with zero demand, performs no database work.
-struct XLAsyncStreamPublisher<Value: Sendable>: Publisher {
+/// - Observation starts on positive demand. `makeStream` is called exactly once per subscriber,
+///   and only the first time that subscriber requests positive demand: never when the publisher is
+///   made, and never merely because something subscribed. Subscribing with zero demand does no
+///   work.
+/// - Each subscriber owns one independent stream, so it receives a fresh initial value.
+/// - The subscriber's demand bounds delivery: the stream's `next()` is called once per unit of
+///   demand, never ahead of it.
+/// - A thrown error fails the subscriber with that error, and the end of the stream finishes it.
+///   The stream's own contract makes a failure all-or-nothing: no partial snapshot is delivered.
+/// - Cancelling the subscription cancels the task iterating the stream, which ends the stream's
+///   observation, and no value or completion reaches the subscriber afterwards.
+///
+/// Values are delivered on the thread of the task that iterates the stream. The publish members of
+/// ``XLRequest`` add `.receive(on: DispatchQueue.main)`, which is SwiftQL's documented delivery
+/// default; add the same operator when you need it.
+///
+public struct XLAsyncStreamPublisher<Value: Sendable>: Publisher {
 
-    typealias Output = Value
+    public typealias Output = Value
 
-    typealias Failure = Error
+    public typealias Failure = Error
 
     private let makeStream: () -> AsyncThrowingStream<Value, Error>
 
-    init(makeStream: @escaping () -> AsyncThrowingStream<Value, Error>) {
+    /// Creates a publisher whose every subscriber iterates its own stream from `makeStream`.
+    ///
+    /// - Parameter makeStream: Makes one stream for one subscriber. It is called on that
+    ///   subscriber's first positive demand.
+    public init(makeStream: @escaping () -> AsyncThrowingStream<Value, Error>) {
         self.makeStream = makeStream
     }
 
-    func receive<S>(subscriber: S) where S: Subscriber, S.Input == Value, S.Failure == Error {
+    public func receive<S>(subscriber: S) where S: Subscriber, S.Input == Value, S.Failure == Error {
         let subscription = XLAsyncStreamSubscription<Value>(
             downstream: subscriber,
             makeStream: makeStream
         )
         subscriber.receive(subscription: subscription)
     }
-}
-
-
-/// Wraps `makeStream` as an `AnyPublisher` with SwiftQL's documented main-queue delivery default
-/// (`Sources/SwiftQL/SwiftQL.docc/LiveQueries.md`, "Observation Semantics"): "Initial and updated
-/// values are delivered asynchronously on the main dispatch queue by default."
-///
-/// Composing the stock `.receive(on:)` operator on top of ``XLAsyncStreamPublisher`` is deliberate --
-/// it reuses Combine's own, already-correct demand-preserving scheduling instead of reimplementing
-/// queue-hopping inside the subscription itself, which would need to duplicate `.receive(on:)`'s
-/// backpressure bookkeeping for no benefit. ``XLAsyncStreamSubscription`` therefore stays thread-
-/// agnostic: it delivers on whatever thread its consumer `Task` runs on, and `.receive(on:)` is the
-/// only thing that reschedules delivery onto the main queue.
-func xlLiveQueryPublisher<Value: Sendable>(
-    makeStream: @escaping () -> AsyncThrowingStream<Value, Error>
-) -> AnyPublisher<Value, Error> {
-    XLAsyncStreamPublisher(makeStream: makeStream)
-        .receive(on: DispatchQueue.main)
-        .eraseToAnyPublisher()
 }
 
 

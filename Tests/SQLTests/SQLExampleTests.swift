@@ -3306,7 +3306,7 @@ extension XLDocumentationTests {
         let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
             GRDBLiveQueryAsyncStreamTests.testCancellingConsumingTaskTearsDownObservationAndStopsFurtherFetches
         let _: (SQLRequestCompatibilityTests) -> () async throws -> Void =
-            SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesFromPublishLazily
+            SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesItsPublisherLazily
 
         // #309: `publish()`/`publishOne()` are now Combine convenience adapters over `stream()`/
         // `streamOne()`. The real-GRDB demand/cancellation/retry/main-queue contract above is
@@ -3326,6 +3326,23 @@ extension XLDocumentationTests {
             XLAsyncStreamPublisherTests.testNormalCompletionNotCausedByCancellationIsForwarded
         let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
             XLAsyncStreamPublisherTests.testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault
+
+        // #684: "Writing a request adapter". An adapter implements the stream members, in one line
+        // with `XLPublisherAsyncBridge` when it has only a publisher, and SwiftQL builds the
+        // publish members on them. A driver supplies its own change notification through
+        // `XLObservingDatabaseDriver`, which the GRDB driver implements with `ValueObservation`.
+        let _: (XLRequestCombineDefaultsTests) -> () async throws -> Void =
+            XLRequestCombineDefaultsTests.testPublisherOnlyConformerRoundTripsThroughBothBridges
+        let _: (XLRequestCombineDefaultsTests) -> () async throws -> Void =
+            XLRequestCombineDefaultsTests.testBridgeMakesThePublisherOnlyOnFirstIteration
+        let _: (XLRequestCombineDefaultsTests) -> () async throws -> Void =
+            XLRequestCombineDefaultsTests.testZeroDemandStartsNoStreamUntilPositiveDemand
+        let _: (XLRequestCombineDefaultsTests) -> () throws -> Void =
+            XLRequestCombineDefaultsTests.testStreamOnlyFixtureNeverImportsCombine
+        let _: (GRDBDriverObservationTests) -> () async throws -> Void =
+            GRDBDriverObservationTests.testWriteToAnUntrackedTableDoesNotRefetch
+        let _: (GRDBDriverObservationTests) -> () async throws -> Void =
+            GRDBDriverObservationTests.testWriteToTheBaseTableOfAViewRefetches
 
         // #97: `XLObservableQuery`/`XLObservableQueryRow` are a third, `@Observable`-based convenience
         // adapter over `stream()`/`streamOne()`, availability-gated to platforms shipping the

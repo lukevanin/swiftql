@@ -11,6 +11,11 @@ convenience adapters over that same canonical source — they exist to keep exis
 working, not as a second, independently-implemented observation engine. Both, along with their
 synchronous fetch-method siblings, are exposed alongside each other on every `XLRequest`.
 
+Since issue #684 the stream members are what a request adapter implements, and the publish members
+are SwiftQL's own: one leaf Combine adapter over the streams, shared by every request. An adapter
+needs neither Combine nor OpenCombine to conform to ``XLRequest``. See "Writing a request adapter"
+below.
+
 With the GRDB adapter, each subscriber's first positive demand — or each stream's first `next()`
 call — starts a GRDB value observation and begins a fresh database fetch. The observation then
 tracks the database region that the query actually reads.
@@ -129,11 +134,11 @@ so the database region an observation tracks is constant. GRDB therefore refetch
 commit on a pool reader, not inline on the writer that committed, and commits that land while a
 refetch runs coalesce into one more fetch.
 
-``XLRequest`` is a public protocol with external conformers. `stream()`/`streamOne()` (and their
-bindings variants) have a source-compatible default implemented in terms of `publish()`/
-`publishOne()`, so an existing third-party conformer that only implements the Combine surface keeps
-compiling and still starts its underlying work lazily. `GRDBRequest` overrides this default with a
-true async-native GRDB observation source that never routes through Combine.
+``XLRequest`` is a public protocol with external conformers. `stream()` and `streamOne()` are its
+live-query requirements (issue #684), and `GRDBRequest` implements them with a true async-native GRDB
+observation source that never routes through Combine. The `bindings:` variants have compatibility
+defaults for an adapter without invocation packets: an empty packet observes through `stream()` or
+`streamOne()`, and any other packet fails on the first `next()` call.
 
 `stream()`/`streamOne()` observe complete live-query snapshots — the entire matching row set (or its
 first row) as of one committed transaction — and are distinct from `XLResultSet`'s row-by-row lazy
@@ -212,10 +217,48 @@ and their single-row forms call the packet-backed methods above, and
 ``XLObservableQuery`` and ``XLObservableQueryRow`` accept a prepared query
 directly. See <doc:DeclaredQueries>, "Observe a declared query".
 
+### Writing a request adapter (issue #684)
+
+An ``XLRequest`` adapter implements the stream members, and SwiftQL gives it the publish members.
+Combine is a leaf adapter that ships with SwiftQL, so a request adapter for a server, a command-line
+tool, or another database never imports Combine or OpenCombine.
+
+An adapter that already has a Combine publisher of its own implements each stream member in one
+line with ``XLPublisherAsyncBridge``:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+func stream() -> AsyncThrowingStream<[Row], Error> {
+    XLPublisherAsyncBridge(makePublisher: { self.makeRowsPublisher() }).stream()
+}
+
+func streamOne() -> AsyncThrowingStream<Row?, Error> {
+    XLPublisherAsyncBridge(makePublisher: { self.makeFirstRowPublisher() }).stream()
+}
+```
+
+Bridge the adapter's own publisher, never `publish()` or `publishOne()`: those are built on the
+stream members, so a stream bridged from them would call itself. The bridge makes the publisher on
+the stream's first `next()` call, keeps at most one undelivered value, and cancels the subscription
+when the consuming task is cancelled.
+
+An adapter whose database can report its own changes conforms its driver to the optional
+`XLObservingDatabaseDriver` refinement of `XLDatabaseDriver`, in SwiftQLCore. Its
+`observe(_:fetch:)` requirement takes the statement and a fetch to run on the driver's connection,
+and returns a stream that yields the fetched value now and after every committed change to the
+entities the statement reads. A request's `stream()` can be that stream with its rows decoded. The
+GRDB driver conforms with a `ValueObservation` that tracks the tables SQLite reports the statement
+reads, which also covers the base tables of a view.
+
+The publish members build on whichever stream members the adapter provides, through
+``XLAsyncStreamPublisher``. That type is public, so code with a live-query stream of its own can
+offer the same Combine behaviour.
+
 ### Combine-compatible publishers (a convenience adapter over streams, issue #309)
 
-`publish()`/`publishOne()` are Combine convenience adapters over `stream()`/`streamOne()`: Combine
-owns only subscription, demand accounting, delivery, completion, and cancellation adaptation.
+`publish()`/`publishOne()` are Combine convenience adapters over `stream()`/`streamOne()`, and since
+issue #684 they are SwiftQL's own for every request rather than requirements an adapter implements.
+Combine owns only subscription, demand accounting, delivery, completion, and cancellation adaptation.
 Database observation, immutable-packet capture, retry, decoding, and buffering all come from the
 canonical async stream above — a fresh stream is constructed and iterated by an internal
 demand-gated pull loop for every subscriber, so two subscriptions never share one stream, iterator,
@@ -552,9 +595,9 @@ them). Concretely, for #308's implementation:
 ### Async-to-Combine demand mapping (issue #309)
 
 `publish()`/`publishOne()` map Combine demand onto stream iteration through a small pull loop, not a
-second buffer. This is implemented by `XLAsyncStreamPublisher`/`XLAsyncStreamSubscription`
-(`Sources/SwiftQL/XLAsyncStreamPublisher.swift`), which `xlLiveQueryPublisher(makeStream:)` wraps with
-the main-queue delivery default:
+second buffer. This is implemented by ``XLAsyncStreamPublisher`` and its subscription
+(`Sources/SwiftQL/XLAsyncStreamPublisher.swift`), which the publish members wrap with the main-queue
+delivery default (`Sources/SwiftQL/XLRequest+Combine.swift`):
 
 - **Zero demand**: the adapter's internal consumer `Task` is not started at all. It does not start
   until the first unit of demand arrives — this preserves "subscribing with zero demand does not start
@@ -616,6 +659,16 @@ invoked exactly once per consumer pull with no internal read-ahead — both requ
 | Cancellation during fetch/backoff, retry, consecutive-equal-snapshot, transaction coalescing, rollback exclusion, immutable-binding capture, cross-database isolation | Already covered by the existing #255 stress contract and are **unchanged** by this decision: `Tests/SQLTests/GRDBLiveQueryRetryTests.swift` (`testCancellationDuringBackoffStartsNoLaterAttemptOrCallback`, `testEachSubscriberOwnsAnIndependentRetryBudget`, `testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving`) and `Tests/SQLTests/SQLPublisherTests.swift` (`testMultipleWritesInOneTransactionPublishOnlyDurableState`, `testRolledBackWriteNeverAppearsBeforeCommittedLiveness`, `testDistinctDatabasePoolsDoNotCrossTrigger`, `testIrrelevantTableWriteDoesNotChangeObservedSnapshot`) |
 
 ### Migration guidance
+
+For a request adapter (issue #684): `publish()`, `publish(bindings:)`, `publishOne()`, and
+`publishOne(bindings:)` are no longer ``XLRequest`` requirements, and `stream()` and `streamOne()`
+no longer have defaults that bridge from them. An adapter that implemented only the publish members
+now implements `stream()` and `streamOne()`, in one line each with ``XLPublisherAsyncBridge`` (see
+"Writing a request adapter"). A publish method it keeps is no longer what a caller holding
+`any XLRequest` gets: every caller receives SwiftQL's publisher, built on the adapter's streams.
+For a SwiftQL request, callers of the publish members see no change. For another adapter's request,
+the subscription and its values now arrive asynchronously on the main queue, where the adapter's own
+publisher may have delivered synchronously or on another queue.
 
 Nothing about `publish()`/`publishOne()`'s public signatures, subscription-time behavior, fresh-initial-
 value guarantee, main-queue delivery default, retry policy, transaction coalescing, or cross-database

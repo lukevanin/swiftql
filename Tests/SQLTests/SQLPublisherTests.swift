@@ -14,7 +14,7 @@ import OpenCombineDispatch
 #endif
 import XCTest
 import GRDB
-import SwiftQL
+@testable import SwiftQL
 
 
 struct InsertTest {
@@ -81,41 +81,25 @@ struct UpdateTest {
 }
 
 
-/// An external `XLRequest` conformer whose values the test sends by hand, from any thread. The
-/// protocol allows this: publisher scheduling is adapter-specific (issue #652).
+/// Publishers whose values the test sends by hand, from any thread, standing in for what an
+/// observer's request publishes. Before #684 this was an external `XLRequest` conformer whose own
+/// `publish()` scheduled delivery; every request's publisher is now SwiftQL's own, so the tests hand
+/// these subjects to the observers' internal `init(publisher:)` instead.
 ///
 /// `@unchecked Sendable` because the tests send through it from a background queue. It holds only
 /// two `PassthroughSubject`s, which serialize their own sends.
-private struct SubjectPublishingRequest: XLRequest, @unchecked Sendable {
+private struct ManuallyPublishedRows: @unchecked Sendable {
 
     let rowsSubject = PassthroughSubject<[Int], Error>()
 
     let rowSubject = PassthroughSubject<Int?, Error>()
 
-    mutating func set<T>(
-        parameter reference: XLNamedBindingReference<Optional<T>>,
-        value: T?
-    ) where T: XLBindable {}
-
-    mutating func set<T>(
-        parameter reference: XLNamedBindingReference<T>,
-        value: T
-    ) where T: XLBindable {}
-
-    func fetchAll() throws -> [Int] {
-        []
+    func makeRowsObserver() -> XLQueryObserver<Int> {
+        XLQueryObserver(publisher: rowsSubject.eraseToAnyPublisher())
     }
 
-    func fetchOne() throws -> Int? {
-        nil
-    }
-
-    func publish() -> AnyPublisher<[Int], Error> {
-        rowsSubject.eraseToAnyPublisher()
-    }
-
-    func publishOne() -> AnyPublisher<Int?, Error> {
-        rowSubject.eraseToAnyPublisher()
+    func makeRowObserver() -> XLQueryRowObserver<Int> {
+        XLQueryRowObserver(publisher: rowSubject.eraseToAnyPublisher())
     }
 }
 
@@ -1128,7 +1112,11 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [freshSubscriberExpectation], timeout: 2)
         drainMainQueue(description: "post-cancellation callback barrier")
 
-        XCTAssertEqual(cancelledSnapshots.read(), [[]])
+        // The states reached, not the number of deliveries: GRDB may deliver
+        // the initial empty state twice, from a pool reader and again from its
+        // first writer access. See `xlDistinctStates(_:)`. A delivery after
+        // cancellation would add the "after-cancel" row as a new state.
+        XCTAssertEqual(xlDistinctStates(cancelledSnapshots.read()), [[]])
         freshCancellable.cancel()
     }
 
@@ -1232,10 +1220,11 @@ final class XLPublisherTests: XCTestCase {
         XCTAssertNil(observer.error)
     }
 
-    /// The observers keep their main-thread boundary for an external conformer (issue #652).
+    /// The observers keep their main-thread boundary for a publisher that delivers off the main
+    /// thread (issue #652).
     ///
-    /// `XLRequest` leaves publisher scheduling adapter-specific. The values here are sent from a
-    /// background thread, so each one reaches the observer off the main thread. The observer must
+    /// The values here are sent from a background thread, so each one reaches the observer off the
+    /// main thread. The observer must
     /// still change its `@Published` state on the main thread. `wait(for:)` pumps the main run
     /// loop, which lets the observer's main-queue dispatch run.
     ///
@@ -1243,9 +1232,9 @@ final class XLPublisherTests: XCTestCase {
     /// off-main write could finish before a sink subscribes, and `@Published` would then replay the
     /// stored value to that sink on the main thread -- a regression would pass unseen.
     func testQueryObserversApplyOffMainValuesOnTheMainThread() {
-        let request = SubjectPublishingRequest()
-        let rowsObserver = XLQueryObserver(request)
-        let rowObserver = XLQueryRowObserver(request)
+        let request = ManuallyPublishedRows()
+        let rowsObserver = request.makeRowsObserver()
+        let rowObserver = request.makeRowObserver()
         let rowsOnMain = PublisherLockedValue<[Bool]>([])
         let rowOnMain = PublisherLockedValue<[Bool]>([])
         let rowsExpectation = expectation(description: "rows applied")
@@ -1289,9 +1278,9 @@ final class XLPublisherTests: XCTestCase {
     /// would be wrong here, because it can run the block on the calling (main) thread.
     func testQueryObserversKeepDeliveryOrderAcrossThreads() {
         XCTAssertTrue(Thread.isMainThread)
-        let request = SubjectPublishingRequest()
-        let rowsObserver = XLQueryObserver(request)
-        let rowObserver = XLQueryRowObserver(request)
+        let request = ManuallyPublishedRows()
+        let rowsObserver = request.makeRowsObserver()
+        let rowObserver = request.makeRowObserver()
 
         let sentOffMain = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {

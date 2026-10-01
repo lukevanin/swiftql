@@ -12,11 +12,6 @@
 
 import Foundation
 import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 struct GRDBRequest<Row: Sendable>: XLRequest {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when SwiftQLCore crosses the GRDB-free contract boundary.
+"""Fail closed when SwiftQLCore crosses the GRDB- and Combine-free contract boundary.
 
 SwiftPM plans build directories for unrelated root-package targets even when
 `--target SwiftQLCore` is used. The compile check therefore copies the exact
@@ -39,6 +39,22 @@ CAN_IMPORT_FORBIDDEN_PATTERN = re.compile(
 QUALIFIED_FORBIDDEN_PATTERN = re.compile(
     r"\b" + FORBIDDEN_MODULE_PATTERN + r"[ \t]*\."
 )
+# The core is also free of Combine (issue #684): live queries cross the
+# contract as `AsyncThrowingStream`, and the Combine surface is a leaf adapter
+# in SwiftQL. Only imports and availability checks are matched, because the
+# word "Combine" is ordinary prose in a comment. A module name that starts
+# with either one, such as OpenCombineDispatch or OpenCombineFoundation, is
+# matched too.
+OBSERVATION_FRAMEWORK_PATTERN = r"(?:Combine|OpenCombine)[A-Za-z0-9_]*"
+IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
+    r"^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?[ \t]+)*"
+    r"import[ \t]+(?:(?:class|enum|func|let|protocol|struct|typealias|var)[ \t]+)?"
+    + OBSERVATION_FRAMEWORK_PATTERN
+    + r"(?:\b|\.)"
+)
+CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
+    r"\bcanImport[ \t]*\([ \t]*" + OBSERVATION_FRAMEWORK_PATTERN + r"[ \t]*\)"
+)
 DETECTOR_FIXTURES = (
     "import GRDB",
     "import struct GRDB.Row",
@@ -48,6 +64,17 @@ DETECTOR_FIXTURES = (
     "#if canImport(GRDB)",
     "let row: GRDB.Row",
     "let code = CSQLite.SQLITE_OK",
+    "import Combine",
+    "@preconcurrency import OpenCombine",
+    "import struct Combine.AnyPublisher",
+    "#if canImport(Combine)",
+    "import OpenCombineDispatch",
+    "#elseif canImport(OpenCombineFoundation)",
+)
+# Lines the detector must leave alone: prose that names a forbidden framework.
+DETECTOR_NEGATIVE_FIXTURES = (
+    "/// Neither Combine nor OpenCombine is needed to conform.",
+    "// The Combine surface is a leaf adapter.",
 )
 RESOLUTION_ONLY_DIRECTORIES = frozenset(("checkouts", "repositories"))
 ISOLATED_PACKAGE_MANIFEST = """// swift-tools-version: 5.9
@@ -202,6 +229,10 @@ def forbidden_reference_kinds(line):
         kinds.append("forbidden database-module availability check")
     if QUALIFIED_FORBIDDEN_PATTERN.search(line):
         kinds.append("forbidden database-module qualified symbol")
+    if IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):
+        kinds.append("forbidden Combine import")
+    if CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):
+        kinds.append("forbidden Combine availability check")
     return kinds
 
 
@@ -215,6 +246,17 @@ def check_detector_fixtures():
         raise BoundaryCheckError(
             "internal source-reference detector missed fixtures: {}".format(
                 ", ".join(repr(item) for item in missed)
+            )
+        )
+    flagged = [
+        fixture
+        for fixture in DETECTOR_NEGATIVE_FIXTURES
+        if forbidden_reference_kinds(fixture)
+    ]
+    if flagged:
+        raise BoundaryCheckError(
+            "internal source-reference detector flagged prose: {}".format(
+                ", ".join(repr(item) for item in flagged)
             )
         )
 
@@ -265,7 +307,7 @@ def check_source_references(package_root):
             for path, line_number, kind in sorted(set(violations))
         ]
         raise BoundaryCheckError(
-            "GRDB/CSQLite references are forbidden in the core boundary:\n{}".format(
+            "GRDB, CSQLite, and Combine references are forbidden in the core boundary:\n{}".format(
                 "\n".join("- {}".format(item) for item in formatted)
             )
         )

@@ -16,8 +16,8 @@ import Foundation
 /// .bufferingNewest(1)` semantics without depending on that GRDB-experimental
 /// buffering-policy API directly, so the exact same type backs both
 /// ``GRDBLiveQueryAsyncBridge`` (the true async-native GRDB source, #308) and
-/// the `XLRequest` protocol-extension compatibility default that bridges an
-/// adapter's existing `publish()`/`publishOne()` Combine pipeline.
+/// ``XLPublisherAsyncBridge``, which bridges an adapter's own Combine
+/// publisher into a live-query stream (#684).
 ///
 /// `Value` may itself be `Optional` (as `streamOne()`'s `Row?` is): a present
 /// `nil` row is a real delivered snapshot and is buffered like any other

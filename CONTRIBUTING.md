@@ -72,6 +72,7 @@ is not obvious at first glance:
 | `Tests/CompileFail/` | negative tests | Swift files that **must not compile**. Each file exercises a type-system constraint (e.g. `HavingWithoutGroupBy.swift`). These are checked by CI separately from the `swift test` run. |
 | `Tests/SwiftQLSQLiteConformanceFixtures/` | fixture library | A test-only library target (not a test target) that provides SQLite value cases shared across the core and integration tests. |
 | `Tests/SwiftQLNorthwindFixtures/` | fixture library | A test-only library target that bundles the Northwind SQLite database for semantic corpus tests. |
+| `Tests/SwiftQLStreamOnlyRequestFixture/` | compile-only fixture | `XLRequest` conformers that implement only the live-query stream members and never import Combine or OpenCombine. That it builds proves a request adapter needs neither (issue #684). `SQLTests` drives the conformers and checks the import rule. |
 | `Tests/SwiftQLSQLiteCombinatorialSupport/` | support library | A test-only library target for the combinatorial SQL generator. |
 
 Benchmark and profiling executables live under `Benchmarks/` and have their own

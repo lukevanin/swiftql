@@ -423,7 +423,7 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// (see `State.didCancel`), in which case this cancels `newCancellable`
     /// itself instead of storing it -- mirroring the identical check-after-
     /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
-    /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
+    /// `XLPublisherAsyncBridge` (#309, public since #684) use for the same race.
     // `AnyDatabaseCancellable` is `Sendable` in GRDB 7, so no shadow is needed
     // to capture it in this file's `@Sendable` locked-state closure.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {

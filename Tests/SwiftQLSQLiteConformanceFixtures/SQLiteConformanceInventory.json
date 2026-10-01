@@ -5674,9 +5674,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -5732,9 +5731,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -5788,9 +5786,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -5829,9 +5826,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -5898,9 +5894,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -5960,9 +5955,8 @@
         },
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -6087,9 +6081,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -6130,9 +6123,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -6171,9 +6163,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
@@ -6212,9 +6203,8 @@
       "public_api": [
         {
           "symbol": "XLRequest.publish",
-          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/XLRequest+Combine.swift",
           "source_tokens": [
-            "XLRequest",
             "publish"
           ]
         }
