@@ -42,8 +42,10 @@ QUALIFIED_FORBIDDEN_PATTERN = re.compile(
 # The core is also free of Combine (issue #684): live queries cross the
 # contract as `AsyncThrowingStream`, and the Combine surface is a leaf adapter
 # in SwiftQL. Only imports and availability checks are matched, because the
-# word "Combine" is ordinary prose in a comment.
-OBSERVATION_FRAMEWORK_PATTERN = r"(?:Combine|OpenCombine)"
+# word "Combine" is ordinary prose in a comment. A module name that starts
+# with either one, such as OpenCombineDispatch or OpenCombineFoundation, is
+# matched too.
+OBSERVATION_FRAMEWORK_PATTERN = r"(?:Combine|OpenCombine)[A-Za-z0-9_]*"
 IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
     r"^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?[ \t]+)*"
     r"import[ \t]+(?:(?:class|enum|func|let|protocol|struct|typealias|var)[ \t]+)?"
@@ -66,6 +68,8 @@ DETECTOR_FIXTURES = (
     "@preconcurrency import OpenCombine",
     "import struct Combine.AnyPublisher",
     "#if canImport(Combine)",
+    "import OpenCombineDispatch",
+    "#elseif canImport(OpenCombineFoundation)",
 )
 # Lines the detector must leave alone: prose that names a forbidden framework.
 DETECTOR_NEGATIVE_FIXTURES = (

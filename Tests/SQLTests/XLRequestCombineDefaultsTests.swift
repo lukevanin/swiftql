@@ -52,7 +52,7 @@ final class XLRequestCombineDefaultsTests: XCTestCase {
             FileManager.default.enumerator(at: fixtureDirectory, includingPropertiesForKeys: nil)
         )
         let combineReference = try NSRegularExpression(
-            pattern: #"^\s*(@\w+(\([^)]*\))?\s+)*import\s+((class|enum|func|let|protocol|struct|typealias|var)\s+)?(Open)?Combine\b|canImport\s*\(\s*(Open)?Combine\b"#,
+            pattern: #"^\s*(@\w+(\([^)]*\))?\s+)*import\s+((class|enum|func|let|protocol|struct|typealias|var)\s+)?(Open)?Combine\w*\b|canImport\s*\(\s*(Open)?Combine\w*\b"#,
             options: [.anchorsMatchLines]
         )
         var scanned = 0
@@ -73,6 +73,8 @@ final class XLRequestCombineDefaultsTests: XCTestCase {
             "@preconcurrency import OpenCombine",
             "import struct Combine.AnyPublisher",
             "#if canImport(Combine)",
+            "import OpenCombineDispatch",
+            "#elseif canImport(OpenCombineFoundation)",
         ] {
             let range = NSRange(line.startIndex..., in: line)
             XCTAssertNotNil(combineReference.firstMatch(in: line, range: range), line)

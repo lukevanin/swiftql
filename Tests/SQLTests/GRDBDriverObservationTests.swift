@@ -202,13 +202,8 @@ final class GRDBDriverObservationTests: XCTestCase {
         XCTAssertTrue(endedWithNil)
         let fetchesAtCancel = fetches.count
 
-        // Another observation that sees the next write is the fence: the
-        // write was committed and reported to every observation still
-        // installed.
-        let fence = ObservationIterator(observeTrackedCount(counting: FetchCounter()))
-        try await fence.next(until: 0)
         try insert(into: "Tracked", id: 1)
-        try await fence.next(until: 1)
+        try waitForScheduledReads()
 
         XCTAssertEqual(
             fetches.count,
@@ -259,6 +254,17 @@ final class GRDBDriverObservationTests: XCTestCase {
             }
             return Int(count)
         }
+    }
+
+    /// Returns once every read the pool had already scheduled has finished.
+    ///
+    /// GRDB schedules an observation's refetch on a pool reader while the
+    /// write that triggered it commits, so the refetch is queued before
+    /// ``insert(into:id:)`` returns. A barrier waits for every reader to be
+    /// released before it runs, which makes it a fence for that refetch: a
+    /// fetch count read after this call includes any refetch the write caused.
+    private func waitForScheduledReads() throws {
+        try fixture.pool.barrierWriteWithoutTransaction { _ in }
     }
 
     private func insert(into table: String, id: Int) throws {

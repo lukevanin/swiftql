@@ -95,6 +95,25 @@ final class ObservingDriverContractTests: XCTestCase {
         XCTAssertEqual(driver.observerCount, 0, "Cancellation stops the observation.")
     }
 
+    func testAnAlreadyCancelledConsumerStartsNoObservation() async throws {
+        let fetches = FetchLog()
+        let stream = observeCount(of: "Tracked", on: driver, fetches: fetches)
+        let gate = Signal()
+
+        let task = Task { () -> Int? in
+            await gate.wait()
+            var iterator = stream.makeAsyncIterator()
+            return try await iterator.next()
+        }
+        task.cancel()
+        gate.fire()
+        let first = try await task.value
+
+        XCTAssertNil(first, "An already-cancelled consumer ends with nil.")
+        XCTAssertEqual(fetches.count, 0, "It must not fetch.")
+        XCTAssertEqual(driver.observerCount, 0, "It must not register for changes.")
+    }
+
     // MARK: - Helpers
 
     /// Observes how many rows an entity holds, written only against the
@@ -315,6 +334,12 @@ private final class CountingObservation<Value: Sendable>: @unchecked Sendable {
     }
 
     func next() async throws -> Value? {
+        // A cancelled consumer ends with `nil` before any work, even on its
+        // first call, as `XLObservingDatabaseDriver` requires.
+        guard !Task.isCancelled else {
+            finish()
+            return nil
+        }
         guard var iterator = takeChanges() else {
             return nil
         }
