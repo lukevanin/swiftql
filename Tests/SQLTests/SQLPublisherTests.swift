@@ -1112,7 +1112,11 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [freshSubscriberExpectation], timeout: 2)
         drainMainQueue(description: "post-cancellation callback barrier")
 
-        XCTAssertEqual(cancelledSnapshots.read(), [[]])
+        // The states reached, not the number of deliveries: GRDB may deliver
+        // the initial empty state twice, from a pool reader and again from its
+        // first writer access. See `xlDistinctStates(_:)`. A delivery after
+        // cancellation would add the "after-cancel" row as a new state.
+        XCTAssertEqual(xlDistinctStates(cancelledSnapshots.read()), [[]])
         freshCancellable.cancel()
     }
 
