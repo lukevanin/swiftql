@@ -66,6 +66,7 @@ final class GRDBDriverObservationTests: XCTestCase {
         // one or two, are behind it.
         try insert(into: "Tracked", id: 1)
         try await iterator.next(until: 1)
+        try waitForScheduledReads()
         let fetchesAfterFence = fetches.count
 
         try insert(into: "Untracked", id: 1)
@@ -198,6 +199,10 @@ final class GRDBDriverObservationTests: XCTestCase {
         task.cancel()
         let endedWithNil = await ended.wait()
         XCTAssertTrue(endedWithNil)
+        // A start-up fetch GRDB began on the writer just before cancellation
+        // finishes before the barrier runs; one that had not begun sees the
+        // cancellation and does not fetch.
+        try waitForScheduledReads()
         let fetchesAtCancel = fetches.count
 
         try insert(into: "Tracked", id: 1)
@@ -254,13 +259,15 @@ final class GRDBDriverObservationTests: XCTestCase {
         }
     }
 
-    /// Returns once every read the pool had already scheduled has finished.
+    /// Returns once every read the pool had already scheduled, and every
+    /// block already queued on the writer, has finished.
     ///
     /// GRDB schedules an observation's refetch on a pool reader while the
     /// write that triggered it commits, so the refetch is queued before
     /// ``insert(into:id:)`` returns. A barrier waits for every reader to be
-    /// released before it runs, which makes it a fence for that refetch: a
-    /// fetch count read after this call includes any refetch the write caused.
+    /// released, then runs on the serial writer, which makes it a fence for
+    /// that refetch and for GRDB's start-up fetch on the writer: a fetch count
+    /// read after this call includes any such fetch already under way.
     private func waitForScheduledReads() throws {
         try fixture.pool.barrierWriteWithoutTransaction { _ in }
     }

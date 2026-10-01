@@ -761,6 +761,12 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         task.cancel()
         resumeLoopBody.fulfill(true)
         _ = await loopEnded.wait()
+        // Without WAL snapshots, as on Linux, GRDB fetches once more when the
+        // observation first takes the writer, and that start-up fetch can
+        // begin just before cancellation lands. The writer is serial, so an
+        // empty write here waits for a start-up block already running; one
+        // that has not started sees the cancellation and does not fetch.
+        try await databasePool.writeWithoutTransaction { _ in }
 
         let fetchCountAtCancel = logger.count(containing: "stream:")
         try insertDirect(AsyncStreamRecord(id: "after-cancel-between-next", value: 1))
