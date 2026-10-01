@@ -137,6 +137,17 @@ let package = Package(
             path: "Tests/SwiftQLSQLiteCombinatorialSupport"
         ),
 
+        // Compile-only fixture (issue #684): `XLRequest` conformers that
+        // implement only the live-query stream members and never import
+        // Combine or OpenCombine. Building it proves a request adapter needs
+        // neither; SwiftQL supplies the publish members. SQLTests drives the
+        // conformers through those members and checks the import rule.
+        .target(
+            name: "SwiftQLStreamOnlyRequestFixture",
+            dependencies: ["SwiftQL"],
+            path: "Tests/SwiftQLStreamOnlyRequestFixture"
+        ),
+
         // Macro implementation that performs the source transformation of a macro.
         .macro(
             name: "SQLMacros",
@@ -368,6 +379,7 @@ let package = Package(
             dependencies: [
                 "SwiftQLTestSupport",
                 "SwiftQL",
+                "SwiftQLStreamOnlyRequestFixture",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),

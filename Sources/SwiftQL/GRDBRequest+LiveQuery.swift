@@ -2,21 +2,16 @@
 //  GRDBRequest+LiveQuery.swift
 //  SwiftQL
 //
-//  Observation: re-running the statement whenever the database changes, as a
-//  Combine publisher or an async stream.
+//  Observation: re-running the statement whenever the database changes, as an
+//  async stream. The driver observes (`GRDBDatabaseDriver+Observation.swift`),
+//  and the Combine publishers are SwiftQL's own, built on these streams
+//  (`XLRequest+Combine.swift`, issue #684).
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
 
-import Dispatch
 import Foundation
-import GRDB
 import SwiftQLCore
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 extension GRDBRequest {
@@ -28,9 +23,10 @@ extension GRDBRequest {
     /// long as anyone is watching. That is never what a caller asking for a
     /// live query meant, so it is refused rather than obeyed.
     ///
-    /// Checked by all six observation entry points. It was written out at each
-    /// of them (issue #560); one of the six drifting is a silent
-    /// write-amplification bug rather than a compile error.
+    /// Checked by every observation entry point: the stream members and the
+    /// publish preflight. It was written out at each of them (issue #560); one
+    /// of them drifting is a silent write-amplification bug rather than a
+    /// compile error.
     var observationUnavailableError: Error? {
         guard requiresWriteConnection else {
             return nil
@@ -38,56 +34,6 @@ extension GRDBRequest {
         return XLReturningRequestError.observationUnsupported
     }
 
-    func publish() -> AnyPublisher<[Row], Error> {
-        if let error = observationUnavailableError {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-        do {
-            return publish(bindings: try legacyBindings.packet())
-        }
-        catch {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-    }
-
-    func publish(
-        bindings: any XLInvocationBindingPacket
-    ) -> AnyPublisher<[Row], Error> {
-        if let error = observationUnavailableError {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-        guard executor.driver.databasePool != nil else {
-            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
-                .eraseToAnyPublisher()
-        }
-        return xlLiveQueryPublisher(makeStream: { self.stream(bindings: bindings) })
-    }
-
-    func publishOne() -> AnyPublisher<Row?, Error> {
-        if let error = observationUnavailableError {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-        do {
-            return publishOne(bindings: try legacyBindings.packet())
-        }
-        catch {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-    }
-
-    func publishOne(
-        bindings: any XLInvocationBindingPacket
-    ) -> AnyPublisher<Row?, Error> {
-        if let error = observationUnavailableError {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-        guard executor.driver.databasePool != nil else {
-            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
-                .eraseToAnyPublisher()
-        }
-        return xlLiveQueryPublisher(makeStream: { self.streamOne(bindings: bindings) })
-    }
-    
     func stream() -> AsyncThrowingStream<[Row], Error> {
         do {
             return try stream(bindings: legacyBindings.packet())
@@ -111,14 +57,11 @@ extension GRDBRequest {
             // observation delivers them. See `liveQueryStreamBridge(fetch:)`.
             let executor = executor
             let logger = logger
-            guard let bridge = liveQueryStreamBridge(fetch: { database -> [[XLSQLiteValue]] in
+            let bridge = try liveQueryStreamBridge(fetch: { connection -> [[XLSQLiteValue]] in
                 logger?.debug(
                     "stream: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                var connection = executor.driver.makeConnection(database)
                 return try executor.fetchAll(packet: packet, in: &connection)
-            }) else {
-                return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
-            }
+            })
             let decodeRow = sendableRowDecode()
             return AsyncThrowingStream(unfolding: { () async throws -> [Row]? in
                 guard let values = try await bridge.next() else {
@@ -168,14 +111,11 @@ extension GRDBRequest {
             // after delivery.
             let executor = executor
             let logger = logger
-            guard let bridge = liveQueryStreamBridge(fetch: { database -> [XLSQLiteValue]? in
+            let bridge = try liveQueryStreamBridge(fetch: { connection -> [XLSQLiteValue]? in
                 logger?.debug(
                     "streamOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                var connection = executor.driver.makeConnection(database)
                 return try executor.fetchOne(packet: packet, in: &connection)
-            }) else {
-                return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
-            }
+            })
             let decodeRow = sendableRowDecode()
             return AsyncThrowingStream(unfolding: { () async throws -> Row?? in
                 guard let values = try await bridge.next() else {
@@ -200,48 +140,56 @@ extension GRDBRequest {
         }
     }
 
-    /// Builds the async-native GRDB observation bridge shared by `stream()`/`streamOne()`. Returns `nil`
-    /// for a transaction-scoped driver (issue #284), which has no pool to track — the same guard
-    /// `publish(bindings:)`/`publishOne(bindings:)` check eagerly for the Combine path (issue #309).
+    /// The driver's observation bridge for this request's statement, with this request's retry
+    /// policy (issue #684). See `GRDBDatabaseDriver.observationBridge(_:retryPolicy:retryScheduler:fetch:)`.
     ///
-    /// The observation tracks a constant region (issue #652). `fetch` runs one statement, prepared
-    /// from this request's immutable `logicalStatement`, bound to a packet fixed when the stream was
-    /// made. GRDB records a statement's region from SQLite's authorizer when the statement is
-    /// prepared, not from the rows a step visits, so every fetch selects the same region. With a
-    /// constant region, GRDB refetches after a commit on a pool reader and coalesces a burst of
-    /// commits; `tracking(_:)` would refetch inline on the writer, once per commit.
-    ///
-    /// Each bridge also gets its own serial queue. GRDB delivers snapshots on it, and it is the
-    /// default retry scheduler, so nothing in `stream()` needs the main thread. The Combine adapter
-    /// adds its main-queue hop itself (`xlLiveQueryPublisher(makeStream:)`).
-    ///
-    /// `fetch` is `@Sendable` because GRDB 7 runs it on a pool reader, and
-    /// `Value` is `Sendable` because GRDB 7 constrains a reducer's value. The
-    /// callers therefore fetch raw dialect values and decode the typed row
-    /// afterwards: `GRDBInvocationExecutor` is `Sendable`, while the row
-    /// reader graph behind `XLRowReadable` is not.
+    /// - Throws: ``XLTransactionScopeError/liveQueriesUnsupportedInTransaction`` for a request made
+    ///   inside a transaction scope (issue #284), whose driver has no pool to track.
     func liveQueryStreamBridge<Value: Sendable>(
-        fetch: @escaping @Sendable (Database) throws -> Value
-    ) -> GRDBLiveQueryAsyncBridge<Value>? {
-        guard let databasePool = executor.driver.databasePool else {
-            return nil
-        }
-        let queue = DispatchQueue(label: "SwiftQL.GRDBLiveQuery")
-        return GRDBLiveQueryAsyncBridge(
-            policy: liveQueryRetryPolicy,
-            scheduler: liveQueryRetryScheduler ?? .queue(queue),
-            makeSource: { onError, onChange in
-                ValueObservation
-                    .trackingConstantRegion(fetch)
-                    .start(
-                        in: databasePool,
-                        scheduling: .async(onQueue: queue),
-                        onError: onError,
-                        onChange: onChange
-                    )
-            }
+        fetch: @escaping @Sendable (inout GRDBDatabaseDriverConnection) throws -> Value
+    ) throws -> GRDBLiveQueryAsyncBridge<Value> {
+        try executor.driver.observationBridge(
+            executor.logicalStatement,
+            retryPolicy: liveQueryRetryPolicy,
+            retryScheduler: liveQueryRetryScheduler,
+            fetch: fetch
         )
     }
+}
 
 
+extension GRDBRequest: XLLivePublishPreflight {
+
+    /// The failures the GRDB publishers have always reported at subscription rather than on first
+    /// demand (issue #684): a `RETURNING` statement, a request made inside a transaction scope, and,
+    /// for a member without a packet, bindings set through `set(parameter:value:)` that do not
+    /// form a valid packet. The stream members report each of these on first iteration.
+    ///
+    /// These are pure, already-computed structural checks, not observation, retry, or decoding
+    /// logic, and keeping them synchronous preserves a real regression contract:
+    /// `SQLTransactionScopeTests.testPublishInsideATransactionFailsPredictablyInsteadOfObservingAnInvalidatedConnection`
+    /// calls `publish()` and synchronously waits on the same thread the `withTransaction(_:)` body
+    /// runs on. The pool's write access blocks that thread for the body's duration, so an error
+    /// delivered lazily, through a task and `.receive(on: DispatchQueue.main)`, could never arrive
+    /// while that thread is the one waiting for it. `Fail` needs no dispatch queue and delivers
+    /// synchronously.
+    func livePublishPreflightFailure(
+        bindings: (any XLInvocationBindingPacket)?
+    ) -> Error? {
+        if let error = observationUnavailableError {
+            return error
+        }
+        if bindings == nil {
+            do {
+                _ = try legacyBindings.packet()
+            }
+            catch {
+                return error
+            }
+        }
+        guard executor.driver.databasePool != nil else {
+            return XLTransactionScopeError.liveQueriesUnsupportedInTransaction
+        }
+        return nil
+    }
 }

@@ -560,11 +560,17 @@ private struct XLResultSetLegacyRequest: XLRequest {
         rows.first
     }
 
-    func publish() -> AnyPublisher<[Int], Error> {
-        Just(rows).setFailureType(to: Error.self).eraseToAnyPublisher()
+    func stream() -> AsyncThrowingStream<[Int], Error> {
+        let rows = rows
+        return XLPublisherAsyncBridge(makePublisher: {
+            Just(rows).setFailureType(to: Error.self)
+        }).stream()
     }
 
-    func publishOne() -> AnyPublisher<Int?, Error> {
-        Just(rows.first).setFailureType(to: Error.self).eraseToAnyPublisher()
+    func streamOne() -> AsyncThrowingStream<Int?, Error> {
+        let row = rows.first
+        return XLPublisherAsyncBridge(makePublisher: {
+            Just(row).setFailureType(to: Error.self)
+        }).stream()
     }
 }

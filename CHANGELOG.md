@@ -182,8 +182,47 @@
   awaiting task suspends, so it is not the thread that made the request. A
   conformer whose request cannot be called from another thread overrides
   `async`.
+- **`XLRequest`'s live-query requirements are its stream members** (issue
+  #684). A request adapter no longer needs Combine or OpenCombine to conform.
+  This changes only a type outside SwiftQL that conforms to `XLRequest`;
+  callers of `publish()` and `publishOne()` change nothing.
+  - `stream()` and `streamOne()` are requirements with no default. They no
+    longer bridge from `publish()` and `publishOne()`.
+  - `publish()`, `publish(bindings:)`, `publishOne()`, and
+    `publishOne(bindings:)` are no longer requirements. SwiftQL implements
+    them for every request, over its stream members, with the same Combine
+    behaviour as before: observation starts on positive demand, each
+    subscriber gets its own stream, zero demand does no work, values arrive
+    on the main queue, and a failure is all-or-nothing. A publish method a
+    conformer keeps is no longer what a caller holding `any XLRequest` gets.
+  - `stream(bindings:)` and `streamOne(bindings:)` keep compatibility
+    defaults for a conformer without invocation packets: an empty packet
+    observes through `stream()` or `streamOne()`, and any other packet fails
+    with `XLRequestBindingError.unsupportedInvocationBindings`, now on the
+    first `next()` call or positive demand rather than at subscription.
+  - A conformer that implemented only the publish members adds one line per
+    stream member, bridging its own publisher, never `publish()`:
+
+    ```swift
+    func stream() -> AsyncThrowingStream<[Row], Error> {
+        XLPublisherAsyncBridge(makePublisher: { self.makeRowsPublisher() }).stream()
+    }
+    ```
 
 ### Added
+
+- **An adapter supplies its own live-query change notification** (issue
+  #684).
+  - `XLObservingDatabaseDriver`, in SwiftQLCore, is an optional refinement of
+    `XLDatabaseDriver`. Its `observe(_:fetch:)` runs a fetch on the driver's
+    connection now and after every committed change to the entities a
+    statement reads, and returns the values as a lazily started
+    `AsyncThrowingStream`. The GRDB driver conforms with a `ValueObservation`
+    over the tables SQLite reports the statement reads, and GRDB-backed
+    requests observe through it.
+  - `XLPublisherAsyncBridge` turns an adapter's own Combine publisher into a
+    live-query stream, and `XLAsyncStreamPublisher` turns a live-query stream
+    into the publisher SwiftQL's publish members return. Both are public.
 
 - **Requests and declared queries can be awaited** (issue #681).
   - `try await request.async.fetchAll()`, and `fetchOne()`,

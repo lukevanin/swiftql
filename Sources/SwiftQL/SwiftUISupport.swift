@@ -35,13 +35,11 @@ import OpenCombine
 /// A view reads `observer.rows` and `observer.error` in its `body`; SwiftUI
 /// re-renders whenever either `@Published` property changes. Observation
 /// starts immediately on initialization and stops when the observer is
-/// deallocated. Every delivered value is applied on the main thread. A value
-/// that already arrives on the main thread -- as it does from a GRDB-backed
-/// request, whose `publish()` delivers on the main queue by default -- is
-/// applied at once, with no second hop (issue #652). A value from another
-/// ``XLRequest`` conformer, whose scheduling is adapter-specific, that arrives
-/// on another thread is dispatched to the main queue first.
-/// For a GRDB-backed request, the underlying fetch runs on a database reader.
+/// deallocated. Every delivered value is applied on the main thread.
+/// ``XLRequest/publish()`` delivers on the main queue for every request
+/// (issue #684), so each value is applied at once, with no second hop
+/// (issue #652). For a GRDB-backed request, the underlying fetch runs on a
+/// database reader.
 ///
 public final class XLQueryObserver<Row>: ObservableObject {
 
@@ -53,15 +51,17 @@ public final class XLQueryObserver<Row>: ObservableObject {
 
     private let delivery = XLMainThreadDelivery()
 
-    public init(_ request: any XLRequest<Row>) {
-        subscribe(to: request.publish())
+    public convenience init(_ request: any XLRequest<Row>) {
+        self.init(publisher: request.publish())
     }
 
-    public init(_ request: any XLRequest<Row>, bindings: any XLInvocationBindingPacket) {
-        subscribe(to: request.publish(bindings: bindings))
+    public convenience init(_ request: any XLRequest<Row>, bindings: any XLInvocationBindingPacket) {
+        self.init(publisher: request.publish(bindings: bindings))
     }
 
-    private func subscribe(to publisher: AnyPublisher<[Row], Error>) {
+    /// Observes `publisher`, which is what a request's ``XLRequest/publish()`` returns. Internal,
+    /// so tests can deliver values on a thread of their choosing.
+    init(publisher: AnyPublisher<[Row], Error>) {
         let delivery = delivery
         cancellable = publisher
             .sink(
@@ -95,15 +95,17 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
 
     private let delivery = XLMainThreadDelivery()
 
-    public init(_ request: any XLRequest<Row>) {
-        subscribe(to: request.publishOne())
+    public convenience init(_ request: any XLRequest<Row>) {
+        self.init(publisher: request.publishOne())
     }
 
-    public init(_ request: any XLRequest<Row>, bindings: any XLInvocationBindingPacket) {
-        subscribe(to: request.publishOne(bindings: bindings))
+    public convenience init(_ request: any XLRequest<Row>, bindings: any XLInvocationBindingPacket) {
+        self.init(publisher: request.publishOne(bindings: bindings))
     }
 
-    private func subscribe(to publisher: AnyPublisher<Row?, Error>) {
+    /// Observes `publisher`, which is what a request's ``XLRequest/publishOne()`` returns.
+    /// Internal, so tests can deliver values on a thread of their choosing.
+    init(publisher: AnyPublisher<Row?, Error>) {
         let delivery = delivery
         cancellable = publisher
             .sink(
@@ -122,10 +124,11 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
 
 /// Applies one subscription's deliveries on the main thread, in the order they arrive.
 ///
-/// This replaces an unconditional `.receive(on: DispatchQueue.main)` (issue #652). A GRDB-backed
-/// `publish()` already delivers on the main queue, so that operator only added a second hop. An
-/// external ``XLRequest`` conformer schedules its own publisher, so an off-main value still has to
-/// be moved to the main queue before it touches `@Published` state.
+/// This replaces an unconditional `.receive(on: DispatchQueue.main)` (issue #652). `publish()`
+/// already delivers on the main queue, so that operator only added a second hop. Before issue #684
+/// an external ``XLRequest`` conformer scheduled its own publisher; every request's publisher is
+/// now SwiftQL's own, but a value that does arrive off the main thread is still moved there before
+/// it touches `@Published` state.
 ///
 /// A delivery on the main thread runs at once only when no earlier delivery is still queued.
 /// Otherwise it queues behind that delivery. So a publisher that changes threads cannot have an
