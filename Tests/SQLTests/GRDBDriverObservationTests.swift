@@ -166,13 +166,11 @@ final class GRDBDriverObservationTests: XCTestCase {
         let fetches = FetchCounter()
         let stream = observeTrackedCount(counting: fetches)
 
-        // A second observation of the same table, iterated to a write, is the
-        // fence: had the first one started, its initial fetch would have run
-        // long before this one sees a committed write.
-        let fence = ObservationIterator(observeTrackedCount(counting: FetchCounter()))
-        try await fence.next(until: 0)
+        // Had the observation started, GRDB would have scheduled its initial
+        // fetch on a pool reader, and a write it tracks would schedule
+        // another. The barrier waits for both.
         try insert(into: "Tracked", id: 1)
-        try await fence.next(until: 1)
+        try waitForScheduledReads()
 
         XCTAssertEqual(fetches.count, 0, "Observation begins with iteration.")
         withExtendedLifetime(stream) {}

@@ -450,6 +450,31 @@ extension XLRequest {
 }
 
 
+/// Returns an `AsyncThrowingStream` that performs no work until its first
+/// `next()` call, at which point it immediately throws `error` and finishes
+/// -- unless the consuming `Task` is already cancelled, in which case it
+/// resolves to `nil` instead, per the same cancellation contract every other
+/// canonical stream honors: cancellation ends iteration with `nil`, never a
+/// thrown error, `CancellationError` included. Used when a stream cannot be
+/// constructed at all: an invalid invocation packet, including one the
+/// `XLRequest` compatibility defaults reject, a `RETURNING` request, or a
+/// transaction-scoped driver with no pool to observe. The construction error
+/// must still be reported lazily, on first iteration, to preserve
+/// "observation begins with iteration, not merely by constructing an unused
+/// stream" for every code path, not only the successful one.
+///
+/// It lives beside those adapter-neutral defaults rather than with the GRDB
+/// bridge, which also uses it (issue #684).
+func xlFailingAsyncThrowingStream<Value>(_ error: Error) -> AsyncThrowingStream<Value, Error> {
+    AsyncThrowingStream(unfolding: {
+        guard !Task.isCancelled else {
+            return nil
+        }
+        throw error
+    })
+}
+
+
 ///
 /// A prepared statement that modifies the database, such as a create, update, insert, or delete statement.
 ///
