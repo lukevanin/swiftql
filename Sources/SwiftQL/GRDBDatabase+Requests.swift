@@ -29,7 +29,6 @@ extension GRDBDatabase {
             logicalStatement: logicalStatement(for: encoding),
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
             valueEncodingError: encoding.valueEncodingError,
-            customFunctions: encoding.customFunctions,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
@@ -50,8 +49,7 @@ extension GRDBDatabase {
                 driver: driver,
                 logicalStatement: logicalStatement(for: encoding),
                 parameterLayoutError: preparedParameterLayoutError(for: encoding),
-                valueEncodingError: encoding.valueEncodingError,
-                customFunctions: encoding.customFunctions
+                valueEncodingError: encoding.valueEncodingError
             )
         )
     }
@@ -94,15 +92,15 @@ extension GRDBDatabase {
             dialectRequirement: descriptor.statement.dialectRequirement,
             sql: descriptor.statement.sql,
             entities: descriptor.statement.entities,
-            parameterLayout: descriptor.statement.parameterLayout
+            parameterLayout: descriptor.statement.parameterLayout,
+            requiredFunctions: Array(
+                bundledRegistrations(for: descriptor.statement.bundledFunctions).values
+            )
         )
         let invocation = GRDBPreparedInvocation(
             executor: GRDBInvocationExecutor(
                 driver: driver,
-                logicalStatement: statement,
-                customFunctions: bundledRegistrations(
-                    for: descriptor.statement.bundledFunctions
-                )
+                logicalStatement: statement
             )
         )
         return GRDBPreparedStaticQuery(
@@ -149,7 +147,6 @@ extension GRDBDatabase {
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
             valueEncodingError: encoding.valueEncodingError,
             requiresWriteConnection: true,
-            customFunctions: encoding.customFunctions,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
@@ -179,8 +176,7 @@ extension GRDBDatabase {
             logger: logger,
             logicalStatement: logicalStatement(for: encoding),
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
-            valueEncodingError: encoding.valueEncodingError,
-            customFunctions: encoding.customFunctions
+            valueEncodingError: encoding.valueEncodingError
         )
     }
 

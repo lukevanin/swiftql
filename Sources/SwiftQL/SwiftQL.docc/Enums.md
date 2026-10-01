@@ -152,8 +152,8 @@ value decodes as the matching case.
 
 SQLite may contain a raw value that the Swift enum no longer recognizes, for
 example after schema drift or a write performed outside the application.
-Fetching that row throws ``XLColumnReadError`` with an
-``XLColumnReadError/Failure/invalidValue(actualValue:)`` failure:
+Fetching that row throws `XLColumnReadError` with an
+`XLColumnReadError.Failure.invalidValue(actualValue:)` failure:
 
 <!-- test: XLDocumentationTests.testDocumentationEnumValues -->
 ```swift

@@ -136,6 +136,46 @@
   - `XLTransactionalDatabase.withTransaction(_:)` is now `@discardableResult`,
     so a body that ends in `execute()` needs no `_ =`. A generic helper of
     your own that returns its closure's result may need one.
+- **Custom functions no longer carry GRDB types** (issue #683).
+  `XLCustomFunctionRegistration` now lives in SwiftQLCore and holds its
+  signature, `defersToExistingRegistration`, `isPure`, and `makeEvaluator`, a
+  factory for an `XLCustomFunctionEvaluator` over SQLite values, instead of a
+  GRDB `DatabaseFunction` closure. SwiftQL re-exports SwiftQLCore, so code that
+  names the type compiles unchanged.
+  - `XLCustomFunctionRegistration.make(_:)`,
+    `XLBuilder.customFunctionCall(_:parameters:)`, and
+    `GRDBDatabaseBuilder.addFunction(_:)` require the function's result `T` to
+    be `XLBindable & Sendable` instead of GRDB's `DatabaseValueConvertible`.
+    `Bool`, `Int`, `Double`, `String`, `Data`, their optionals, and your own
+    `XLLiteral` types qualify. A function that returned a GRDB-only type such
+    as `Date`, `UUID`, `Int64`, or `Float` must return one of these instead.
+  - A result SQLite would change fails the statement with the new
+    `XLCustomFunctionResultError` instead of being stored differently: a NaN,
+    which SQLite would store as `NULL`, and text containing U+0000, which it
+    would cut short. A parameter with either value was already refused.
+  - A statement that calls your own `XLCustomFunction` with a signature
+    SwiftQL bundles, such as `regexp/2`, and also uses the `REGEXP` operator
+    now carries your function whichever was rendered first. Before, the
+    later one won. As a static descriptor such a statement no longer carries
+    SwiftQL's `regexp`, so register your function upfront with
+    `GRDBDatabaseBuilder.addFunction(_:)`, as the static path already
+    requires for your own functions.
+  - A statement carries the functions it calls in
+    `XLLogicalPreparedStatement.requiredFunctions`, passed to its initializer
+    as an array of registrations, and
+    `XLDatabaseDriverConnection.prepare(_:)` installs them first through a new
+    `installRequiredFunctions(_:)` requirement. Its default installs nothing,
+    so a connection outside SwiftQL keeps compiling and behaves as before: a
+    function it already has resolves, and a missing one fails at preparation.
+    The GRDB adapter installs them as before.
+  - `XLColumnReadError`, `XLRegexpFunction`, and `XLCustomFunctionRegistration`
+    moved to SwiftQLCore and are re-exported, so source that names them
+    compiles unchanged. Their module-qualified names change, for example to
+    `SwiftQLCore.XLColumnReadError`, and so does the bridged `NSError`
+    domain; code that matches those strings must be updated. `XLRegexpFunction.evaluate(_:cache:)` evaluates a call from its
+    SQLite values, and `XLCustomFunctionRegistration.bundled` lists the
+    functions SwiftQL supplies. The SQLite build validator installs exactly
+    that list.
 - **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
   #681), with a default. A conformer outside SwiftQL keeps compiling: the
   default runs its synchronous methods on a Dispatch global queue while the

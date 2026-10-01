@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import GRDB
 
 
 /// A SwiftQL expression whose implementation is registered as a SQLite scalar function.
@@ -26,107 +25,20 @@ public protocol XLCustomFunction<T>: XLExpression {
 }
 
 
-/// Type-erased identity and GRDB registration thunk for one ``XLCustomFunction`` referenced
-/// while a statement is rendered to SQL.
-///
-/// The renderer records one of these every time ``XLBuilder/customFunctionCall(_:parameters:)``
-/// emits a call to a custom function. A driver can then register the underlying SQLite function
-/// automatically -- the first time a rendered statement references it, on whatever physical
-/// connection happens to execute the statement -- without the caller registering it upfront with
-/// ``GRDBDatabaseBuilder/addFunction(_:)``.
-public struct XLCustomFunctionRegistration: Sendable {
-
-    /// The SQLite registration signature. Two registrations sharing a definition register the
-    /// same SQLite function and are interchangeable.
-    public let definition: XLCustomFunctionDefinition
-
-    /// Whether a function already on the connection wins over this one.
-    ///
-    /// "Already on the connection" is decided by signature, not by name alone:
-    /// the same name and either the same argument count or the `-1` SQLite
-    /// reports for a variadic function, which can serve a fixed-arity call.
-    ///
-    /// `false` for a registration made from an application's own
-    /// ``XLCustomFunction``: the caller referenced that type in the statement, so
-    /// registering it is what the caller asked for. That holds even when the
-    /// caller's function reuses a signature SwiftQL bundles -- an application
-    /// that writes its own `regexp/2` as an ``XLCustomFunction`` and calls it
-    /// from a statement gets *that* implementation, not SwiftQL's.
-    ///
-    /// `true` for a function SwiftQL bundles, such as its own `regexp`
-    /// implementation for the `REGEXP` operator. A bundled function is a
-    /// default, not an instruction, so it must never replace an implementation
-    /// the application registered itself.
-    ///
-    /// Stored rather than derived from ``bundled``, because the two questions
-    /// differ: ``bundled`` asks whether SwiftQL can build an implementation for
-    /// a signature, which it can even when the caller supplied their own type
-    /// for that signature. `XLCustomFunctionRegistrationInvariantTests` pins
-    /// that every entry in ``bundled`` sets this.
-    let defersToExistingRegistration: Bool
-
-    let makeDatabaseFunction: @Sendable () -> DatabaseFunction
-
-    /// Values the rendered statement depends on for as long as it can execute.
-    ///
-    /// Held, never read. The encoding carries registrations to every request
-    /// and prepared invocation made from it, so a value stored here lives as
-    /// long as the longest of those. `REGEXP` stores each ``XLRegexPattern``
-    /// the statement matches against here: the pattern registry holds a
-    /// pattern weakly, and the rendered SQL carries only its key (issue #646).
-    let retainedValues: [any Sendable]
-
-    init(
-        definition: XLCustomFunctionDefinition,
-        defersToExistingRegistration: Bool = false,
-        retainedValues: [any Sendable] = [],
-        makeDatabaseFunction: @escaping @Sendable () -> DatabaseFunction
-    ) {
-        self.definition = definition
-        self.defersToExistingRegistration = defersToExistingRegistration
-        self.retainedValues = retainedValues
-        self.makeDatabaseFunction = makeDatabaseFunction
-    }
-
-    /// This registration, additionally holding `values`.
-    ///
-    /// The function registered is unchanged: only what the registration keeps
-    /// alive grows.
-    func retaining(_ values: [any Sendable]) -> XLCustomFunctionRegistration {
-        XLCustomFunctionRegistration(
-            definition: definition,
-            defersToExistingRegistration: defersToExistingRegistration,
-            retainedValues: retainedValues + values,
-            makeDatabaseFunction: makeDatabaseFunction
-        )
-    }
-
-    /// Every function SwiftQL supplies itself, by its SQLite signature.
-    ///
-    /// Two things read this. The driver skips a bundled registration when the
-    /// application already provides that function. And a static query
-    /// descriptor, which cannot carry a registration closure, records the
-    /// signatures it needs and resolves them back through this table when the
-    /// statement is prepared -- see
-    /// `XLStaticStatementDefinition.bundledFunctions`.
-    ///
-    ///
-    /// A function belongs here only if SwiftQL can reconstruct it from its
-    /// signature alone. An application's own ``XLCustomFunction`` cannot be,
-    /// which is why implicit registration still does not reach the static path
-    /// for those.
-    static let bundled: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [
-        XLRegexpFunction.definition: .bundledRegexp,
-    ]
+extension XLCustomFunctionRegistration {
 
     /// Creates a registration for one custom function type.
+    ///
+    /// The function's arguments reach ``XLCustomFunction/execute(reader:)``
+    /// through a column reader over the SQLite values. Its result is bound
+    /// back to a SQLite value through its `bind(context:)`, and a value SQLite
+    /// would change, a NaN or text containing U+0000, is refused with
+    /// `XLCustomFunctionResultError` rather than stored differently.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
-    where F: XLCustomFunction, F.T: DatabaseValueConvertible & Sendable {
-        // Captured as plain values rather than the generic metatype `F.Type` itself, so GRDB's
-        // `@Sendable` function closure below never needs to carry an unconstrained generic
-        // parameter across the isolation boundary. `F.T: Sendable` covers the one metatype that
-        // remains: the closure converts an `F.T` result to GRDB's existential return type, and a
-        // `Sendable` type has a `Sendable` metatype.
+    where F: XLCustomFunction, F.T: XLBindable & Sendable {
+        // Captured as plain values rather than the generic metatype `F.Type` itself, so the
+        // `@Sendable` evaluator below never needs to carry an unconstrained generic parameter
+        // across the isolation boundary. `F.T: Sendable` covers the one metatype that remains.
         let functionDefinition = F.definition
         // `F.execute` is a static function with no captured state -- calling it concurrently
         // from multiple pooled connections is exactly this feature's purpose -- so it is safe to
@@ -138,19 +50,70 @@ public struct XLCustomFunctionRegistration: Sendable {
             F.execute(reader:) as (XLColumnReader) throws -> F.T,
             to: (@Sendable (XLColumnReader) throws -> F.T).self
         )
+        // The metatype, not its name: naming a type costs a demangle, and the
+        // name is read only when a result cannot be bound.
+        let resultType = F.T.self
         return XLCustomFunctionRegistration(
             definition: functionDefinition,
-            makeDatabaseFunction: {
-                DatabaseFunction(
-                    functionDefinition.name,
-                    argumentCount: Int(functionDefinition.numberOfArguments),
-                    function: { values in
-                        let reader = GRDBValuesAdapter(values: values)
-                        return try executeFunction(reader)
+            makeEvaluator: {
+                { arguments in
+                    let result = try executeFunction(XLFunctionArgumentReader(values: arguments))
+                    // Not `_xlCapturedSQLiteValue`, which traps when a
+                    // conformer replaces the context: this runs inside
+                    // SQLite's callback, where failing the statement is the
+                    // right outcome, not ending the process. The registration
+                    // refuses a NaN or a NUL itself.
+                    var context: any XLBindingContext = XLSQLiteValueCapture()
+                    result.bind(context: &context)
+                    guard let capture = context as? XLSQLiteValueCapture else {
+                        throw XLCustomFunctionResultError(
+                            definition: functionDefinition,
+                            reason: .unboundResult(valueType: String(describing: resultType))
+                        )
                     }
-                )
+                    return capture.value
+                }
             }
         )
+    }
+}
+
+
+/// Reads a custom function's arguments positionally, as its
+/// ``XLCustomFunction/execute(reader:)`` sees them.
+///
+/// Deliberately only an ``XLColumnReader``: it does not forward
+/// ``XLStaticColumnReader/dialectValue(at:using:)`` to the
+/// ``XLSQLiteValueReader`` it wraps, so asking it for a raw dialect value
+/// throws `rawDialectValuesUnavailable`. That is not a gap. A custom function
+/// reads intrinsic values by position; a static row layout is a different
+/// contract.
+struct XLFunctionArgumentReader: XLColumnReader {
+
+    private let reader: XLSQLiteValueReader
+
+    init(values: [XLSQLiteValue]) {
+        self.reader = XLSQLiteValueReader(values: values)
+    }
+
+    func isNull(at index: Int) throws -> Bool {
+        try reader.isNull(at: index)
+    }
+
+    func readInteger(at index: Int) throws -> Int {
+        try reader.readInteger(at: index)
+    }
+
+    func readReal(at index: Int) throws -> Double {
+        try reader.readReal(at: index)
+    }
+
+    func readText(at index: Int) throws -> String {
+        try reader.readText(at: index)
+    }
+
+    func readBlob(at index: Int) throws -> Data {
+        try reader.readBlob(at: index)
     }
 }
 
@@ -173,7 +136,7 @@ extension XLBuilder {
     public mutating func customFunctionCall<F>(
         _ type: F.Type,
         parameters: ListBuilder
-    ) where F: XLCustomFunction, F.T: DatabaseValueConvertible & Sendable {
+    ) where F: XLCustomFunction, F.T: XLBindable & Sendable {
         customFunction(.make(type))
         simpleFunction(name: type.definition.name, parameters: parameters)
     }

@@ -199,8 +199,7 @@ where
                 parameterLayoutError: database.preparedParameterLayoutError(
                     for: encoding
                 ),
-                valueEncodingError: encoding.valueEncodingError,
-                customFunctions: encoding.customFunctions
+                valueEncodingError: encoding.valueEncodingError
             ),
             shape: recorder.shape
         )
@@ -223,7 +222,6 @@ where
         let layout = executor.parameterLayout
         // Prepared once for this call, on this connection. It is a local value,
         // so it cannot outlive the connection access the caller holds.
-        try connection.registerCustomFunctions(executor.customFunctions)
         let statement = try connection.prepare(executor.logicalStatement)
         let capture = XLInsertValueRecorder(expectedShape: template.shape)
         var isFirstRow = true
@@ -274,8 +272,7 @@ where
             parameterLayoutError: database.preparedParameterLayoutError(
                 for: encoding
             ),
-            valueEncodingError: encoding.valueEncodingError,
-            customFunctions: encoding.customFunctions
+            valueEncodingError: encoding.valueEncodingError
         )
         // `GRDBWriteRequest.execute()` reports a layout error from its binding
         // accumulator before the executor checks the packet.

@@ -216,7 +216,7 @@ extension XLExpression {
     ///
     /// SwiftQL supplies the implementation. SQLite parses `X REGEXP Y` as a
     /// call to `regexp(Y, X)` and ships no such function, so SwiftQL registers
-    /// ``XLRegexpFunction`` on the connection that executes the statement. The
+    /// `XLRegexpFunction` on the connection that executes the statement. The
     /// pattern syntax, the match rule, and the NULL and error behaviour are
     /// described there.
     ///

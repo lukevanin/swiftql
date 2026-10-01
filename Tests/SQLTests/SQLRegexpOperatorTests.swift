@@ -376,22 +376,25 @@ final class XLRegexpOperatorTests: XCTestCase {
     /// enforce column types. Reading an integer as text would be a silent
     /// conversion, so it is an error instead.
     func testNonTextArgumentRaisesAnError() throws {
-        let reader = StubColumnReader(values: [.text("a"), .integer(7)])
-        XCTAssertThrowsError(try XLRegexpFunction.evaluate(reader: reader))
+        XCTAssertThrowsError(try XLRegexpFunction.evaluate([.text("a"), .integer(7)])) { error in
+            XCTAssertEqual(
+                error as? XLColumnReadError,
+                XLColumnReadError(index: 1, expectedType: "String", failure: .typeMismatch(actualType: "INTEGER"))
+            )
+        }
+        // A NULL beside a non-text value is still NULL, as it was before the
+        // function moved to SwiftQLCore (issue #683).
+        XCTAssertNil(try XLRegexpFunction.evaluate([.null, .integer(7)]))
     }
 
     /// The unit-level statement of the NULL rule, independent of how SQLite
     /// happens to evaluate a predicate.
     func testEvaluateReturnsNilForANullArgument() throws {
         XCTAssertNil(
-            try XLRegexpFunction.evaluate(
-                reader: StubColumnReader(values: [.null, .text("beta")])
-            )
+            try XLRegexpFunction.evaluate([.null, .text("beta")])
         )
         XCTAssertNil(
-            try XLRegexpFunction.evaluate(
-                reader: StubColumnReader(values: [.text("^b"), .null])
-            )
+            try XLRegexpFunction.evaluate([.text("^b"), .null])
         )
     }
 
@@ -716,6 +719,38 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
     }
 
+    /// Issue #683: a statement that calls the application's own `regexp/2`
+    /// and also uses the `REGEXP` operator carries the application's
+    /// registration, whichever the renderer met first. Before, the latest one
+    /// rendered won, so the operator could replace the application's function.
+    func testStatementCallingBothRegexpsCarriesTheApplicationsInEitherOrder() throws {
+        database = try makeDatabase()
+        let applicationFirst: any XLQueryStatement<String> = sql { schema in
+            let phrase = schema.table(RegexpPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(ApplicationRegexpCall(pattern: "[0-9]+$", subject: phrase.text) && phrase.text.regexp("a"))
+        }
+        let operatorFirst: any XLQueryStatement<String> = sql { schema in
+            let phrase = schema.table(RegexpPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp("a") && ApplicationRegexpCall(pattern: "[0-9]+$", subject: phrase.text))
+        }
+        for statement in [applicationFirst, operatorFirst] {
+            let request = try XCTUnwrap(database.makeRequest(with: statement) as? GRDBRequest<String>)
+            let registration = try XCTUnwrap(
+                request.executor.logicalStatement.requiredFunctions[XLRegexpFunction.definition]
+            )
+            XCTAssertFalse(registration.defersToExistingRegistration)
+            XCTAssertTrue(
+                try XLStaticStatementDefinition(validating: database.encoder.makeSQL(statement))
+                    .bundledFunctions.isEmpty,
+                "The static path must not record SwiftQL's regexp in place of the application's."
+            )
+        }
+    }
+
     /// The application-wins rule still holds for an installed bundled function:
     /// the first statement on the connection that calls the application's own
     /// `XLCustomFunction` of the same signature replaces the bundled one.
@@ -969,68 +1004,6 @@ private struct ApplicationRegexpCall: XLCustomFunction {
         let pattern = try reader.readText(at: 0)
         let subject = try reader.readText(at: 1)
         return subject.range(of: pattern, options: .regularExpression) == nil
-    }
-}
-
-
-/// Feeds ``XLRegexpFunction/evaluate(reader:)`` exact storage classes, which a
-/// typed SwiftQL query cannot produce on its own.
-private struct StubColumnReader: XLColumnReader {
-
-    enum Value {
-        case null
-        case text(String)
-        case integer(Int)
-    }
-
-    let values: [Value]
-
-    private func value(at index: Int) throws -> Value {
-        guard values.indices.contains(index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: nil,
-                failure: .indexOutOfBounds(valueCount: values.count)
-            )
-        }
-        return values[index]
-    }
-
-    func isNull(at index: Int) throws -> Bool {
-        if case .null = try value(at: index) {
-            return true
-        }
-        return false
-    }
-
-    func readInteger(at index: Int) throws -> Int {
-        guard case .integer(let integer) = try value(at: index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: String(reflecting: Int.self),
-                failure: .typeMismatch(actualType: "not an integer")
-            )
-        }
-        return integer
-    }
-
-    func readReal(at index: Int) throws -> Double {
-        Double(try readInteger(at: index))
-    }
-
-    func readText(at index: Int) throws -> String {
-        guard case .text(let text) = try value(at: index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: String(reflecting: String.self),
-                failure: .typeMismatch(actualType: "not text")
-            )
-        }
-        return text
-    }
-
-    func readBlob(at index: Int) throws -> Data {
-        Data(try readText(at: index).utf8)
     }
 }
 

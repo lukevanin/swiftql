@@ -193,6 +193,74 @@ private struct SharedSignatureSecondFunction: XLCustomFunction {
 }
 
 
+/// Returns NaN, which SQLite would store as `NULL`.
+private struct ImplicitNotANumberFunction: XLCustomFunction {
+    typealias T = Double
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "implicitNotANumber",
+        numberOfArguments: 0
+    )
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Double {
+        .nan
+    }
+}
+
+
+/// Returns text containing U+0000, which SQLite would cut short.
+private struct ImplicitNulTextFunction: XLCustomFunction {
+    typealias T = String
+
+    static let definition = XLCustomFunctionDefinition(name: "implicitNulText", numberOfArguments: 0)
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> String {
+        "a\u{0}b"
+    }
+}
+
+
+/// A result type whose `bind(context:)` swaps the context for its own.
+private struct ContextSwappingValue: XLBindable, Sendable {
+
+    private struct OtherContext: XLBindingContext {
+        mutating func bindNull() {}
+        mutating func bindInteger(value: Int) {}
+        mutating func bindReal(value: Double) {}
+        mutating func bindText(value: String) {}
+        mutating func bindBlob(value: Data) {}
+    }
+
+    func bind(context: inout XLBindingContext) {
+        context = OtherContext()
+    }
+}
+
+
+/// Returns a ``ContextSwappingValue``.
+private struct ImplicitContextSwappingFunction: XLCustomFunction {
+    typealias T = ContextSwappingValue
+
+    static let definition = XLCustomFunctionDefinition(name: "implicitContextSwap", numberOfArguments: 0)
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> ContextSwappingValue {
+        ContextSwappingValue()
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -252,6 +320,86 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
     }
 
     // MARK: - Implicit registration correctness
+
+    /// Issue #683: a function's result is bound back to SQLite the way a
+    /// parameter is, so a NaN is refused rather than silently stored as NULL.
+    func testNaNResultIsRefusedRatherThanStoredAsNull() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitNotANumberFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(
+                message.contains("implicitNotANumber/0 returned NaN"),
+                "\(error)"
+            )
+        }
+    }
+
+    /// A NaN result is refused from any evaluator, not only one built by
+    /// `XLCustomFunctionRegistration.make(_:)`.
+    func testNaNFromAnEvaluatorBuiltDirectlyIsRefused() throws {
+        let definition = XLCustomFunctionDefinition(name: "directNotANumber", numberOfArguments: 0)
+        let registration = XLCustomFunctionRegistration(definition: definition) { { _ in .real(.nan) } }
+        let pool = try DatabasePool(path: databaseDirectoryURL.appendingPathComponent("direct.sqlite").path)
+        try pool.write { database in
+            database.add(function: registration.makeGRDBFunction())
+            XCTAssertThrowsError(try Double.fetchOne(database, sql: "SELECT directNotANumber()")) { error in
+                XCTAssertTrue(
+                    ((error as? DatabaseError)?.message ?? "").contains("directNotANumber/0 returned NaN"),
+                    "\(error)"
+                )
+            }
+        }
+    }
+
+    /// A text result containing U+0000 is refused rather than cut short, as
+    /// a text parameter containing one is (issue #657).
+    func testTextResultContainingNulIsRefused() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitNulTextFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(message.contains("implicitNulText/0 returned text containing U+0000"), "\(error)")
+        }
+    }
+
+    /// A result whose `bind(context:)` replaces the context fails the
+    /// statement instead of trapping inside SQLite's callback.
+    func testResultThatReplacesItsBindingContextFailsTheStatement() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitContextSwappingFunction()) }
+
+        XCTAssertThrowsError(try database.makeRequest(with: statement).fetchOne()) { error in
+            let message = (error as? XLDatabaseError)?.message ?? ""
+            XCTAssertTrue(message.contains("replaced the binding context"), "\(error)")
+        }
+    }
+
+    /// Issue #683: the functions a statement calls travel on its logical
+    /// statement, so a render-once request rebound to another database
+    /// still installs them there.
+    func testRequiredFunctionsTravelOnTheLogicalStatement() throws {
+        let database = try makeDatabase()
+        let statement = sql { _ in Select(ImplicitSquareFunction(7)) }
+        let request = try XCTUnwrap(database.makeRequest(with: statement) as? GRDBRequest<Int>)
+
+        XCTAssertEqual(
+            request.executor.logicalStatement.requiredFunctions.keys.sorted(),
+            [ImplicitSquareFunction.definition]
+        )
+
+        let otherURL = databaseDirectoryURL.appendingPathComponent("other.sqlite", isDirectory: false)
+        let other = try GRDBDatabaseBuilder(url: otherURL, configuration: Configuration(), logger: nil).build()
+        let rebound = request.rebound(to: other.driver)
+        XCTAssertEqual(
+            rebound.executor.logicalStatement.requiredFunctions.keys.sorted(),
+            [ImplicitSquareFunction.definition]
+        )
+        XCTAssertEqual(try rebound.fetchOne(), 49)
+    }
+
 
     /// The issue's real correctness test: build a `GRDBDatabase` without calling `addFunction` upfront,
     /// execute a query that references a custom function opted into implicit registration, and confirm it

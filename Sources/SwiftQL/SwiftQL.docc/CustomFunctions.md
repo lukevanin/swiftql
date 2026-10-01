@@ -87,6 +87,12 @@ public struct HaversineDistance: XLCustomFunction {
 }
 ```
 
+The result type `T` is any `XLBindable` value: `Bool`, `Int`, `Double`,
+`String`, `Data`, an optional of one of these, or your own `XLLiteral` type.
+SwiftQL binds the result back to SQLite the way it binds a statement
+parameter. A function that computes a `Date`, a `UUID`, or a `Float` returns
+it in one of those forms, such as a `Double` or a `String`.
+
 ## Implicit vs explicit registration
 
 The `makeSQL` implementation above calls `context.simpleFunction(name:)` directly. Doing so
@@ -369,3 +375,9 @@ around a fetch therefore does not match. Put what the caller needs to know in
 the error's description, or check the input before it reaches a statement when
 the caller needs a typed error. The same holds for the functions SwiftQL
 supplies, such as `regexp`.
+
+A result SQLite would change is an error too, as the same value bound as a
+parameter is. SQLite stores a `Double.nan` result as `NULL`, and cuts text
+short at a U+0000 character, so a function that returns either fails the
+statement with `XLCustomFunctionResultError` in its message rather than
+quietly producing a different value.

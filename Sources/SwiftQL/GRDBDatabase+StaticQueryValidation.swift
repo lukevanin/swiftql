@@ -129,7 +129,8 @@ extension GRDBDatabase {
             dialectRequirement: encoding.dialectRequirement,
             sql: encoding.sql,
             entities: encoding.entities,
-            parameterLayout: encoding.parameterLayout
+            parameterLayout: encoding.parameterLayout,
+            requiredFunctions: Array(encoding.customFunctions.values)
         )
     }
 }

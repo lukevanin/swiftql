@@ -262,18 +262,52 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
     /// Immutable static parameter metadata captured while rendering `sql`.
     public let parameterLayout: XLParameterLayout
 
+    /// The scalar functions `sql` calls that SwiftQL can supply, keyed by
+    /// their SQLite signature (issue #683).
+    ///
+    /// The connection makes each one available before it prepares the
+    /// statement; see ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``.
+    /// Each is keyed by its own ``XLCustomFunctionRegistration/definition``.
+    /// Statements compare their functions as ``XLCustomFunctionRegistration``
+    /// compares, without the evaluators.
+    public let requiredFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+
     public init(
         databaseIdentifier: XLDatabaseIdentifier,
         dialectRequirement: XLDialectRequirement,
         sql: String,
         entities: Set<String> = [],
-        parameterLayout: XLParameterLayout = .empty
+        parameterLayout: XLParameterLayout = .empty,
+        requiredFunctions: [XLCustomFunctionRegistration] = []
     ) {
         self.databaseIdentifier = databaseIdentifier
         self.dialectRequirement = dialectRequirement
         self.sql = sql
         self.entities = entities
         self.parameterLayout = parameterLayout
+        // Two registrations for one signature collapse as the renderer's
+        // registry collapses them; see `XLCustomFunctionRegistration.preferring(_:_:)`.
+        var keyed: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        for registration in requiredFunctions {
+            keyed[registration.definition] = XLCustomFunctionRegistration.preferring(
+                keyed[registration.definition],
+                registration
+            )
+        }
+        self.requiredFunctions = keyed
+    }
+
+    /// This statement for another database, keeping everything rendering
+    /// produced.
+    public func rebound(to databaseIdentifier: XLDatabaseIdentifier) -> XLLogicalPreparedStatement {
+        XLLogicalPreparedStatement(
+            databaseIdentifier: databaseIdentifier,
+            dialectRequirement: dialectRequirement,
+            sql: sql,
+            entities: entities,
+            parameterLayout: parameterLayout,
+            requiredFunctions: Array(requiredFunctions.values)
+        )
     }
 }
 

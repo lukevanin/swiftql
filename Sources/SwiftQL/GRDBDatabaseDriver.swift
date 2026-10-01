@@ -467,30 +467,16 @@ struct GRDBInvocationExecutor: Sendable {
 
     let valueEncodingError: XLSQLValueEncodingError?
 
-    /// Custom scalar functions referenced by `logicalStatement`, keyed by their SQLite
-    /// registration signature.
-    ///
-    /// Checked against whatever physical connection is checked out immediately before every
-    /// execution (see `boundStatement`), rather than registered once upfront. `DatabasePool`
-    /// hands out any of several persistent reader connections, and a `Database.add(function:)`
-    /// call only affects the one physical connection it runs on -- so there is no single "first
-    /// use" moment for the whole pool. Each function is installed on a connection the first time
-    /// that connection needs it, and never again; see
-    /// `GRDBDatabaseDriverConnection.registerCustomFunctions(_:)`.
-    let customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
-
     init(
         driver: GRDBDatabaseDriver,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil,
-        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+        valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
         self.driver = driver
         self.logicalStatement = logicalStatement
         self.parameterLayoutError = parameterLayoutError
         self.valueEncodingError = valueEncodingError
-        self.customFunctions = customFunctions
     }
 
     var parameterLayout: XLParameterLayout {
@@ -722,7 +708,8 @@ struct GRDBInvocationExecutor: Sendable {
         packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
-        try connection.registerCustomFunctions(customFunctions)
+        // `prepare` installs the functions the statement calls first, on
+        // whichever connection this is (issue #683).
         var statement = try connection.prepare(logicalStatement)
         for binding in packet.bindings {
             do {
@@ -1128,7 +1115,9 @@ struct GRDBDatabaseDriverConnection:
     }
 
     /// Installs the custom SQLite functions referenced by the statement about to execute, once per
-    /// physical connection.
+    /// physical connection. This is the connection's ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``,
+    /// which ``XLDatabaseDriverConnection/prepare(_:)`` calls with the statement's required
+    /// functions (issue #683).
     ///
     /// This runs before every execution, because `DatabasePool` hands a statement to any of several
     /// persistent connections and `Database.add(function:)` affects only the one it runs on. It
@@ -1165,25 +1154,25 @@ struct GRDBDatabaseDriverConnection:
     /// an extension it loaded -- nothing is replaced: SwiftQL records it and uses it.
     ///
     /// The record is kept per signature, not per Swift type. Registrations that share a
-    /// ``XLCustomFunctionRegistration/definition`` are interchangeable, as that property documents,
+    /// `XLCustomFunctionRegistration.definition` are interchangeable, as that property documents,
     /// so the first application ``XLCustomFunction`` installed for a signature serves every later
     /// statement on the connection that calls any type with that signature.
     ///
     /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
     ///   while a statement is active on the connection, or a preparation failure while reading a
     ///   marker.
-    func registerCustomFunctions(
+    func installRequiredFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {
         // A marker probe prepares a statement through GRDB, so a failure
         // there, such as `SQLITE_BUSY`, is reported as an `XLDatabaseError`.
         try mappingDatabaseErrors {
-            try registerCustomFunctionsUnmapped(registrations)
+            try installRequiredFunctionsUnmapped(registrations)
         }
     }
 
-    /// `registerCustomFunctions(_:)` before its GRDB errors are mapped.
-    private func registerCustomFunctionsUnmapped(
+    /// `installRequiredFunctions(_:)` before its GRDB errors are mapped.
+    private func installRequiredFunctionsUnmapped(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {
         for registration in registrations.values {
@@ -1220,7 +1209,7 @@ struct GRDBDatabaseDriverConnection:
                     // function wins over it, so replace it -- unless SQLite cannot right now.
                     try checkNoActiveStatementBlocksReplacing(definition)
                 }
-                database.add(function: registration.makeDatabaseFunction())
+                database.add(function: registration.makeGRDBFunction())
                 customMarker.record(in: database)
                 continue
             }
@@ -1231,7 +1220,7 @@ struct GRDBDatabaseDriverConnection:
             let applicationProvides = try customMarker.isRecorded(in: database)
                 || hasFunction(matching: definition)
             if !applicationProvides {
-                database.add(function: registration.makeDatabaseFunction())
+                database.add(function: registration.makeGRDBFunction())
                 GRDBInstalledFunctionMarker(definition: definition, kind: .bundledImplementation)
                     .record(in: database)
             }
@@ -1726,6 +1715,30 @@ extension DatabaseValue {
         case .blob(let value):
             return .blob(value)
         }
+    }
+}
+
+
+extension XLCustomFunctionRegistration {
+
+    /// A GRDB function that evaluates this registration, for one installation
+    /// on one physical connection (issue #683).
+    ///
+    /// It asks for a fresh evaluator each time, so an evaluator's own state,
+    /// such as the bundled `regexp`'s pattern cache, belongs to the
+    /// installation.
+    func makeGRDBFunction() -> DatabaseFunction {
+        let evaluate = makeEvaluator()
+        return DatabaseFunction(
+            definition.name,
+            argumentCount: definition.numberOfArguments,
+            pure: isPure,
+            function: { values in
+                // The evaluator refuses a NaN result itself; see
+                // `XLCustomFunctionRegistration.init`.
+                try evaluate(values.map(\.sqliteDialectValue)).databaseValue
+            }
+        )
     }
 }
 

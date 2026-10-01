@@ -128,9 +128,19 @@ final class XLColumnReadErrorTests: XCTestCase {
         databaseDirectoryURL = nil
     }
 
+    /// A custom function's argument reader over a GRDB row's values, as the
+    /// GRDB adapter hands them to it.
+    private func functionArgumentReader(row: GRDB.Row) -> XLFunctionArgumentReader {
+        functionArgumentReader(values: Array(row.databaseValues))
+    }
+
+    private func functionArgumentReader(values: [DatabaseValue]) -> XLFunctionArgumentReader {
+        XLFunctionArgumentReader(values: values.map(\.sqliteDialectValue))
+    }
+
     func testValuesAdapterReadsIntrinsicValuesAndOptionalNullFromARow() throws {
         let row = try fetchRow(sql: "SELECT 42, 1.5, 'text', X'00FF', NULL")
-        let reader = GRDBValuesAdapter(row: row)
+        let reader = functionArgumentReader(row: row)
 
         XCTAssertEqual(try reader.readInteger(at: 0), 42)
         XCTAssertEqual(try reader.readReal(at: 1), 1.5)
@@ -143,10 +153,9 @@ final class XLColumnReadErrorTests: XCTestCase {
     }
 
     func testAdaptersUseStorageClassConversionsConsistently() throws {
-        let rowReader = GRDBValuesAdapter(
-            row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
+        let rowReader = functionArgumentReader(row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
         )
-        let valuesReader = GRDBValuesAdapter(values: [
+        let valuesReader = functionArgumentReader(values: [
             42.databaseValue,
             42.75.databaseValue,
             Data("text".utf8).databaseValue,
@@ -170,7 +179,7 @@ final class XLColumnReadErrorTests: XCTestCase {
     }
 
     func testValuesAdapterThrowsStructuredErrorsFromARow() throws {
-        let reader = GRDBValuesAdapter(row: try fetchRow(sql: "SELECT NULL, 'text'"))
+        let reader = functionArgumentReader(row: try fetchRow(sql: "SELECT NULL, 'text'"))
 
         assertColumnReadError(
             try reader.readInteger(at: 0),
@@ -206,8 +215,8 @@ final class XLColumnReadErrorTests: XCTestCase {
         )
     }
 
-    func testGRDBValuesAdapterThrowsStructuredErrors() {
-        let reader = GRDBValuesAdapter(values: [DatabaseValue.null, "text".databaseValue])
+    func testFunctionArgumentReaderThrowsStructuredErrorsFromGRDBValues() {
+        let reader = functionArgumentReader(values: [DatabaseValue.null, "text".databaseValue])
 
         assertColumnReadError(
             try reader.readInteger(at: 0),

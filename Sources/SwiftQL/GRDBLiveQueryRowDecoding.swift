@@ -46,7 +46,7 @@ extension GRDBRequest {
     ///
     /// `unsafeBitCast` changes the compile-time `@Sendable` annotation only.
     /// The function value's runtime representation does not change. This
-    /// mirrors ``XLCustomFunctionRegistration/make(_:)``, which crosses the
+    /// mirrors `XLCustomFunctionRegistration.make(_:)`, which crosses the
     /// same boundary for the same reason.
     ///
     /// The cast is deliberately narrow. It covers the row reader and nothing
