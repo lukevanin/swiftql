@@ -129,9 +129,14 @@ final class XLRequestCombineDefaultsTests: XCTestCase {
         XCTAssertEqual(first.values.read(), [7])
         XCTAssertEqual(second.values.read(), [7])
 
+        // Cancelling one subscriber leaves the other observing. `cancel()`
+        // takes effect before it returns, so the cancelled subscriber cannot
+        // receive the value sent after it.
         first.cancel()
-        _ = await events.waitForFinish()
-        XCTAssertEqual(request.row.endedCount, 1, "Cancelling one subscriber ends only its stream.")
+        request.row.send(8)
+        await second.values.wait(untilCountIsAtLeast: 2)
+        XCTAssertEqual(second.values.read(), [7, 8])
+        XCTAssertEqual(first.values.read(), [7], "A cancelled subscriber receives nothing more.")
         second.cancel()
     }
 
@@ -188,6 +193,12 @@ final class XLRequestCombineDefaultsTests: XCTestCase {
         await events.wait(for: .streamCreated)
         request.rows.send([1])
         await subscriber.values.wait(untilCountIsAtLeast: 1)
+        // The startup pull, then the pull after the delivery: the consumer is
+        // now in, or entering, the stream's `next()`, where cancelling ends
+        // the stream through `finish`. Cancelling while it still waits for
+        // demand would end the loop without a `.finished` event to await.
+        await events.wait(for: .demandUnitConsumed)
+        await events.wait(for: .demandUnitConsumed)
 
         subscriber.cancel()
         let forwarded = await events.waitForFinish()

@@ -666,7 +666,9 @@ no longer have defaults that bridge from them. An adapter that implemented only 
 now implements `stream()` and `streamOne()`, in one line each with ``XLPublisherAsyncBridge`` (see
 "Writing a request adapter"). A publish method it keeps is no longer what a caller holding
 `any XLRequest` gets: every caller receives SwiftQL's publisher, built on the adapter's streams.
-Callers of the publish members change nothing.
+For a SwiftQL request, callers of the publish members see no change. For another adapter's request,
+the subscription and its values now arrive asynchronously on the main queue, where the adapter's own
+publisher may have delivered synchronously or on another queue.
 
 Nothing about `publish()`/`publishOne()`'s public signatures, subscription-time behavior, fresh-initial-
 value guarantee, main-queue delivery default, retry policy, transaction coalescing, or cross-database

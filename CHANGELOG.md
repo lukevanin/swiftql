@@ -184,8 +184,9 @@
   `async`.
 - **`XLRequest`'s live-query requirements are its stream members** (issue
   #684). A request adapter no longer needs Combine or OpenCombine to conform.
-  This changes only a type outside SwiftQL that conforms to `XLRequest`;
-  callers of `publish()` and `publishOne()` change nothing.
+  This changes a type outside SwiftQL that conforms to `XLRequest`, and what
+  its callers' publishers deliver; a SwiftQL request's publishers are
+  unchanged.
   - `stream()` and `streamOne()` are requirements with no default. They no
     longer bridge from `publish()` and `publishOne()`.
   - `publish()`, `publish(bindings:)`, `publishOne()`, and
@@ -195,6 +196,9 @@
     subscriber gets its own stream, zero demand does no work, values arrive
     on the main queue, and a failure is all-or-nothing. A publish method a
     conformer keeps is no longer what a caller holding `any XLRequest` gets.
+    For such a conformer's request, the subscription and its values now
+    arrive asynchronously on the main queue, where the conformer's own
+    publisher may have delivered synchronously or on another queue.
   - `stream(bindings:)` and `streamOne(bindings:)` keep compatibility
     defaults for a conformer without invocation packets: an empty packet
     observes through `stream()` or `streamOne()`, and any other packet fails

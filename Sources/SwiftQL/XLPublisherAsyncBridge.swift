@@ -42,12 +42,16 @@ import OpenCombine
 /// Each bridge makes one stream with one subscription. Make a new bridge for
 /// each call to a stream member, as the example does.
 ///
+/// `Value` is `Sendable` because each value crosses from the thread the
+/// publisher delivers on to the task that iterates the stream. A request's
+/// rows already are.
+///
 /// Do not bridge ``XLRequest/publish()`` or any other publish member of the
 /// same request: since issue #684 those are built on the stream members, so
 /// a stream built from them would call itself. Bridge the adapter's own
 /// publisher.
 ///
-public final class XLPublisherAsyncBridge<Value>: @unchecked Sendable {
+public final class XLPublisherAsyncBridge<Value: Sendable>: @unchecked Sendable {
 
     private let lock = NSLock()
 
@@ -119,12 +123,8 @@ public final class XLPublisherAsyncBridge<Value>: @unchecked Sendable {
                             }
                         },
                         receiveValue: { value in
-                            // See the matching note on GRDBLiveQueryAsyncStream.handleValue(_:generation:):
-                            // `buffer.yield(_:)`'s parameter is `sending` (Swift 6.0+), and this `value` is
-                            // a plain, non-sending Combine callback parameter.
-                            #if compiler(>=6.0)
-                            nonisolated(unsafe) let value = value
-                            #endif
+                            // `Value` is `Sendable`, so `buffer.yield(_:)` accepts it as a `sending`
+                            // argument directly, as `GRDBLiveQueryAsyncBridge.handleValue` does.
                             buffer.yield(value)
                         }
                     )
