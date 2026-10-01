@@ -756,10 +756,7 @@ private enum FakeFailure: Error, Equatable, CustomStringConvertible {
 }
 
 
-private struct FakeConnection:
-    XLDatabaseDriverConnection,
-    XLStreamingDatabaseDriverConnection
-{
+private struct FakeConnection: XLDatabaseDriverConnection {
 
     static let driverID = XLDriverIdentifier(rawValue: "fake-second-transport")
 
@@ -870,6 +867,16 @@ private struct FakeConnection:
         }
     }
 
+    /// Overrides the eager default with this connection's own stepper.
+    mutating func withValuesStepper<Result>(
+        _ statement: FakePhysicalStatement,
+        _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        try body(makeValuesStepper(statement))
+    }
+
+    /// The stepper behind ``withValuesStepper(_:_:)``. The tests also call it
+    /// directly.
     mutating func makeValuesStepper(
         _ statement: FakePhysicalStatement
     ) throws -> () throws -> [XLSQLiteValue]? {

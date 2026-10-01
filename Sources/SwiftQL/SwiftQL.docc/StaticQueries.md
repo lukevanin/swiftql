@@ -19,7 +19,7 @@ contextual-codec properties that do not conform to `XLLiteral`, or whenever
 query construction must not execute a model initializer, `SQLReader`, or
 `sqlDefault()`. Pair that layout with a descriptor when you also need a durable
 query identity, an explicit result contract, typed fetch operations, or a
-registry of query definitions. The raw `GRDBPreparedStaticQuery` handle is
+registry of query definitions. The raw ``XLPreparedStaticQuery`` handle is
 `Sendable`; the closure-backed typed row layout and its prepared wrapper are
 currently task-local.
 
@@ -250,7 +250,7 @@ layout-based encoding, and decoding remain distinct.
 structural descriptor and requires exact equality between
 `descriptor.results` and `layout.metadata.results`. The type contains no GRDB
 API. Preparing it through `GRDBDatabase` returns a
-`GRDBPreparedTypedStaticQuery`, whose typed fetch operations decode raw SQLite
+``XLPreparedTypedStaticQuery``, whose typed fetch operations decode raw SQLite
 rows through the retained layout.
 
 The existing `XLResult`, `SQLReader`, `columns(...)`, table, union, and common
@@ -401,9 +401,9 @@ prepared.
 
 ## Prepare and invoke
 
-Preparing binds the database-independent descriptor to one `GRDBDatabase` and
-returns a `Sendable` `GRDBPreparedStaticQuery`. Preparing a matching typed
-descriptor instead returns `GRDBPreparedTypedStaticQuery`. Preparation validates
+Preparing binds the database-independent descriptor to one database, a
+``GRDBDatabase`` or an ``XLDriverDatabase``, and returns a `Sendable` ``XLPreparedStaticQuery``. Preparing a matching typed
+descriptor instead returns ``XLPreparedTypedStaticQuery``. Preparation validates
 dialect requirements and every contextual codec against the database's immutable
 coding configuration. The handle retains that exact configuration snapshot; it
 never consults process-global mutable state and does not own a connection-bound

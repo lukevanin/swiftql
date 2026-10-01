@@ -120,6 +120,51 @@ public protocol XLDatabaseDriverConnection {
     mutating func installRequiredFunctions(
         _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws
+
+    /// Checks that every parameter of a bound statement has a value, before
+    /// the statement runs (issue #682).
+    ///
+    /// SwiftQL calls this after binding a statement's whole invocation packet,
+    /// and reports a failure as
+    /// `XLInvocationBindingError.driverArgumentValidationFailed`. A connection
+    /// whose database can tell missing or extra arguments apart from a failed
+    /// execution checks them here. The default implementation checks nothing,
+    /// so a missing argument surfaces when the statement runs.
+    func validateBindings(in statement: PhysicalStatement) throws
+
+    /// Visits a statement's result rows one at a time, stopping as soon as
+    /// `body` returns ``XLRowStreamControl/stop`` (issue #682).
+    ///
+    /// The rows come from a cursor that belongs to this connection access.
+    /// `body` runs synchronously, so the cursor cannot outlive the access, and
+    /// it must consume, decode or copy each row before returning, because the
+    /// connection may reuse a row's storage for the next one. The cursor's
+    /// resources are released when this returns or throws.
+    ///
+    /// The default implementation fetches every row with ``fetchAll(_:)``,
+    /// then visits them. A connection that can step a cursor overrides it, so
+    /// a large result is never held in memory at once.
+    mutating func forEachRow(
+        _ statement: PhysicalStatement,
+        _ body: ([Dialect.Value]) throws -> XLRowStreamControl
+    ) throws
+
+    /// Lends a stepper over a statement's result rows for the duration of
+    /// `body` (issue #682).
+    ///
+    /// Each call to the stepper returns the next row, or `nil` once the rows
+    /// are exhausted. Exhaustion and a thrown error are terminal: every later
+    /// call returns `nil`. The stepper is valid only while `body` runs, so a
+    /// cursor it steps never outlives this connection access, and `body` must
+    /// not keep it.
+    ///
+    /// The default implementation fetches every row with ``fetchAll(_:)``,
+    /// then steps through them. A connection that can step a cursor overrides
+    /// it, so each call performs at most one database step.
+    mutating func withValuesStepper<Result>(
+        _ statement: PhysicalStatement,
+        _ body: (@escaping () throws -> [Dialect.Value]?) throws -> Result
+    ) throws -> Result
 }
 
 
@@ -131,63 +176,72 @@ extension XLDatabaseDriverConnection {
     public mutating func installRequiredFunctions(
         _ functions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {}
+
+    /// Checks nothing. A missing or extra argument surfaces when the
+    /// statement runs.
+    public func validateBindings(in statement: PhysicalStatement) throws {}
+
+    /// Fetches every row with ``fetchAll(_:)``, then visits them until `body`
+    /// stops.
+    public mutating func forEachRow(
+        _ statement: PhysicalStatement,
+        _ body: ([Dialect.Value]) throws -> XLRowStreamControl
+    ) throws {
+        for row in try fetchAll(statement) {
+            if try body(row) == .stop {
+                return
+            }
+        }
+    }
+
+    /// Fetches every row with ``fetchAll(_:)``, then lends a stepper over
+    /// them.
+    public mutating func withValuesStepper<Result>(
+        _ statement: PhysicalStatement,
+        _ body: (@escaping () throws -> [Dialect.Value]?) throws -> Result
+    ) throws -> Result {
+        let rows = try fetchAll(statement)
+        let stepper = XLEagerRowStepper(rows)
+        return try body(stepper.next)
+    }
 }
 
 
-/// Package-scoped control returned by one streamed-row callback.
-///
-/// The callback is synchronous so a driver cursor and its owning connection
-/// cannot escape through this value.
-package enum XLRowStreamControl: Sendable {
+/// Steps through rows already in memory, for the default
+/// ``XLDatabaseDriverConnection/withValuesStepper(_:_:)``.
+private final class XLEagerRowStepper<Value> {
+
+    private var iterator: IndexingIterator<[[Value]]>
+
+    init(_ rows: [[Value]]) {
+        iterator = rows.makeIterator()
+    }
+
+    func next() -> [Value]? {
+        iterator.next()
+    }
+}
+
+
+/// What a row callback passed to
+/// ``XLDatabaseDriverConnection/forEachRow(_:_:)`` asks for next.
+public enum XLRowStreamControl: Sendable {
+
+    /// Step to the next row.
     case advance
+
+    /// Stop stepping. No later row is read.
     case stop
 }
 
 
-/// Package-internal incremental row execution for database-driver adapters.
-///
-/// This refines the public v1 connection contract without adding a new public
-/// requirement. Implementations must keep the physical cursor inside the
-/// current connection access, copy or normalize every value before advancing,
-/// stop immediately when requested, and release cursor resources on return or
-/// throw.
-package protocol XLStreamingDatabaseDriverConnection:
-    XLDatabaseDriverConnection
-{
-    mutating func forEachRow(
-        _ statement: PhysicalStatement,
-        _ body: ([Dialect.Value]) throws -> XLRowStreamControl
-    ) throws
+extension XLDatabaseDriverConnection {
 
+    /// Every row, collected through ``forEachRow(_:_:)``.
     ///
-    /// Takes one already-prepared physical statement and returns a
-    /// value-level stepper that performs at most one additional SQLite step
-    /// and value-normalization per call, returning `nil` once the underlying
-    /// cursor is exhausted.
-    ///
-    /// Both exhaustion and a thrown step error are terminal: once the
-    /// returned closure has returned `nil` or thrown once, every later call
-    /// must keep returning `nil` rather than stepping the cursor again.
-    ///
-    /// This is the pull-based counterpart to `forEachRow(_:_:)`: a caller
-    /// outside the connection access (``XLResultSet/next()``) needs to step
-    /// exactly one row per call from code that already ran and returned,
-    /// which a callback invoked once per row cannot express. The returned
-    /// closure remains valid only for the lifetime of the connection access
-    /// that produced it; implementations must not let the physical cursor it
-    /// closes over survive that access, and callers must stop invoking the
-    /// closure (and release every reference to it) no later than when that
-    /// access returns.
-    ///
-    mutating func makeValuesStepper(
-        _ statement: PhysicalStatement
-    ) throws -> () throws -> [Dialect.Value]?
-}
-
-
-extension XLStreamingDatabaseDriverConnection {
-
-    /// Compatibility collection layered over the incremental execution seam.
+    /// For a connection whose `fetchAll(_:)` is built on its own cursor. It
+    /// must not be used by a connection that relies on the default
+    /// `forEachRow(_:_:)`, which calls `fetchAll(_:)`.
     package mutating func collectAllRows(
         _ statement: PhysicalStatement
     ) throws -> [[Dialect.Value]] {
@@ -199,7 +253,8 @@ extension XLStreamingDatabaseDriverConnection {
         return rows
     }
 
-    /// Compatibility first-row lookup that does not step later rows.
+    /// The first row, without stepping later ones. The same caution as
+    /// ``collectAllRows(_:)`` applies.
     package mutating func collectFirstRow(
         _ statement: PhysicalStatement
     ) throws -> [Dialect.Value]? {

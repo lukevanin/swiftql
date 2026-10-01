@@ -257,7 +257,9 @@ public struct GRDBDatabase: XLDatabase {
         )
         let driver = GRDBDatabaseDriver(
             databasePool: databasePool,
-            dialect: dialect
+            dialect: dialect,
+            liveQueryRetryPolicy: configuration.liveQueryRetryPolicy,
+            liveQueryRetryScheduler: configuration.liveQueryRetryScheduler
         )
         self.dialect = dialect
         self.codingConfiguration = configuration.codingConfiguration
@@ -356,7 +358,9 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
             to: GRDBDatabaseDriver(
                 databasePool: databasePool,
                 dialect: dialect,
-                databaseIdentifier: renderCacheIdentifier
+                databaseIdentifier: renderCacheIdentifier,
+                liveQueryRetryPolicy: liveQueryRetryPolicy,
+                liveQueryRetryScheduler: liveQueryRetryScheduler
             )
         )
     }

@@ -64,6 +64,7 @@ is not obvious at first glance:
 | Directory | Kind | Purpose |
 |---|---|---|
 | `Tests/SwiftQLCoreTests/` | `testTarget` | Unit tests for the GRDB-free `SwiftQLCore` contract layer (dialect contracts, static query descriptors, invocation bindings). |
+| `Tests/SwiftQLDriverDatabaseTests/` | `testTarget` | `XLDriverDatabase` over a scripted driver double with no GRDB import (issue #682). It depends on `SwiftQL` alone, and `scripts/ci/check-core-contract-boundary.py` rejects a GRDB, CSQLite, or Combine import in it. |
 | `Tests/SQLMacrosTests/` (inside `Tests/`) | `testTarget` | Tests for the `@SQLTable` and `@SQLResult` macro expansions. |
 | `Tests/SQLTests/` | `testTarget` | Integration tests for the full `SwiftQL` API — queries, joins, expressions, aggregates, and the GRDB driver. |
 | `Tests/SwiftQLCodecIntegrationTests/` | `testTarget` | Codec integration tests isolated from `SQLTests` so Foundation codecs do not inherit its retroactive literal conformances. |

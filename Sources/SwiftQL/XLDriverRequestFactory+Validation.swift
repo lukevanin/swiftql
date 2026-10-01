@@ -1,23 +1,18 @@
 //
-//  GRDBDatabase+StaticQueryValidation.swift
+//  XLDriverRequestFactory+Validation.swift
 //  SwiftQL
 //
 //  Confirming that a statement's parameters, codecs, and storage classes belong
 //  to this database's immutable coding snapshot before anything is prepared.
 //
-//  Split out of GRDBSQLDatabase.swift (issue #560).
+//  Split out of GRDBSQLDatabase.swift (issue #560), and shared by every
+//  database over a driver since issue #682.
 //
 
 import Foundation
-import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
-extension GRDBDatabase {
+extension XLDriverRequestFactory {
 
     /// Confirms that every contextual parameter retained by the rendered
     /// statement belongs to this database's immutable coding snapshot. A

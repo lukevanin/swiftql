@@ -1,20 +1,19 @@
 //
-//  GRDBRequest+LiveQuery.swift
+//  XLDriverRequest+LiveQuery.swift
 //  SwiftQL
 //
 //  Observation: re-running the statement whenever the database changes, as an
-//  async stream. The driver observes (`GRDBDatabaseDriver+Observation.swift`),
-//  and the Combine publishers are SwiftQL's own, built on these streams
-//  (`XLRequest+Combine.swift`, issue #684).
+//  async stream. The driver observes through `XLObservingDatabaseDriver`
+//  (issue #682), and the Combine publishers are SwiftQL's own, built on these
+//  streams (`XLRequest+Combine.swift`, issue #684).
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
 
 import Foundation
-import SwiftQLCore
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     /// Why this request cannot be observed, or `nil` when it can be.
     ///
@@ -54,21 +53,23 @@ extension GRDBRequest {
             // Only `Sendable` values cross into the observation: the executor
             // and the logger. The row reader stays on this side of the
             // boundary, and the rows it decodes are built after the
-            // observation delivers them. See `liveQueryStreamBridge(fetch:)`.
+            // observation delivers them.
             let executor = executor
             let logger = logger
-            let bridge = try liveQueryStreamBridge(fetch: { connection -> [[XLSQLiteValue]] in
-                logger?.debug(
-                    "stream: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                return try executor.fetchAll(packet: packet, in: &connection)
-            })
+            let values = XLObservedValues(
+                executor.driver.observe(executor.logicalStatement) { connection -> [[XLSQLiteValue]] in
+                    logger?.debug(
+                        "stream: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                    return try executor.fetchAll(packet: packet, in: &connection)
+                }
+            )
             let decodeRow = sendableRowDecode()
             return AsyncThrowingStream(unfolding: { () async throws -> [Row]? in
-                guard let values = try await bridge.next() else {
+                guard let rows = try await values.next() else {
                     return nil
                 }
                 do {
-                    return try values.map(decodeRow)
+                    return try rows.map(decodeRow)
                 }
                 catch {
                     logger?.error("stream: Cannot decode entity: \(error)")
@@ -76,10 +77,10 @@ extension GRDBRequest {
                     // <doc:LiveQueries> states. Decoding runs here rather than
                     // inside the observation, so this closure ends the stream
                     // itself. `AsyncThrowingStream`'s `unfolding` wrapper calls
-                    // this closure again after a throw; cancelling the bridge
-                    // makes that next call resolve to `nil`, exactly as the
-                    // observation's own terminal error path did.
-                    bridge.cancel()
+                    // this closure again after a throw; stopping the
+                    // observation makes that next call resolve to `nil`,
+                    // exactly as the observation's own terminal error path does.
+                    values.stop()
                     throw error
                 }
             })
@@ -111,26 +112,28 @@ extension GRDBRequest {
             // after delivery.
             let executor = executor
             let logger = logger
-            let bridge = try liveQueryStreamBridge(fetch: { connection -> [XLSQLiteValue]? in
-                logger?.debug(
-                    "streamOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                return try executor.fetchOne(packet: packet, in: &connection)
-            })
+            let values = XLObservedValues(
+                executor.driver.observe(executor.logicalStatement) { connection -> [XLSQLiteValue]? in
+                    logger?.debug(
+                        "streamOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                    return try executor.fetchOne(packet: packet, in: &connection)
+                }
+            )
             let decodeRow = sendableRowDecode()
             return AsyncThrowingStream(unfolding: { () async throws -> Row?? in
-                guard let values = try await bridge.next() else {
+                guard let row = try await values.next() else {
                     return nil
                 }
-                guard let values else {
+                guard let row else {
                     return Row??.some(nil)
                 }
                 do {
-                    return Row??.some(try decodeRow(values))
+                    return Row??.some(try decodeRow(row))
                 }
                 catch {
                     logger?.error("streamOne: Cannot decode entity: \(error)")
                     // Same terminal rule as `stream(bindings:)` above.
-                    bridge.cancel()
+                    values.stop()
                     throw error
                 }
             })
@@ -139,26 +142,53 @@ extension GRDBRequest {
             return xlFailingAsyncThrowingStream(error)
         }
     }
+}
 
-    /// The driver's observation bridge for this request's statement, with this request's retry
-    /// policy (issue #684). See `GRDBDatabaseDriver.observationBridge(_:retryPolicy:retryScheduler:fetch:)`.
-    ///
-    /// - Throws: ``XLTransactionScopeError/liveQueriesUnsupportedInTransaction`` for a request made
-    ///   inside a transaction scope (issue #284), whose driver has no pool to track.
-    func liveQueryStreamBridge<Value: Sendable>(
-        fetch: @escaping @Sendable (inout GRDBDatabaseDriverConnection) throws -> Value
-    ) throws -> GRDBLiveQueryAsyncBridge<Value> {
-        try executor.driver.observationBridge(
-            executor.logicalStatement,
-            retryPolicy: liveQueryRetryPolicy,
-            retryScheduler: liveQueryRetryScheduler,
-            fetch: fetch
-        )
+
+/// One observation's values, which the request decodes before delivering,
+/// and can stop when a decode fails.
+///
+/// Holds only the observation's iterator, never the stream, so stopping
+/// releases the observation: a stream ends, and its driver stops observing,
+/// once the stream and its iterators are released. A single consumer iterates
+/// it, as every live-query stream has one consumer, which is why it is
+/// `@unchecked Sendable`: nothing calls it concurrently.
+final class XLObservedValues<Value: Sendable>: @unchecked Sendable {
+
+    private var iterator: AsyncThrowingStream<Value, Error>.AsyncIterator?
+
+    init(_ values: AsyncThrowingStream<Value, Error>) {
+        iterator = values.makeAsyncIterator()
+    }
+
+    /// The next value, or `nil` once the observation has ended or stopped.
+    /// An error the observation throws is terminal: later calls return `nil`.
+    func next() async throws -> Value? {
+        guard var current = takeIterator() else {
+            return nil
+        }
+        let value = try await current.next()
+        restore(current)
+        return value
+    }
+
+    /// Releases the observation. Later calls to ``next()`` return `nil`.
+    func stop() {
+        iterator = nil
+    }
+
+    private func takeIterator() -> AsyncThrowingStream<Value, Error>.AsyncIterator? {
+        defer { iterator = nil }
+        return iterator
+    }
+
+    private func restore(_ current: AsyncThrowingStream<Value, Error>.AsyncIterator) {
+        iterator = current
     }
 }
 
 
-extension GRDBRequest: XLLivePublishPreflight {
+extension XLDriverRequest: XLLivePublishPreflight where Driver == GRDBDatabaseDriver {
 
     /// The failures the GRDB publishers have always reported at subscription rather than on first
     /// demand (issue #684): a `RETURNING` statement, a request made inside a transaction scope, and,

@@ -196,15 +196,15 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
 
 /// A short-lived assembler for one immutable static-query invocation packet.
 ///
-/// Builders are created only by `GRDBPreparedStaticQuery.makeInvocationBindings`.
+/// Builders are created only by `XLPreparedStaticQuery.makeInvocationBindings`.
 /// They own a fresh packet and never mutate the prepared handle.
 public struct GRDBStaticQueryInvocationBuilder {
 
-    private let query: GRDBPreparedStaticQuery
+    private let query: XLPreparedStaticQuery
 
     private var packet: XLInvocationBindings<XLSQLiteValue>
 
-    fileprivate init(query: GRDBPreparedStaticQuery) {
+    fileprivate init(query: XLPreparedStaticQuery) {
         self.query = query
         self.packet = XLInvocationBindings(layout: query.parameterLayout)
     }
@@ -281,17 +281,19 @@ public struct GRDBStaticQueryInvocationBuilder {
 }
 
 
-/// A database-bound, concurrency-safe GRDB executor for one immutable static
-/// query descriptor.
+/// A database-bound, concurrency-safe executor for one immutable static query
+/// descriptor.
 ///
 /// The handle retains the database's immutable coding configuration so typed
 /// parameter and result codecs can be resolved from the same snapshot. Its raw
-/// executor never retains a connection-owned SQLite statement.
-public struct GRDBPreparedStaticQuery: Sendable {
+/// executor never retains a connection-owned SQLite statement. It does not
+/// name its driver (issue #682), so ``GRDBDatabase`` and ``XLDriverDatabase``
+/// prepare the same type.
+public struct XLPreparedStaticQuery: Sendable {
 
     public let descriptor: XLStaticQueryDescriptor
 
-    private let invocation: GRDBPreparedInvocation
+    private let invocation: XLPreparedInvocation
 
     private let codingConfiguration: XLValueCodingConfiguration
 
@@ -299,7 +301,7 @@ public struct GRDBPreparedStaticQuery: Sendable {
 
     init(
         descriptor: XLStaticQueryDescriptor,
-        invocation: GRDBPreparedInvocation,
+        invocation: XLPreparedInvocation,
         codingConfiguration: XLValueCodingConfiguration,
         dialect: XLSQLiteDialect
     ) {
@@ -639,23 +641,23 @@ public struct GRDBPreparedStaticQuery: Sendable {
 }
 
 
-/// A GRDB prepared handle that decodes through a generated static row layout.
+/// A prepared handle that decodes through a generated static row layout.
 ///
-/// The driver-specific wrapper is intentionally separate from
+/// The database-bound wrapper is intentionally separate from
 /// ``XLTypedStaticQueryDescriptor`` so the descriptor and layout APIs remain
-/// free of GRDB types.
-public struct GRDBPreparedTypedStaticQuery<Row> {
+/// free of any database's types.
+public struct XLPreparedTypedStaticQuery<Row> {
 
     public let definition: XLTypedStaticQueryDescriptor<
         Row,
         XLSQLiteDialect
     >
 
-    private let query: GRDBPreparedStaticQuery
+    private let query: XLPreparedStaticQuery
 
     init(
         definition: XLTypedStaticQueryDescriptor<Row, XLSQLiteDialect>,
-        query: GRDBPreparedStaticQuery
+        query: XLPreparedStaticQuery
     ) {
         self.definition = definition
         self.query = query
@@ -722,6 +724,14 @@ public struct GRDBPreparedTypedStaticQuery<Row> {
 }
 
 
+/// The name this handle had before it stopped naming its driver (issue #682).
+public typealias GRDBPreparedStaticQuery = XLPreparedStaticQuery
+
+
+/// The name this handle had before it stopped naming its driver (issue #682).
+public typealias GRDBPreparedTypedStaticQuery<Row> = XLPreparedTypedStaticQuery<Row>
+
+
 extension GRDBDatabase {
 
     /// Prepares a typed static query only after its generated row layout has
@@ -731,10 +741,7 @@ extension GRDBDatabase {
             Row,
             XLSQLiteDialect
         >
-    ) throws -> GRDBPreparedTypedStaticQuery<Row> {
-        GRDBPreparedTypedStaticQuery(
-            definition: definition,
-            query: try prepareInvocation(with: definition.descriptor)
-        )
+    ) throws -> XLPreparedTypedStaticQuery<Row> {
+        try makePreparedTypedStaticQuery(with: definition)
     }
 }

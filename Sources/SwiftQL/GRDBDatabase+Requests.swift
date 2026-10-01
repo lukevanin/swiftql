@@ -3,35 +3,22 @@
 //  SwiftQL
 //
 //  Turning a SwiftQL statement into something executable: the request factories
-//  and the prepared-invocation seams.
+//  and the prepared-invocation seams. Each forwards to `XLDriverRequestFactory`,
+//  which `XLDriverDatabase` shares (issue #682).
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
 
 import Foundation
-import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
+
+
+extension GRDBDatabase: XLDriverRequestFactory {}
 
 
 extension GRDBDatabase {
 
     public func makeRequest<Row: Sendable>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBRequest(
-            driver: driver,
-            codingConfiguration: codingConfiguration,
-            logger: logger,
-            reader: statement,
-            logicalStatement: logicalStatement(for: encoding),
-            parameterLayoutError: preparedParameterLayoutError(for: encoding),
-            valueEncodingError: encoding.valueEncodingError,
-            liveQueryRetryPolicy: liveQueryRetryPolicy,
-            liveQueryRetryScheduler: liveQueryRetryScheduler
-        )
+        makeQueryRequest(with: statement)
     }
 
     /// Prepares an immutable raw-value runtime handle for concurrent
@@ -42,16 +29,8 @@ extension GRDBDatabase {
     /// typed descriptors build on this raw execution seam separately.
     public func prepareInvocation(
         with statement: any XLEncodable
-    ) -> GRDBPreparedInvocation {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBPreparedInvocation(
-            executor: GRDBInvocationExecutor(
-                driver: driver,
-                logicalStatement: logicalStatement(for: encoding),
-                parameterLayoutError: preparedParameterLayoutError(for: encoding),
-                valueEncodingError: encoding.valueEncodingError
-            )
-        )
+    ) -> XLPreparedInvocation {
+        makePreparedInvocation(with: statement)
     }
 
     /// Prepares a database-independent static query descriptor against this
@@ -80,76 +59,12 @@ extension GRDBDatabase {
     /// paths, which hold the rendered encoding.
     public func prepareInvocation(
         with descriptor: XLStaticQueryDescriptor
-    ) throws -> GRDBPreparedStaticQuery {
-        try descriptor.statement.dialectRequirement.validate(
-            dialect.descriptor
-        )
-        try validateStaticQueryStorage(descriptor)
-        try validateStaticQueryCodecs(descriptor)
-
-        let statement = XLLogicalPreparedStatement(
-            databaseIdentifier: driver.databaseIdentifier,
-            dialectRequirement: descriptor.statement.dialectRequirement,
-            sql: descriptor.statement.sql,
-            entities: descriptor.statement.entities,
-            parameterLayout: descriptor.statement.parameterLayout,
-            requiredFunctions: Array(
-                bundledRegistrations(for: descriptor.statement.bundledFunctions).values
-            )
-        )
-        let invocation = GRDBPreparedInvocation(
-            executor: GRDBInvocationExecutor(
-                driver: driver,
-                logicalStatement: statement
-            )
-        )
-        return GRDBPreparedStaticQuery(
-            descriptor: descriptor,
-            invocation: invocation,
-            codingConfiguration: codingConfiguration,
-            dialect: dialect
-        )
+    ) throws -> XLPreparedStaticQuery {
+        try makePreparedStaticQuery(with: descriptor)
     }
     
-    /// Resolves the signatures a descriptor recorded back to the registrations
-    /// that supply them.
-    ///
-    /// A signature SwiftQL no longer bundles is dropped rather than failing the
-    /// prepare. A descriptor is a build artifact that can outlive the version
-    /// that produced it, and a dropped signature surfaces as SQLite's own "no
-    /// such function" at execution, which names the function; refusing to
-    /// prepare would report a SwiftQL-internal table instead.
-    private func bundledRegistrations(
-        for definitions: Set<XLCustomFunctionDefinition>
-    ) -> [XLCustomFunctionDefinition: XLCustomFunctionRegistration] {
-        definitions.reduce(into: [:]) { registrations, definition in
-            // Written as an explicit skip rather than assigning the optional
-            // through the subscript: both drop an unknown signature, but only
-            // this one says so where it is read.
-            guard
-                let registration = XLCustomFunctionRegistration
-                    .bundled[definition]
-            else {
-                return
-            }
-            registrations[definition] = registration
-        }
-    }
-
     public func makeRequest<Row: Sendable>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBRequest(
-            driver: driver,
-            codingConfiguration: codingConfiguration,
-            logger: logger,
-            reader: statement,
-            logicalStatement: logicalStatement(for: encoding),
-            parameterLayoutError: preparedParameterLayoutError(for: encoding),
-            valueEncodingError: encoding.valueEncodingError,
-            requiresWriteConnection: true,
-            liveQueryRetryPolicy: liveQueryRetryPolicy,
-            liveQueryRetryScheduler: liveQueryRetryScheduler
-        )
+        makeReturningRequest(with: statement)
     }
 
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
@@ -167,17 +82,4 @@ extension GRDBDatabase {
     public func makeRequest(with statement: any XLDeleteStatement) -> XLWriteRequest {
         makeWriteRequest(with: statement)
     }
-
-    func makeWriteRequest(with statement: any XLEncodable) -> XLWriteRequest {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(
-            driver: driver,
-            codingConfiguration: codingConfiguration,
-            logger: logger,
-            logicalStatement: logicalStatement(for: encoding),
-            parameterLayoutError: preparedParameterLayoutError(for: encoding),
-            valueEncodingError: encoding.valueEncodingError
-        )
-    }
-
 }

@@ -678,7 +678,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "must not re-enter the root pool",
             "fresh bindings",
             "current `XLRequest` facade itself is not `Sendable`",
-            "Its `GRDBPreparedInvocation` result is",
+            "Its ``XLPreparedInvocation`` result is",
             "normalize transport failures",
             "reports every GRDB `DatabaseError` this",
             "fail later on a newly leased connection",

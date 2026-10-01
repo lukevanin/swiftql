@@ -3,7 +3,8 @@
 //
 //  Issue #249: a typed, connection-scoped `XLResultSet` that lazily fetches
 //  and decodes one row at a time over the streaming execution seam delivered
-//  by issue #248 (`XLStreamingDatabaseDriverConnection.forEachRow`).
+//  by issue #248 (`XLDatabaseDriverConnection.forEachRow`, part of the public
+//  connection contract since issue #682).
 //
 //  These tests exercise the real GRDB-backed adapter against a real temporary
 //  SQLite database (no mocks), and use a custom SQLite scalar-function probe
