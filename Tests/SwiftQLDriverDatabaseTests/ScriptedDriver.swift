@@ -45,6 +45,11 @@ final class ScriptedStore: @unchecked Sendable {
         locked { log }
     }
 
+    /// How many observations are registered for change notification.
+    var observerCount: Int {
+        locked { observers.count }
+    }
+
     /// The scope each connection was lent through, in order.
     var scopes: [String] {
         locked { scopeLog }

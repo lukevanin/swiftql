@@ -836,16 +836,30 @@ private struct FakeConnection: XLDatabaseDriverConnection {
         return result
     }
 
+    /// Collected through this connection's own ``forEachRow(_:_:)``, which
+    /// it must implement: the contract's default `forEachRow` calls
+    /// `fetchAll`, so relying on it here would recurse.
     mutating func fetchAll(
         _ statement: FakePhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        try collectAllRows(statement)
+        var rows: [[XLSQLiteValue]] = []
+        try forEachRow(statement) { row in
+            rows.append(row)
+            return .advance
+        }
+        return rows
     }
 
+    /// The first row, without stepping later ones.
     mutating func fetchOne(
         _ statement: FakePhysicalStatement
     ) throws -> [XLSQLiteValue]? {
-        try collectFirstRow(statement)
+        var first: [XLSQLiteValue]?
+        try forEachRow(statement) { row in
+            first = row
+            return .stop
+        }
+        return first
     }
 
     mutating func forEachRow(

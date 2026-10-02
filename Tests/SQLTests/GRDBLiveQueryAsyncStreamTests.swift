@@ -736,6 +736,39 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
     /// captured `self` weakly. The production bridge was checked and found safe; this test is what
     /// keeps it that way. `withExtendedLifetime(stream)` holds the stream past the assertion, so a
     /// regression cannot hide behind the test's own scope ending.
+    /// A decode failure ends the stream and stops the GRDB observation, so a
+    /// later commit fetches nothing (issue #682). The request releases the
+    /// observation's iterator rather than cancelling a bridge it holds, so this
+    /// checks the fetches, not only that the stream ends.
+    func testDecodeFailureStopsTheObservationFetching() async throws {
+        try createRecordTable()
+        try await databasePool.write { database in
+            // SQLite keeps text that does not look numeric in an INT column,
+            // so the row cannot decode as `AsyncStreamRecord`.
+            try database.execute(sql: "INSERT INTO AsyncStreamRecord (id, value) VALUES ('bad', 'not a number')")
+        }
+        var iterator = database.makeRequest(with: orderedStatement()).stream().makeAsyncIterator()
+
+        do {
+            _ = try await iterator.next()
+            XCTFail("A row that cannot decode must fail the stream.")
+        }
+        catch {}
+        let afterFailure = try await iterator.next()
+        XCTAssertNil(afterFailure, "The stream ends after a decode failure.")
+
+        let fetchCountAfterFailure = logger.count(containing: "stream:")
+        try insertDirect(AsyncStreamRecord(id: "after-failure", value: 1))
+        // A refetch the commit scheduled runs on a pool reader, and a barrier
+        // waits for every reader to be released.
+        try await databasePool.barrierWriteWithoutTransaction { _ in }
+        XCTAssertEqual(
+            logger.count(containing: "stream:"),
+            fetchCountAfterFailure,
+            "A decode failure must stop the observation, so a later commit fetches nothing."
+        )
+    }
+
     func testCancellationBetweenNextCallsTearsDownObservation() async throws {
         try createRecordTable()
         let stream = database.makeRequest(with: orderedStatement()).stream()

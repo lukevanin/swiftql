@@ -590,16 +590,30 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         )
     }
 
+    /// Collected through this connection's own ``forEachRow(_:_:)``, which
+    /// it must implement: the contract's default `forEachRow` calls
+    /// `fetchAll`, so relying on it here would recurse.
     mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        try collectAllRows(statement)
+        var rows: [[XLSQLiteValue]] = []
+        try forEachRow(statement) { row in
+            rows.append(row)
+            return .advance
+        }
+        return rows
     }
 
+    /// The first row, without stepping later ones.
     mutating func fetchOne(
         _ statement: GRDBPhysicalStatement
     ) throws -> [XLSQLiteValue]? {
-        try collectFirstRow(statement)
+        var first: [XLSQLiteValue]?
+        try forEachRow(statement) { row in
+            first = row
+            return .stop
+        }
+        return first
     }
 
     mutating func forEachRow(
@@ -632,11 +646,11 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         // synchronous, non-retaining consumer (the typed decode path) reuses
         // this buffer's storage row-to-row instead of allocating a fresh
         // `[XLSQLiteValue]` per row. A consumer that retains the row (the eager
-        // `collectAllRows`/`collectFirstRow` compatibility shims) keeps a second
+        // `fetchAll`/`fetchOne` compatibility shims) keeps a second
         // reference, so `removeAll(keepingCapacity:)` copy-on-writes a fresh
         // buffer for the next row and the retained values stay intact. The typed
         // decode path (the hot path) therefore materializes no intermediate
-        // matrix; the eager `collectAllRows`/`collectFirstRow` compatibility
+        // matrix; the eager `fetchAll`/`fetchOne` compatibility
         // shims still build only the result they already contract to return.
         var values: [XLSQLiteValue] = []
         // `body` can issue a nested request on the same connection, so mark

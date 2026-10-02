@@ -62,6 +62,12 @@ public struct XLDriverDatabase<Driver>: XLDatabase
 
     let logger: XLLogger?
 
+    /// The identity render-once cache entries are keyed by: one per database
+    /// value, not per driver. A cached request captures this database's coding
+    /// configuration and logger, so two databases over one driver must not
+    /// share entries.
+    let renderCacheIdentifier = XLDatabaseIdentifier(rawValue: UUID())
+
     /// Creates a database over `driver`, with an explicit value-coding policy.
     ///
     /// - Parameters:
@@ -107,12 +113,17 @@ public struct XLDriverDatabase<Driver>: XLDatabase
         driver.driverIdentifier
     }
 
-    /// Scopes render-once cache entries to this database's driver and
-    /// dialect, so a declared query renders once per database (see
+    /// Scopes render-once cache entries to this database and its dialect, so
+    /// a declared query renders once per database (see
     /// ``XLPreparedQueryCacheKey``).
+    ///
+    /// The key belongs to this database value, not to its driver: each cached
+    /// request captures the database's coding configuration and logger, so a
+    /// second database over the same driver renders its own entries. Copies
+    /// of one database share the key.
     public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
         XLPreparedQueryCacheKey(
-            databaseIdentifier: driver.databaseIdentifier,
+            databaseIdentifier: renderCacheIdentifier,
             dialectIdentifier: dialect.descriptor.identity
         )
     }

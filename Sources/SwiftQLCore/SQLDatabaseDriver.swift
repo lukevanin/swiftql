@@ -235,39 +235,6 @@ public enum XLRowStreamControl: Sendable {
 }
 
 
-extension XLDatabaseDriverConnection {
-
-    /// Every row, collected through ``forEachRow(_:_:)``.
-    ///
-    /// For a connection whose `fetchAll(_:)` is built on its own cursor. It
-    /// must not be used by a connection that relies on the default
-    /// `forEachRow(_:_:)`, which calls `fetchAll(_:)`.
-    package mutating func collectAllRows(
-        _ statement: PhysicalStatement
-    ) throws -> [[Dialect.Value]] {
-        var rows: [[Dialect.Value]] = []
-        try forEachRow(statement) { row in
-            rows.append(row)
-            return .advance
-        }
-        return rows
-    }
-
-    /// The first row, without stepping later ones. The same caution as
-    /// ``collectAllRows(_:)`` applies.
-    package mutating func collectFirstRow(
-        _ statement: PhysicalStatement
-    ) throws -> [Dialect.Value]? {
-        var first: [Dialect.Value]?
-        try forEachRow(statement) { row in
-            first = row
-            return .stop
-        }
-        return first
-    }
-}
-
-
 /// The `*Validated` helpers report a transport failure as a structured
 /// ``XLDatabaseContractError``. An ``XLDatabaseError`` is already structured,
 /// so it passes through unchanged, and so does a `CancellationError`: a

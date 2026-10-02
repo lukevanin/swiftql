@@ -1220,7 +1220,7 @@ final class GRDBDriverContractTests: XCTestCase {
     func testReusedNormalizationBufferDoesNotAliasRetainedRows() throws {
         // The cursor loop reuses one normalization buffer across rows. A consumer
         // that retains each streamed row (via the callback, or via the eager
-        // `fetchAll`/`collectAllRows` shim) must still see distinct, correct
+        // `fetchAll` shim) must still see distinct, correct
         // values for every row — copy-on-write gives the retained row its own
         // storage when the buffer is refilled for the next row.
         let fixture = try makeFixture()

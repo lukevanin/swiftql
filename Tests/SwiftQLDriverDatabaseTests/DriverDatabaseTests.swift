@@ -9,7 +9,7 @@
 //
 
 import Foundation
-import SwiftQL
+@testable import SwiftQL
 import XCTest
 
 
@@ -189,6 +189,75 @@ final class DriverDatabaseTests: XCTestCase {
 
         let refreshed = try await iterator.next()
         XCTAssertEqual(refreshed, [DriverPerson(id: "lee", age: 20), DriverPerson(id: "mo", age: 25)])
+    }
+
+    /// A decode failure ends the stream and releases the observation, so the
+    /// driver stops notifying it (issue #682).
+    func testDecodeFailureEndsTheStreamAndStopsTheObservation() async throws {
+        driver.store.rows = [[.text("olga"), .integer(20)]]
+        var iterator = database.makeRequest(with: selectPeople()).stream().makeAsyncIterator()
+        let initial = try await iterator.next()
+        XCTAssertEqual(initial, [DriverPerson(id: "olga", age: 20)])
+        XCTAssertEqual(driver.store.observerCount, 1, "A running stream is observing.")
+
+        driver.store.rows = [[.null, .integer(20)]]
+        try database.makeRequest(with: sqlInsert(DriverPerson(id: "pat", age: 22))).execute()
+        do {
+            _ = try await iterator.next()
+            XCTFail("A row that cannot decode must fail the stream.")
+        }
+        catch {}
+
+        XCTAssertEqual(driver.store.observerCount, 0, "The failure must release the observation.")
+        let afterFailure = try await iterator.next()
+        XCTAssertNil(afterFailure, "The stream ends after a decode failure.")
+    }
+
+    // MARK: - Publish preflight
+
+    /// The synchronous publish preflight serves every driver, not only GRDB
+    /// (issue #682): a `RETURNING` statement is refused before observing.
+    func testPublishPreflightRefusesAReturningStatementOnAnyDriver() throws {
+        let schema = XLSchema()
+        let person = schema.table(DriverPerson.self)
+        let request = database.makeRequest(
+            with: insert(person)
+                .values(DriverPerson.MetaInsert(DriverPerson(id: "nina", age: 40)))
+                .returning(person)
+        )
+
+        let preflight = try XCTUnwrap(request as? any XLLivePublishPreflight)
+        let failure = preflight.livePublishPreflightFailure(bindings: nil)
+
+        XCTAssertEqual(failure as? XLReturningRequestError, .observationUnsupported)
+        XCTAssertNil(
+            (database.makeRequest(with: selectPeople()) as? any XLLivePublishPreflight)?
+                .livePublishPreflightFailure(bindings: nil),
+            "A plain query on an observing driver may be observed."
+        )
+    }
+
+    // MARK: - Render-once cache
+
+    /// Each database renders its own cache entries, because a cached request
+    /// captures the database's coding configuration and logger; copies of one
+    /// database share them.
+    func testRenderOnceCacheKeepsDatabasesOverOneDriverApart() throws {
+        let other = try XLDriverDatabase(driver: driver)
+        let copy = database!
+        let cache = XLRenderOnceCache<DriverPerson>()
+        var renders = 0
+        let statement = { () -> any XLQueryStatement<DriverPerson> in
+            renders += 1
+            return self.selectPeople()
+        }
+
+        _ = cache.request(for: database, statement: statement)
+        _ = cache.request(for: copy, statement: statement)
+        XCTAssertEqual(renders, 1, "Copies of one database share an entry.")
+
+        _ = cache.request(for: other, statement: statement)
+        XCTAssertEqual(renders, 2, "A second database over the same driver renders its own entry.")
     }
 
     // MARK: - Helpers
