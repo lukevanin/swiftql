@@ -232,6 +232,22 @@
     runs. Its default checks nothing.
   - A connection that already declared a method with one of these signatures
     now provides the requirement, and SwiftQL calls it.
+- **The coding factories are generic over the dialect** (issue #687). See
+  "The macro output carries the dialect as a parameter" below. A call that
+  passes a dialect value compiles unchanged.
+  - `using:` on `XLValueCodingConfiguration.staticResultField(_:...)` and
+    `queryCapture(_:...)`, and on the `staticResultField(<property>:...)`
+    member `@SQLCodec` generates, now infers the dialect from its argument. A
+    call that wrote `using: .init()` no longer compiles; write
+    `using: XLSQLiteDialect()`.
+  - `XLStaticSelectField.intrinsic(selecting:identifiedBy:using:context:)`
+    no longer defaults `using:`. A call without it still selects the SQLite
+    form.
+  - The macro-support function `_xlQueryParameterBinding(_:named:in:)` now
+    requires `using:`, naming the dialect, as the generated code passes it.
+  - `XLStaticRowLayoutError.unsupportedSQLiteStorage` and
+    `XLQueryCaptureError.unsupportedLiteralStorage` keep their names, and
+    their messages no longer say SQLite.
 
 ### Added
 

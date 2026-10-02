@@ -21,28 +21,9 @@ import Foundation
 /// derived from `T` must match the rendered slot exactly, mirroring the
 /// validation performed by the request `set` compatibility shim.
 ///
-public func _xlQueryParameterBinding<T>(
-    _ value: T,
-    named name: XLName,
-    in layout: XLParameterLayout
-) throws -> XLInvocationBinding<XLSQLiteValue> where T: XLBindable & XLLiteral {
-    try _xlQueryParameterBinding(
-        value,
-        named: name,
-        in: layout,
-        using: XLSQLiteDialect.self
-    )
-}
-
-
-///
-/// Encodes one intrinsic literal parameter value for a named placeholder in a
-/// prepared parameter layout, as a value of `Dialect` (issue #687).
-///
-/// The `@SQLQuery`, `@SQLQueries`, and `@SQLBindings` macros generate a call
-/// to this overload, naming the dialect their `dialect:` argument declares, or
-/// ``XLSQLiteDialect`` when there is none. The overload without a dialect is
-/// the v1 entry point that earlier expansions call.
+/// The value is encoded as a value of `Dialect` (issue #687). The `@SQLQuery`,
+/// `@SQLQueries`, and `@SQLBindings` macros name the dialect their `dialect:`
+/// argument declares, or ``XLSQLiteDialect`` when there is none.
 ///
 public func _xlQueryParameterBinding<T, Dialect>(
     _ value: T,

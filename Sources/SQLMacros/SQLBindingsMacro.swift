@@ -62,9 +62,12 @@ internal struct SQLBindingsBuilder {
                 )
             ])
         }
-        self.dialectType = try MacroDialectArgument.resolve(of: node, macroName: "@SQLBindings")
-
         var diagnostics = MacroDiagnosticCollector()
+        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLBindings")
+        if let diagnostic = dialect.diagnostic {
+            diagnostics.report(diagnostic)
+        }
+        self.dialectType = dialect.dialectType
         var properties: [SQLBindingsProperty] = []
         Self.classifyMembers(
             structDeclaration.memberBlock.members,

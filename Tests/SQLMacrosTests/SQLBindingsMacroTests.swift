@@ -265,18 +265,21 @@ final class SQLBindingsMacroDiagnosticTests: XCTestCase {
 
     /// Issue #687: generated code writes the dialect's type, so the argument
     /// has to spell it. A metatype held in a variable type-checks against the
-    /// macro declaration, but has no spelling to write.
-    func test_dialectArgumentNotATypeLiteral_emitsError() {
+    /// macro declaration, but has no spelling to write. The error is reported
+    /// with the struct's own, not instead of them.
+    func test_dialectArgumentNotATypeLiteral_emitsErrorWithTheOthers() {
         assertMacroExpansion(
             """
             @SQLBindings(dialect: someDialect)
             struct Sample {
                 var id: String
+                static var other: String = ""
             }
             """,
             expandedSource: """
             struct Sample {
                 var id: String
+                static var other: String = ""
             }
             """,
             diagnostics: [
@@ -284,7 +287,12 @@ final class SQLBindingsMacroDiagnosticTests: XCTestCase {
                     message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
                     line: 1,
                     column: 23
-                )
+                ),
+                DiagnosticSpec(
+                    message: "'static' properties cannot be used as named bindings. Move the property to an extension of the type to exclude it from the generated binding packet.",
+                    line: 4,
+                    column: 5
+                ),
             ],
             macros: makeTestMacros()
         )

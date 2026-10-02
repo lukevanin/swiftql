@@ -639,7 +639,7 @@
         {
           "layer": "diagnostics",
           "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
-          "test_case": "SQLQueryMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsError"
+          "test_case": "SQLQueryMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsErrorWithTheOthers"
         },
         {
           "layer": "diagnostics",

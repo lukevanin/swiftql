@@ -40,6 +40,13 @@ internal struct MacroDiagnosticCollector {
     }
 
     ///
+    /// Records a diagnostic built elsewhere, such as an argument's.
+    ///
+    mutating func report(_ diagnostic: Diagnostic) {
+        diagnostics.append(diagnostic)
+    }
+
+    ///
     /// Throws every collected diagnostic, in source order, or returns if none
     /// were collected.
     ///
@@ -133,15 +140,20 @@ internal enum MacroDialectArgument {
     /// expression of the right type -- a variable holding the metatype -- is
     /// reported, because generated code cannot name its type.
     ///
+    /// A reported argument is returned as a diagnostic, with
+    /// ``defaultDialectType`` in its place, rather than thrown: the caller adds
+    /// it to the diagnostics it collects from the rest of the declaration, so
+    /// one compile reports every problem.
+    ///
     static func resolve(
         of node: AttributeSyntax,
         macroName: String
-    ) throws -> String {
+    ) -> (dialectType: String, diagnostic: Diagnostic?) {
         guard
             case let .argumentList(arguments) = node.arguments,
             let dialectArgument = arguments.first(where: { $0.label?.text == "dialect" })
         else {
-            return defaultDialectType
+            return (defaultDialectType, nil)
         }
         guard
             let memberAccess = dialectArgument.expression.as(MemberAccessExprSyntax.self),
@@ -149,15 +161,14 @@ internal enum MacroDialectArgument {
             memberAccess.declName.argumentNames == nil,
             let base = memberAccess.base
         else {
-            throw DiagnosticsError(diagnostics: [
-                Diagnostic(
-                    node: dialectArgument.expression,
-                    id: "invalid-dialect-argument",
-                    message: "The 'dialect' argument of '\(macroName)' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable."
-                )
-            ])
+            let diagnostic = Diagnostic(
+                node: dialectArgument.expression,
+                id: "invalid-dialect-argument",
+                message: "The 'dialect' argument of '\(macroName)' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable."
+            )
+            return (defaultDialectType, diagnostic)
         }
-        return base.trimmedDescription
+        return (base.trimmedDescription, nil)
     }
 }
 

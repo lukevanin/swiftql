@@ -52,7 +52,7 @@ public enum XLQueryCaptureError: Error, Equatable, Sendable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unsupportedLiteralStorage(let identity, let literalType):
-            return "Query capture \(identity) uses \(literalType), whose SQLite storage representation is not statically known."
+            return "Query capture \(identity) uses \(literalType), whose storage in the capture's dialect is not statically known."
         case .unsupportedIntrinsicValue(let identity, let valueType, let literalType):
             return "Query capture \(identity) cannot intrinsically bind \(valueType) as \(literalType); select a contextual codec."
         case .optionalInputType(let identity, let valueType):

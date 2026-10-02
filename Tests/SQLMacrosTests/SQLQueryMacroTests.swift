@@ -1447,13 +1447,14 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
 final class SQLQueryMacroDiagnosticTests: XCTestCase {
 
     /// Issue #687: generated code writes the dialect's type, so a metatype
-    /// read from a variable is reported rather than expanded.
-    func test_dialectArgumentNotATypeLiteral_emitsError() {
+    /// read from a variable is reported rather than expanded, after the
+    /// declaration's own diagnostics rather than instead of them.
+    func test_dialectArgumentNotATypeLiteral_emitsErrorWithTheOthers() {
         assertMacroExpansion(
             """
             extension MyDatabase {
                 @SQLQuery(dialect: type(of: someDialect))
-                func allPeople() -> [Person] {
+                static func allPeople() -> [Person] {
                     sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
@@ -1464,7 +1465,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             expandedSource: """
             extension MyDatabase {
-                func allPeople() -> [Person] {
+                static func allPeople() -> [Person] {
                     sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
@@ -1475,10 +1476,15 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
+                    message: "'@SQLQuery' can only be applied to an instance method. The generated executor prepares its request through 'self.makeRequest(with:)'.",
+                    line: 3,
+                    column: 5
+                ),
+                DiagnosticSpec(
                     message: "The 'dialect' argument of '@SQLQuery' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
                     line: 2,
                     column: 24
-                )
+                ),
             ],
             macros: makeTestMacros()
         )

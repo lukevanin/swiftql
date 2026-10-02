@@ -45,11 +45,7 @@ extension SQLQueryMacro: PeerMacro {
         providingPeersOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        let builder = try SQLQueryBuilder(
-            node: node,
-            declaration: declaration,
-            dialectType: try MacroDialectArgument.resolve(of: node, macroName: "@SQLQuery")
-        )
+        let builder = try SQLQueryBuilder(node: node, declaration: declaration)
         return [
             try makeDecl(builder.makeStatementFunction()),
             try makeDecl(builder.makeRenderOnceCacheDeclaration()),
@@ -166,15 +162,28 @@ internal struct SQLQueryBuilder {
     /// catalog supplies the dialect to the queries it declares.
     let dialectType: String
 
+    /// - Parameter dialectType: The dialect a container supplies. `nil` reads
+    ///   it from `node`'s own `dialect:` argument.
     init(
         node: AttributeSyntax,
         declaration: some DeclSyntaxProtocol,
         macroName: String = "@SQLQuery",
         supportsAsync: Bool = true,
-        dialectType: String = MacroDialectArgument.defaultDialectType
+        dialectType: String? = nil
     ) throws {
         self.macroName = macroName
-        self.dialectType = dialectType
+        // A dialect argument that cannot be spelled is reported with the
+        // declaration's other diagnostics, after them, so it neither hides
+        // them nor suppresses the checks that wait for a clean declaration.
+        var dialectDiagnostics: [Diagnostic] = []
+        if let dialectType {
+            self.dialectType = dialectType
+        }
+        else {
+            let dialect = MacroDialectArgument.resolve(of: node, macroName: macroName)
+            self.dialectType = dialect.dialectType
+            dialectDiagnostics.append(contentsOf: dialect.diagnostic.map { [$0] } ?? [])
+        }
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -182,7 +191,7 @@ internal struct SQLQueryBuilder {
                     id: "sqlquery-function-only",
                     message: "'\(macroName)' can only be applied to a function."
                 )
-            ])
+            ] + dialectDiagnostics)
         }
         self.function = function
 
@@ -244,6 +253,7 @@ internal struct SQLQueryBuilder {
                 )
             )
             diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
+            diagnostics.append(contentsOf: dialectDiagnostics)
             throw DiagnosticsError(diagnostics: diagnostics)
         }
 
@@ -299,6 +309,7 @@ internal struct SQLQueryBuilder {
         }
 
         diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
+        diagnostics.append(contentsOf: dialectDiagnostics)
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
