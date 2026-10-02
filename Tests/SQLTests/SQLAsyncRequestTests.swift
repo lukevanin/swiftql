@@ -412,7 +412,7 @@ final class XLAsyncRequestTests: XCTestCase {
         let layout = request.parameterLayout
         return try XLInvocationBindings<XLSQLiteValue>(
             layout: layout,
-            bindings: [try _xlQueryParameterBinding(id, named: "id", in: layout)]
+            bindings: [try _xlQueryParameterBinding(id, named: "id", in: layout, using: XLSQLiteDialect.self)]
         ).validatingComplete()
     }
 

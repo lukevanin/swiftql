@@ -3,7 +3,8 @@
 //  SwiftQL
 //
 //  Building a described field from a coding configuration: resolving which
-//  codec applies to a value, and the SQLite storage a Swift type maps to.
+//  codec applies to a value, and the storage a Swift type maps to in the
+//  field's dialect.
 //
 //  Split out of SQLStaticRowLayout.swift (issue #559).
 //
@@ -13,21 +14,22 @@ import Foundation
 
 extension XLValueCodingConfiguration {
 
-    /// Creates a required contextual SQLite result field. `Storage` is a type
-    /// witness for the selected SQL expression's intrinsic storage carrier;
-    /// no value or `sqlDefault()` call is required.
-    public func staticResultField<Value, Storage>(
+    /// Creates a required contextual result field for `dialect`. `Storage` is
+    /// a type witness for the selected SQL expression's intrinsic storage
+    /// carrier; no value or `sqlDefault()` call is required.
+    public func staticResultField<Value, Storage, Dialect>(
         _ valueType: Value.Type,
         selecting expression: any XLEncodable,
         storedAs storageType: Storage.Type,
         identifiedBy identity: XLQuerySlotIdentity,
-        using dialect: XLSQLiteDialect,
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLStaticSelectField<Value, Storage, XLSQLiteDialect>
-    where Storage: XLLiteral {
-        let storage = try _xlStaticSQLiteStorage(
+    ) throws -> XLStaticSelectField<Value, Storage, Dialect>
+    where Storage: XLLiteral, Dialect: XLLiteralValueDialect {
+        let storage = try _xlStaticLiteralStorage(
             storageType,
+            in: Dialect.self,
             identity: identity
         )
         let codingContext = context ?? XLValueCodingContext(
@@ -62,21 +64,22 @@ extension XLValueCodingConfiguration {
         )
     }
 
-    /// Creates a nullable contextual SQLite result field. Optionality belongs
-    /// to the field contract; the same nonoptional codec is reused for present
-    /// values while SQL `NULL` maps to and from `nil`.
-    public func staticResultField<Value, Storage>(
+    /// Creates a nullable contextual result field for `dialect`. Optionality
+    /// belongs to the field contract; the same nonoptional codec is reused for
+    /// present values while SQL `NULL` maps to and from `nil`.
+    public func staticResultField<Value, Storage, Dialect>(
         _ valueType: Value?.Type,
         selecting expression: any XLEncodable,
         storedAs storageType: Storage?.Type,
         identifiedBy identity: XLQuerySlotIdentity,
-        using dialect: XLSQLiteDialect,
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLStaticSelectField<Value?, Storage?, XLSQLiteDialect>
-    where Storage: XLLiteral {
-        let storage = try _xlStaticSQLiteStorage(
+    ) throws -> XLStaticSelectField<Value?, Storage?, Dialect>
+    where Storage: XLLiteral, Dialect: XLLiteralValueDialect {
+        let storage = try _xlStaticLiteralStorage(
             Storage.self,
+            in: Dialect.self,
             identity: identity
         )
         let codingContext = context ?? XLValueCodingContext(
@@ -114,18 +117,19 @@ extension XLValueCodingConfiguration {
 
 
 extension XLStaticSelectField
-where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
+where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
 
-    /// Creates a codec-free field for an intrinsic v1 literal whose SQLite
-    /// storage class is statically known. This never calls `sqlDefault()`.
+    /// Creates a codec-free field for an intrinsic v1 literal whose storage in
+    /// `dialect` is statically known. This never calls `sqlDefault()`.
     public static func intrinsic(
         selecting expression: any XLExpression<Value>,
         identifiedBy identity: XLQuerySlotIdentity,
-        using dialect: XLSQLiteDialect = XLSQLiteDialect(),
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil
     ) throws -> Self {
-        let storage = try _xlStaticSQLiteStorage(
+        let storage = try _xlStaticLiteralStorage(
             Value.self,
+            in: Dialect.self,
             identity: identity
         )
         let metadata = legacyValueMetadata(for: Value.self)
@@ -145,18 +149,39 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
             codingContext: codingContext,
             dialect: dialect,
             decode: { value in
-                try Value(
-                    reader: XLSQLiteValueReader(values: [value]),
-                    at: 0
-                )
+                try Dialect.decodeLiteral(Value.self, from: value)
             },
             encode: { value in
-                try _xlCaptureSQLiteValue(
+                try Dialect.encodeLiteral(
                     value,
                     valueType: metadata.typeName,
                     codingContext: codingContext
                 )
             }
+        )
+    }
+}
+
+
+extension XLStaticSelectField
+where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
+
+    /// Creates a codec-free SQLite field for an intrinsic v1 literal whose
+    /// SQLite storage class is statically known. This never calls
+    /// `sqlDefault()`.
+    ///
+    /// The same as ``intrinsic(selecting:identifiedBy:using:context:)`` with
+    /// a default ``XLSQLiteDialect``.
+    public static func intrinsic(
+        selecting expression: any XLExpression<Value>,
+        identifiedBy identity: XLQuerySlotIdentity,
+        context: XLValueCodingContext? = nil
+    ) throws -> Self {
+        try intrinsic(
+            selecting: expression,
+            identifiedBy: identity,
+            using: XLSQLiteDialect(),
+            context: context
         )
     }
 }
@@ -203,17 +228,20 @@ where Dialect: XLValueCodingDialect {
 }
 
 
-func _xlStaticSQLiteStorage(
+func _xlStaticLiteralStorage<Dialect>(
     _ type: Any.Type,
+    in _: Dialect.Type,
     identity: XLQuerySlotIdentity
-) throws -> XLValueStorageIdentifier {
-    guard let storage = sqliteStorageClass(for: type) else {
+) throws -> XLValueStorageIdentifier where Dialect: XLLiteralValueDialect {
+    guard let storage = Dialect.literalStorageIdentifier(for: type) else {
+        // The case keeps its v1 name although any dialect can reach it now:
+        // renaming it would break callers that match on it.
         throw XLStaticRowLayoutError.unsupportedSQLiteStorage(
             identity: identity,
             storageType: String(reflecting: type)
         )
     }
-    return XLValueStorageIdentifier(rawValue: storage.rawValue)
+    return storage
 }
 
 

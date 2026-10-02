@@ -52,6 +52,12 @@ extension SQLQueriesMacro: MemberMacro {
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        // Issue #687: the container names the dialect once and supplies it to
+        // every specification, which never names it themselves. An argument
+        // it cannot spell is reported once, with the container's other
+        // diagnostics.
+        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLQueries")
+
         guard let extensionDecl = declaration.as(ExtensionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -59,7 +65,7 @@ extension SQLQueriesMacro: MemberMacro {
                     id: "sqlqueries-extension-only",
                     message: "'@SQLQueries' can only be applied to an extension of a database type. The generated executors prepare requests through the extended type's 'makeRequest(with:)'."
                 )
-            ])
+            ] + (dialect.diagnostic.map { [$0] } ?? []))
         }
         let databaseType = extensionDecl.extendedType.trimmedDescription
 
@@ -83,7 +89,7 @@ extension SQLQueriesMacro: MemberMacro {
                     id: "sqlqueries-container-required",
                     message: "'@SQLQueries' requires a nested 'struct Query' container declaring the query specifications."
                 )
-            ])
+            ] + (dialect.diagnostic.map { [$0] } ?? []))
         }
 
         // A second `Query` container's specifications would silently merge into the same
@@ -108,7 +114,8 @@ extension SQLQueriesMacro: MemberMacro {
                     node: node,
                     declaration: function,
                     macroName: "@SQLQueries",
-                    supportsAsync: false
+                    supportsAsync: false,
+                    dialectType: dialect.dialectType
                 ))
             }
             catch let error as DiagnosticsError {
@@ -120,6 +127,9 @@ extension SQLQueriesMacro: MemberMacro {
             container: container,
             extensionDecl: extensionDecl
         ))
+        if let diagnostic = dialect.diagnostic {
+            diagnostics.append(diagnostic)
+        }
 
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)

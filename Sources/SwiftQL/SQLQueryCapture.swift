@@ -52,7 +52,7 @@ public enum XLQueryCaptureError: Error, Equatable, Sendable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unsupportedLiteralStorage(let identity, let literalType):
-            return "Query capture \(identity) uses \(literalType), whose SQLite storage representation is not statically known."
+            return "Query capture \(identity) uses \(literalType), whose storage in the capture's dialect is not statically known."
         case .unsupportedIntrinsicValue(let identity, let valueType, let literalType):
             return "Query capture \(identity) cannot intrinsically bind \(valueType) as \(literalType); select a contextual codec."
         case .optionalInputType(let identity, let valueType):
@@ -252,12 +252,14 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 }
 
 
-extension XLQueryCapture where Dialect == XLSQLiteDialect {
+extension XLQueryCapture where Dialect: XLLiteralValueDialect {
 
-    /// Creates a codec-free capture for SQLite's intrinsic Swift value types:
-    /// `Bool`, `Int`, `Double`, `String`, and `Data`.
+    /// Creates a codec-free capture for a Swift value type whose storage in
+    /// `dialect` is statically known -- for SQLite, `Bool`, `Int`, `Double`,
+    /// `String`, and `Data`.
     public static func intrinsic(
         identifiedBy identity: XLQuerySlotIdentity,
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil
     ) throws -> Self {
         guard !(Input.self is any _XLOptionalLiteralType.Type) else {
@@ -266,11 +268,12 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
                 valueType: String(reflecting: Input.self)
             )
         }
-        let literalStorage = try _xlRequiredSQLiteStorage(
+        let literalStorage = try _xlRequiredLiteralStorage(
             for: Literal.self,
+            in: Dialect.self,
             identity: identity
         )
-        let inputStorage = sqliteStorageClass(for: Input.self)
+        let inputStorage = Dialect.literalStorageIdentifier(for: Input.self)
         let literalValueType = _xlUnwrappedLiteralType(Literal.self)
         guard inputStorage == literalStorage,
               literalValueType == Input.self else {
@@ -287,41 +290,26 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
             site: .parameter,
             path: XLValueCodingPath(identity.path)
         )
-        let encoder: @Sendable (Input) throws -> XLSQLiteValue = { value in
-            if let value = value as? Bool {
-                return .integer(value ? 1 : 0)
-            }
-            if let value = value as? Int {
-                return .integer(Int64(value))
-            }
-            if let value = value as? Double {
-                if let error = XLSQLValueEncodingError.bindingFailure(
-                    for: value,
+        // `Input` is the literal's own unwrapped type, checked above, so it is
+        // bindable whenever the dialect knows its storage.
+        let encoder: @Sendable (Input) throws -> Dialect.Value = { value in
+            guard let value = value as? any XLBindable else {
+                throw XLQueryCaptureError.unsupportedIntrinsicValue(
+                    identity: identity,
                     valueType: inputTypeName,
-                    context: codingContext
-                ) {
-                    throw error
-                }
-                return .real(value)
+                    literalType: literalTypeName
+                )
             }
-            if let value = value as? String {
-                return .text(value)
-            }
-            if let value = value as? Data {
-                return .blob(value)
-            }
-            throw XLQueryCaptureError.unsupportedIntrinsicValue(
-                identity: identity,
+            return try Dialect.encodeLiteral(
+                value,
                 valueType: inputTypeName,
-                literalType: literalTypeName
+                codingContext: codingContext
             )
         }
         return Self(
             identity: identity,
-            dialectIdentifier: XLSQLiteDialect.identity,
-            storageIdentifier: XLValueStorageIdentifier(
-                rawValue: literalStorage.rawValue
-            ),
+            dialectIdentifier: dialect.descriptor.identity,
+            storageIdentifier: literalStorage,
             valueTypeIdentifier: metadata.identifier,
             nullability: _xlLiteralNullability(Literal.self),
             context: codingContext,
@@ -331,31 +319,52 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
 }
 
 
+extension XLQueryCapture where Dialect == XLSQLiteDialect {
+
+    /// Creates a codec-free capture for SQLite's intrinsic Swift value types:
+    /// `Bool`, `Int`, `Double`, `String`, and `Data`.
+    ///
+    /// The same as ``intrinsic(identifiedBy:using:context:)`` with a default
+    /// ``XLSQLiteDialect``.
+    public static func intrinsic(
+        identifiedBy identity: XLQuerySlotIdentity,
+        context: XLValueCodingContext? = nil
+    ) throws -> Self {
+        try intrinsic(
+            identifiedBy: identity,
+            using: XLSQLiteDialect(),
+            context: context
+        )
+    }
+}
+
+
 extension XLValueCodingConfiguration {
 
-    /// Declares a contextual SQLite capture without requiring a live database.
-    /// The returned token retains only durable metadata from this immutable
-    /// configuration snapshot; it does not retain the configuration itself.
-    public func queryCapture<Input, Literal>(
+    /// Declares a contextual capture for `dialect` without requiring a live
+    /// database. The returned token retains only durable metadata from this
+    /// immutable configuration snapshot; it does not retain the configuration
+    /// itself.
+    public func queryCapture<Input, Literal, Dialect>(
         _ inputType: Input.Type,
         expressedAs literalType: Literal.Type,
         identifiedBy identity: XLQuerySlotIdentity,
-        using dialect: XLSQLiteDialect,
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
+    ) throws -> XLQueryCapture<Input, Literal, Dialect>
+    where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
         guard !(Input.self is any _XLOptionalLiteralType.Type) else {
             throw XLQueryCaptureError.optionalInputType(
                 identity: identity,
                 valueType: String(reflecting: Input.self)
             )
         }
-        let storageClass = try _xlRequiredSQLiteStorage(
+        let storage = try _xlRequiredLiteralStorage(
             for: literalType,
+            in: Dialect.self,
             identity: identity
         )
-        let storage = XLValueStorageIdentifier(rawValue: storageClass.rawValue)
         let codingContext = context ?? XLValueCodingContext(
             site: .parameter,
             path: XLValueCodingPath(identity.path)
@@ -403,25 +412,26 @@ extension XLValueCodingConfiguration {
         )
     }
 
-    /// Declares a contextual SQLite capture whose literal type, nullability,
-    /// and storage contract are inferred from a typed SQL expression.
+    /// Declares a contextual capture for `dialect` whose literal type,
+    /// nullability, and storage contract are inferred from a typed SQL
+    /// expression.
     ///
     /// The expression is only a declaration-time type witness. It is neither
     /// rendered nor retained. Its associated `Literal` supplies SQL
-    /// nullability and SQLite storage; `selection` resolves matching codec
-    /// candidates.
+    /// nullability and the dialect's storage; `selection` resolves matching
+    /// codec candidates.
     ///
     /// Use ``queryCapture(_:expressedAs:identifiedBy:using:context:selection:)``
     /// when no representative expression is available.
-    public func queryCapture<Input, Literal>(
+    public func queryCapture<Input, Literal, Dialect>(
         _ inputType: Input.Type,
         matching _: any XLExpression<Literal>,
         identifiedBy identity: XLQuerySlotIdentity,
-        using dialect: XLSQLiteDialect,
+        using dialect: Dialect,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
+    ) throws -> XLQueryCapture<Input, Literal, Dialect>
+    where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
         try queryCapture(
             inputType,
             expressedAs: Literal.self,
@@ -492,11 +502,12 @@ private func _xlUnwrappedLiteralType(_ type: Any.Type) -> Any.Type {
 }
 
 
-private func _xlRequiredSQLiteStorage(
+private func _xlRequiredLiteralStorage<Dialect>(
     for type: Any.Type,
+    in _: Dialect.Type,
     identity: XLQuerySlotIdentity
-) throws -> XLSQLiteStorageClass {
-    guard let storage = sqliteStorageClass(for: type) else {
+) throws -> XLValueStorageIdentifier where Dialect: XLLiteralValueDialect {
+    guard let storage = Dialect.literalStorageIdentifier(for: type) else {
         throw XLQueryCaptureError.unsupportedLiteralStorage(
             identity: identity,
             literalType: String(reflecting: type)

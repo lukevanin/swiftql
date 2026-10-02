@@ -655,6 +655,12 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-named-binding-packet-type-safety.sh
 
+      - name: Check dialect-parameterised macro type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-dialect-parameterised-macro-type-safety.sh
+
       - name: Report SQLite runtime through GRDB
         env:
           EXPECTED_SQLITE_VERSION: ${{ matrix.sqlite_version }}

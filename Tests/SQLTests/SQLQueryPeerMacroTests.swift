@@ -371,7 +371,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
             .parameterLayout
 
         XCTAssertThrowsError(
-            try _xlQueryParameterBinding(Double.nan, named: "value", in: layout)
+            try _xlQueryParameterBinding(Double.nan, named: "value", in: layout, using: XLSQLiteDialect.self)
         ) { error in
             XCTAssertEqual(
                 error as? XLSQLValueEncodingError,

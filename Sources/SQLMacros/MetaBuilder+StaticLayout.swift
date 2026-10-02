@@ -215,19 +215,24 @@ extension MetaBuilder {
                 continue
             }
             let storage = allocator.allocate("_SwiftQLCodecStorage")
+            let dialect = allocator.allocate("_SwiftQLCodecDialect")
             let valueType = property.optional ? "\(property.type)?" : property.type
             let storageType = property.optional ? "\(storage)?" : storage
             var context = CodeWriter()
+            // Issue #687: generic over the dialect, so a model declared once
+            // builds this field for any `XLLiteralValueDialect`. The caller
+            // still writes `using: dialect` exactly as before -- the dialect
+            // is inferred from the value it passes.
             context.block(
-                "public static func staticResultField<\(storage)>("
+                "public static func staticResultField<\(storage), \(dialect)>("
                     + "\(property.name) expression: any SwiftQL.XLEncodable, "
                     + "storedAs storageType: \(storageType).Type, "
                     + "identifiedBy identity: SwiftQL.XLQuerySlotIdentity, "
-                    + "using dialect: SwiftQL.XLSQLiteDialect, "
+                    + "using dialect: \(dialect), "
                     + "context: SwiftQL.XLValueCodingContext? = nil, "
                     + "configuration: SwiftQL.XLValueCodingConfiguration"
-                    + ") throws -> SwiftQL.XLStaticSelectField<\(valueType), \(storageType), SwiftQL.XLSQLiteDialect> "
-                    + "where \(storage): SwiftQL.XLLiteral"
+                    + ") throws -> SwiftQL.XLStaticSelectField<\(valueType), \(storageType), \(dialect)> "
+                    + "where \(storage): SwiftQL.XLLiteral, \(dialect): SwiftQL.XLLiteralValueDialect"
             ) { context in
                 context.block(
                     "return try configuration.staticResultField",

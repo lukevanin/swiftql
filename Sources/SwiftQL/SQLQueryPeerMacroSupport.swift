@@ -21,11 +21,17 @@ import Foundation
 /// derived from `T` must match the rendered slot exactly, mirroring the
 /// validation performed by the request `set` compatibility shim.
 ///
-public func _xlQueryParameterBinding<T>(
+/// The value is encoded as a value of `Dialect` (issue #687). The `@SQLQuery`,
+/// `@SQLQueries`, and `@SQLBindings` macros name the dialect their `dialect:`
+/// argument declares, or ``XLSQLiteDialect`` when there is none.
+///
+public func _xlQueryParameterBinding<T, Dialect>(
     _ value: T,
     named name: XLName,
-    in layout: XLParameterLayout
-) throws -> XLInvocationBinding<XLSQLiteValue> where T: XLBindable & XLLiteral {
+    in layout: XLParameterLayout,
+    using _: Dialect.Type
+) throws -> XLInvocationBinding<Dialect.Value>
+where T: XLBindable & XLLiteral, Dialect: XLLiteralValueDialect {
     let declaration = _xlLegacyParameterDeclaration(
         for: T.self,
         key: .named(name.rawValue)
@@ -41,15 +47,15 @@ public func _xlQueryParameterBinding<T>(
             actual: declaration.slot(at: slot.index)
         )
     }
-    let sqliteValue = try _xlCaptureSQLiteValue(
+    let dialectValue = try Dialect.encodeLiteral(
         value,
         valueType: slot.valueTypeName,
         codingContext: slot.codingContext
     )
-    if sqliteValue == .null, slot.nullability == .required {
+    if Dialect.isNullLiteral(dialectValue), slot.nullability == .required {
         throw XLInvocationBindingError.nullForRequiredParameter(slot: slot)
     }
-    return try XLInvocationBinding(slot: slot, value: sqliteValue)
+    return try XLInvocationBinding(slot: slot, value: dialectValue)
 }
 
 
