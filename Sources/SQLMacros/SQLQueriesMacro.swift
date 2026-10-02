@@ -52,6 +52,12 @@ extension SQLQueriesMacro: MemberMacro {
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        // Issue #687: the container names the dialect once and supplies it to
+        // every specification, which never names it themselves. An argument
+        // it cannot spell is reported once, with the container's other
+        // diagnostics.
+        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLQueries")
+
         guard let extensionDecl = declaration.as(ExtensionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -59,15 +65,9 @@ extension SQLQueriesMacro: MemberMacro {
                     id: "sqlqueries-extension-only",
                     message: "'@SQLQueries' can only be applied to an extension of a database type. The generated executors prepare requests through the extended type's 'makeRequest(with:)'."
                 )
-            ])
+            ] + (dialect.diagnostic.map { [$0] } ?? []))
         }
         let databaseType = extensionDecl.extendedType.trimmedDescription
-
-        // Issue #687: the container names the dialect once and supplies it to
-        // every specification, which never names it themselves. An argument
-        // it cannot spell is reported once, with the container's other
-        // diagnostics.
-        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLQueries")
 
         // Propagate the extension's modifiers (access level) to every
         // generated member, so a `public extension` exposes the executors to

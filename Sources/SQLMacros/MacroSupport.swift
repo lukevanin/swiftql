@@ -137,8 +137,13 @@ internal enum MacroDialectArgument {
     /// compiler has already checked that it names a dialect. The macro still
     /// needs the type's *spelling*, to write it into the generated code, so
     /// the argument has to be written as `SomeDialect.self`. Any other
-    /// expression of the right type -- a variable holding the metatype -- is
-    /// reported, because generated code cannot name its type.
+    /// expression of the right type -- a variable holding the metatype, a
+    /// call, a parenthesised type -- is reported, because generated code
+    /// cannot name its type.
+    ///
+    /// The check is syntactic, so it cannot tell a variable written
+    /// `dialect.self` from a type. That spelling reaches the generated code,
+    /// and the compiler reports it there.
     ///
     /// A reported argument is returned as a diagnostic, with
     /// ``defaultDialectType`` in its place, rather than thrown: the caller adds

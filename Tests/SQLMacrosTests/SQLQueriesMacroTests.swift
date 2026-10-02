@@ -840,6 +840,37 @@ final class SQLQueriesMacroDialectTests: XCTestCase {
     }
 
     ///
+    /// A dialect argument is reported with the not-an-extension error, so one
+    /// compile reports both.
+    ///
+    func test_dialectArgumentOnNonExtension_reportsBoth() {
+        assertMacroExpansion(
+            """
+            @SQLQueries(dialect: someDialect)
+            struct Sample {
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' can only be applied to an extension of a database type. The generated executors prepare requests through the extended type's 'makeRequest(with:)'.",
+                    line: 1,
+                    column: 1
+                ),
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLQueries' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 22
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
     /// The container reports a dialect it cannot spell once, not once per
     /// specification.
     ///
