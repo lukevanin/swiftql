@@ -13,12 +13,16 @@ import Foundation
 ///
 /// A dialect that can carry SwiftQL's intrinsic literal values.
 ///
-/// The factories that the `@SQLTable`, `@SQLResult`, `@SQLQuery`,
-/// `@SQLQueries`, and `@SQLBindings` macros generate calls to are generic over
-/// this protocol: the configuration's `staticResultField`, `queryCapture`,
-/// and `contextualBinding` members, `XLStaticSelectField.intrinsic`,
-/// `XLQueryCapture.intrinsic`, and the declared-query parameter binding. A
-/// model is therefore declared once and builds its static layout against any
+/// Generated code reaches this protocol in two places: the
+/// `staticResultField(<property>:...)` member `@SQLCodec` generates calls the
+/// configuration's `staticResultField`, and the `@SQLQuery`, `@SQLQueries`,
+/// and `@SQLBindings` packets call the declared-query parameter binding. The
+/// factories a caller uses to build the fields it passes to a generated
+/// `staticRowLayout(using:...)` are generic over it too:
+/// `XLStaticSelectField.intrinsic`, and the configuration's
+/// `staticResultField`. So are `XLQueryCapture.intrinsic` and the
+/// configuration's `queryCapture` and `contextualBinding`. A model is
+/// therefore declared once and builds its static layout against any
 /// conforming dialect.
 ///
 /// The requirements are static because they describe the dialect's value
@@ -55,6 +59,11 @@ public protocol XLLiteralValueDialect: XLValueCodingDialect {
 
     ///
     /// Encodes one literal into one dialect value.
+    ///
+    /// The dialect owns the check for a value it cannot store faithfully, and
+    /// throws for it here: no caller checks the value first. SQLite throws
+    /// ``XLSQLValueEncodingError`` for a NaN `REAL`, which SQLite would store
+    /// as `NULL`. A dialect that stores NaN as itself accepts it.
     ///
     /// - Parameters:
     ///   - valueType: Names the value's type in a thrown error.
