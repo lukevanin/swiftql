@@ -698,8 +698,8 @@
         "blocking_issue": 137,
         "milestone": "v2.5",
         "documented_at": [
-          "Documentation/Architecture/DialectSurfaceSeparation.md",
-          "Sources/SwiftQL/SQL.swift (@SQLQuery(dialect:))"
+          "Sources/SwiftQL/SQL.swift (@SQLQuery(dialect:) and @SQLQueries(dialect:) documentation)",
+          "CHANGELOG.md ([2.0.0] Unreleased, Added: The macro output carries the dialect as a parameter)"
         ]
       },
       "evidence": []

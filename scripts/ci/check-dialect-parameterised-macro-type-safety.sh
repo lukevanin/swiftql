@@ -12,6 +12,9 @@ set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd -P)"
 source_root="$(cd "$script_directory/../.." && pwd -P)"
+# Declares the second dialect and the model every fixture uses. Each fixture
+# is compiled with it, and an error inside it fails the positive compile.
+support_file="$source_root/Tests/CompileFail/Support/DialectParameterisedSupport.swift"
 positive_fixture="$source_root/Tests/CompileFail/DialectParameterisedValid.swift"
 negative_fixtures=(
     "$source_root/Tests/CompileFail/DialectParameterisedMixedLayout.swift"
@@ -118,7 +121,7 @@ fi
 # Prove that the standalone compiler invocation expands the macros and accepts
 # a correct packet before interpreting failures from the negative fixtures as
 # API evidence.
-"${compiler[@]}" "$positive_fixture"
+"${compiler[@]}" "$support_file" "$positive_fixture"
 
 for negative_fixture in "${negative_fixtures[@]}"; do
     marker_count="$(awk '/expected-error/ { count += 1 } END { print count + 0 }' "$negative_fixture")"
@@ -130,7 +133,7 @@ for negative_fixture in "${negative_fixtures[@]}"; do
         exit 1
     fi
 
-    if "${compiler[@]}" "$negative_fixture" >"$diagnostic_log" 2>&1; then
+    if "${compiler[@]}" "$support_file" "$negative_fixture" >"$diagnostic_log" 2>&1; then
         printf 'error: a cross-dialect use unexpectedly typechecked: %s\n' \
             "$negative_fixture" >&2
         exit 1

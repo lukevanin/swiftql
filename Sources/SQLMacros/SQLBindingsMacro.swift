@@ -53,6 +53,11 @@ internal struct SQLBindingsBuilder {
     let dialectType: String
 
     init(node: AttributeSyntax, declaration: some DeclGroupSyntax) throws {
+        // The dialect argument is reported with every other diagnostic,
+        // including the one for a declaration that is not a struct.
+        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLBindings")
+        self.dialectType = dialect.dialectType
+
         guard let structDeclaration = declaration.as(StructDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -60,14 +65,13 @@ internal struct SQLBindingsBuilder {
                     id: "sqlbindings-struct-only",
                     message: "'@SQLBindings' can only be applied to a struct."
                 )
-            ])
+            ] + (dialect.diagnostic.map { [$0] } ?? []))
         }
+
         var diagnostics = MacroDiagnosticCollector()
-        let dialect = MacroDialectArgument.resolve(of: node, macroName: "@SQLBindings")
         if let diagnostic = dialect.diagnostic {
             diagnostics.report(diagnostic)
         }
-        self.dialectType = dialect.dialectType
         var properties: [SQLBindingsProperty] = []
         Self.classifyMembers(
             structDeclaration.memberBlock.members,

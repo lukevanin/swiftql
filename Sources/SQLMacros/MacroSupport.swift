@@ -159,7 +159,8 @@ internal enum MacroDialectArgument {
             let memberAccess = dialectArgument.expression.as(MemberAccessExprSyntax.self),
             memberAccess.declName.baseName.tokenKind == .keyword(.self),
             memberAccess.declName.argumentNames == nil,
-            let base = memberAccess.base
+            let base = memberAccess.base,
+            isTypeName(base)
         else {
             let diagnostic = Diagnostic(
                 node: dialectArgument.expression,
@@ -169,6 +170,28 @@ internal enum MacroDialectArgument {
             return (defaultDialectType, diagnostic)
         }
         return (base.trimmedDescription, nil)
+    }
+
+    ///
+    /// Whether `expression` spells a type the generated code can write in a
+    /// type position, followed by `.Value`: a name, a qualified name, or
+    /// either with generic arguments. A parenthesised or computed base also
+    /// type-checks as a metatype, but `(SomeDialect).Value` is not a type.
+    ///
+    private static func isTypeName(_ expression: ExprSyntax) -> Bool {
+        if let reference = expression.as(DeclReferenceExprSyntax.self) {
+            return reference.argumentNames == nil
+        }
+        if let member = expression.as(MemberAccessExprSyntax.self) {
+            guard let base = member.base, member.declName.argumentNames == nil else {
+                return false
+            }
+            return isTypeName(base)
+        }
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return isTypeName(specialization.expression)
+        }
+        return false
     }
 }
 

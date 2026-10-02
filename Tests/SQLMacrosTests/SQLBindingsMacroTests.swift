@@ -263,6 +263,89 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
 
 final class SQLBindingsMacroDiagnosticTests: XCTestCase {
 
+    /// A parenthesised type type-checks as a metatype, but the generated code
+    /// would write `(FakeDialect).Value`, which is not a type.
+    func test_parenthesisedDialectArgument_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: (FakeDialect).self)
+            struct Sample {
+                var id: String
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 23
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// A qualified or specialised dialect name is written as given.
+    func test_qualifiedDialectArgument_isWrittenAsGiven() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: Dialects.Fake<Int>.self)
+            struct Sample {
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try XLInvocationBindings<Dialects.Fake<Int>.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                }
+
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    /// The dialect argument is reported even when the declaration is not a
+    /// struct, so one compile reports both.
+    func test_dialectArgumentOnNonStruct_reportsBoth() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: someDialect)
+            enum Sample {
+            }
+            """,
+            expandedSource: """
+            enum Sample {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLBindings' can only be applied to a struct.",
+                    line: 1,
+                    column: 1
+                ),
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 23
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
     /// Issue #687: generated code writes the dialect's type, so the argument
     /// has to spell it. A metatype held in a variable type-checks against the
     /// macro declaration, but has no spelling to write. The error is reported
