@@ -237,6 +237,51 @@ final class DriverDatabaseTests: XCTestCase {
         )
     }
 
+    // MARK: - Contextual bindings and captures
+
+    /// A driver database resolves codec-backed parameters and static-query
+    /// captures from its own coding snapshot, as ``GRDBDatabase`` does.
+    func testContextualBindingAndQueryCaptureResolveAgainstTheDatabase() throws {
+        let codecDatabase = XLDriverDatabase(
+            driver: driver,
+            codingConfiguration: try XLValueCodingConfiguration(
+                registry: try XLValueCodecRegistry().registering(XLDateTextCodec.standard),
+                defaultCodecKeys: [XLDateTextCodec.standardKey]
+            )
+        )
+
+        let binding = try codecDatabase.contextualBinding(
+            Date.self,
+            expressedAs: String.self,
+            named: "cutoff"
+        )
+        XCTAssertEqual(binding.declaration.key, .named("cutoff"))
+        XCTAssertEqual(binding.declaration.nullability, .required)
+        XCTAssertEqual(binding.declaration.codecIdentity?.key, XLDateTextCodec.standardKey)
+
+        XCTAssertThrowsError(
+            try codecDatabase.contextualBinding(
+                Date.self,
+                expressedAs: String.self,
+                named: "cutoff",
+                nullability: .nullable
+            ),
+            "A nullable parameter needs an optional expression type."
+        )
+        XCTAssertThrowsError(
+            try database.contextualBinding(Date.self, expressedAs: String.self, named: "cutoff"),
+            "A database without a Date codec cannot resolve the parameter."
+        )
+
+        let identity = try XLQuerySlotIdentity(path: ["person", "seen"])
+        let capture = try codecDatabase.queryCapture(
+            Date.self,
+            expressedAs: String.self,
+            identifiedBy: identity
+        )
+        XCTAssertEqual(capture.identity, identity)
+    }
+
     // MARK: - Render-once cache
 
     /// Each database renders its own cache entries, because a cached request

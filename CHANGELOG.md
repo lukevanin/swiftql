@@ -240,7 +240,8 @@
   with `init(driver:logger:)` and `init(driver:codingConfiguration:logger:)`.
   It makes the same requests, write requests, result sets, prepared
   invocations, and static queries as `GRDBDatabase`, through the same
-  implementation, and needs no GRDB types.
+  implementation, and needs no GRDB types. It also offers the same
+  `contextualBinding(_:expressedAs:...)` and `queryCapture(_:...)` factories.
   - `XLBlockingDatabaseDriver`, in SwiftQLCore, refines `XLDatabaseDriver`
     with blocking scopes, `withBlockingReadConnection(_:)`,
     `withBlockingWriteConnection(_:)`, and `withBlockingTransaction(_:)`, for

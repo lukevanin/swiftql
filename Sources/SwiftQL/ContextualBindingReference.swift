@@ -201,6 +201,32 @@ extension GRDBDatabase {
         selection: XLValueCodecSelection = XLValueCodecSelection()
     ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
     where Literal: XLLiteral {
+        try resolveContextualBinding(
+            valueType,
+            expressedAs: literalType,
+            key: key,
+            nullability: nullability,
+            context: context,
+            selection: selection
+        )
+    }
+}
+
+
+extension XLDriverRequestFactory {
+
+    /// Resolves a contextual parameter against this database's immutable
+    /// coding snapshot. `GRDBDatabase` and `XLDriverDatabase` both forward
+    /// their `contextualBinding` members here (issue #682).
+    func resolveContextualBinding<Value, Literal>(
+        _ valueType: Value.Type,
+        expressedAs literalType: Literal.Type,
+        key: XLBindingKey,
+        nullability: XLParameterNullability,
+        context: XLValueCodingContext?,
+        selection: XLValueCodecSelection
+    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
+    where Literal: XLLiteral {
         let expressionIsOptional = literalType is any _XLOptionalLiteralType.Type
         guard expressionIsOptional == (nullability == .nullable) else {
             throw XLRequestBindingError.expressionNullabilityMismatch(
