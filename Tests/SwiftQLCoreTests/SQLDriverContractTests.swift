@@ -756,10 +756,7 @@ private enum FakeFailure: Error, Equatable, CustomStringConvertible {
 }
 
 
-private struct FakeConnection:
-    XLDatabaseDriverConnection,
-    XLStreamingDatabaseDriverConnection
-{
+private struct FakeConnection: XLDatabaseDriverConnection {
 
     static let driverID = XLDriverIdentifier(rawValue: "fake-second-transport")
 
@@ -839,16 +836,30 @@ private struct FakeConnection:
         return result
     }
 
+    /// Collected through this connection's own ``forEachRow(_:_:)``, which
+    /// it must implement: the contract's default `forEachRow` calls
+    /// `fetchAll`, so relying on it here would recurse.
     mutating func fetchAll(
         _ statement: FakePhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        try collectAllRows(statement)
+        var rows: [[XLSQLiteValue]] = []
+        try forEachRow(statement) { row in
+            rows.append(row)
+            return .advance
+        }
+        return rows
     }
 
+    /// The first row, without stepping later ones.
     mutating func fetchOne(
         _ statement: FakePhysicalStatement
     ) throws -> [XLSQLiteValue]? {
-        try collectFirstRow(statement)
+        var first: [XLSQLiteValue]?
+        try forEachRow(statement) { row in
+            first = row
+            return .stop
+        }
+        return first
     }
 
     mutating func forEachRow(
@@ -870,6 +881,16 @@ private struct FakeConnection:
         }
     }
 
+    /// Overrides the eager default with this connection's own stepper.
+    mutating func withValuesStepper<Result>(
+        _ statement: FakePhysicalStatement,
+        _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        try body(makeValuesStepper(statement))
+    }
+
+    /// The stepper behind ``withValuesStepper(_:_:)``. The tests also call it
+    /// directly.
     mutating func makeValuesStepper(
         _ statement: FakePhysicalStatement
     ) throws -> () throws -> [XLSQLiteValue]? {

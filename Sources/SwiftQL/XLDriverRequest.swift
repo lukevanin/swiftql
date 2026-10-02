@@ -1,5 +1,5 @@
 //
-//  GRDBRequest.swift
+//  XLDriverRequest.swift
 //  SwiftQL
 //
 //  The typed read request: what it holds, and the legacy mutable
@@ -8,21 +8,36 @@
 //  Split out of GRDBSQLDatabase.swift (issue #560). Its execution strategies --
 //  eager fetch, lazy result set, and live query -- are three different things
 //  that happened to live in one 500-line struct, and are now three files.
+//  Generic over the driver since issue #682; `GRDBRequest` is its GRDB
+//  specialisation.
 //
 
 import Foundation
-import GRDB
 
 
-struct GRDBRequest<Row: Sendable>: XLRequest {
+/// The GRDB specialisation that ``GRDBDatabase`` makes.
+typealias GRDBRequest<Row: Sendable> = XLDriverRequest<GRDBDatabaseDriver, Row>
 
-    let executor: GRDBInvocationExecutor
+
+/// The typed read request of any blocking, observing driver of the SQLite
+/// dialect (issue #682).
+///
+/// The synchronous members run on the driver's blocking scopes, the
+/// asynchronous view on its asynchronous scopes, and the live-query members on
+/// its `observe(_:fetch:)`.
+struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
+    where Driver: XLBlockingDatabaseDriver,
+          Driver: XLObservingDatabaseDriver,
+          Driver.Dialect == XLSQLiteDialect
+{
+
+    let executor: XLInvocationExecutor<Driver>
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
-    
+
     let logger: XLLogger?
-    
+
     let reader: any XLRowReadable<Row>
 
     /// A `RETURNING` statement changes the database, and a pooled reader
@@ -36,28 +51,21 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
     /// behavior.
     let requiresWriteConnection: Bool
 
-    let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
-
-    /// `nil` waits on each observation's own private serial queue (issue #652).
-    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
-
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
     var legacyBindings: GRDBLegacyBindingAccumulator
 
     init(
-        driver: GRDBDatabaseDriver,
+        driver: Driver,
         codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
         reader: any XLRowReadable<Row>,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil,
-        requiresWriteConnection: Bool = false,
-        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
-        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
+        requiresWriteConnection: Bool = false
     ) {
         self.requiresWriteConnection = requiresWriteConnection
-        self.executor = GRDBInvocationExecutor(
+        self.executor = XLInvocationExecutor<Driver>(
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,
@@ -66,8 +74,6 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
         self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.reader = reader
-        self.liveQueryRetryPolicy = liveQueryRetryPolicy
-        self.liveQueryRetryScheduler = liveQueryRetryScheduler
         self.legacyBindings = GRDBLegacyBindingAccumulator(
             layout: logicalStatement.parameterLayout,
             initialError: parameterLayoutError
@@ -77,7 +83,7 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
     var parameterLayout: XLParameterLayout {
         executor.parameterLayout
     }
-    
+
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
         legacyBindings.set(optional: value, named: reference.name)
     }
@@ -88,7 +94,7 @@ struct GRDBRequest<Row: Sendable>: XLRequest {
 }
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     /// This request, bound to `driver` instead of the driver it was built for
     /// (issue #642).
@@ -99,8 +105,8 @@ extension GRDBRequest {
     /// logical statement is validated against. Bindings set through the v1
     /// `set(parameter:value:)` facade are not carried over; a render-once
     /// request is value-free.
-    func rebound(to driver: GRDBDatabaseDriver) -> GRDBRequest<Row> {
-        GRDBRequest(
+    func rebound(to driver: Driver) -> XLDriverRequest<Driver, Row> {
+        XLDriverRequest(
             driver: driver,
             codingConfiguration: codingConfiguration,
             logger: logger,
@@ -110,9 +116,7 @@ extension GRDBRequest {
             ),
             parameterLayoutError: executor.parameterLayoutError,
             valueEncodingError: executor.valueEncodingError,
-            requiresWriteConnection: requiresWriteConnection,
-            liveQueryRetryPolicy: liveQueryRetryPolicy,
-            liveQueryRetryScheduler: liveQueryRetryScheduler
+            requiresWriteConnection: requiresWriteConnection
         )
     }
 }

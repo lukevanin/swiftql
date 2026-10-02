@@ -21,14 +21,13 @@ import GRDBSQLite
 /// holds.
 ///
 /// The driver conforms to the asynchronous ``XLDatabaseDriver`` contract, and
-/// also keeps a blocking scope for the v1 request layer, which moves to the
-/// asynchronous one with #681 and #682. Both share the connection type and
-/// every connection primitive, so the two differ only in how the caller
-/// waits. The blocking scope has its own names, `withBlocking...`, so that it
-/// never shadows an asynchronous member: a concrete method outranks a
-/// protocol extension method of the same name, and `try await` would then
-/// quietly block a thread.
-struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
+/// to ``XLBlockingDatabaseDriver`` for the synchronous request members
+/// (issue #682). Both share the connection type and every connection
+/// primitive, so the two differ only in how the caller waits. The blocking
+/// scopes have their own names, `withBlocking...`, so that they never shadow
+/// an asynchronous member: a concrete method outranks a protocol extension
+/// method of the same name, and `try await` would then quietly block a thread.
+struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -49,6 +48,15 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     /// `defaultTransactionKind` as GRDB spells it, worked out once.
     private let grdbDefaultTransactionKind: Database.TransactionKind
+
+    /// How a live query observed through ``observe(_:fetch:)`` recovers from
+    /// a failure. The database that owns the driver sets it (issue #682), so
+    /// a request needs no retry settings of its own.
+    let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
+
+    /// Where a live query's recovery work is scheduled. `nil` waits on each
+    /// observation's own private serial queue (issue #652).
+    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
 
     private enum Access {
         case pool(DatabasePool)
@@ -81,7 +89,9 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     init(
         databasePool: DatabasePool,
         dialect: XLSQLiteDialect,
-        databaseIdentifier: XLDatabaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
+        databaseIdentifier: XLDatabaseIdentifier = XLDatabaseIdentifier(rawValue: UUID()),
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal,
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler? = nil
     ) {
         let readOnly = databasePool.configuration.readonly
         self.init(
@@ -89,7 +99,9 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
             dialect: dialect,
             databaseIdentifier: databaseIdentifier,
             defaultTransactionKind: readOnly ? .deferred : .immediate,
-            grdbDefaultTransactionKind: readOnly ? .deferred : .immediate
+            grdbDefaultTransactionKind: readOnly ? .deferred : .immediate,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
         )
     }
 
@@ -98,13 +110,17 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         dialect: XLSQLiteDialect,
         databaseIdentifier: XLDatabaseIdentifier,
         defaultTransactionKind: XLTransactionKind,
-        grdbDefaultTransactionKind: Database.TransactionKind
+        grdbDefaultTransactionKind: Database.TransactionKind,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) {
         self.access = access
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
         self.defaultTransactionKind = defaultTransactionKind
         self.grdbDefaultTransactionKind = grdbDefaultTransactionKind
+        self.liveQueryRetryPolicy = liveQueryRetryPolicy
+        self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
 
     ///
@@ -133,7 +149,9 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
             dialect: dialect,
             databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID()),
             defaultTransactionKind: defaultTransactionKind,
-            grdbDefaultTransactionKind: grdbDefaultTransactionKind
+            grdbDefaultTransactionKind: grdbDefaultTransactionKind,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
         )
     }
 
@@ -454,353 +472,7 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
 }
 
 
-/// Immutable, Sendable execution seam between prepared logical statements and
-/// GRDB connections. Typed row decoding remains outside this value because the
-/// legacy row-reader graph is not Sendable.
-struct GRDBInvocationExecutor: Sendable {
-
-    let driver: GRDBDatabaseDriver
-
-    let logicalStatement: XLLogicalPreparedStatement
-
-    let parameterLayoutError: XLInvocationBindingError?
-
-    let valueEncodingError: XLSQLValueEncodingError?
-
-    init(
-        driver: GRDBDatabaseDriver,
-        logicalStatement: XLLogicalPreparedStatement,
-        parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil
-    ) {
-        self.driver = driver
-        self.logicalStatement = logicalStatement
-        self.parameterLayoutError = parameterLayoutError
-        self.valueEncodingError = valueEncodingError
-    }
-
-    var parameterLayout: XLParameterLayout {
-        logicalStatement.parameterLayout
-    }
-
-    func fetchAll(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> [[XLSQLiteValue]] {
-        let packet = try sqlitePacket(bindings)
-        return try driver.withBlockingReadConnection { connection in
-            try fetchAll(packet: packet, in: &connection)
-        }
-    }
-
-    func fetchAll(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> [[XLSQLiteValue]] {
-        try connection.fetchAll(boundStatement(packet: packet, in: &connection))
-    }
-
-    /// Visits normalized rows while the GRDB cursor remains inside its owning
-    /// database access. The callback can stop SQLite stepping without exposing
-    /// the cursor or retaining a complete normalized result matrix.
-    func forEachRow(
-        bindings: any XLInvocationBindingPacket,
-        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
-    ) throws {
-        let packet = try sqlitePacket(bindings)
-        try driver.withBlockingReadConnection { connection in
-            try forEachRow(
-                packet: packet,
-                in: &connection,
-                body
-            )
-        }
-    }
-
-    func forEachRow(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection,
-        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
-    ) throws {
-        try connection.forEachRow(
-            boundStatement(packet: packet, in: &connection),
-            body
-        )
-    }
-
-    ///
-    /// Prepares and binds one statement for `packet`, then lends a
-    /// value-level row stepper scoped to the connection access that owns it.
-    ///
-    /// `operation` runs synchronously inside the same read (or, when
-    /// `requiresWriteConnection` is `true`, write/transaction) connection
-    /// access that creates the stepper, so the GRDB cursor the stepper
-    /// closes over never escapes its owning database access -- the stepper
-    /// closure is only valid for the duration of `operation`. `XLResultSet`
-    /// is built directly on top of this seam.
-    ///
-    func withValuesStepper<Result>(
-        packet: XLValidatedSQLitePacket,
-        requiresWriteConnection: Bool,
-        _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
-    ) throws -> Result {
-        let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
-            let statement = try self.boundStatement(packet: packet, in: &connection)
-            // The statement stays marked in use for all of `operation`, which
-            // can issue nested requests on this connection, and the mark is
-            // removed on the same return or throw that closes the result set.
-            // A nested request with the same SQL then prepares its own
-            // statement instead of resetting this cursor (issue #641).
-            return try GRDBOpenCursorStatements.shared.withOpenCursor(
-                on: statement.statement
-            ) {
-                let stepper = try connection.makeValuesStepper(statement)
-                return try operation(stepper)
-            }
-        }
-        if requiresWriteConnection {
-            return try driver.withBlockingTransaction(accessor)
-        }
-        else {
-            return try driver.withBlockingReadConnection(accessor)
-        }
-    }
-
-    func fetchOne(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> [XLSQLiteValue]? {
-        let packet = try sqlitePacket(bindings)
-        return try driver.withBlockingReadConnection { connection in
-            try fetchOne(packet: packet, in: &connection)
-        }
-    }
-
-    func fetchOne(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> [XLSQLiteValue]? {
-        try connection.fetchOne(boundStatement(packet: packet, in: &connection))
-    }
-
-    @discardableResult
-    func execute(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> XLExecutionResult {
-        let packet = try sqlitePacket(bindings)
-        return try driver.withBlockingTransaction { connection in
-            try execute(packet: packet, in: &connection)
-        }
-    }
-
-    /// Executes inside a transaction this executor opens for the call.
-    @discardableResult
-    func execute(
-        packet: XLValidatedSQLitePacket
-    ) throws -> XLExecutionResult {
-        try driver.withBlockingTransaction { connection in
-            try execute(packet: packet, in: &connection)
-        }
-    }
-
-    @discardableResult
-    func execute(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> XLExecutionResult {
-        try connection.execute(boundStatement(packet: packet, in: &connection))
-    }
-
-    ///
-    /// Checks `bindings` with ``sqlitePacket(_:)`` and logs the statement, as
-    /// every request does before it takes a connection. The read and write
-    /// requests, synchronous and asynchronous (issue #681), share it.
-    ///
-    /// - Parameter operation: The request method, named in the log line. It
-    ///   is formatted only when there is a logger.
-    ///
-    func validatedPacket(
-        _ bindings: any XLInvocationBindingPacket,
-        for operation: @autoclosure () -> String,
-        logger: XLLogger?
-    ) throws -> XLValidatedSQLitePacket {
-        let packet = try sqlitePacket(bindings)
-        if let logger {
-            logger.debug(
-                "\(operation()): <<<\(logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        }
-        return packet
-    }
-
-    /// Checks an invocation packet against this statement's parameter layout,
-    /// and returns the evidence that it passed.
-    ///
-    /// Execution takes an ``XLValidatedSQLitePacket``, which cannot be built
-    /// without the structural checks running, and this is the only place the
-    /// semantic ones are applied -- so validation happens once per execution
-    /// rather than the two or three times it used to (issue #561).
-    func sqlitePacket(
-        _ bindings: any XLInvocationBindingPacket
-    ) throws -> XLValidatedSQLitePacket {
-        if let valueEncodingError {
-            throw valueEncodingError
-        }
-        if let parameterLayoutError {
-            throw parameterLayoutError
-        }
-        let validatedPacket = try XLValidatedSQLitePacket(
-            validating: bindings,
-            matching: parameterLayout,
-            requestType: Self.self
-        )
-        for binding in validatedPacket.bindings {
-            if case .real(let value) = binding.value,
-               let error = XLSQLValueEncodingError.bindingFailure(
-                   for: value,
-                   valueType: binding.slot.valueTypeName,
-                   context: binding.slot.codingContext
-               ) {
-                throw error
-            }
-            // GRDB binds text with the length -1, so SQLite stores a value
-            // only up to its first NUL. Reject U+0000 instead of storing a
-            // truncated value (issue #657). A value without a NUL binds in
-            // full, because -1 then reads exactly its UTF-8 byte count.
-            if case .text(let value) = binding.value, value.utf8.contains(0) {
-                throw XLSQLValueEncodingError.nulCharacterInText(
-                    valueType: binding.slot.valueTypeName,
-                    context: binding.slot.codingContext
-                )
-            }
-            if let codecIdentity = binding.slot.codecIdentity,
-               codecIdentity.dialectIdentifier != driver.dialect.descriptor.identity {
-                throw XLInvocationBindingError.preparedCodecDialectMismatch(
-                    slot: binding.slot,
-                    codecIdentity: codecIdentity,
-                    expectedDialectIdentifier: driver.dialect.descriptor.identity
-                )
-            }
-            if driver.dialect.isNull(binding.value) {
-                guard binding.slot.nullability == .nullable else {
-                    throw XLInvocationBindingError.nullForRequiredParameter(
-                        slot: binding.slot
-                    )
-                }
-                continue
-            }
-            if let codecIdentity = binding.slot.codecIdentity {
-                let actualStorage = driver.dialect.stableStorageIdentifier(
-                    for: binding.value
-                )
-                guard actualStorage == codecIdentity.storageIdentifier else {
-                    throw XLInvocationBindingError.dialectValueStorageMismatch(
-                        slot: binding.slot,
-                        expectedCodecIdentity: codecIdentity,
-                        actualStorageIdentifier: actualStorage
-                    )
-                }
-            }
-        }
-        return validatedPacket
-    }
-
-    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
-    /// time this exact binding step on its own (issue #670).
-    func boundStatement(
-        packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> GRDBPhysicalStatement {
-        // `prepare` installs the functions the statement calls first, on
-        // whichever connection this is (issue #683).
-        var statement = try connection.prepare(logicalStatement)
-        for binding in packet.bindings {
-            do {
-                statement = try connection.bindValidated(
-                    binding.value,
-                    to: binding.slot.key,
-                    in: statement
-                )
-            }
-            catch {
-                throw XLInvocationBindingError.driverBindingFailed(
-                    slot: binding.slot,
-                    codecIdentity: binding.slot.codecIdentity,
-                    context: binding.slot.codingContext,
-                    message: String(describing: error)
-                )
-            }
-        }
-        do {
-            try connection.validateBindings(in: statement)
-        }
-        catch {
-            throw XLInvocationBindingError.driverArgumentValidationFailed(
-                layout: packet.layout,
-                message: String(describing: error)
-            )
-        }
-        return statement
-    }
-}
-
-
-/// An immutable, concurrency-safe GRDB runtime handle for one rendered SQL
-/// statement.
-///
-/// This handle deliberately exposes normalized SQLite rows instead of
-/// retaining SwiftQL's legacy row-reader graph, which is not `Sendable`.
-/// Static, database-independent query identity and typed result metadata are
-/// layered on top by the descriptor API rather than captured here.
-public struct GRDBPreparedInvocation: Sendable {
-
-    private let executor: GRDBInvocationExecutor
-
-    init(executor: GRDBInvocationExecutor) {
-        self.executor = executor
-    }
-
-    /// The static parameter slots shared by every invocation of this handle.
-    public var parameterLayout: XLParameterLayout {
-        executor.parameterLayout
-    }
-
-    /// Fetches all normalized SQLite rows for one immutable binding packet.
-    public func fetchAllValues(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> [[XLSQLiteValue]] {
-        try executor.fetchAll(bindings: bindings)
-    }
-
-    /// Visits normalized SQLite rows without exposing the GRDB cursor outside
-    /// its owning connection. Package clients use this to decode typed results
-    /// before advancing instead of first retaining a complete value matrix.
-    package func forEachValueRow(
-        bindings: any XLInvocationBindingPacket,
-        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
-    ) throws {
-        try executor.forEachRow(bindings: bindings, body)
-    }
-
-    /// Fetches the first normalized SQLite row for one immutable binding packet.
-    public func fetchOneValues(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> [XLSQLiteValue]? {
-        try executor.fetchOne(bindings: bindings)
-    }
-
-    /// Executes a command with one immutable binding packet, and reports
-    /// what it did.
-    @discardableResult
-    public func execute(
-        bindings: any XLInvocationBindingPacket
-    ) throws -> XLExecutionResult {
-        try executor.execute(bindings: bindings)
-    }
-}
-
-
-struct GRDBDatabaseDriverConnection:
-    XLDatabaseDriverConnection,
-    XLStreamingDatabaseDriverConnection
-{
+struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -918,16 +590,30 @@ struct GRDBDatabaseDriverConnection:
         )
     }
 
+    /// Collected through this connection's own ``forEachRow(_:_:)``, which
+    /// it must implement: the contract's default `forEachRow` calls
+    /// `fetchAll`, so relying on it here would recurse.
     mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        try collectAllRows(statement)
+        var rows: [[XLSQLiteValue]] = []
+        try forEachRow(statement) { row in
+            rows.append(row)
+            return .advance
+        }
+        return rows
     }
 
+    /// The first row, without stepping later ones.
     mutating func fetchOne(
         _ statement: GRDBPhysicalStatement
     ) throws -> [XLSQLiteValue]? {
-        try collectFirstRow(statement)
+        var first: [XLSQLiteValue]?
+        try forEachRow(statement) { row in
+            first = row
+            return .stop
+        }
+        return first
     }
 
     mutating func forEachRow(
@@ -960,11 +646,11 @@ struct GRDBDatabaseDriverConnection:
         // synchronous, non-retaining consumer (the typed decode path) reuses
         // this buffer's storage row-to-row instead of allocating a fresh
         // `[XLSQLiteValue]` per row. A consumer that retains the row (the eager
-        // `collectAllRows`/`collectFirstRow` compatibility shims) keeps a second
+        // `fetchAll`/`fetchOne` compatibility shims) keeps a second
         // reference, so `removeAll(keepingCapacity:)` copy-on-writes a fresh
         // buffer for the next row and the retained values stay intact. The typed
         // decode path (the hot path) therefore materializes no intermediate
-        // matrix; the eager `collectAllRows`/`collectFirstRow` compatibility
+        // matrix; the eager `fetchAll`/`fetchOne` compatibility
         // shims still build only the result they already contract to return.
         var values: [XLSQLiteValue] = []
         // `body` can issue a nested request on the same connection, so mark
@@ -1020,8 +706,24 @@ struct GRDBDatabaseDriverConnection:
     }
 
     ///
-    /// Implements ``XLStreamingDatabaseDriverConnection/makeValuesStepper(_:)``
-    /// for GRDB: takes one already-prepared physical statement and returns a
+    /// Lends ``makeValuesStepper(_:)``'s stepper for the duration of `body`,
+    /// with the statement marked in use for all of it.
+    ///
+    /// `body` can issue nested requests on this connection, and the mark is
+    /// removed on the same return or throw that ends `body`. A nested request
+    /// with the same SQL then prepares its own statement instead of resetting
+    /// this cursor (issue #641). See `GRDBOpenCursorStatements`.
+    mutating func withValuesStepper<Result>(
+        _ statement: GRDBPhysicalStatement,
+        _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
+            let stepper = try makeValuesStepper(statement)
+            return try body(stepper)
+        }
+    }
+
+    /// The GRDB stepper behind ``withValuesStepper(_:_:)``: takes one already-prepared physical statement and returns a
     /// value-level stepper that performs at most one additional SQLite step
     /// and value-normalization per call, returning `nil` once the underlying
     /// cursor is exhausted.

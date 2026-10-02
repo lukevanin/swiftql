@@ -78,6 +78,22 @@ executes the statement, and reads SQLite values from the result. GRDB is the
 current SQLite driver, but it does not define the SQLite syntax or the logical
 policy for converting application values.
 
+``GRDBDatabase`` runs its requests on the GRDB driver. ``XLDriverDatabase``
+runs the same requests on any driver that implements SwiftQL's driver contract
+(issue #682), so a driver from outside SwiftQL needs no GRDB types. Such a
+driver conforms to three SwiftQLCore protocols:
+
+- `XLDatabaseDriver`, whose asynchronous scopes serve each request's `async`
+  view;
+- `XLBlockingDatabaseDriver`, whose blocking scopes serve the synchronous
+  members, such as `fetchAll()` and `execute()`;
+- `XLObservingDatabaseDriver`, whose `observe(_:fetch:)` serves `stream()` and
+  the publish members.
+
+Its dialect must be `XLSQLiteDialect`. ``XLDriverDatabase`` conforms to
+``XLDatabase`` but not yet to ``XLTransactionalDatabase``: a portable way for a
+driver to pin one connection for a transaction scope is issue #808.
+
 ## Logical and physical preparation
 
 Logical requests and prepared handles are database- or pool-bound. They retain
@@ -98,10 +114,14 @@ registered functions, or available capabilities differ.
 
 ## Incremental row lifetime
 
-The GRDB adapter steps result rows through a package-internal, driver-neutral
-callback while the leased connection is active. It copies each row into
-normalized SQLite values before advancing because GRDB reuses cursor-backed row
-storage. The synchronous callback may stop without stepping later rows, and a
+Every request steps result rows through the connection contract's
+`forEachRow(_:_:)` callback, or lends a row stepper through
+`withValuesStepper(_:_:)`, while the leased connection is active. Both are
+public `XLDatabaseDriverConnection` requirements since issue #682. Their
+defaults fetch every row with `fetchAll(_:)` first, and a driver that can step
+a cursor overrides them. The GRDB connection overrides both, and copies each
+row into normalized SQLite values before advancing because GRDB reuses
+cursor-backed row storage. The synchronous callback may stop without stepping later rows, and a
 thrown decoding error releases the cursor and connection before it propagates.
 A cursor value is never returned from the database-access closure.
 
@@ -110,8 +130,8 @@ typed array, while `fetchOne()` returns an optional first row. Those
 compatibility APIs are layered over the same incremental primitive.
 `fetchAll()` therefore retains its typed output as required but no longer
 retains a complete intermediate array of GRDB rows or normalized SQLite-value
-rows before typed decoding. Future package adapters should implement the same
-callback lifetime rather than exposing their native cursor types.
+rows before typed decoding. A driver that overrides the callback must keep the
+same lifetime rather than exposing its native cursor type.
 
 ## Transactions and bindings
 
@@ -158,10 +178,11 @@ physical preparation in both paths.
 
 ## Cross-task raw-value execution
 
-For cross-task raw-value execution with GRDB, call
-`GRDBDatabase.prepareInvocation(with:)`. Its `GRDBPreparedInvocation` result is
-`Sendable` and accepts an independent packet in `fetchAllValues`,
-`fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
+For cross-task raw-value execution, call `GRDBDatabase.prepareInvocation(with:)`
+or `XLDriverDatabase.prepareInvocation(with:)`.
+Its ``XLPreparedInvocation`` result is `Sendable`, is also still named
+`GRDBPreparedInvocation`, and accepts an independent packet in
+`fetchAllValues`, `fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
 values instead of retaining the legacy typed row-reader graph.
 
 <!-- test: XLDocumentationTests.testDocumentationAdvancedUsage -->

@@ -21,6 +21,9 @@ TARGET_NAME = "SwiftQLCore"
 SOURCE_ROOTS = (
     "Sources/SwiftQLCore",
     "Tests/SwiftQLCoreTests",
+    # Issue #682: the driver double that backs `XLDriverDatabase` must reach
+    # SwiftQL through the driver contract alone.
+    "Tests/SwiftQLDriverDatabaseTests",
 )
 DEPENDENCY_FIELDS = (
     "target_dependencies",

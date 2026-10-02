@@ -213,7 +213,48 @@
     }
     ```
 
+- **The prepared handles no longer name GRDB** (issue #682). They are the
+  driver-neutral `XLPreparedInvocation`, `XLPreparedStaticQuery`, and
+  `XLPreparedTypedStaticQuery`, which `GRDBDatabase` and the new
+  `XLDriverDatabase` both return. `GRDBPreparedInvocation`,
+  `GRDBPreparedStaticQuery`, and `GRDBPreparedTypedStaticQuery<Row>` remain as
+  typealiases, so source that names them compiles unchanged. Their
+  module-qualified names change, for example in `String(reflecting:)`.
+- **`XLDatabaseDriverConnection` has three new requirements, each with a
+  default** (issue #682), so a connection outside SwiftQL keeps compiling.
+  - `forEachRow(_:_:)` visits result rows one at a time, and
+    `withValuesStepper(_:_:)` lends a row stepper for the duration of a
+    closure. Their defaults fetch every row with `fetchAll(_:)` first; a
+    connection that can step a cursor overrides them. They were
+    package-internal on `XLStreamingDatabaseDriverConnection`, which is gone,
+    and `XLRowStreamControl` is now public.
+  - `validateBindings(in:)` checks a bound statement's arguments before it
+    runs. Its default checks nothing.
+  - A connection that already declared a method with one of these signatures
+    now provides the requirement, and SwiftQL calls it.
+
 ### Added
+
+- **Requests run on any driver** (issue #682). `XLDriverDatabase<Driver>` is a
+  public database over any driver that implements SwiftQL's driver contract,
+  with `init(driver:logger:)` and `init(driver:codingConfiguration:logger:)`.
+  It makes the same requests, write requests, result sets, prepared
+  invocations, and static queries as `GRDBDatabase`, through the same
+  implementation, and needs no GRDB types. It also offers the same
+  `contextualBinding(_:expressedAs:...)` and `queryCapture(_:...)` factories.
+  - `XLBlockingDatabaseDriver`, in SwiftQLCore, refines `XLDatabaseDriver`
+    with blocking scopes, `withBlockingReadConnection(_:)`,
+    `withBlockingWriteConnection(_:)`, and `withBlockingTransaction(_:)`, for
+    the synchronous request members. The GRDB driver conforms.
+  - The driver must also conform to `XLObservingDatabaseDriver`, for the
+    live-query members, and use `XLSQLiteDialect`. A database over a driver
+    that cannot observe is issue #809.
+  - `XLDriverDatabase` does not offer transaction scopes yet; it conforms to
+    `XLDatabase` but not to `XLTransactionalDatabase` (issue #808). Batch
+    inserts with `insert(contentsOf:)` stay on `GRDBDatabase`.
+  - `GRDBDatabase` keeps its public surface. Its live-query retry policy now
+    travels with its driver, so the GRDB driver's `observe(_:fetch:)` applies
+    it too.
 
 - **An adapter supplies its own live-query change notification** (issue
   #684).

@@ -13,8 +13,9 @@ import GRDB
 /// snapshot-ownership contract recorded at <doc:LiveQueries>, "Buffering and
 /// Resumed-Demand Semantics (#291)".
 ///
-/// This is the type `GRDBRequest.stream()`/`streamOne()` (and their bindings
-/// variants) build on. It intentionally does not use Combine, `AnyPublisher`,
+/// This is the type the GRDB driver's `observe(_:fetch:)` builds on, and so
+/// every GRDB-backed request's `stream()`/`streamOne()` (issue #682). It
+/// intentionally does not use Combine, `AnyPublisher`,
 /// or `.values` as its observation source — only GRDB's own
 /// `ValueObservation.start(in:scheduling:onError:onChange:)`, the same
 /// primitive ``GRDBLiveQueryRetryPolicy`` already uses for the Combine path.

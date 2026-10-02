@@ -1,5 +1,5 @@
 //
-//  GRDBWriteRequest.swift
+//  XLDriverWriteRequest.swift
 //  SwiftQL
 //
 //  The untyped write request: a statement that changes the database and
@@ -9,17 +9,19 @@
 //
 
 import Foundation
-import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
-struct GRDBWriteRequest: XLWriteRequest {
+/// The GRDB specialisation that ``GRDBDatabase`` makes.
+typealias GRDBWriteRequest = XLDriverWriteRequest<GRDBDatabaseDriver>
 
-    let executor: GRDBInvocationExecutor
+
+/// The write request of any blocking driver of the SQLite dialect (issue
+/// #682). It runs each statement in a transaction on the writer connection.
+struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
+    where Driver.Dialect == XLSQLiteDialect
+{
+
+    let executor: XLInvocationExecutor<Driver>
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
@@ -30,14 +32,14 @@ struct GRDBWriteRequest: XLWriteRequest {
     var legacyBindings: GRDBLegacyBindingAccumulator
     
     init(
-        driver: GRDBDatabaseDriver,
+        driver: Driver,
         codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
-        self.executor = GRDBInvocationExecutor(
+        self.executor = XLInvocationExecutor<Driver>(
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,

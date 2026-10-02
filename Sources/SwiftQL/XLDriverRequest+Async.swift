@@ -1,49 +1,53 @@
 //
-//  GRDBRequest+Async.swift
+//  XLDriverRequest+Async.swift
 //  SwiftQL
 //
-//  Issue #681: the GRDB adapter's asynchronous request surface. Each fetch
+//  Issue #681: the asynchronous request surface, generic over the driver
+//  since issue #682. Each fetch
 //  validates its packet as the synchronous fetch does, then runs the same
 //  per-connection work inside the driver's asynchronous scope (#676), so the
 //  calling task suspends on GRDB's queue instead of blocking its thread.
 //
 
 import Foundation
-import GRDB
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     var async: any XLAsyncRequest<Row> {
-        GRDBAsyncRequest(request: self)
+        XLDriverAsyncRequest(request: self)
     }
 }
 
 
-extension GRDBWriteRequest {
+extension XLDriverWriteRequest {
 
     var async: any XLAsyncWriteRequest {
-        GRDBAsyncWriteRequest(request: self)
+        XLDriverAsyncWriteRequest(request: self)
     }
 }
 
 
 ///
-/// The asynchronous fetches of a ``GRDBRequest``.
+/// The asynchronous fetches of an `XLDriverRequest`.
 ///
 /// A plain query reads on a pooled reader. A `RETURNING` query runs in a
 /// transaction on the writer, as its synchronous fetches do (issue #643).
 ///
 /// `@unchecked Sendable` because the request's row reader is not `Sendable`.
-/// The request is an immutable copy here, and a GRDB request is already
-/// called from many threads: `GRDBDatabase` supplies a render-once cache key,
-/// so a declared query's cache hands one `GRDBRequest` to callers on any
-/// thread. The reader runs only inside the driver's operation, while the
+/// The request is an immutable copy here, and a request is already called
+/// from many threads: a database that supplies a render-once cache key, as
+/// `GRDBDatabase` does, has a declared query's cache hand one request to
+/// callers on any thread. The reader runs only inside the driver's operation, while the
 /// calling task waits for it.
 ///
-struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
+struct XLDriverAsyncRequest<Driver, Row: Sendable>: XLAsyncRequest, @unchecked Sendable
+    where Driver: XLBlockingDatabaseDriver,
+          Driver: XLObservingDatabaseDriver,
+          Driver.Dialect == XLSQLiteDialect
+{
 
-    let request: GRDBRequest<Row>
+    let request: XLDriverRequest<Driver, Row>
 
     func fetchAll() async throws -> [Row] {
         try Task.checkCancellation()
@@ -87,12 +91,14 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
 
 
 ///
-/// The asynchronous execution of a ``GRDBWriteRequest``, in a transaction on
-/// the writer as its synchronous ``GRDBWriteRequest/execute()`` runs.
+/// The asynchronous execution of an `XLDriverWriteRequest`, in a
+/// transaction on the writer as its synchronous `execute()` runs.
 ///
-struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
+struct XLDriverAsyncWriteRequest<Driver: XLBlockingDatabaseDriver>: XLAsyncWriteRequest
+    where Driver.Dialect == XLSQLiteDialect
+{
 
-    let request: GRDBWriteRequest
+    let request: XLDriverWriteRequest<Driver>
 
     @discardableResult
     func execute() async throws -> XLExecutionResult {

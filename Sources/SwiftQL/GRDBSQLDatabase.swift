@@ -82,10 +82,6 @@ public struct GRDBDatabase: XLDatabase {
     
     let logger: XLLogger?
 
-    let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
-
-    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
-
     /// Opens a GRDB-backed SQLite database.
     ///
     /// Custom functions and collations cannot be registered through this
@@ -257,7 +253,9 @@ public struct GRDBDatabase: XLDatabase {
         )
         let driver = GRDBDatabaseDriver(
             databasePool: databasePool,
-            dialect: dialect
+            dialect: dialect,
+            liveQueryRetryPolicy: configuration.liveQueryRetryPolicy,
+            liveQueryRetryScheduler: configuration.liveQueryRetryScheduler
         )
         self.dialect = dialect
         self.codingConfiguration = configuration.codingConfiguration
@@ -267,15 +265,14 @@ public struct GRDBDatabase: XLDatabase {
         self.driver = driver
         self.renderCacheIdentifier = driver.databaseIdentifier
         self.logger = configuration.logger
-        self.liveQueryRetryPolicy = configuration.liveQueryRetryPolicy
-        self.liveQueryRetryScheduler = configuration.liveQueryRetryScheduler
     }
 
     /// Constructs a transaction-scoped copy of this database (issue #284),
     /// pinned to `pinnedDriver`'s connection. Every other field is copied
     /// unchanged, so a pinned scope renders through the same encoder,
-    /// dialect, coding snapshot, logger, and live-query retry policy as the
-    /// database ``withTransaction(_:)`` was called on. It also keeps that
+    /// dialect, coding snapshot, and logger as the database
+    /// ``withTransaction(_:)`` was called on, and its pinned driver carries
+    /// the same live-query retry policy (issue #682). It also keeps that
     /// database's render-once cache identifier, so it shares that database's
     /// cache entries instead of adding its own (issue #642).
     init(pinnedDriver: GRDBDatabaseDriver, pinnedFrom other: GRDBDatabase) {
@@ -287,8 +284,6 @@ public struct GRDBDatabase: XLDatabase {
         self.driver = pinnedDriver
         self.renderCacheIdentifier = other.renderCacheIdentifier
         self.logger = other.logger
-        self.liveQueryRetryPolicy = other.liveQueryRetryPolicy
-        self.liveQueryRetryScheduler = other.liveQueryRetryScheduler
     }
 
     /// Scopes render-once cache entries (issues #18/#26) to this database and
@@ -356,7 +351,9 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
             to: GRDBDatabaseDriver(
                 databasePool: databasePool,
                 dialect: dialect,
-                databaseIdentifier: renderCacheIdentifier
+                databaseIdentifier: renderCacheIdentifier,
+                liveQueryRetryPolicy: driver.liveQueryRetryPolicy,
+                liveQueryRetryScheduler: driver.liveQueryRetryScheduler
             )
         )
     }

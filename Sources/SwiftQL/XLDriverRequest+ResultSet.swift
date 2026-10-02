@@ -1,5 +1,5 @@
 //
-//  GRDBRequest+ResultSet.swift
+//  XLDriverRequest+ResultSet.swift
 //  SwiftQL
 //
 //  Scoped result sets: hand the caller a cursor over the rows for the duration
@@ -9,10 +9,9 @@
 //
 
 import Foundation
-import GRDB
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     func withResultSet<Result>(
         _ operation: (XLResultSet<Row>) throws -> Result
@@ -22,7 +21,7 @@ extension GRDBRequest {
 
     ///
     /// True-streaming override of the ``XLRequest`` default: lends an
-    /// `XLResultSet` backed directly by `GRDBInvocationExecutor`'s
+    /// `XLResultSet` backed directly by `XLInvocationExecutor<Driver>`'s
     /// value-level cursor stepper, so `next()` performs one real SQLite step
     /// and one real typed decode -- nothing is prefetched, and nothing is
     /// buffered beyond the one row currently being decoded.

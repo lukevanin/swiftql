@@ -15,9 +15,9 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
     /// Observes `statement` with GRDB's `ValueObservation`, re-running `fetch` on a pool connection
     /// after each committed change to what the statement reads.
     ///
-    /// The observation is terminal: it ends with the first error. A request made by a
-    /// `GRDBDatabase` passes its own retry policy through
-    /// ``observationBridge(_:retryPolicy:retryScheduler:fetch:)`` instead.
+    /// The observation recovers from a failure as the driver's
+    /// ``liveQueryRetryPolicy`` says, which is terminal unless the database
+    /// that owns the driver is configured to retry.
     func observe<Value: Sendable>(
         _ statement: XLLogicalPreparedStatement,
         fetch: @escaping @Sendable (inout GRDBDatabaseDriverConnection) throws -> Value
@@ -25,8 +25,8 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
         do {
             return try observationBridge(
                 statement,
-                retryPolicy: .terminal,
-                retryScheduler: nil,
+                retryPolicy: liveQueryRetryPolicy,
+                retryScheduler: liveQueryRetryScheduler,
                 fetch: fetch
             ).stream()
         }
@@ -35,11 +35,7 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
         }
     }
 
-    /// Builds the async-native GRDB observation bridge behind ``observe(_:fetch:)`` and every
-    /// GRDB-backed request's `stream()`/`streamOne()`.
-    ///
-    /// A request keeps the bridge rather than only its stream, so it can end the observation itself
-    /// when a row fails to decode after delivery.
+    /// Builds the async-native GRDB observation bridge behind ``observe(_:fetch:)``.
     ///
     /// The observation tracks a constant region (issue #652). `fetch` runs one statement, prepared
     /// from the immutable `statement`, bound to a packet fixed when the stream was made. GRDB

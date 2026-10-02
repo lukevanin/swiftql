@@ -1,5 +1,5 @@
 //
-//  GRDBRequest+Fetch.swift
+//  XLDriverRequest+Fetch.swift
 //  SwiftQL
 //
 //  Eager fetching: run the statement, decode every row, return an array.
@@ -8,15 +8,9 @@
 //
 
 import Foundation
-import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     func fetchAll() throws -> [Row] {
         try fetchAll(bindings: legacyBindings.packet())
@@ -43,7 +37,7 @@ extension GRDBRequest {
     /// driver's asynchronous scopes (issue #681).
     ///
     func withBlockingConnection<Result>(
-        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
+        _ operation: (inout Driver.Connection) throws -> Result
     ) throws -> Result {
         if requiresWriteConnection {
             return try executor.driver.withBlockingTransaction(operation)
@@ -53,11 +47,11 @@ extension GRDBRequest {
 
     ///
     /// The asynchronous form of ``withBlockingConnection(_:)``, for
-    /// `GRDBAsyncRequest` (issue #681): the same reader-or-writer choice, made
+    /// `XLDriverAsyncRequest` (issue #681): the same reader-or-writer choice, made
     /// with the driver's asynchronous scopes.
     ///
     func withConnection<Result: Sendable>(
-        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+        _ operation: @Sendable (inout Driver.Connection) throws -> Result
     ) async throws -> Result {
         if requiresWriteConnection {
             return try await executor.driver.withTransaction(operation)
@@ -67,7 +61,7 @@ extension GRDBRequest {
 
     func decodeRows(
         packet: XLValidatedSQLitePacket,
-        in connection: inout GRDBDatabaseDriverConnection
+        in connection: inout Driver.Connection
     ) throws -> [Row] {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
@@ -92,8 +86,9 @@ extension GRDBRequest {
     /// its first step, so the rows left unread are only output, never
     /// unapplied work. The commit needs the statement to be reset first,
     /// because SQLite refuses to commit while a statement is still in
-    /// progress; the GRDB row cursor behind `forEachRow` resets it when it is
-    /// released, before the transaction returns.
+    /// progress. The connection contract releases the cursor behind
+    /// `forEachRow` when it returns (issue #682), which resets the statement
+    /// before the transaction commits.
     ///
     func fetchAtMost(
         _ limit: Int,
@@ -108,7 +103,7 @@ extension GRDBRequest {
     func decodeRows(
         packet: XLValidatedSQLitePacket,
         limit: Int,
-        in connection: inout GRDBDatabaseDriverConnection
+        in connection: inout Driver.Connection
     ) throws -> [Row] {
         precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
         guard limit > 0 else {
@@ -158,7 +153,7 @@ extension GRDBRequest {
 
     ///
     /// The asynchronous form of ``fetchOne(bindings:)`` after validation, for
-    /// `GRDBAsyncRequest` (issue #681). It decodes where the synchronous form
+    /// `XLDriverAsyncRequest` (issue #681). It decodes where the synchronous form
     /// does: a `RETURNING` row inside its transaction, a query's row after the
     /// reader is released.
     ///
@@ -167,7 +162,7 @@ extension GRDBRequest {
         if requiresWriteConnection {
             // The decode runs in the driver's `@Sendable` operation, so the
             // request travels in its `Sendable` view.
-            let view = GRDBAsyncRequest(request: self)
+            let view = XLDriverAsyncRequest(request: self)
             return try await executor.driver.withTransaction { connection in
                 try view.request.decode(executor.fetchOne(packet: packet, in: &connection))
             }

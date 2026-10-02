@@ -21,6 +21,7 @@
       "name": "SwiftQLCore",
       "source_root": "Sources/SwiftQLCore",
       "allowed_uninstrumented_sources": [
+        "Sources/SwiftQLCore/SQLBlockingDatabaseDriver.swift",
         "Sources/SwiftQLCore/SQLFormatter.swift",
         "Sources/SwiftQLCore/SQLObservingDatabaseDriver.swift",
         "Sources/SwiftQLCore/SQLVocabulary.swift"
