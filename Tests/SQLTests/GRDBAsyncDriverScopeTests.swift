@@ -36,6 +36,19 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         }
     }
 
+    /// The blocking scopes the synchronous request members run on keep the
+    /// rules `XLBlockingDatabaseDriver` states (issue #682).
+    func testGRDBDriverPassesEveryBlockingContractClause() async {
+        for clause in BlockingDriverContractClause.allCases {
+            do {
+                try await BlockingDriverContractSuite.check(clause, fixtures!)
+            }
+            catch {
+                XCTFail("\(clause): \(error)")
+            }
+        }
+    }
+
     func testTransactionKindRendersAsTheMatchingBeginStatement() async throws {
         let driver = try await fixtures.makeDriver()
         let statements = LockedValue<[String]>([])

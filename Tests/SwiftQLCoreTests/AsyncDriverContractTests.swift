@@ -285,7 +285,9 @@ private actor MarkerStore {
 }
 
 
-private struct MarkerConnection: XLDatabaseDriverConnection, Sendable {
+/// Internal so `BlockingDriverContractTests` can lend the same connection from
+/// its blocking double.
+struct MarkerConnection: XLDatabaseDriverConnection, Sendable {
 
     static let insertSQL = "INSERT marker"
     static let countSQL = "COUNT marker"
