@@ -63,6 +63,10 @@ extension SQLQueriesMacro: MemberMacro {
         }
         let databaseType = extensionDecl.extendedType.trimmedDescription
 
+        // Issue #687: the container names the dialect once and supplies it to
+        // every specification, which never names it themselves.
+        let dialectType = try MacroDialectArgument.resolve(of: node, macroName: "@SQLQueries")
+
         // Propagate the extension's modifiers (access level) to every
         // generated member, so a `public extension` exposes the executors to
         // outside-module callers.
@@ -108,7 +112,8 @@ extension SQLQueriesMacro: MemberMacro {
                     node: node,
                     declaration: function,
                     macroName: "@SQLQueries",
-                    supportsAsync: false
+                    supportsAsync: false,
+                    dialectType: dialectType
                 ))
             }
             catch let error as DiagnosticsError {

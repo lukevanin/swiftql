@@ -108,6 +108,61 @@ internal enum MacroNameArgument {
 
 
 ///
+/// Resolves the optional `dialect:` argument shared by `@SQLQuery`,
+/// `@SQLQueries`, and `@SQLBindings` (issue #687).
+///
+internal enum MacroDialectArgument {
+
+    ///
+    /// The dialect generated code names when the attribute names none.
+    ///
+    /// The macros are declared in the `SwiftQL` umbrella, whose default
+    /// dialect is SQLite, so an attribute without the argument expands to what
+    /// it always meant.
+    ///
+    static let defaultDialectType = "XLSQLiteDialect"
+
+    ///
+    /// Returns the dialect type the attribute names, as source text, or
+    /// ``defaultDialectType`` when the argument is absent.
+    ///
+    /// The macro declaration types the argument as `Dialect.Type`, so the
+    /// compiler has already checked that it names a dialect. The macro still
+    /// needs the type's *spelling*, to write it into the generated code, so
+    /// the argument has to be written as `SomeDialect.self`. Any other
+    /// expression of the right type -- a variable holding the metatype -- is
+    /// reported, because generated code cannot name its type.
+    ///
+    static func resolve(
+        of node: AttributeSyntax,
+        macroName: String
+    ) throws -> String {
+        guard
+            case let .argumentList(arguments) = node.arguments,
+            let dialectArgument = arguments.first(where: { $0.label?.text == "dialect" })
+        else {
+            return defaultDialectType
+        }
+        guard
+            let memberAccess = dialectArgument.expression.as(MemberAccessExprSyntax.self),
+            memberAccess.declName.baseName.tokenKind == .keyword(.self),
+            memberAccess.declName.argumentNames == nil,
+            let base = memberAccess.base
+        else {
+            throw DiagnosticsError(diagnostics: [
+                Diagnostic(
+                    node: dialectArgument.expression,
+                    id: "invalid-dialect-argument",
+                    message: "The 'dialect' argument of '\(macroName)' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable."
+                )
+            ])
+        }
+        return base.trimmedDescription
+    }
+}
+
+
+///
 /// Names what the stored properties of a macro-annotated struct become, so the
 /// shared classification diagnostics read naturally for each macro.
 ///

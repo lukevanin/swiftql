@@ -603,6 +603,106 @@
           "test_case": "SQLQueryRenderOnceCacheTests.testTransactionScopesShareTheDatabaseEntryInsteadOfAddingOnePerScope"
         }
       ]
+    },
+    {
+      "id": "macro.dialect-parameterised-emission",
+      "category": "dialect-parameterised-emission",
+      "title": "One model declared once, built against two dialects",
+      "description": "Issue #687: the generated @SQLCodec staticResultField member is generic over an XLLiteralValueDialect instead of naming XLSQLiteDialect, and @SQLQuery, @SQLQueries, and @SQLBindings take an optional dialect: argument that names the dialect their invocation packet is encoded for, SQLite when absent. A container supplies its dialect to every specification. A fake second dialect with its own value model builds, encodes, and decodes the same @SQLTable model through the same generated members as SQLite, and an @SQLBindings packet encodes for it. The model declaration and the call sites are unchanged.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #687 and the dialect surface separation note, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLCodecMacroTests.swift",
+          "test_case": "staticResultField _SwiftQLCodecDialect XLLiteralValueDialect"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroExpansionTests.test_dialectArgument_parameterisesThePacketAndEveryBinding"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueriesMacroTests.swift",
+          "test_case": "SQLQueriesMacroDialectTests.test_containerDialectArgument_suppliesTheDialectToEverySpecification"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLBindingsMacroTests.swift",
+          "test_case": "SQLBindingsMacroExpansionTests.test_dialectArgument_parameterisesThePacketType"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsError"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueriesMacroTests.swift",
+          "test_case": "SQLQueriesMacroDialectTests.test_containerDialectArgumentNotATypeLiteral_emitsOneError"
+        },
+        {
+          "layer": "second-dialect-execution",
+          "source_path": "Tests/SQLTests/DialectParameterisedMacroTests.swift",
+          "test_case": "FakeSecondDialect / DialectParameterisedMacroTests.testOneModelRoundTripsThroughSQLite / testTheSameModelRoundTripsThroughASecondDialect / testEachDialectRecordsItsOwnStorageAndCodec / testBindingsPacketEncodesForTheDialectItNames"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/DialectParameterisedMacroTests.swift",
+          "test_case": "DialectParameterisedMacroTests.testDeclaredQueryNamingSQLiteRunsAsBefore"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
+          "test_case": "DialectParameterisedValid"
+        }
+      ]
+    },
+    {
+      "id": "macro.dialect-mismatch-rejected",
+      "category": "dialect-parameterised-emission",
+      "title": "A model built for one dialect used in another dialect's query",
+      "description": "Issue #687: a field built for one dialect cannot join a layout for another, and a layout built for one dialect cannot prepare a query on a database of another. Both are compile errors, and each error names both dialects.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #687, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
+          "test_case": "DialectParameterisedMixedLayout / DialectParameterisedForeignQuery / expected_dialects"
+        }
+      ]
+    },
+    {
+      "id": "macro.declared-query-second-dialect-execution",
+      "category": "dialect-parameterised-emission",
+      "title": "A declared query that names a dialect other than SQLite",
+      "description": "Issue #687: @SQLQuery(dialect:) and @SQLQueries(dialect:) emit a packet for the dialect they name, but the request layer they execute through is SQLite's. XLPreparedQuery holds an XLInvocationBindings<XLSQLiteValue>, and every shipped driver's dialect is XLSQLiteDialect, so an expansion that names another dialect does not compile where it meets that layer. It becomes executable when a driver for a second dialect exists.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #687, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "gated",
+      "gating": {
+        "reason": "No request layer or driver exists for a dialect other than SQLite, so a declared query for one has nothing to execute through.",
+        "blocking_issue": 137,
+        "milestone": "v2.5",
+        "documented_at": [
+          "Documentation/Architecture/DialectSurfaceSeparation.md",
+          "Sources/SwiftQL/SQL.swift (@SQLQuery(dialect:))"
+        ]
+      },
+      "evidence": []
     }
   ]
 }

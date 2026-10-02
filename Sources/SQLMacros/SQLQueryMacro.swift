@@ -45,7 +45,11 @@ extension SQLQueryMacro: PeerMacro {
         providingPeersOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        let builder = try SQLQueryBuilder(node: node, declaration: declaration)
+        let builder = try SQLQueryBuilder(
+            node: node,
+            declaration: declaration,
+            dialectType: try MacroDialectArgument.resolve(of: node, macroName: "@SQLQuery")
+        )
         return [
             try makeDecl(builder.makeStatementFunction()),
             try makeDecl(builder.makeRenderOnceCacheDeclaration()),
@@ -155,13 +159,22 @@ internal struct SQLQueryBuilder {
     /// parsed out of a container by the member macro.
     let macroName: String
 
+    /// The dialect the executor encodes its parameters for, as the source
+    /// text of its type (issue #687). `@SQLQuery` reads it from its own
+    /// `dialect:` argument; `@SQLQueries` reads it once from the container's
+    /// attribute and supplies it to every specification, which is how a
+    /// catalog supplies the dialect to the queries it declares.
+    let dialectType: String
+
     init(
         node: AttributeSyntax,
         declaration: some DeclSyntaxProtocol,
         macroName: String = "@SQLQuery",
-        supportsAsync: Bool = true
+        supportsAsync: Bool = true,
+        dialectType: String = MacroDialectArgument.defaultDialectType
     ) throws {
         self.macroName = macroName
+        self.dialectType = dialectType
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -861,14 +874,14 @@ internal struct SQLQueryBuilder {
         lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
+            lines.append("    let __xlPacket = try XLInvocationBindings<\(dialectType).Value>(layout: __xlLayout, bindings: []).validatingComplete()")
         }
         else {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(")
+            lines.append("    let __xlPacket = try XLInvocationBindings<\(dialectType).Value>(")
             lines.append("        layout: __xlLayout,")
             lines.append("        bindings: [")
             for parameter in parameters {
-                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
+                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout, using: \(dialectType).self),")
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")

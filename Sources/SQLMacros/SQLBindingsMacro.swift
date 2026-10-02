@@ -48,6 +48,10 @@ internal struct SQLBindingsBuilder {
 
     let properties: [SQLBindingsProperty]
 
+    /// The dialect the packet's values are encoded for, as the source text of
+    /// its type, from the attribute's `dialect:` argument (issue #687).
+    let dialectType: String
+
     init(node: AttributeSyntax, declaration: some DeclGroupSyntax) throws {
         guard let structDeclaration = declaration.as(StructDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
@@ -58,6 +62,7 @@ internal struct SQLBindingsBuilder {
                 )
             ])
         }
+        self.dialectType = try MacroDialectArgument.resolve(of: node, macroName: "@SQLBindings")
 
         var diagnostics = MacroDiagnosticCollector()
         var properties: [SQLBindingsProperty] = []
@@ -250,16 +255,16 @@ internal struct SQLBindingsBuilder {
     ///
     func makeLayoutPacketFunction() -> String {
         var lines: [String] = []
-        lines.append("\(accessPrefix)func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {")
+        lines.append("\(accessPrefix)func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<\(dialectType).Value> {")
         if properties.isEmpty {
-            lines.append("    try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
+            lines.append("    try XLInvocationBindings<\(dialectType).Value>(layout: __xlLayout, bindings: []).validatingComplete()")
         }
         else {
-            lines.append("    try XLInvocationBindings<XLSQLiteValue>(")
+            lines.append("    try XLInvocationBindings<\(dialectType).Value>(")
             lines.append("        layout: __xlLayout,")
             lines.append("        bindings: [")
             for property in properties {
-                lines.append("            try _xlQueryParameterBinding(self.\(property.swiftName), named: \(quoted(property.placeholderName)), in: __xlLayout),")
+                lines.append("            try _xlQueryParameterBinding(self.\(property.swiftName), named: \(quoted(property.placeholderName)), in: __xlLayout, using: \(dialectType).self),")
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")
@@ -273,7 +278,7 @@ internal struct SQLBindingsBuilder {
     ///
     func makeRequestPacketFunction() -> String {
         """
-        \(accessPrefix)func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+        \(accessPrefix)func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<\(dialectType).Value> {
             try self.bindings(in: __xlRequest.parameterLayout)
         }
         """
@@ -292,7 +297,7 @@ internal struct SQLBindingsBuilder {
     ///
     func makeWriteRequestPacketFunction() -> String {
         """
-        \(accessPrefix)func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+        \(accessPrefix)func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<\(dialectType).Value> {
             try self.bindings(in: __xlRequest.parameterLayout)
         }
         """

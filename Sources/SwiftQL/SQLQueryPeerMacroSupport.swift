@@ -26,6 +26,31 @@ public func _xlQueryParameterBinding<T>(
     named name: XLName,
     in layout: XLParameterLayout
 ) throws -> XLInvocationBinding<XLSQLiteValue> where T: XLBindable & XLLiteral {
+    try _xlQueryParameterBinding(
+        value,
+        named: name,
+        in: layout,
+        using: XLSQLiteDialect.self
+    )
+}
+
+
+///
+/// Encodes one intrinsic literal parameter value for a named placeholder in a
+/// prepared parameter layout, as a value of `Dialect` (issue #687).
+///
+/// The `@SQLQuery`, `@SQLQueries`, and `@SQLBindings` macros generate a call
+/// to this overload, naming the dialect their `dialect:` argument declares, or
+/// ``XLSQLiteDialect`` when there is none. The overload without a dialect is
+/// the v1 entry point that earlier expansions call.
+///
+public func _xlQueryParameterBinding<T, Dialect>(
+    _ value: T,
+    named name: XLName,
+    in layout: XLParameterLayout,
+    using _: Dialect.Type
+) throws -> XLInvocationBinding<Dialect.Value>
+where T: XLBindable & XLLiteral, Dialect: XLLiteralValueDialect {
     let declaration = _xlLegacyParameterDeclaration(
         for: T.self,
         key: .named(name.rawValue)
@@ -41,15 +66,15 @@ public func _xlQueryParameterBinding<T>(
             actual: declaration.slot(at: slot.index)
         )
     }
-    let sqliteValue = try _xlCaptureSQLiteValue(
+    let dialectValue = try Dialect.encodeLiteral(
         value,
         valueType: slot.valueTypeName,
         codingContext: slot.codingContext
     )
-    if sqliteValue == .null, slot.nullability == .required {
+    if Dialect.isNullLiteral(dialectValue), slot.nullability == .required {
         throw XLInvocationBindingError.nullForRequiredParameter(slot: slot)
     }
-    return try XLInvocationBinding(slot: slot, value: sqliteValue)
+    return try XLInvocationBinding(slot: slot, value: dialectValue)
 }
 
 

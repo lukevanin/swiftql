@@ -235,6 +235,31 @@
 
 ### Added
 
+- **The macro output carries the dialect as a parameter** (issue #687). The
+  code the macros generate no longer names SQLite, so a model declared once
+  builds against any dialect. Model declarations, query bodies, and the call
+  sites below are written as before.
+  - `XLLiteralValueDialect` is a new refinement of `XLValueCodingDialect`: it
+    maps SwiftQL's intrinsic literal types onto a dialect's own values.
+    `XLSQLiteDialect` conforms.
+  - The `staticResultField(<property>:...)` member that `@SQLCodec` generates
+    is generic over the dialect. `using: dialect` takes any
+    `XLLiteralValueDialect` and the field it returns carries that dialect.
+  - `XLValueCodingConfiguration.staticResultField(_:selecting:...)` and
+    `queryCapture(_:...)` take any `XLLiteralValueDialect`, and the
+    configuration gains `contextualBinding(_:expressedAs:...using:)`, the
+    database-free form of the database's own `contextualBinding`.
+    `XLStaticSelectField.intrinsic` and `XLQueryCapture.intrinsic` gain a
+    `using:` form for any `XLLiteralValueDialect`; the form without it is
+    still SQLite's.
+  - `@SQLQuery`, `@SQLQueries`, and `@SQLBindings` take an optional
+    `dialect:` argument, written `@SQLQuery(dialect: MyDialect.self)`, that
+    names the dialect their invocation packet is encoded for. Without it the
+    dialect is `XLSQLiteDialect`, and the expansion behaves exactly as before.
+    A `@SQLQueries` container supplies its dialect to every specification.
+    SwiftQL's requests are SQLite's, so a declared query that names another
+    dialect does not compile until a driver for that dialect exists.
+
 - **Requests run on any driver** (issue #682). `XLDriverDatabase<Driver>` is a
   public database over any driver that implements SwiftQL's driver contract,
   with `init(driver:logger:)` and `init(driver:codingConfiguration:logger:)`.
