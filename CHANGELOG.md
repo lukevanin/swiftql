@@ -238,7 +238,8 @@
   - `using:` on `XLValueCodingConfiguration.staticResultField(_:...)` and
     `queryCapture(_:...)`, and on the `staticResultField(<property>:...)`
     member `@SQLCodec` generates, now infers the dialect from its argument. A
-    call that wrote `using: .init()` no longer compiles; write
+    call that wrote `using: .init()` no longer compiles unless something else,
+    such as an annotated result type, fixes the dialect; write
     `using: XLSQLiteDialect()`.
   - `XLStaticSelectField.intrinsic(selecting:identifiedBy:using:context:)`
     no longer defaults `using:`. A call without it still selects the SQLite

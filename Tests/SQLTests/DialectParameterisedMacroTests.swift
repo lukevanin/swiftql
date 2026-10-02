@@ -17,7 +17,9 @@
 
 import Foundation
 import GRDB
-import SwiftQL
+// `@testable` only to reach a capture's intrinsic encoder, which no public
+// API applies for a dialect without a request layer.
+@testable import SwiftQL
 import XCTest
 
 
@@ -476,6 +478,10 @@ final class DialectParameterisedMacroTests: XCTestCase {
 
         XCTAssertEqual(intrinsic.dialectIdentifier, FakeSecondDialect.identity)
         XCTAssertEqual(intrinsic.storageIdentifier.rawValue, "fake.number")
+        guard case .intrinsic(let encodeIntrinsic) = intrinsic.encoding else {
+            return XCTFail("Expected an intrinsic capture encoder")
+        }
+        XCTAssertEqual(try encodeIntrinsic(3), .number(3))
         XCTAssertEqual(contextual.dialectIdentifier, FakeSecondDialect.identity)
         XCTAssertEqual(contextual.storageIdentifier.rawValue, "fake.string")
 
@@ -518,6 +524,9 @@ final class DialectParameterisedMacroTests: XCTestCase {
         let pool = try DatabasePool(path: fileURL.path)
         defer {
             try? pool.close()
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: fileURL.path + suffix)
+            }
         }
         let database = try GRDBDatabase(
             databasePool: pool,
