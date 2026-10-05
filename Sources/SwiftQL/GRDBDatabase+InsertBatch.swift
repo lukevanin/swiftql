@@ -221,8 +221,13 @@ where
         let executor = template.executor
         let layout = executor.parameterLayout
         // Prepared once for this call, on this connection. It is a local value,
-        // so it cannot outlive the connection access the caller holds.
-        let statement = try connection.prepare(executor.logicalStatement)
+        // so it cannot outlive the connection access the caller holds. It is
+        // reset after each row, and finalized when the batch ends however it
+        // ends (issue #677).
+        var statement = try connection.prepare(executor.logicalStatement)
+        defer {
+            connection.finalizePhysical(statement)
+        }
         let capture = XLInsertValueRecorder(expectedShape: template.shape)
         var isFirstRow = true
         var next: Row? = first
@@ -250,6 +255,7 @@ where
                     "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>"
                 )
                 try connection.executeBatchRow(statement, bindings: packet)
+                statement = try connection.resetPhysical(statement)
             }
             else {
                 try insertRendered(row, in: &connection)

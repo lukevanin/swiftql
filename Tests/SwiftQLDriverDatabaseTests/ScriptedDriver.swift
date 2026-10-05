@@ -32,6 +32,12 @@ final class ScriptedStore: @unchecked Sendable {
 
     private var scopeLog: [String] = []
 
+    private var lifecycleLog: [LifecycleEvent] = []
+
+    private var statementCount = 0
+
+    private var failure: ScriptedFailure?
+
     private var observers: [UUID: (entities: Set<String>, changed: AsyncStream<Void>.Continuation)] = [:]
 
     /// The rows every query returns from now on.
@@ -57,6 +63,36 @@ final class ScriptedStore: @unchecked Sendable {
 
     func recordScope(_ scope: String) {
         locked { scopeLog.append(scope) }
+    }
+
+    /// One step of a statement's lifecycle (issue #677), by statement number.
+    enum LifecycleEvent: Equatable {
+        case prepared(Int)
+        case ran(Int)
+        case finalized(Int)
+    }
+
+    /// Every lifecycle step so far, in order.
+    var lifecycle: [LifecycleEvent] {
+        locked { lifecycleLog }
+    }
+
+    func recordLifecycle(_ event: LifecycleEvent) {
+        locked { lifecycleLog.append(event) }
+    }
+
+    /// A number for the next statement a connection prepares.
+    func nextStatementNumber() -> Int {
+        locked {
+            statementCount += 1
+            return statementCount
+        }
+    }
+
+    /// The step every connection fails from now on, or `nil` for none.
+    var failing: ScriptedFailure? {
+        get { locked { failure } }
+        set { locked { failure = newValue } }
     }
 
     func record(_ execution: Execution) {
@@ -97,9 +133,17 @@ final class ScriptedStore: @unchecked Sendable {
 /// A statement prepared by ``ScriptedConnection``: the SQL, what it reads or
 /// writes, and the values bound so far.
 struct ScriptedStatement {
+    let number: Int
     let sql: String
     let entities: Set<String>
     var bindings: [XLBindingKey: XLSQLiteValue] = [:]
+}
+
+
+/// A step a scripted connection can be told to fail.
+enum ScriptedFailure: Error, Equatable {
+    case bind
+    case run
 }
 
 
@@ -121,7 +165,10 @@ struct ScriptedConnection: XLDatabaseDriverConnection {
     mutating func preparePhysical(
         _ statement: XLValidatedLogicalPreparedStatement
     ) throws -> ScriptedStatement {
-        ScriptedStatement(
+        let number = store.nextStatementNumber()
+        store.recordLifecycle(.prepared(number))
+        return ScriptedStatement(
+            number: number,
             sql: statement.logicalStatement.sql,
             entities: statement.logicalStatement.entities
         )
@@ -132,12 +179,19 @@ struct ScriptedConnection: XLDatabaseDriverConnection {
         to key: XLBindingKey,
         in statement: ScriptedStatement
     ) throws -> ScriptedStatement {
+        if store.failing == .bind {
+            throw ScriptedFailure.bind
+        }
         var bound = statement
         bound.bindings[key] = value
         return bound
     }
 
     mutating func fetchAll(_ statement: ScriptedStatement) throws -> [[XLSQLiteValue]] {
+        store.recordLifecycle(.ran(statement.number))
+        if store.failing == .run {
+            throw ScriptedFailure.run
+        }
         store.record(.init(sql: statement.sql, bindings: statement.bindings, returnsRows: true))
         return store.rows
     }
@@ -147,9 +201,17 @@ struct ScriptedConnection: XLDatabaseDriverConnection {
     }
 
     mutating func execute(_ statement: ScriptedStatement) throws -> XLExecutionResult {
+        store.recordLifecycle(.ran(statement.number))
+        if store.failing == .run {
+            throw ScriptedFailure.run
+        }
         store.record(.init(sql: statement.sql, bindings: statement.bindings, returnsRows: false))
         store.changed(statement.entities)
         return XLExecutionResult(rowsAffected: 1, access: .write)
+    }
+
+    mutating func finalizePhysical(_ statement: ScriptedStatement) {
+        store.recordLifecycle(.finalized(statement.number))
     }
 }
 

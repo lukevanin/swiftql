@@ -165,6 +165,25 @@ on one connection does not guarantee every later preparation: preparation can
 still fail later on a newly leased connection, for example when its schema,
 registered functions, or available capabilities differ.
 
+A physical statement has a lifecycle on its connection (issue #677). SwiftQL
+prepares it, binds it, and runs it. Before it runs one statement again, such as
+for the next row of a batch insert, it calls the connection's
+`resetPhysical(_:)`. When it is done with the statement, including when binding
+or running it threw, it calls `finalizePhysical(_:)`, on the same connection
+access. Both default to doing nothing, so a driver that frees a statement on
+its own needs neither.
+
+A connection that caches statements can also conform to
+`XLStatementCachingDriverConnection`, in SwiftQLCore. Its
+`statementCacheStatistics` counts the cache's hits, misses, evictions, and
+invalidations. Its `invalidatePreparedStatements()` discards every cached
+statement after a schema change the connection cannot see for itself. Its
+`warmUp(_:)` prepares and finalizes a list of logical statements without
+running them, so that their first runs are cache hits. A connection that does
+not cache statements does not conform. The GRDB connection does not conform:
+GRDB keeps its statement cache private, and clears it itself when the schema
+changes.
+
 ## Incremental row lifetime
 
 Every request steps result rows through the connection contract's

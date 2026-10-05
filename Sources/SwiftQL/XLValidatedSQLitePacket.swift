@@ -41,7 +41,7 @@ struct XLValidatedSQLitePacket {
     /// Checks `bindings` against `layout` and keeps the result.
     ///
     /// This is the only way to make one, and it cannot be handed something it
-    /// has not checked -- which is what lets `boundStatement` execute a packet
+    /// has not checked -- which is what lets `withBoundStatement` execute a packet
     /// without validating it again.
     ///
     /// - Parameter requestType: Named in the mismatch error, so the message

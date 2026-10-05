@@ -62,7 +62,9 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         packet: XLValidatedSQLitePacket,
         in connection: inout Driver.Connection
     ) throws -> [[XLSQLiteValue]] {
-        try connection.fetchAll(boundStatement(packet: packet, in: &connection))
+        try withBoundStatement(packet: packet, in: &connection) { connection, statement in
+            try connection.fetchAll(statement)
+        }
     }
 
     /// Visits normalized rows while the driver's cursor remains inside its owning
@@ -87,10 +89,9 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         in connection: inout Driver.Connection,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
-        try connection.forEachRow(
-            boundStatement(packet: packet, in: &connection),
-            body
-        )
+        try withBoundStatement(packet: packet, in: &connection) { connection, statement in
+            try connection.forEachRow(statement, body)
+        }
     }
 
     ///
@@ -110,8 +111,9 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
     ) throws -> Result {
         let accessor: (inout Driver.Connection) throws -> Result = { connection in
-            let statement = try self.boundStatement(packet: packet, in: &connection)
-            return try connection.withValuesStepper(statement, operation)
+            try self.withBoundStatement(packet: packet, in: &connection) { connection, statement in
+                try connection.withValuesStepper(statement, operation)
+            }
         }
         if requiresWriteConnection {
             return try driver.withBlockingTransaction(accessor)
@@ -134,7 +136,9 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         packet: XLValidatedSQLitePacket,
         in connection: inout Driver.Connection
     ) throws -> [XLSQLiteValue]? {
-        try connection.fetchOne(boundStatement(packet: packet, in: &connection))
+        try withBoundStatement(packet: packet, in: &connection) { connection, statement in
+            try connection.fetchOne(statement)
+        }
     }
 
     @discardableResult
@@ -162,7 +166,9 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         packet: XLValidatedSQLitePacket,
         in connection: inout Driver.Connection
     ) throws -> XLExecutionResult {
-        try connection.execute(boundStatement(packet: packet, in: &connection))
+        try withBoundStatement(packet: packet, in: &connection) { connection, statement in
+            try connection.execute(statement)
+        }
     }
 
     ///
@@ -260,15 +266,40 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         return validatedPacket
     }
 
-    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
-    /// time this exact binding step on its own (issue #670).
-    func boundStatement(
+    ///
+    /// Prepares and binds one statement for `packet`, lends it to `run`, then
+    /// finalizes it on the same connection (issue #677).
+    ///
+    /// The statement is finalized however this ends: when `run` returns or
+    /// throws, and when binding throws. `run` must not keep the statement.
+    ///
+    func withBoundStatement<Result>(
         packet: XLValidatedSQLitePacket,
-        in connection: inout Driver.Connection
-    ) throws -> Driver.Connection.PhysicalStatement {
+        in connection: inout Driver.Connection,
+        _ run: (inout Driver.Connection, Driver.Connection.PhysicalStatement) throws -> Result
+    ) throws -> Result {
         // `prepare` installs the functions the statement calls first, on
         // whichever connection this is (issue #683).
         var statement = try connection.prepare(logicalStatement)
+        defer {
+            connection.finalizePhysical(statement)
+        }
+        statement = try bind(packet: packet, to: statement, in: &connection)
+        return try run(&connection, statement)
+    }
+
+    /// Binds every value of `packet` to a statement prepared from this
+    /// executor's logical statement, then lets the connection check the
+    /// arguments.
+    ///
+    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
+    /// time this exact binding step on its own (issue #670).
+    func bind(
+        packet: XLValidatedSQLitePacket,
+        to preparedStatement: Driver.Connection.PhysicalStatement,
+        in connection: inout Driver.Connection
+    ) throws -> Driver.Connection.PhysicalStatement {
+        var statement = preparedStatement
         for binding in packet.bindings {
             do {
                 statement = try connection.bindValidated(
