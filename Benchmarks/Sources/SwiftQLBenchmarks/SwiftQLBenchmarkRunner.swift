@@ -900,7 +900,7 @@ public final class SwiftQLBenchmarkRunner {
 
         let decoding = try BenchmarkSampler(configuration: configuration).measure(
             notes: [
-                "Decodes the complete result, materialized once before sampling, through GRDBRowDecoder.decode(values:), the per-row call inside fetchAll().",
+                "Decodes the complete result, materialized once before sampling, through GRDBRowDecoder.decode(values:), the per-row decode of fetchOne() and live queries; fetchAll() reads each column from the cursor's row handle instead (issue #678).",
                 "Includes decoded-output array allocation; SQL execution and column materialization are excluded.",
             ],
             operation: {
