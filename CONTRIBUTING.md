@@ -127,11 +127,50 @@ Avoid restating what the diff already shows.
 
 1. Open a PR from your branch against `main` (or the milestone base branch
    `version/x.y.z` when the milestone owns a dedicated branch).
-2. Request a Copilot review.
-3. Address every actionable Copilot comment — either fix the code or add a
-   brief explanation of why not in a reply. Push the updated commits and
-   re-request review until Copilot has no further useful feedback.
-4. A human maintainer merges the PR. PRs are never self-merged.
+2. Get a Claude review. Copilot review is not available for this repository.
+   Run Claude Code's `/code-review` skill on the PR at `high` effort with
+   `--comment` (`/code-review <PR number> high --comment`), so the findings
+   are posted as review comments.
+   - If the comments cannot be posted (for example `403 Resource not
+     accessible by integration`), the review still returns its findings, so
+     do not rerun it. Record the round as one PR comment with a table of
+     every finding and its outcome, and record every later round of that PR
+     the same way.
+   - If some comments were posted before it failed, the table lists those
+     findings as well, with a link to each posted comment, so the round is
+     complete in one place.
+   - If the run returned no findings because it failed, rerun it once
+     without `--comment` and record that run as the table.
+   - If you do not use Claude Code, say so in the PR: the maintainer then
+     runs each review and posts the closing comment, and you answer and fix
+     the findings, then comment on the PR to ask for the next review.
+3. Verify each finding before acting on it. A review at `high` effort errs on
+   the side of reporting, so some findings do not reproduce, and a later
+   round can repeat or reverse an earlier one. Fix the real ones. For the
+   rest, explain why not, rather than changing code to satisfy them. When the
+   round was posted inline, answer on the finding's thread and resolve the
+   threads a push fixes, or say in the answer that you could not; when it
+   was one comment, answer in its table.
+4. Push, and review the new head. A finding that repeats one already answered
+   is answered by a link to the earlier answer, on its own thread or in the
+   table, not argued again.
+5. A finding is open when it is real and not yet fixed. A repeat of a
+   finding whose fix did not hold is open again. A real finding you decline
+   to fix stays open too: explain why, and it goes to the maintainer. A
+   finding that does not reproduce, or a repeat of one already fixed or
+   shown not to reproduce, is not open.
+6. The loop ends when a review finds nothing open that you mean to fix, or
+   after five rounds, whichever comes first. After the fifth round's fixes,
+   review the head once more without fixing anything, so no code is left
+   unreviewed.
+7. However the loop ends, post a closing PR comment. It lists every finding
+   still open, or says that nothing is. A correctness defect still open (the
+   code does the wrong thing, or can crash or lose data) goes first, and the
+   PR is not ready to merge until it is fixed; the maintainer decides how
+   that fix is reviewed. Any other open finding, such as a declined cleanup
+   or a question of style, is listed for the maintainer and does not by
+   itself block the merge.
+8. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)
 must use a **merge commit** when merging into `main`. Squash and rebase merges
