@@ -57,6 +57,17 @@ import Foundation
 /// synchronously to completion and has no cooperative cancellation point
 /// while committed or rolled-back writes are underway.
 ///
+/// ## One thread
+///
+/// Use the scope only on the thread that runs `body`. The scope's connection
+/// belongs to that thread until `body` returns, so a statement run from any
+/// other thread, such as from a task created in the body, through the scope
+/// or a request or write request made from it, throws
+/// ``XLTransactionScopeError/scopeEscaped`` instead of running. The compiler
+/// does not enforce this yet: the scope has the database's own type, which is
+/// `Sendable`, so a `@Sendable` closure can capture it. Making that capture a
+/// compile-time error is issue #802.
+///
 /// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for
 /// concrete examples of the durable-state guarantees this API makes.
 /// <doc:GettingStarted> introduces the everyday spelling.
@@ -70,7 +81,9 @@ public protocol XLTransactionalDatabase: XLDatabase {
     /// - Parameter body: Receives a database-shaped scope pinned to this
     ///   transaction's connection. Use it exactly like the enclosing
     ///   database — `makeRequest(with:)`, the v1 fetch/execute methods, and
-    ///   any `@SQLQueries`-generated `Context` all work unchanged.
+    ///   any `@SQLQueries`-generated `Context` all work unchanged — but only
+    ///   on the thread that runs `body`. From another thread, it throws
+    ///   ``XLTransactionScopeError/scopeEscaped``.
     /// - Returns: `body`'s result, after the transaction has committed.
     /// - Throws: The original error `body` threw (preparation, binding,
     ///   execution, decoding, or user-thrown) after rolling back every write

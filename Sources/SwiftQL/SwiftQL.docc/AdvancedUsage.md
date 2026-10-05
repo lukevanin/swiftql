@@ -333,6 +333,17 @@ wrong answer:
   pinned connection is invalidated the instant the body returns, so
   continuing would silently touch a connection GRDB may already be reusing
   for unrelated work.
+- **The scope must stay on the body's thread.** The pinned connection belongs
+  to the thread that runs the body until the body returns. A statement run
+  from any other thread through the scope, or through a request made from it,
+  throws `.scopeEscaped`; a task created in the body is such a thread. The
+  task gets the error, so the body only sees it if it waits for that task's
+  result. Give a task the original database instead, as the first rule
+  describes. The compiler does not catch this yet: the scope is a
+  `GRDBDatabase`, which is `Sendable`, so a `Task` or other `@Sendable`
+  closure can capture it.
+  [#802](https://github.com/lukevanin/swiftql/issues/802) tracks a scope type
+  that the compiler would refuse to send.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

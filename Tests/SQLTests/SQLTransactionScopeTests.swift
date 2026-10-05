@@ -761,6 +761,94 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(childError, .scopeEscaped)
     }
 
+    /// The scope itself, not only a request made from it, is refused on
+    /// another thread (issue #696). A detached task that captures the scope
+    /// and calls each of its entry points gets `scopeEscaped` from every
+    /// one, rather than reaching the pinned connection, which GRDB stops
+    /// with a precondition off its writer queue. The body can still use the
+    /// scope afterwards, and none of the task's writes commits.
+    ///
+    /// The capture compiles because the scope is a `GRDBDatabase`, which is
+    /// `Sendable`. Rejecting it at compile time is issue #802's work; until
+    /// then this guard is what stops it.
+    func testADetachedTaskThatUsesTheScopeItselfThrowsScopeEscapedFromEveryEntryPoint() async throws {
+        try createTestTable()
+        let database = self.database!
+
+        let outcomes = try await onDispatchThread {
+            try database.withTransaction { scope -> [String] in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+
+                let finished = DispatchSemaphore(value: 0)
+                let recorded = LockedValue<[String]>([])
+                Task.detached {
+                    func outcome(_ entryPoint: String, _ work: () throws -> Void) -> String {
+                        do {
+                            try work()
+                            return "\(entryPoint): ran"
+                        }
+                        catch let error as XLTransactionScopeError {
+                            return "\(entryPoint): \(error)"
+                        }
+                        catch {
+                            return "\(entryPoint): \(type(of: error)): \(error)"
+                        }
+                    }
+                    let select = sql { schema in
+                        let table = schema.table(TestTable.self)
+                        Select(table)
+                        From(table)
+                    }
+                    let results = [
+                        outcome("makeRequest(with:).fetchAll()") {
+                            _ = try scope.makeRequest(with: select).fetchAll()
+                        },
+                        outcome("makeRequest(with:).execute()") {
+                            try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
+                        },
+                        outcome("insert(contentsOf:)") {
+                            try scope.insert(contentsOf: [TestTable(id: "gamma", value: 3)])
+                        },
+                        outcome("prepareInvocation(with:)") {
+                            let invocation = scope.prepareInvocation(with: select)
+                            let bindings = try XLInvocationBindings<XLSQLiteValue>(
+                                layout: invocation.parameterLayout,
+                                bindings: []
+                            ).validatingComplete()
+                            _ = try invocation.fetchAllValues(bindings: bindings)
+                        },
+                        outcome("@SQLQuery executor") {
+                            _ = try scope.fetchTransactionScopeRowByID(id: "alpha")
+                        },
+                        outcome("@SQLQueries executor") {
+                            _ = try scope.containerRowsMatchingID(id: "alpha")
+                        },
+                    ]
+                    recorded.withValue { $0 = results }
+                    finished.signal()
+                }
+                XCTAssertEqual(finished.wait(timeout: .now() + 10), .success)
+
+                // The refused calls left the scope usable on its own thread.
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "delta", value: 4))).execute()
+                return recorded.read()
+            }
+        }
+
+        XCTAssertEqual(outcomes, [
+            "makeRequest(with:).fetchAll(): scopeEscaped",
+            "makeRequest(with:).execute(): scopeEscaped",
+            "insert(contentsOf:): scopeEscaped",
+            "prepareInvocation(with:): scopeEscaped",
+            "@SQLQuery executor: scopeEscaped",
+            "@SQLQueries executor: scopeEscaped",
+        ])
+        XCTAssertEqual(
+            try freshRows().sorted { $0.id < $1.id },
+            [TestTable(id: "alpha", value: 1), TestTable(id: "delta", value: 4)]
+        )
+    }
+
     /// Runs `body` on a dispatch thread, outside any task, and resumes with
     /// its result.
     private func onDispatchThread<Result: Sendable>(
