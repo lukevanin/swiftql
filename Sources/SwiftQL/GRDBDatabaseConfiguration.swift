@@ -53,7 +53,7 @@ public struct GRDBDatabaseConfiguration: Hashable, Sendable {
     ///
     /// It applies to the pool's writer connection. GRDB gives the pool's
     /// reader connections a 10-second timeout of its own, which this does
-    /// not change. It must be between 0 and 2,147,483 seconds: opening a
+    /// not change. It must be between 0 and 2,147,483.647 seconds: opening a
     /// database with any other value, or with NaN, throws an `XLDatabaseError`
     /// whose code is `.misuse`.
     public var busyTimeout: TimeInterval?

@@ -10,9 +10,10 @@
 //  module beside SwiftQL, GRDB, Foundation, and SwiftUI, and the Apple
 //  frameworks an app commonly imports with them (Combine, Observation, os,
 //  and SwiftData), and names every alias unqualified, so a proposed name that
-//  another of those modules declares stops the package building. `SwiftQLV2NameInventoryTests` keeps the list
-//  complete: every public `XL` type in SwiftQL and SwiftQLCore has exactly one
-//  line here, as an alias or below.
+//  another of those modules declares stops the test build.
+//  `SwiftQLV2NameInventoryTests` keeps the list complete: every public `XL`
+//  type in SwiftQL and SwiftQLCore has exactly one line here, as an alias or
+//  below.
 //
 //  Unresolved collisions. These names collide with a type another of those
 //  modules declares, so they have no alias yet. #33 chooses their v2 names;

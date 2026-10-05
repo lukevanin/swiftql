@@ -1580,12 +1580,15 @@ extension XLDocumentationTests {
             configuration: configuration,
             logger: nil
         )
+        // Close before the directory goes, whether or not the checks pass.
+        defer { try? configuredDatabase.databasePool.close() }
         XCTAssertEqual(configuredDatabase.databasePool.configuration.maximumReaderCount, 2)
         XCTAssertEqual(try configuredDatabase.makeRequest(with: sql { _ in Select(1) }).fetchOne(), 1)
 
         // "The GRDB escape hatch".
         let pooledDatabaseURL = directory.appendingPathComponent("pooled.sqlite")
         let pool = try DatabasePool(path: pooledDatabaseURL.path)
+        defer { try? pool.close() }
         let pooledDatabase = try GRDBDatabase(
             databasePool: pool,
             formatter: XLiteFormatter(),
@@ -1596,8 +1599,6 @@ extension XLDocumentationTests {
         }
         XCTAssertTrue(pooledDatabase.databasePool === pool)
         XCTAssertTrue(try pool.read { db in try db.tableExists("Note") })
-        try configuredDatabase.databasePool.close()
-        try pool.close()
     }
 
     /// A nullable column is assigned in a `Setting` closure the same way an

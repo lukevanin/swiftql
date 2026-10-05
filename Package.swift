@@ -392,9 +392,10 @@ let package = Package(
         // GRDB, Foundation, and, where they exist, SwiftUI, Combine,
         // Observation, os, and SwiftData, together with the proposed v2 names,
         // and names each one unqualified. A proposed name another of those
-        // modules also declares is ambiguous there, so the package stops
-        // building.
-        .target(
+        // modules also declares is ambiguous there, so the tests stop
+        // building. It is a test target with no tests, so a collision a new
+        // SDK introduces fails the test build, not `swift build`.
+        .testTarget(
             name: "SwiftQLV2NameCollisionFixture",
             dependencies: [
                 "SwiftQL",

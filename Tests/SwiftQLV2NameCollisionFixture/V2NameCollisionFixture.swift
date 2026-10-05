@@ -8,7 +8,8 @@
 //  names every proposed v2 type, and every public type SwiftQL already spells
 //  without a prefix, unqualified.
 //  Swift rejects a type name two imported modules declare as ambiguous, so a
-//  proposed name that collides stops the package building.
+//  proposed name that collides stops the test build. This is a test target
+//  with no tests, so a plain `swift build` does not compile it.
 //
 //  The proposed names live in `SwiftQLV2Names`, a module of their own, so the
 //  lookup here is a cross-module lookup, as it will be once #33 renames the

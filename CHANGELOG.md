@@ -261,7 +261,7 @@
     `.timeout(_:)`. Like `busyMode`, it applies to the pool's writer; GRDB
     keeps its own 10-second timeout for the pool's readers.
   - A `maximumReaderCount` below 1, or a busy timeout outside 0 to
-    2,147,483 seconds, from either configuration, now makes opening the
+    2,147,483.647 seconds, from either configuration, now makes opening the
     database throw an `XLDatabaseError` whose code is `.misuse`. GRDB stopped
     the process, or for a negative timeout, silently waited for nothing.
   - Anything else GRDB offers is SwiftQL's GRDB SPI, which a file declares

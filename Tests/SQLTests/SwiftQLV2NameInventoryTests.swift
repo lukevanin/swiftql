@@ -185,7 +185,7 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
             }
             for case let url as URL in enumerator where url.pathExtension == "swift" {
                 let source = try String(contentsOf: url, encoding: .utf8)
-                for statement in fileScopeStatements(in: source) {
+                for statement in try fileScopeStatements(in: source, file: url.lastPathComponent) {
                     let range = NSRange(statement.startIndex ..< statement.endIndex, in: statement)
                     if let match = declaration.firstMatch(in: statement, range: range),
                        let name = Range(match.range(at: 1), in: statement) {
@@ -206,11 +206,15 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
     )
 
     /// The statements of `source` that sit outside every brace, one per
-    /// line, with comments removed and every string literal emptied, so a
-    /// brace or parenthesis inside one is not counted. Lines that hold only
-    /// attributes join the line after them, so a declaration keeps the
-    /// attributes written above it.
-    private static func fileScopeStatements(in source: String) -> [String] {
+    /// line, with comments removed and every string literal emptied, raw
+    /// ones included, so a brace or parenthesis inside one is not counted.
+    /// Lines that hold only attributes join the line after them, so a
+    /// declaration keeps the attributes written above it.
+    ///
+    /// A file whose braces do not balance means the scan lost track of a
+    /// literal, such as a regex literal, which it does not parse. It throws
+    /// rather than report types from the wrong depth.
+    private static func fileScopeStatements(in source: String, file: String) throws -> [String] {
         var statements: [String] = []
         var current = ""
         var depth = 0
@@ -230,11 +234,11 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
         }
 
         /// Skips a string literal whose opening delimiter has been consumed,
-        /// up to and including `terminator`.
-        func skipString(until terminator: String, multiline: Bool) {
+        /// up to and including `terminator`. A raw string has no escapes.
+        func skipString(until terminator: String, multiline: Bool, raw: Bool) {
             while !characters.isEmpty, !characters.starts(with: terminator) {
                 if !multiline, characters.first == "\n" { return }
-                characters = characters.dropFirst(characters.first == "\\" ? 2 : 1)
+                characters = characters.dropFirst(!raw && characters.first == "\\" ? 2 : 1)
             }
             characters = characters.dropFirst(terminator.count)
         }
@@ -256,13 +260,23 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
                         characters = characters.dropFirst()
                     }
                 }
+            } else if character == "#",
+                      characters.drop(while: { $0 == "#" }).first == "\"" {
+                // A raw string: its terminator repeats the opening hashes.
+                let hashes = String(characters.prefix(while: { $0 == "#" }))
+                characters = characters.dropFirst(hashes.count)
+                let multiline = characters.starts(with: "\"\"\"")
+                let quote = multiline ? "\"\"\"" : "\""
+                characters = characters.dropFirst(quote.count)
+                skipString(until: quote + hashes, multiline: multiline, raw: true)
+                if depth == 0 { current += "\"\"" }
             } else if characters.starts(with: "\"\"\"") {
                 characters = characters.dropFirst(3)
-                skipString(until: "\"\"\"", multiline: true)
+                skipString(until: "\"\"\"", multiline: true, raw: false)
                 if depth == 0 { current += "\"\"" }
             } else if character == "\"" {
                 characters = characters.dropFirst()
-                skipString(until: "\"", multiline: false)
+                skipString(until: "\"", multiline: false, raw: false)
                 if depth == 0 { current += "\"\"" }
             } else {
                 characters = characters.dropFirst()
@@ -271,7 +285,10 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
                     if depth == 0 { endLine() }
                     depth += 1
                 case "}":
-                    depth = max(0, depth - 1)
+                    depth -= 1
+                    guard depth >= 0 else {
+                        throw InventoryError.formatChanged("\(file): a closing brace has no opening one.")
+                    }
                 case "\n" where depth == 0:
                     endLine()
                 default:
@@ -280,6 +297,9 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
             }
         }
         endLine()
+        guard depth == 0 else {
+            throw InventoryError.formatChanged("\(file): \(depth) braces are never closed.")
+        }
         return statements
     }
 

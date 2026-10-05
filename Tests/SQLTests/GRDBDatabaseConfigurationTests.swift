@@ -147,7 +147,7 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
                 XCTAssertEqual(databaseError?.code, .misuse, "\(busyTimeout): \(error)")
                 XCTAssertEqual(
                     databaseError?.message,
-                    "busy timeout must be between 0 and 2147483 seconds; it is \(busyTimeout)"
+                    "busy timeout must be between 0 and 2147483.647 seconds; it is \(busyTimeout)"
                 )
             }
         }

@@ -234,7 +234,7 @@ public struct GRDBDatabaseBuilder {
                     throw DatabaseError(
                         resultCode: .SQLITE_MISUSE,
                         message: "busy timeout must be between 0 and "
-                            + "\(CInt.max / 1000) seconds; it is \(timeout)"
+                            + "\(Double(CInt.max) / 1000) seconds; it is \(timeout)"
                     )
                 }
             }
