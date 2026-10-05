@@ -98,10 +98,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                             }()
                         }
                         let __xlLayout = __xlRequest.parameterLayout
-                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                             layout: __xlLayout,
                             bindings: [
-                                try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                                try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
                             ]
                         ).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -121,10 +121,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                             }()
                         }
                         let __xlLayout = __xlRequest.parameterLayout
-                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                             layout: __xlLayout,
                             bindings: [
-                                try _xlQueryParameterBinding(id, named: "id", in: __xlLayout),
+                                try _xlQueryParameterBinding(id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
                             ]
                         ).validatingComplete()
                         return try __xlRequest.fetchOne(bindings: __xlPacket)
@@ -190,10 +190,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                                 }()
                             }
                             let __xlLayout = __xlRequest.parameterLayout
-                            let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                                 layout: __xlLayout,
                                 bindings: [
-                                    try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                                    try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
                                 ]
                             ).validatingComplete()
                             return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -211,10 +211,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                                 }()
                             }
                             let __xlLayout = __xlRequest.parameterLayout
-                            let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                                 layout: __xlLayout,
                                 bindings: [
-                                    try _xlQueryParameterBinding(id, named: "id", in: __xlLayout),
+                                    try _xlQueryParameterBinding(id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
                                 ]
                             ).validatingComplete()
                             return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -309,11 +309,11 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                             }()
                         }
                         let __xlLayout = __xlRequest.parameterLayout
-                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                             layout: __xlLayout,
                             bindings: [
-                                try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout),
-                                try _xlQueryParameterBinding(count, named: "count", in: __xlLayout),
+                                try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: XLSQLiteDialect.self),
+                                try _xlQueryParameterBinding(count, named: "count", in: __xlLayout, using: XLSQLiteDialect.self),
                             ]
                         ).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -362,11 +362,11 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                                 }()
                             }
                             let __xlLayout = __xlRequest.parameterLayout
-                            let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                                 layout: __xlLayout,
                                 bindings: [
-                                    try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout),
-                                    try _xlQueryParameterBinding(count, named: "count", in: __xlLayout),
+                                    try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: XLSQLiteDialect.self),
+                                    try _xlQueryParameterBinding(count, named: "count", in: __xlLayout, using: XLSQLiteDialect.self),
                                 ]
                             ).validatingComplete()
                             return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -453,10 +453,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                             }()
                         }
                         let __xlLayout = __xlRequest.parameterLayout
-                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                             layout: __xlLayout,
                             bindings: [
-                                try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                                try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: XLSQLiteDialect.self),
                             ]
                         ).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -502,10 +502,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                                 }()
                             }
                             let __xlLayout = __xlRequest.parameterLayout
-                            let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
                                 layout: __xlLayout,
                                 bindings: [
-                                    try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                                    try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: XLSQLiteDialect.self),
                                 ]
                             ).validatingComplete()
                             return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -644,7 +644,7 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                             }()
                         }
                         let __xlLayout = __xlRequest.parameterLayout
-                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
 
@@ -684,7 +684,7 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                                 }()
                             }
                             let __xlLayout = __xlRequest.parameterLayout
-                            let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                            let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                             return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                         }
                     }
@@ -711,6 +711,221 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                 }
             }
             """,
+            macros: makeTestMacros()
+        )
+    }
+}
+
+
+final class SQLQueriesMacroDialectTests: XCTestCase {
+
+    ///
+    /// Issue #687: the container names the dialect once, and every
+    /// specification's executor and prepared form encode for it. The
+    /// specifications do not name it.
+    ///
+    func test_containerDialectArgument_suppliesTheDialectToEverySpecification() {
+        assertMacroExpansion(
+            """
+            @SQLQueries(dialect: FakeDialect.self)
+            extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+
+                struct Context {
+                    let database: MyDatabase
+
+                    private static let __xlAllPeopleCache = XLRenderOnceCache<Person>()
+
+                    func allPeople() throws -> [Person] {
+                        let __xlRequest = Self.__xlAllPeopleCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                }
+                            }()
+                        }
+                        let __xlLayout = __xlRequest.parameterLayout
+                        let __xlPacket = try XLInvocationBindings<FakeDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                        return try __xlRequest.fetchAll(bindings: __xlPacket)
+                    }
+
+                    var declaredQueries: [XLDeclaredQuery] {
+                        let __xlStatement0: any XLQueryStatement<Person> = {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                            }
+                        }()
+                        return [
+                            XLDeclaredQuery(
+                                database: database,
+                                name: "allPeople",
+                                cardinality: .many,
+                                parameters: [],
+                                rowType: Person.self,
+                                statement: {
+                                    __xlStatement0
+                                }
+                            ),
+                        ]
+                    }
+
+                    struct PreparedQueries {
+                        let database: MyDatabase
+
+                        func allPeople() throws -> XLPreparedQuery<Person> {
+                            let __xlRequest = Context.__xlAllPeopleCache.request(for: database) {
+                                {
+                                    sql { schema in
+                                        let person = schema.table(Person.self)
+                                        Select(person)
+                                        From(person)
+                                    }
+                                }()
+                            }
+                            let __xlLayout = __xlRequest.parameterLayout
+                            let __xlPacket = try XLInvocationBindings<FakeDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                            return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                        }
+                    }
+                }
+
+                func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
+                    try withTransaction { __xlScope in
+                        try __xlWork(Context(database: __xlScope))
+                    }
+                }
+
+                func allPeople() throws -> [Person] {
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).allPeople()
+                    }
+                }
+
+                var preparedQueries: Context.PreparedQueries {
+                    Context.PreparedQueries(database: self)
+                }
+
+                var declaredQueries: [XLDeclaredQuery] {
+                    Context(database: self).declaredQueries
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A dialect argument is reported with the not-an-extension error, so one
+    /// compile reports both.
+    ///
+    func test_dialectArgumentOnNonExtension_reportsBoth() {
+        assertMacroExpansion(
+            """
+            @SQLQueries(dialect: someDialect)
+            struct Sample {
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' can only be applied to an extension of a database type. The generated executors prepare requests through the extended type's 'makeRequest(with:)'.",
+                    line: 1,
+                    column: 1
+                ),
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLQueries' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 22
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The container reports a dialect it cannot spell once, not once per
+    /// specification.
+    ///
+    func test_containerDialectArgumentNotATypeLiteral_emitsOneError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries(dialect: someDialect)
+            extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+
+                    func everyone() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+
+                    func everyone() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLQueries' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 22
+                )
+            ],
             macros: makeTestMacros()
         )
     }

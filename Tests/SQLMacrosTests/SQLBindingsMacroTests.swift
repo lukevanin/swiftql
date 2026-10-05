@@ -46,21 +46,61 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<Int?>(name: "age")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {
-                    try XLInvocationBindings<XLSQLiteValue>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.name, named: "name", in: __xlLayout),
-                            try _xlQueryParameterBinding(self.age, named: "age", in: __xlLayout),
+                            try _xlQueryParameterBinding(self.name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.age, named: "age", in: __xlLayout, using: XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    /// Issue #687: the `dialect:` argument names the dialect the packet is
+    /// encoded for. Nothing else in the expansion changes.
+    func test_dialectArgument_parameterisesThePacketType() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: FakeDialect.self)
+            struct IDBindings {
+                var id: String
+            }
+            """,
+            expandedSource: """
+            struct IDBindings {
+                var id: String
+
+                static var id: XLNamedBindingReference<String> {
+                    XLNamedBindingReference<String>(name: "id")
+                }
+
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<FakeDialect.Value> {
+                    try XLInvocationBindings<FakeDialect.Value>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: FakeDialect.self),
+                        ]
+                    ).validatingComplete()
+                }
+
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<FakeDialect.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<FakeDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -87,20 +127,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "id")
                 }
 
-                public func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {
-                    try XLInvocationBindings<XLSQLiteValue>(
+                public func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout),
+                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                public func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                public func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                public func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                public func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -127,20 +167,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "id")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {
-                    try XLInvocationBindings<XLSQLiteValue>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout),
+                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -167,20 +207,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "default")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {
-                    try XLInvocationBindings<XLSQLiteValue>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.`default`, named: "default", in: __xlLayout),
+                            try _xlQueryParameterBinding(self.`default`, named: "default", in: __xlLayout, using: XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -202,15 +242,15 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
             struct NoBindings {
                 func describe() -> String { "" }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteValue> {
-                    try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -222,6 +262,124 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
 
 
 final class SQLBindingsMacroDiagnosticTests: XCTestCase {
+
+    /// A parenthesised type type-checks as a metatype, but the generated code
+    /// would write `(FakeDialect).Value`, which is not a type.
+    func test_parenthesisedDialectArgument_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: (FakeDialect).self)
+            struct Sample {
+                var id: String
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 23
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// A qualified or specialised dialect name is written as given.
+    func test_qualifiedDialectArgument_isWrittenAsGiven() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: Dialects.Fake<Int>.self)
+            struct Sample {
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try XLInvocationBindings<Dialects.Fake<Int>.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                }
+
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<Dialects.Fake<Int>.Value> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    /// The dialect argument is reported even when the declaration is not a
+    /// struct, so one compile reports both.
+    func test_dialectArgumentOnNonStruct_reportsBoth() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: someDialect)
+            enum Sample {
+            }
+            """,
+            expandedSource: """
+            enum Sample {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLBindings' can only be applied to a struct.",
+                    line: 1,
+                    column: 1
+                ),
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 23
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// Issue #687: generated code writes the dialect's type, so the argument
+    /// has to spell it. A metatype held in a variable type-checks against the
+    /// macro declaration, but has no spelling to write. The error is reported
+    /// with the struct's own, not instead of them.
+    func test_dialectArgumentNotATypeLiteral_emitsErrorWithTheOthers() {
+        assertMacroExpansion(
+            """
+            @SQLBindings(dialect: someDialect)
+            struct Sample {
+                var id: String
+                static var other: String = ""
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+                static var other: String = ""
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "The 'dialect' argument of '@SQLBindings' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable.",
+                    line: 1,
+                    column: 23
+                ),
+                DiagnosticSpec(
+                    message: "'static' properties cannot be used as named bindings. Move the property to an extension of the type to exclude it from the generated binding packet.",
+                    line: 4,
+                    column: 5
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
 
     func test_nonStructDeclaration_emitsError() {
         assertMacroExpansion(

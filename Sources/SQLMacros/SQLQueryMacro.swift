@@ -155,13 +155,35 @@ internal struct SQLQueryBuilder {
     /// parsed out of a container by the member macro.
     let macroName: String
 
+    /// The dialect the executor encodes its parameters for, as the source
+    /// text of its type (issue #687). `@SQLQuery` reads it from its own
+    /// `dialect:` argument; `@SQLQueries` reads it once from the container's
+    /// attribute and supplies it to every specification, which is how a
+    /// catalog supplies the dialect to the queries it declares.
+    let dialectType: String
+
+    /// - Parameter dialectType: The dialect a container supplies. `nil` reads
+    ///   it from `node`'s own `dialect:` argument.
     init(
         node: AttributeSyntax,
         declaration: some DeclSyntaxProtocol,
         macroName: String = "@SQLQuery",
-        supportsAsync: Bool = true
+        supportsAsync: Bool = true,
+        dialectType: String? = nil
     ) throws {
         self.macroName = macroName
+        // A dialect argument that cannot be spelled is reported with the
+        // declaration's other diagnostics, after them, so it neither hides
+        // them nor suppresses the checks that wait for a clean declaration.
+        var dialectDiagnostics: [Diagnostic] = []
+        if let dialectType {
+            self.dialectType = dialectType
+        }
+        else {
+            let dialect = MacroDialectArgument.resolve(of: node, macroName: macroName)
+            self.dialectType = dialect.dialectType
+            dialectDiagnostics.append(contentsOf: dialect.diagnostic.map { [$0] } ?? [])
+        }
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
@@ -169,7 +191,7 @@ internal struct SQLQueryBuilder {
                     id: "sqlquery-function-only",
                     message: "'\(macroName)' can only be applied to a function."
                 )
-            ])
+            ] + dialectDiagnostics)
         }
         self.function = function
 
@@ -231,6 +253,7 @@ internal struct SQLQueryBuilder {
                 )
             )
             diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
+            diagnostics.append(contentsOf: dialectDiagnostics)
             throw DiagnosticsError(diagnostics: diagnostics)
         }
 
@@ -286,6 +309,7 @@ internal struct SQLQueryBuilder {
         }
 
         diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
+        diagnostics.append(contentsOf: dialectDiagnostics)
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
@@ -861,14 +885,14 @@ internal struct SQLQueryBuilder {
         lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
+            lines.append("    let __xlPacket = try XLInvocationBindings<\(dialectType).Value>(layout: __xlLayout, bindings: []).validatingComplete()")
         }
         else {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(")
+            lines.append("    let __xlPacket = try XLInvocationBindings<\(dialectType).Value>(")
             lines.append("        layout: __xlLayout,")
             lines.append("        bindings: [")
             for parameter in parameters {
-                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
+                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout, using: \(dialectType).self),")
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")

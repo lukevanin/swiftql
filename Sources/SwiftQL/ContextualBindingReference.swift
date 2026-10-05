@@ -227,6 +227,81 @@ extension XLDriverRequestFactory {
         selection: XLValueCodecSelection
     ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
     where Literal: XLLiteral {
+        try codingConfiguration.contextualBinding(
+            valueType,
+            expressedAs: literalType,
+            key: key,
+            nullability: nullability,
+            using: dialect,
+            context: context,
+            selection: selection
+        )
+    }
+}
+
+
+extension XLValueCodingConfiguration {
+
+    /// Resolves a named contextual parameter for `dialect` against this
+    /// immutable coding snapshot, without requiring a live database.
+    public func contextualBinding<Value, Literal, Dialect>(
+        _ valueType: Value.Type,
+        expressedAs literalType: Literal.Type,
+        named name: XLName,
+        nullability: XLParameterNullability = .required,
+        using dialect: Dialect,
+        context: XLValueCodingContext? = nil,
+        selection: XLValueCodecSelection = XLValueCodecSelection()
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
+    where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
+        try contextualBinding(
+            valueType,
+            expressedAs: literalType,
+            key: .named(name.rawValue),
+            nullability: nullability,
+            using: dialect,
+            context: context,
+            selection: selection
+        )
+    }
+
+    /// Resolves an indexed contextual parameter for `dialect` against this
+    /// immutable coding snapshot, without requiring a live database.
+    public func contextualBinding<Value, Literal, Dialect>(
+        _ valueType: Value.Type,
+        expressedAs literalType: Literal.Type,
+        indexed index: Int,
+        nullability: XLParameterNullability = .required,
+        using dialect: Dialect,
+        context: XLValueCodingContext? = nil,
+        selection: XLValueCodecSelection = XLValueCodecSelection()
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
+    where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
+        try contextualBinding(
+            valueType,
+            expressedAs: literalType,
+            key: .indexed(index),
+            nullability: nullability,
+            using: dialect,
+            context: context,
+            selection: selection
+        )
+    }
+
+    /// Resolves a contextual parameter for `dialect` and an explicit logical
+    /// binding key against this immutable coding snapshot, without requiring
+    /// a live database. A database's own `contextualBinding` members forward
+    /// here with the database's dialect.
+    public func contextualBinding<Value, Literal, Dialect>(
+        _ valueType: Value.Type,
+        expressedAs literalType: Literal.Type,
+        key: XLBindingKey,
+        nullability: XLParameterNullability = .required,
+        using dialect: Dialect,
+        context: XLValueCodingContext? = nil,
+        selection: XLValueCodecSelection = XLValueCodecSelection()
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
+    where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
         let expressionIsOptional = literalType is any _XLOptionalLiteralType.Type
         guard expressionIsOptional == (nullability == .nullable) else {
             throw XLRequestBindingError.expressionNullabilityMismatch(
@@ -239,7 +314,7 @@ extension XLDriverRequestFactory {
             site: .parameter,
             path: XLValueCodingPath(key.contextPathComponent)
         )
-        let codec = try codingConfiguration.resolvedCodec(
+        let codec = try resolvedCodec(
             for: valueType,
             using: dialect,
             context: codingContext,
@@ -247,6 +322,7 @@ extension XLDriverRequestFactory {
         )
         try validateLiteralStorage(
             literalType,
+            in: Dialect.self,
             codecIdentity: codec.identity,
             context: codingContext
         )
@@ -257,15 +333,15 @@ extension XLDriverRequestFactory {
         )
     }
 
-    private func validateLiteralStorage<Literal>(
+    private func validateLiteralStorage<Literal, Dialect>(
         _ literalType: Literal.Type,
+        in _: Dialect.Type,
         codecIdentity: XLValueCodecIdentity,
         context: XLValueCodingContext
-    ) throws where Literal: XLLiteral {
-        guard let storageClass = sqliteStorageClass(for: literalType) else {
+    ) throws where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
+        guard let actual = Dialect.literalStorageIdentifier(for: literalType) else {
             return
         }
-        let actual = XLValueStorageIdentifier(rawValue: storageClass.rawValue)
         guard codecIdentity.storageIdentifier == actual else {
             throw XLValueCodecError.storageMismatch(
                 codec: codecIdentity.key,
