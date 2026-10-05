@@ -83,8 +83,9 @@ struct CursorRowHandle: XLRowHandle {
 
 
 /// A connection that steps the scripted rows one at a time and lends each as
-/// a ``CursorRowHandle``. Its value-level members are the contract's eager
-/// defaults, over a `fetchAll(_:)` that records itself.
+/// a ``CursorRowHandle``. Its `forEachRow(_:_:)` and `withValuesStepper(_:_:)`
+/// are the contract's defaults, which copy each handle's row, and its
+/// `fetchAll(_:)` records itself.
 struct CursorConnection: XLDatabaseDriverConnection {
 
     typealias Dialect = XLSQLiteDialect

@@ -110,9 +110,15 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     ///
     /// Prepares and binds one statement for `packet`, then lends a
     /// row-handle stepper scoped to the connection access that owns it
-    /// (issue #678). The rules are ``withValuesStepper(packet:requiresWriteConnection:_:)``'s,
-    /// and each handle is valid only until the stepper is called again.
-    /// `XLResultSet` is built directly on top of this seam.
+    /// (issue #678).
+    ///
+    /// `operation` runs synchronously inside the same read (or, when
+    /// `requiresWriteConnection` is `true`, write/transaction) connection
+    /// access that creates the stepper, so the cursor the stepper
+    /// closes over never escapes its owning database access -- the stepper
+    /// closure is only valid for the duration of `operation`, and each handle
+    /// it returns only until it is called again. `XLResultSet` is built
+    /// directly on top of this seam.
     ///
     func withRowHandleStepper<Result>(
         packet: XLValidatedSQLitePacket,
@@ -122,33 +128,6 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         let accessor: (inout Driver.Connection) throws -> Result = { connection in
             let statement = try self.boundStatement(packet: packet, in: &connection)
             return try connection.withRowHandleStepper(statement, operation)
-        }
-        if requiresWriteConnection {
-            return try driver.withBlockingTransaction(accessor)
-        }
-        else {
-            return try driver.withBlockingReadConnection(accessor)
-        }
-    }
-
-    ///
-    /// Prepares and binds one statement for `packet`, then lends a
-    /// value-level row stepper scoped to the connection access that owns it.
-    ///
-    /// `operation` runs synchronously inside the same read (or, when
-    /// `requiresWriteConnection` is `true`, write/transaction) connection
-    /// access that creates the stepper, so the cursor the stepper
-    /// closes over never escapes its owning database access -- the stepper
-    /// closure is only valid for the duration of `operation`.
-    ///
-    func withValuesStepper<Result>(
-        packet: XLValidatedSQLitePacket,
-        requiresWriteConnection: Bool,
-        _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
-    ) throws -> Result {
-        let accessor: (inout Driver.Connection) throws -> Result = { connection in
-            let statement = try self.boundStatement(packet: packet, in: &connection)
-            return try connection.withValuesStepper(statement, operation)
         }
         if requiresWriteConnection {
             return try driver.withBlockingTransaction(accessor)

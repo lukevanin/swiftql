@@ -590,9 +590,10 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         )
     }
 
-    /// Collected through this connection's own ``forEachRow(_:_:)``, which
-    /// it must implement: the contract's default `forEachRow` calls
-    /// `fetchAll`, so relying on it here would recurse.
+    /// Collected through this connection's own ``forEachRow(_:_:)``. It
+    /// implements that member, rather than taking the contract's default, so
+    /// the value path is compiled for GRDB's handle and not called through
+    /// the protocol.
     mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
@@ -1265,7 +1266,8 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 /// called again.
 ///
 /// It is an ``XLStaticColumnReader`` too, so a static row layout reads a raw
-/// value from it without the cast a third-party handle needs.
+/// value from it directly. The value comes from the same
+/// `xlDialectValue(at:of:as:)` the row reader uses for a third-party handle.
 ///
 struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
 
@@ -1282,8 +1284,29 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
     }
 
     func value(at index: Int) throws -> XLSQLiteValue {
-        // GRDB stops the process for an index outside the row, so the read
-        // is checked first and reported as every other reader reports it.
+        try checkIndex(index)
+        return try row.decode(DatabaseValue.self, atIndex: index).sqliteDialectValue
+    }
+
+    /// Asks GRDB whether the column is `NULL` without reading its value, so
+    /// an optional column that is not `NULL` copies its text or bytes once,
+    /// when it is read, rather than twice.
+    func isNull(at index: Int) throws -> Bool {
+        try checkIndex(index)
+        return row.hasNull(atIndex: index)
+    }
+
+    func dialectValue<Dialect>(
+        at index: Int,
+        using _: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
+        try xlDialectValue(at: index, of: self, as: Dialect.Value.self)
+    }
+
+    /// GRDB stops the process for an index outside the row, so every read
+    /// checks it first and reports it as every other reader does. The typed
+    /// reads check it again, with their type, before they get here.
+    private func checkIndex(_ index: Int) throws {
         if let error = XLSQLiteValueReading.indexOutOfBounds(
             index,
             count: row.count,
@@ -1291,22 +1314,6 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
         ) {
             throw error
         }
-        return try row.decode(DatabaseValue.self, atIndex: index).sqliteDialectValue
-    }
-
-    func dialectValue<Dialect>(
-        at index: Int,
-        using _: Dialect
-    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
-        let value = try value(at: index)
-        guard let typed = value as? Dialect.Value else {
-            throw XLStaticRowReadError.dialectValueTypeMismatch(
-                index: index,
-                expected: String(reflecting: Dialect.Value.self),
-                actual: String(reflecting: XLSQLiteValue.self)
-            )
-        }
-        return typed
     }
 }
 

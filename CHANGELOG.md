@@ -239,7 +239,9 @@
     `XLValuesRowHandle<Dialect.Value>`, and the new requirements
     `forEachRowHandle(_:_:)` and `withRowHandleStepper(_:_:)` default to
     wrapping each row of `forEachRow(_:_:)` and `withValuesStepper(_:_:)`.
-    A connection that declares its own `RowHandle` implements both.
+    A connection that declares its own `RowHandle` implements both, and
+    its `forEachRow(_:_:)` and `withValuesStepper(_:_:)` then default to
+    copying each handle's row, instead of fetching every row first.
   - SwiftQL's requests call the row-handle members now. A connection that
     overrides only the value-level members still serves them, through the
     defaults.
@@ -278,7 +280,8 @@
     with `sqlite3_column_int64`. `copyValues()` and `appendValues(to:)` copy
     the row as values when a caller needs them.
   - `XLValuesRowHandle` is a row handle over values already in memory, and
-    the default `RowHandle`.
+    the default `RowHandle`. `XLSQLiteValueReader` is a row handle too, and
+    reads its values by the same shared rules.
   - The GRDB adapter lends a handle over GRDB's own row. `fetchAll()`,
     `fetchAtMost(_:bindings:)`, their `async` forms, and `withResultSet(_:)`
     decode from it. `fetchOne()`, live queries, and the prepared value

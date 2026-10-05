@@ -320,7 +320,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
             // `XLStaticColumnReader`, which is SwiftQL's, but it carries the
             // dialect's values itself (issue #678).
             if let handle = state.pointee.reader as? any XLRowHandle {
-                return try Self.dialectValue(at: index, of: handle, as: Dialect.Value.self)
+                return try xlDialectValue(at: index, of: handle, as: Dialect.Value.self)
             }
             throw XLStaticRowReadError.rawDialectValuesUnavailable(
                 index: index,
@@ -333,23 +333,39 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         return try staticReader.dialectValue(at: index, using: dialect)
     }
 
-    /// The value at `index` of `handle`, as the static layout's dialect value
-    /// type, opened from the existential so the handle's own `Value` is known.
-    private static func dialectValue<Handle, Expected>(
-        at index: Int,
-        of handle: Handle,
-        as _: Expected.Type
-    ) throws -> Expected where Handle: XLRowHandle {
-        let value = try handle.value(at: index)
-        guard let typed = value as? Expected else {
-            throw XLStaticRowReadError.dialectValueTypeMismatch(
-                index: index,
-                expected: String(reflecting: Expected.self),
-                actual: String(reflecting: Handle.Value.self)
-            )
-        }
-        return typed
+}
+
+
+/// The raw value at `index` of a row handle, as the dialect value type a
+/// static row layout expects (issue #678).
+///
+/// An index outside the row is reported with the expected type, before the
+/// handle is asked for it, and a handle whose values are another dialect's
+/// fails with ``XLStaticRowReadError/dialectValueTypeMismatch(index:expected:actual:)``.
+/// Every row handle's raw read goes through here: SwiftQL's own handles call
+/// it from their ``XLStaticColumnReader`` conformance, and
+/// `XLColumnValuesRowReader` calls it for a handle from outside SwiftQL.
+func xlDialectValue<Handle, Expected>(
+    at index: Int,
+    of handle: Handle,
+    as _: Expected.Type
+) throws -> Expected where Handle: XLRowHandle {
+    if let error = XLSQLiteValueReading.indexOutOfBounds(
+        index,
+        count: handle.columnCount,
+        expectedType: String(reflecting: Expected.self)
+    ) {
+        throw error
     }
+    let value = try handle.value(at: index)
+    guard let typed = value as? Expected else {
+        throw XLStaticRowReadError.dialectValueTypeMismatch(
+            index: index,
+            expected: String(reflecting: Expected.self),
+            actual: String(reflecting: Handle.Value.self)
+        )
+    }
+    return typed
 }
 
 

@@ -128,7 +128,11 @@ extension XLRowHandle {
     /// many rows can reuse one buffer.
     public func appendValues(to values: inout [Value]) throws {
         let count = columnCount
-        values.reserveCapacity(values.count + count)
+        // Reserving an exact size on every call would defeat the array's
+        // geometric growth for a caller that appends many rows to one buffer.
+        if values.isEmpty {
+            values.reserveCapacity(count)
+        }
         for index in 0 ..< count {
             values.append(try value(at: index))
         }
@@ -137,12 +141,13 @@ extension XLRowHandle {
 
 
 /// The SQLite storage-class reads, from ``XLRowHandle/value(at:)``. Each read
-/// asks for one column only, so a handle that implements only `value(at:)`
-/// still reads no column the decoder does not ask for.
+/// checks the index against ``XLRowHandle/columnCount`` first, then asks for
+/// that one column, so a handle that implements only `value(at:)` reads no
+/// column the decoder does not ask for.
 extension XLRowHandle where Value == XLSQLiteValue {
 
     public func isNull(at index: Int) throws -> Bool {
-        XLSQLiteValueReading.isNull(try value(at: index))
+        XLSQLiteValueReading.isNull(try sqliteValue(at: index, expectedType: nil))
     }
 
     public func readInteger(at index: Int) throws -> Int {
@@ -174,8 +179,9 @@ extension XLRowHandle where Value == XLSQLiteValue {
     }
 
     /// The value at `index`, with an out-of-bounds read reported for the
-    /// type the caller asked for.
-    private func sqliteValue(at index: Int, expectedType: String) throws -> XLSQLiteValue {
+    /// type the caller asked for before ``value(at:)`` is called, so a
+    /// handle's own `value(at:)` never sees an index outside the row.
+    private func sqliteValue(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
         if let error = XLSQLiteValueReading.indexOutOfBounds(
             index,
             count: columnCount,

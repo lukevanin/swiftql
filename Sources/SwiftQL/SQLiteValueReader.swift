@@ -7,7 +7,10 @@ import Foundation
 
 /// Reads legacy SwiftQL literals from SQLite dialect values without depending
 /// on a database-driver transport.
-public struct XLSQLiteValueReader: XLStaticColumnReader {
+///
+/// It is a row handle over values in memory, so its column reads are the
+/// ones every SQLite row handle shares.
+public struct XLSQLiteValueReader: XLStaticColumnReader, XLRowHandle {
 
     public let values: [XLSQLiteValue]
 
@@ -15,54 +18,20 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         self.values = values
     }
 
-    public func isNull(at index: Int) throws -> Bool {
-        XLSQLiteValueReading.isNull(try value(at: index, expectedType: nil))
+    /// The number of values, so the reader is an `XLRowHandle` and takes
+    /// the five column reads every SQLite row handle shares (issue #678).
+    public var columnCount: Int {
+        values.count
     }
 
-    public func readInteger(at index: Int) throws -> Int {
-        try XLSQLiteValueReading.integer(
-            value(at: index, expectedType: "Int"),
-            at: index
-        )
-    }
-
-    public func readReal(at index: Int) throws -> Double {
-        try XLSQLiteValueReading.real(
-            value(at: index, expectedType: "Double"),
-            at: index
-        )
-    }
-
-    public func readText(at index: Int) throws -> String {
-        try XLSQLiteValueReading.text(
-            value(at: index, expectedType: "String"),
-            at: index
-        )
-    }
-
-    public func readBlob(at index: Int) throws -> Data {
-        try XLSQLiteValueReading.blob(
-            value(at: index, expectedType: "Data"),
-            at: index
-        )
+    public func value(at index: Int) throws -> XLSQLiteValue {
+        try XLSQLiteValueReading.value(at: index, in: values, expectedType: nil)
     }
 
     public func dialectValue<Dialect>(
         at index: Int,
         using _: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
-        let value = try value(at: index, expectedType: String(reflecting: Dialect.Value.self))
-        guard let typed = value as? Dialect.Value else {
-            throw XLStaticRowReadError.dialectValueTypeMismatch(
-                index: index,
-                expected: String(reflecting: Dialect.Value.self),
-                actual: String(reflecting: XLSQLiteValue.self)
-            )
-        }
-        return typed
-    }
-
-    private func value(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
-        try XLSQLiteValueReading.value(at: index, in: values, expectedType: expectedType)
+        try xlDialectValue(at: index, of: self, as: Dialect.Value.self)
     }
 }

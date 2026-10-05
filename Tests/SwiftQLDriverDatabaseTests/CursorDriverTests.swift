@@ -107,9 +107,36 @@ final class CursorDriverTests: XCTestCase {
         }
     }
 
-    /// The value-level members are the contract's eager defaults on this
-    /// connection, and still serve a value-level caller.
-    func testPreparedInvocationReadsValuesThroughTheEagerDefault() throws {
+    /// The connection declares its own handle and implements only the
+    /// row-handle members, so the contract's value-level defaults step its
+    /// cursor and copy each row, rather than fetching every row first.
+    func testValueLevelDefaultsStepTheHandleCursor() throws {
+        var connection = CursorConnection(
+            driverIdentifier: driver.driverIdentifier,
+            databaseIdentifier: driver.databaseIdentifier,
+            dialect: driver.dialect,
+            log: driver.log
+        )
+
+        var visited: [[XLSQLiteValue]] = []
+        try connection.forEachRow("SELECT") { values in
+            visited.append(values)
+            return .stop
+        }
+        XCTAssertEqual(visited, [[.text("ann"), .integer(31)]])
+        XCTAssertEqual(driver.log.events, ["step 0", "read 0.0", "read 0.1"])
+
+        driver.log.reset()
+        let stepped = try connection.withValuesStepper("SELECT") { next in
+            try next()
+        }
+        XCTAssertEqual(stepped, [.text("ann"), .integer(31)])
+        XCTAssertEqual(driver.log.events, ["step 0", "read 0.0", "read 0.1"])
+    }
+
+    /// `fetchOne(_:)` is the connection's own, eager member, and still serves
+    /// a value-level caller.
+    func testPreparedInvocationReadsValuesThroughTheConnection() throws {
         let invocation = database.prepareInvocation(with: selectPeople())
 
         let first = try invocation.fetchOneValues(

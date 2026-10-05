@@ -194,7 +194,23 @@ final class XLColumnReadErrorTests: XCTestCase {
         let row = GRDBRowHandle(row: try fetchRow(sql: "SELECT 1, NULL"))
 
         XCTAssertEqual(row.columnCount, 2)
+        XCTAssertFalse(try row.isNull(at: 0))
         XCTAssertTrue(try row.isNull(at: 1))
+        // A static layout's raw read past the end names the value type it
+        // wanted, on the handle and on the value path alike.
+        for reader in [
+            row as any XLStaticColumnReader,
+            XLSQLiteValueReader(values: [.integer(1), .null]) as any XLStaticColumnReader,
+        ] {
+            assertColumnReadError(
+                try reader.dialectValue(at: 2, using: XLSQLiteDialect()),
+                equals: XLColumnReadError(
+                    index: 2,
+                    expectedType: String(reflecting: XLSQLiteValue.self),
+                    failure: .indexOutOfBounds(valueCount: 2)
+                )
+            )
+        }
         assertColumnReadError(
             try row.readInteger(at: 2),
             equals: XLColumnReadError(
@@ -233,7 +249,7 @@ final class XLColumnReadErrorTests: XCTestCase {
                 error as? XLColumnReadError,
                 XLColumnReadError(
                     index: 2,
-                    expectedType: nil,
+                    expectedType: String(reflecting: XLSQLiteValue.self),
                     failure: .indexOutOfBounds(valueCount: 2)
                 )
             )

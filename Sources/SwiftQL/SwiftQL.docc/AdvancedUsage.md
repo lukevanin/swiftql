@@ -129,9 +129,11 @@ a caller that wants each row as `[Dialect.Value]`. All four are public
 defaults fetch every row with `fetchAll(_:)` first, and the row-handle
 defaults wrap each of those rows in an `XLValuesRowHandle`, so a connection
 that implements only `fetchAll(_:)` still serves every request. A driver that
-can step a cursor overrides the value-level members; a driver that can read a
-column straight from its cursor declares its own `RowHandle` and overrides the
-row-handle members too. The GRDB connection does both. The synchronous
+can step a cursor overrides the value-level members. A driver that can read a
+column straight from its cursor declares its own `RowHandle` and implements
+the row-handle members instead; its value-level defaults then copy each
+handle's row rather than fetch every row first. The GRDB connection declares
+its own handle. The synchronous
 callback may stop without stepping later rows, and a thrown decoding error
 releases the cursor and connection before it propagates. A cursor value is
 never returned from the database-access closure.
