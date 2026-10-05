@@ -235,10 +235,15 @@ final class XLColumnReadErrorTests: XCTestCase {
     func testRowReaderTakesARawDialectValueFromAThirdPartyRowHandle() throws {
         let handle = XLValuesRowHandle<XLSQLiteValue>([.text("raw"), .integer(3)])
 
-        let value = try XLColumnValuesRowReader<Void>.withReader(handle) { reader in
-            try reader.dialectValue(at: 1, using: XLSQLiteDialect())
+        // Two raw reads in one row: the second uses the reader the first
+        // found.
+        let values = try XLColumnValuesRowReader<Void>.withReader(handle) { reader in
+            [
+                try reader.dialectValue(at: 1, using: XLSQLiteDialect()),
+                try reader.dialectValue(at: 0, using: XLSQLiteDialect()),
+            ]
         }
-        XCTAssertEqual(value, .integer(3))
+        XCTAssertEqual(values, [.integer(3), .text("raw")])
 
         XCTAssertThrowsError(
             try XLColumnValuesRowReader<Void>.withReader(handle) { reader in

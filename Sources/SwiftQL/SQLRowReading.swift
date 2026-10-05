@@ -265,6 +265,16 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
     private struct State {
         var count: Int = 0
         let reader: any XLColumnReader
+        /// How this row's raw dialect values are read, found by the first
+        /// raw read and kept for the rest of the row.
+        var rawReader: RawReader?
+    }
+
+    /// Where a static row layout's raw dialect values come from.
+    private enum RawReader {
+        case staticReader(any XLStaticColumnReader)
+        case rowHandle(any XLRowHandle)
+        case unavailable
     }
 
     private let state: UnsafeMutablePointer<State>
@@ -315,14 +325,12 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         at index: Int,
         using dialect: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
-        guard let staticReader = state.pointee.reader as? any XLStaticColumnReader else {
-            // A row handle from a driver built on SwiftQLCore alone cannot
-            // conform to `XLStaticColumnReader`, which is SwiftQL's, but it
-            // carries the dialect's values itself (issue #678). A driver that
-            // imports SwiftQL can conform its handle and skip this cast.
-            if let handle = state.pointee.reader as? any XLRowHandle {
-                return try xlDialectValue(at: index, of: handle, as: Dialect.Value.self)
-            }
+        switch rawReader() {
+        case .staticReader(let staticReader):
+            return try staticReader.dialectValue(at: index, using: dialect)
+        case .rowHandle(let handle):
+            return try xlDialectValue(at: index, of: handle, as: Dialect.Value.self)
+        case .unavailable:
             throw XLStaticRowReadError.rawDialectValuesUnavailable(
                 index: index,
                 dialect: dialect.descriptor.identity,
@@ -331,9 +339,33 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
                 )
             )
         }
-        return try staticReader.dialectValue(at: index, using: dialect)
     }
 
+    /// Finds how this row's raw values are read on the first raw read, so a
+    /// row with several raw columns casts its reader once.
+    ///
+    /// A row handle from a driver built on SwiftQLCore alone cannot conform
+    /// to `XLStaticColumnReader`, which is SwiftQL's, but it carries the
+    /// dialect's values itself (issue #678). The explicit protocol is asked
+    /// first, so a reader that is both reads through its own conformance.
+    private func rawReader() -> RawReader {
+        if let rawReader = state.pointee.rawReader {
+            return rawReader
+        }
+        let reader = state.pointee.reader
+        let rawReader: RawReader
+        if let staticReader = reader as? any XLStaticColumnReader {
+            rawReader = .staticReader(staticReader)
+        }
+        else if let handle = reader as? any XLRowHandle {
+            rawReader = .rowHandle(handle)
+        }
+        else {
+            rawReader = .unavailable
+        }
+        state.pointee.rawReader = rawReader
+        return rawReader
+    }
 }
 
 

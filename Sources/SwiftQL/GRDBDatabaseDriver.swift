@@ -1281,26 +1281,49 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
 
     private let row: Row
 
-    /// Read once, because GRDB asks SQLite for it on every `Row.count`, and
-    /// every column read checks its index against it.
-    let columnCount: Int
-
     init(row: Row) {
         self.row = row
-        self.columnCount = row.count
+    }
+
+    var columnCount: Int {
+        row.count
     }
 
     func value(at index: Int) throws -> XLSQLiteValue {
-        try checkIndex(index)
-        return try row.decode(DatabaseValue.self, atIndex: index).sqliteDialectValue
+        try checkIndex(index, expectedType: nil)
+        return try uncheckedValue(at: index)
     }
+
+    // The five column reads are written here, rather than taken from the
+    // `XLRowHandle` defaults in SwiftQLCore, so the decode hot path checks
+    // each index once and runs code compiled for this handle.
 
     /// Asks GRDB whether the column is `NULL` without reading its value, so
     /// an optional column that is not `NULL` copies its text or bytes once,
     /// when it is read, rather than twice.
     func isNull(at index: Int) throws -> Bool {
-        try checkIndex(index)
+        try checkIndex(index, expectedType: nil)
         return row.hasNull(atIndex: index)
+    }
+
+    func readInteger(at index: Int) throws -> Int {
+        try checkIndex(index, expectedType: "Int")
+        return try XLSQLiteValueReading.integer(uncheckedValue(at: index), at: index)
+    }
+
+    func readReal(at index: Int) throws -> Double {
+        try checkIndex(index, expectedType: "Double")
+        return try XLSQLiteValueReading.real(uncheckedValue(at: index), at: index)
+    }
+
+    func readText(at index: Int) throws -> String {
+        try checkIndex(index, expectedType: "String")
+        return try XLSQLiteValueReading.text(uncheckedValue(at: index), at: index)
+    }
+
+    func readBlob(at index: Int) throws -> Data {
+        try checkIndex(index, expectedType: "Data")
+        return try XLSQLiteValueReading.blob(uncheckedValue(at: index), at: index)
     }
 
     func dialectValue<Dialect>(
@@ -1321,10 +1344,15 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
     }
 
     /// GRDB stops the process for an index outside the row, so every read
-    /// checks it first and reports it as every other reader does. The typed
-    /// reads check it again, with their type, before they get here.
-    private func checkIndex(_ index: Int) throws {
-        try XLSQLiteValueReading.checkIndex(index, count: columnCount, expectedType: nil)
+    /// checks it first and reports it as every other reader does.
+    private func checkIndex(_ index: Int, expectedType: String?) throws {
+        try XLSQLiteValueReading.checkIndex(index, count: row.count, expectedType: expectedType)
+    }
+
+    /// The column at an index already checked. Decoding a `DatabaseValue`
+    /// cannot fail: GRDB returns the stored value itself, `NULL` included.
+    private func uncheckedValue(at index: Int) throws -> XLSQLiteValue {
+        try row.decode(DatabaseValue.self, atIndex: index).sqliteDialectValue
     }
 }
 

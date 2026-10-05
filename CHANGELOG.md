@@ -287,8 +287,9 @@
     reads its values by the same shared rules.
   - The GRDB adapter lends a handle over GRDB's own row. `fetchAll()`,
     `fetchAtMost(_:bindings:)`, their `async` forms, and `withResultSet(_:)`
-    decode from it. `fetchOne()`, live queries, and the prepared value
-    handles still read rows as values.
+    decode from it. `fetchOne()`, live queries, the prepared value handles,
+    and static queries, including the typed `fetchAll(bindings:)` of
+    `XLPreparedTypedStaticQuery`, still read rows as values.
   - A driver outside SwiftQL that implements `withRowHandleStepper(_:_:)`
     backs a lazily stepped `XLResultSet` through `XLDriverDatabase`, with
     SwiftQL's public API alone. `XLResultSet.init(stepper:)` stays internal;
