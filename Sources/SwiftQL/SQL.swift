@@ -89,10 +89,10 @@ public macro SQLQuery() = #externalMacro(module: "SQLMacros", type: "SQLQueryMac
 /// Issue #687: the same as `@SQLQuery`, with the dialect the executor encodes
 /// its parameters for named once on the attribute, as `MyDialect.self`. The
 /// declaration and its query body are written exactly as for `@SQLQuery`.
-/// Without the argument the dialect is ``XLSQLiteDialect``.
+/// Without the argument the dialect is `XLSQLiteDialect`.
 ///
 /// The executor runs through SwiftQL's requests, and every shipped driver is
-/// SQLite's, so a dialect other than ``XLSQLiteDialect`` compiles only once a
+/// SQLite's, so a dialect other than `XLSQLiteDialect` compiles only once a
 /// request layer for that dialect exists. The generated `PreparedQuery` peer
 /// is where the compiler reports it.
 ///
@@ -121,7 +121,7 @@ public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQuerie
 /// Issue #687: the same as `@SQLQueries`, with one dialect, named as
 /// `MyDialect.self`, supplied to every specification in the container. The
 /// specifications themselves do not name it. Without the argument the dialect
-/// is ``XLSQLiteDialect``. As for `@SQLQuery(dialect:)`, a dialect other than
+/// is `XLSQLiteDialect`. As for `@SQLQuery(dialect:)`, a dialect other than
 /// SQLite compiles only once a request layer for it exists.
 ///
 @attached(member, names: arbitrary)
@@ -164,7 +164,7 @@ public macro SQLBindings() = #externalMacro(module: "SQLMacros", type: "SQLBindi
 ///
 /// Issue #687: the same as `@SQLBindings`, with the dialect the packet's
 /// values are encoded for named as `MyDialect.self`. Without the argument the
-/// dialect is ``XLSQLiteDialect``.
+/// dialect is `XLSQLiteDialect`.
 ///
 @attached(member, names: arbitrary)
 public macro SQLBindings<Dialect: XLLiteralValueDialect>(dialect: Dialect.Type) = #externalMacro(module: "SQLMacros", type: "SQLBindingsMacro")

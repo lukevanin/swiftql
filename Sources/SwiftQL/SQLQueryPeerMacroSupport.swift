@@ -23,7 +23,7 @@ import Foundation
 ///
 /// The value is encoded as a value of `Dialect` (issue #687). The `@SQLQuery`,
 /// `@SQLQueries`, and `@SQLBindings` macros name the dialect their `dialect:`
-/// argument declares, or ``XLSQLiteDialect`` when there is none.
+/// argument declares, or `XLSQLiteDialect` when there is none.
 ///
 public func _xlQueryParameterBinding<T, Dialect>(
     _ value: T,

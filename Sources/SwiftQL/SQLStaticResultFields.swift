@@ -171,7 +171,7 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
     /// `sqlDefault()`.
     ///
     /// The same as ``intrinsic(selecting:identifiedBy:using:context:)`` with
-    /// a default ``XLSQLiteDialect``.
+    /// a default `XLSQLiteDialect`.
     public static func intrinsic(
         selecting expression: any XLExpression<Value>,
         identifiedBy identity: XLQuerySlotIdentity,

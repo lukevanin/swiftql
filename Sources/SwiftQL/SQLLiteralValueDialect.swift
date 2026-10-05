@@ -29,7 +29,7 @@ import Foundation
 /// model, which is a property of the dialect type and not of a configured
 /// instance. That lets generated code name the dialect by its type alone.
 ///
-/// ``XLSQLiteDialect`` conforms with SQLite's five storage classes.
+/// `XLSQLiteDialect` conforms with SQLite's five storage classes.
 ///
 /// The literal protocols themselves are still SQLite's binding vocabulary:
 /// ``XLBindable`` binds through ``XLBindingContext``'s five storage classes
@@ -44,7 +44,7 @@ public protocol XLLiteralValueDialect: XLValueCodingDialect {
     /// `nil` when the storage is not statically known.
     ///
     /// An optional type reports its wrapped type's storage. The identifier
-    /// must agree with ``XLValueCodingDialect/stableStorageIdentifier(for:)``
+    /// must agree with `XLValueCodingDialect.stableStorageIdentifier(for:)`
     /// for a value of that type.
     ///
     static func literalStorageIdentifier(for type: Any.Type) -> XLValueStorageIdentifier?
@@ -66,6 +66,7 @@ public protocol XLLiteralValueDialect: XLValueCodingDialect {
     /// as `NULL`. A dialect that stores NaN as itself accepts it.
     ///
     /// - Parameters:
+    ///   - value: The literal to encode.
     ///   - valueType: Names the value's type in a thrown error.
     ///   - codingContext: Names the parameter or property in a thrown error.
     ///
@@ -80,7 +81,7 @@ public protocol XLLiteralValueDialect: XLValueCodingDialect {
     ///
     /// Static for the reason the other requirements are, so a declared-query
     /// parameter binding can reject `NULL` for a required slot with no dialect
-    /// instance. It must agree with ``XLValueCodingDialect/isNull(_:)``.
+    /// instance. It must agree with `XLValueCodingDialect.isNull(_:)`.
     ///
     static func isNullLiteral(_ value: Value) -> Bool
 }

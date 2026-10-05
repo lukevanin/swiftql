@@ -325,7 +325,7 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
     /// `Bool`, `Int`, `Double`, `String`, and `Data`.
     ///
     /// The same as ``intrinsic(identifiedBy:using:context:)`` with a default
-    /// ``XLSQLiteDialect``.
+    /// `XLSQLiteDialect`.
     public static func intrinsic(
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil
