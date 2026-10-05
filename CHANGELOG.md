@@ -259,6 +259,9 @@
     It covers `readonly`, `foreignKeysEnabled`, `maximumReaderCount`,
     `label`, and `busyTimeout`, which sets GRDB's `busyMode` to
     `.timeout(_:)`.
+  - A `maximumReaderCount` below 1, from either configuration, now makes
+    opening the database throw an `XLDatabaseError` whose code is `.misuse`.
+    GRDB stopped the process with a precondition failure.
   - Anything else GRDB offers is SwiftQL's GRDB SPI, which a file declares
     with `@_spi(GRDB) import SwiftQL`:
     - `GRDBDatabase.databasePool`;
@@ -267,7 +270,10 @@
     - `GRDBDatabaseBuilder.init(url:grdbConfiguration:...)` and its
       `codingConfiguration:` form, which take a GRDB `Configuration`, such as
       one with a `prepareDatabase` hook. Rename the argument from
-      `configuration:`.
+      `configuration:`. `GRDBDatabase(url:configuration:...)` has no such
+      form, so a call that passed it a GRDB `Configuration` becomes
+      `GRDBDatabaseBuilder(url:grdbConfiguration:...).build()`, which opens
+      the same pool.
 
     A file that uses one of these without the SPI import fails to compile
     with "'databasePool' is inaccessible due to '@_spi' protection level", or

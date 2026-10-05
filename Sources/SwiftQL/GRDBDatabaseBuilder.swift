@@ -205,9 +205,20 @@ public struct GRDBDatabaseBuilder {
     /// A GRDB failure while opening, such as a file that is not a database,
     /// is reported as an `XLDatabaseError` (issue #679), including one raised
     /// by a `prepareDatabase` hook in the configuration.
+    ///
+    /// A `maximumReaderCount` below 1 fails here with an `XLDatabaseError`
+    /// whose code is `.misuse` (issue #702). GRDB would stop the process
+    /// with a precondition failure instead.
     func makeDatabasePool() throws -> DatabasePool {
         try xlMappingDatabaseErrors(driver: .grdb) {
-            try DatabasePool(path: url.path, configuration: configuration)
+            guard configuration.maximumReaderCount > 0 else {
+                throw DatabaseError(
+                    resultCode: .SQLITE_MISUSE,
+                    message: "maximumReaderCount must be at least 1; it is "
+                        + "\(configuration.maximumReaderCount)"
+                )
+            }
+            return try DatabasePool(path: url.path, configuration: configuration)
         }
     }
 

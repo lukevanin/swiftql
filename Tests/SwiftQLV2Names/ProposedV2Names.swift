@@ -18,17 +18,31 @@
 //  give each one its alias when it does. The format is read by
 //  `SwiftQLV2NameInventoryTests`.
 //
+//  A name the Swift standard library declares is not ambiguous: a type from
+//  any other module shadows the standard library's, so the fixture would
+//  build and every client would silently get SwiftQL's `Result` or
+//  `Equatable`. Those are marked "shadowed", and
+//  `SwiftQLV2NameInventoryTests` checks every alias against the standard
+//  library with the compiler, because the fixture cannot.
+//
 //  unresolved: XLAllColumns -> AllColumns (GRDB)
 //  unresolved: XLBindable -> Bindable (SwiftUI)
+//  unresolved: XLComparable -> Comparable (Swift, shadowed)
 //  unresolved: XLDatabase -> Database (GRDB)
 //  unresolved: XLDatabaseError -> DatabaseError (GRDB)
+//  unresolved: XLEncodable -> Encodable (Swift, shadowed)
+//  unresolved: XLEncoder -> Encoder (Swift, shadowed)
+//  unresolved: XLEquatable -> Equatable (Swift, shadowed)
 //  unresolved: XLExpression -> Expression (Foundation)
 //  unresolved: XLFormatter -> Formatter (Foundation)
 //  unresolved: XLNamespace -> Namespace (SwiftUI)
+//  unresolved: XLResult -> Result (Swift, shadowed)
 //  unresolved: XLTable -> Table (GRDB and SwiftUI)
 //
-//  Deprecated types are not carried into v2, so they have no alias either.
+//  Deprecated types are not carried into v2, so they have no alias either,
+//  and the fixture does not name them.
 //
+//  deprecated: JoinKind (use Join.Kind)
 //  deprecated: XLFromCommonTableDependency (use XLFromTableDependency)
 //
 
@@ -60,7 +74,6 @@ public typealias CommonTableDependency = SwiftQL.XLCommonTableDependency
 public typealias CommonTableMaterialization = SwiftQL.XLCommonTableMaterialization
 public typealias CommonTablePrefix = SwiftQLCore.XLCommonTablePrefix
 public typealias CommonTablesBuilder = SwiftQL.XLCommonTablesBuilder
-public typealias Comparable = SwiftQL.XLComparable
 public typealias ComparisonExpression = SwiftQL.XLComparisonExpression
 public typealias ComparisonOperator = SwiftQLCore.XLComparisonOperator
 public typealias ConcatenationExpression = SwiftQL.XLConcatenationExpression
@@ -109,11 +122,8 @@ public typealias DialectVersion = SwiftQLCore.XLDialectVersion
 public typealias DriverDatabase = SwiftQL.XLDriverDatabase
 public typealias DriverIdentifier = SwiftQLCore.XLDriverIdentifier
 public typealias DriverScopeRefusal = SwiftQLCore.XLDriverScopeRefusal
-public typealias Encodable = SwiftQL.XLEncodable
-public typealias Encoder = SwiftQL.XLEncoder
 public typealias Encoding = SwiftQL.XLEncoding
 public typealias Enum = SwiftQL.XLEnum
-public typealias Equatable = SwiftQL.XLEquatable
 public typealias ExcludedTableDependency = SwiftQL.XLExcludedTableDependency
 public typealias ExecutionResult = SwiftQLCore.XLExecutionResult
 public typealias FieldReader = SwiftQL.XLFieldReader
@@ -253,7 +263,6 @@ public typealias Request = SwiftQL.XLRequest
 public typealias RequestBindingError = SwiftQL.XLRequestBindingError
 public typealias RequestBuilder = SwiftQL.XLRequestBuilder
 public typealias ResolvedValueCodec = SwiftQLCore.XLResolvedValueCodec
-public typealias Result = SwiftQL.XLResult
 public typealias ResultSet = SwiftQL.XLResultSet
 public typealias ResultSetError = SwiftQL.XLResultSetError
 public typealias ReturningRequestError = SwiftQL.XLReturningRequestError

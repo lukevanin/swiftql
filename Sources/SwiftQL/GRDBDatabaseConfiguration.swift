@@ -53,7 +53,8 @@ public struct GRDBDatabaseConfiguration: Hashable, Sendable {
     public var busyTimeout: TimeInterval?
 
     /// The most reader connections the pool opens at once. The default is
-    /// `5`. It must be at least `1`.
+    /// `5`. It must be at least `1`: opening a database with a smaller value
+    /// throws an `XLDatabaseError` whose code is `.misuse`.
     public var maximumReaderCount: Int
 
     /// A label for the pool's dispatch queues, shown in a debugger and in

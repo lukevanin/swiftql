@@ -97,6 +97,40 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
         XCTAssertEqual(foreignKeys, 1)
     }
 
+    /// GRDB stops the process for a pool with no readers, so SwiftQL checks
+    /// first and throws.
+    func testNoReadersThrowsAMisuseErrorInsteadOfTrapping() throws {
+        for maximumReaderCount in [0, -1] {
+            XCTAssertThrowsError(
+                try GRDBDatabase(
+                    url: directory.appendingPathComponent("no-readers.sqlite"),
+                    configuration: GRDBDatabaseConfiguration(
+                        maximumReaderCount: maximumReaderCount
+                    ),
+                    logger: nil
+                )
+            ) { error in
+                let databaseError = error as? XLDatabaseError
+                XCTAssertEqual(databaseError?.code, .misuse, "\(error)")
+                XCTAssertEqual(
+                    databaseError?.message,
+                    "maximumReaderCount must be at least 1; it is \(maximumReaderCount)"
+                )
+            }
+        }
+        var grdbConfiguration = GRDB.Configuration()
+        grdbConfiguration.maximumReaderCount = 0
+        XCTAssertThrowsError(
+            try GRDBDatabaseBuilder(
+                url: directory.appendingPathComponent("no-readers.sqlite"),
+                grdbConfiguration: grdbConfiguration,
+                logger: nil
+            ).build()
+        ) { error in
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .misuse, "\(error)")
+        }
+    }
+
     /// The escape hatch keeps a GRDB configuration's own hooks, and the
     /// builder's registrations still reach every connection.
     func testGRDBConfigurationEscapeHatchKeepsItsHooks() throws {

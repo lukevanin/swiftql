@@ -75,7 +75,7 @@ is not obvious at first glance:
 | `Tests/SwiftQLSQLiteConformanceFixtures/` | fixture library | A test-only library target (not a test target) that provides SQLite value cases shared across the core and integration tests. |
 | `Tests/SwiftQLNorthwindFixtures/` | fixture library | A test-only library target that bundles the Northwind SQLite database for semantic corpus tests. |
 | `Tests/SwiftQLStreamOnlyRequestFixture/` | compile-only fixture | `XLRequest` conformers that implement only the live-query stream members and never import Combine or OpenCombine. That it builds proves a request adapter needs neither (issue #684). `SQLTests` drives the conformers and checks the import rule. |
-| `Tests/SwiftQLV2Names/` | fixture library | The proposed v2 spelling of every public `XL` type, as typealiases, and the names that collide and still need one (issues #702 and #33). `SwiftQLV2NameInventoryTests` in `SQLTests` keeps it complete. |
+| `Tests/SwiftQLV2Names/` | fixture library | The proposed v2 spelling of every public `XL` type, as typealiases, and the names that collide and still need one (issues #702 and #33). `SwiftQLV2NameInventoryTests` in `SQLTests` keeps it complete, and checks the names against the standard library, whose types another module's shadow instead of colliding with. |
 | `Tests/SwiftQLV2NameCollisionFixture/` | compile-only fixture | Imports SwiftQL, GRDB, Foundation, and SwiftUI where it exists, with `SwiftQLV2Names`, and names every proposed and unprefixed type unqualified. A name two of those modules declare is ambiguous, so a collision stops the package building (issue #702). |
 | `Tests/SwiftQLSQLiteCombinatorialSupport/` | support library | A test-only library target for the combinatorial SQL generator. |
 

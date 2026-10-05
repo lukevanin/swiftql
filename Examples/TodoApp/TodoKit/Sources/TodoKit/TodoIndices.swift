@@ -84,9 +84,9 @@ public enum TodoIndices {
     /// owns the pool's writer, and a second write from inside it would be a
     /// nested write on the same connection.
     public static func create(in database: GRDBDatabase) throws {
-        try database.databasePool.write { database in
+        try database.databasePool.write { db in
             for statement in statements {
-                try database.execute(sql: statement)
+                try db.execute(sql: statement)
             }
         }
     }
