@@ -192,6 +192,9 @@ final class MacroRegressionCorpusTests: XCTestCase {
             // Issue #665: both shapes of a property default, honoured and
             // diagnosed.
             "property-defaults",
+            // Issue #687: the emission proven parameterised by the dialect,
+            // against a fake second dialect.
+            "dialect-parameterised-emission",
         ]
         let missing = requiredCategories.subtracting(categories)
         XCTAssertTrue(missing.isEmpty, "missing required categories: \(missing.sorted())")

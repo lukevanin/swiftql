@@ -44,7 +44,7 @@ public enum XLStaticRowLayoutError:
         case .fieldNotPositioned(let identity):
             return "Static result slot \(identity) must be positioned by its generated row-layout factory before use."
         case .unsupportedSQLiteStorage(let identity, let storageType):
-            return "Static result slot \(identity) uses storage carrier \(storageType), whose SQLite storage class is not statically known."
+            return "Static result slot \(identity) uses storage carrier \(storageType), whose storage in the field's dialect is not statically known."
         case .expressionStorageTypeMismatch(
             let identity,
             let expectedStorageType,

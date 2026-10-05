@@ -40,6 +40,13 @@ internal struct MacroDiagnosticCollector {
     }
 
     ///
+    /// Records a diagnostic built elsewhere, such as an argument's.
+    ///
+    mutating func report(_ diagnostic: Diagnostic) {
+        diagnostics.append(diagnostic)
+    }
+
+    ///
     /// Throws every collected diagnostic, in source order, or returns if none
     /// were collected.
     ///
@@ -103,6 +110,93 @@ internal enum MacroNameArgument {
             return fallback
         }
         return name
+    }
+}
+
+
+///
+/// Resolves the optional `dialect:` argument shared by `@SQLQuery`,
+/// `@SQLQueries`, and `@SQLBindings` (issue #687).
+///
+internal enum MacroDialectArgument {
+
+    ///
+    /// The dialect generated code names when the attribute names none.
+    ///
+    /// The macros are declared in the `SwiftQL` umbrella, whose default
+    /// dialect is SQLite, so an attribute without the argument expands to what
+    /// it always meant.
+    ///
+    static let defaultDialectType = "XLSQLiteDialect"
+
+    ///
+    /// Returns the dialect type the attribute names, as source text, or
+    /// ``defaultDialectType`` when the argument is absent.
+    ///
+    /// The macro declaration types the argument as `Dialect.Type`, so the
+    /// compiler has already checked that it names a dialect. The macro still
+    /// needs the type's *spelling*, to write it into the generated code, so
+    /// the argument has to be written as `SomeDialect.self`. Any other
+    /// expression of the right type -- a variable holding the metatype, a
+    /// call, a parenthesised type -- is reported, because generated code
+    /// cannot name its type.
+    ///
+    /// The check is syntactic, so it cannot tell a variable written
+    /// `dialect.self` from a type. That spelling reaches the generated code,
+    /// and the compiler reports it there.
+    ///
+    /// A reported argument is returned as a diagnostic, with
+    /// ``defaultDialectType`` in its place, rather than thrown: the caller adds
+    /// it to the diagnostics it collects from the rest of the declaration, so
+    /// one compile reports every problem.
+    ///
+    static func resolve(
+        of node: AttributeSyntax,
+        macroName: String
+    ) -> (dialectType: String, diagnostic: Diagnostic?) {
+        guard
+            case let .argumentList(arguments) = node.arguments,
+            let dialectArgument = arguments.first(where: { $0.label?.text == "dialect" })
+        else {
+            return (defaultDialectType, nil)
+        }
+        guard
+            let memberAccess = dialectArgument.expression.as(MemberAccessExprSyntax.self),
+            memberAccess.declName.baseName.tokenKind == .keyword(.self),
+            memberAccess.declName.argumentNames == nil,
+            let base = memberAccess.base,
+            isTypeName(base)
+        else {
+            let diagnostic = Diagnostic(
+                node: dialectArgument.expression,
+                id: "invalid-dialect-argument",
+                message: "The 'dialect' argument of '\(macroName)' must name the dialect type directly, as 'SomeDialect.self'. The generated code writes that type, so it cannot be read from a variable."
+            )
+            return (defaultDialectType, diagnostic)
+        }
+        return (base.trimmedDescription, nil)
+    }
+
+    ///
+    /// Whether `expression` spells a type the generated code can write in a
+    /// type position, followed by `.Value`: a name, a qualified name, or
+    /// either with generic arguments. A parenthesised or computed base also
+    /// type-checks as a metatype, but `(SomeDialect).Value` is not a type.
+    ///
+    private static func isTypeName(_ expression: ExprSyntax) -> Bool {
+        if let reference = expression.as(DeclReferenceExprSyntax.self) {
+            return reference.argumentNames == nil
+        }
+        if let member = expression.as(MemberAccessExprSyntax.self) {
+            guard let base = member.base, member.declName.argumentNames == nil else {
+                return false
+            }
+            return isTypeName(base)
+        }
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return isTypeName(specialization.expression)
+        }
+        return false
     }
 }
 
