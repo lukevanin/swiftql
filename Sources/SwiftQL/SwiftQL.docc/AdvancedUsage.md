@@ -312,8 +312,10 @@ above describes, plus the guarantees a typed, adapter-neutral surface adds:
   GRDB `Database`, `DatabasePool`, or statement handle.
 
 Four misuses are rejected, each with a predictable, catchable
-`XLTransactionScopeError` rather than a crash or silent wrong answer, except
-where the third rule below says otherwise:
+`XLTransactionScopeError` rather than a crash or silent wrong answer. A nested
+transaction and a live query are rejected before they do any work; use from
+another thread, or after the body, is rejected when a statement would run.
+The thread rule notes the one gap in this:
 
 - **Nested transactions and savepoints are not supported.** Calling
   `withTransaction(_:)` again from inside an active body — on the scope it was
@@ -354,11 +356,11 @@ where the third rule below says otherwise:
   The check is by thread, but GRDB confines the connection to its writer
   dispatch queue. A block that another queue runs on the body's thread
   passes the check, and GRDB stops the process with "Database was not used
-  on the correct thread". Any `sync` call from inside the body, even onto a
-  global queue, runs its block on the body's thread this way. So does
-  main-queue work, including a main-actor task, that a run loop the body
-  spins runs. Use the scope directly in the body, not from inside another
-  queue's block, and do not spin a run loop in the body.
+  on the correct thread". A `sync` call from inside the body onto any queue
+  but the main queue, even a global one, runs its block on the body's thread
+  this way. So does main-queue work, including a main-actor task, that a run
+  loop the body spins runs. Use the scope directly in the body, not from
+  inside another queue's block, and do not spin a run loop in the body.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

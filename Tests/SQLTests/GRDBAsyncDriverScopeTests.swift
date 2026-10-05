@@ -193,28 +193,22 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         let driver = database.driver
 
         for scope in ["read", "write"] {
-            let child = LockedValue<Task<Int, Error>?>(nil)
-            let body: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Void = { _ in
-                let started = DispatchSemaphore(value: 0)
-                let task = Task {
-                    defer { started.signal() }
-                    return try await driver.withReadConnection { _ in 13 }
-                }
-                child.withValue { $0 = task }
-                // Keep the scope open until the child has finished, so the
-                // child's access happens while the parent still holds.
-                guard started.wait(timeout: .now() + 10) == .success else {
-                    throw TaskTimedOut()
+            // Keeps the scope open until the child has finished, so the
+            // child's access happens while the parent still holds.
+            let body: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result<Int, any Error> = { _ in
+                try resultOfTaskBlockingThisThread {
+                    do {
+                        return .success(try await driver.withReadConnection { _ in 13 })
+                    }
+                    catch {
+                        return .failure(error)
+                    }
                 }
             }
-            if scope == "read" {
-                try await driver.withReadConnection(body)
-            }
-            else {
-                try await driver.withWriteConnection(body)
-            }
-            let value = try await XCTUnwrap(child.read()).value
-            XCTAssertEqual(value, 13, "A task created inside a \(scope) scope was rejected.")
+            let child = scope == "read"
+                ? try await driver.withReadConnection(body)
+                : try await driver.withWriteConnection(body)
+            XCTAssertEqual(try child.get(), 13, "A task created inside a \(scope) scope was rejected.")
         }
     }
 

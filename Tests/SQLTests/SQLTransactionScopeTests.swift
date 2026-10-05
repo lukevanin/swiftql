@@ -805,6 +805,9 @@ final class SQLTransactionScopeTests: XCTestCase {
                         await outcome("makeRequest(with:).fetchOne()") {
                             _ = try scope.makeRequest(with: select).fetchOne()
                         },
+                        await outcome("makeRequest(with:).withResultSet(_:)") {
+                            _ = try scope.makeRequest(with: select).withResultSet { try $0.next() }
+                        },
                         await outcome("makeRequest(with:).execute()") {
                             try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
                         },
@@ -843,6 +846,7 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(outcomes, [
             "makeRequest(with:).fetchAll(): scopeEscaped",
             "makeRequest(with:).fetchOne(): scopeEscaped",
+            "makeRequest(with:).withResultSet(_:): scopeEscaped",
             "makeRequest(with:).execute(): scopeEscaped",
             "makeRequest(with:).async.fetchAll(): scopeEscaped",
             "insert(contentsOf:): scopeEscaped",
