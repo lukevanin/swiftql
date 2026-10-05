@@ -335,15 +335,23 @@ wrong answer:
   for unrelated work.
 - **The scope must stay on the body's thread.** The pinned connection belongs
   to the thread that runs the body until the body returns. A statement run
-  from any other thread through the scope, or through a request made from it,
-  throws `.scopeEscaped`; a task created in the body is such a thread. The
-  task gets the error, so the body only sees it if it waits for that task's
-  result. Give a task the original database instead, as the first rule
-  describes. The compiler does not catch this yet: the scope is a
-  `GRDBDatabase`, which is `Sendable`, so a `Task` or other `@Sendable`
-  closure can capture it.
+  through the scope, or through a request made from it, on any other thread
+  throws `.scopeEscaped` on that thread, rather than touching the connection.
+  A task created in the body, or a block sent to `DispatchQueue.global()`,
+  runs on another thread. A call the scope refuses on any thread keeps its
+  own error: a nested `withTransaction(_:)` throws
+  `.nestedTransactionUnsupported`, and `publish()` throws
+  `.liveQueriesUnsupportedInTransaction`. The compiler does not catch this
+  yet: the scope is a `GRDBDatabase`, which is `Sendable`, so a `Task` or
+  other `@Sendable` closure can capture it.
   [#802](https://github.com/lukevanin/swiftql/issues/802) tracks a scope type
   that the compiler would refuse to send.
+
+  The check is by thread, but GRDB confines the connection to its writer
+  dispatch queue. A `sync` call onto another queue from inside the body runs
+  on the same thread, so the check cannot see it, and GRDB stops the process
+  with "Database was not used on the correct thread". Use the scope directly
+  in the body, not from inside another queue's block.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

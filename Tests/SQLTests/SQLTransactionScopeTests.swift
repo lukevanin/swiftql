@@ -739,22 +739,18 @@ final class SQLTransactionScopeTests: XCTestCase {
 
         let childError = try await onDispatchThread {
             try database.withTransaction { scope -> XLTransactionScopeError? in
-                let finished = DispatchSemaphore(value: 0)
-                let recorded = LockedValue<XLTransactionScopeError?>(nil)
                 // Deliberate misuse: the request crosses to another thread,
                 // which is what the guard must catch.
                 let request = UncheckedTransfer(scope.makeRequest(with: query))
-                Task {
+                return try resultOfTaskBlockingThisThread {
                     do {
                         _ = try request.value.fetchAll()
+                        return nil
                     }
                     catch {
-                        recorded.withValue { $0 = error as? XLTransactionScopeError }
+                        return error as? XLTransactionScopeError
                     }
-                    finished.signal()
                 }
-                _ = finished.wait(timeout: .now() + 10)
-                return recorded.read()
             }
         }
 
@@ -762,16 +758,16 @@ final class SQLTransactionScopeTests: XCTestCase {
     }
 
     /// The scope itself, not only a request made from it, is refused on
-    /// another thread (issue #696). A detached task that captures the scope
-    /// and calls each of its entry points gets `scopeEscaped` from every
-    /// one, rather than reaching the pinned connection, which GRDB stops
-    /// with a precondition off its writer queue. The body can still use the
-    /// scope afterwards, and none of the task's writes commits.
+    /// another thread (issue #696). A task that captures the scope and runs a
+    /// statement through each of its entry points gets `scopeEscaped` from
+    /// every one, rather than reaching the pinned connection, which GRDB
+    /// stops with a precondition off its writer queue. The body can still
+    /// use the scope afterwards, and none of the task's writes commits.
     ///
     /// The capture compiles because the scope is a `GRDBDatabase`, which is
     /// `Sendable`. Rejecting it at compile time is issue #802's work; until
     /// then this guard is what stops it.
-    func testADetachedTaskThatUsesTheScopeItselfThrowsScopeEscapedFromEveryEntryPoint() async throws {
+    func testATaskThatRunsStatementsThroughTheScopeItselfThrowsScopeEscaped() async throws {
         try createTestTable()
         let database = self.database!
 
@@ -779,12 +775,10 @@ final class SQLTransactionScopeTests: XCTestCase {
             try database.withTransaction { scope -> [String] in
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
 
-                let finished = DispatchSemaphore(value: 0)
-                let recorded = LockedValue<[String]>([])
-                Task.detached {
-                    func outcome(_ entryPoint: String, _ work: () throws -> Void) -> String {
+                let outcomes = try resultOfTaskBlockingThisThread {
+                    func outcome(_ entryPoint: String, _ work: () async throws -> Void) async -> String {
                         do {
-                            try work()
+                            try await work()
                             return "\(entryPoint): ran"
                         }
                         catch let error as XLTransactionScopeError {
@@ -799,17 +793,20 @@ final class SQLTransactionScopeTests: XCTestCase {
                         Select(table)
                         From(table)
                     }
-                    let results = [
-                        outcome("makeRequest(with:).fetchAll()") {
+                    return [
+                        await outcome("makeRequest(with:).fetchAll()") {
                             _ = try scope.makeRequest(with: select).fetchAll()
                         },
-                        outcome("makeRequest(with:).execute()") {
+                        await outcome("makeRequest(with:).execute()") {
                             try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
                         },
-                        outcome("insert(contentsOf:)") {
+                        await outcome("makeRequest(with:).async.fetchAll()") {
+                            _ = try await scope.makeRequest(with: select).async.fetchAll()
+                        },
+                        await outcome("insert(contentsOf:)") {
                             try scope.insert(contentsOf: [TestTable(id: "gamma", value: 3)])
                         },
-                        outcome("prepareInvocation(with:)") {
+                        await outcome("prepareInvocation(with:)") {
                             let invocation = scope.prepareInvocation(with: select)
                             let bindings = try XLInvocationBindings<XLSQLiteValue>(
                                 layout: invocation.parameterLayout,
@@ -817,27 +814,25 @@ final class SQLTransactionScopeTests: XCTestCase {
                             ).validatingComplete()
                             _ = try invocation.fetchAllValues(bindings: bindings)
                         },
-                        outcome("@SQLQuery executor") {
+                        await outcome("@SQLQuery executor") {
                             _ = try scope.fetchTransactionScopeRowByID(id: "alpha")
                         },
-                        outcome("@SQLQueries executor") {
+                        await outcome("@SQLQueries executor") {
                             _ = try scope.containerRowsMatchingID(id: "alpha")
                         },
                     ]
-                    recorded.withValue { $0 = results }
-                    finished.signal()
                 }
-                XCTAssertEqual(finished.wait(timeout: .now() + 10), .success)
 
                 // The refused calls left the scope usable on its own thread.
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "delta", value: 4))).execute()
-                return recorded.read()
+                return outcomes
             }
         }
 
         XCTAssertEqual(outcomes, [
             "makeRequest(with:).fetchAll(): scopeEscaped",
             "makeRequest(with:).execute(): scopeEscaped",
+            "makeRequest(with:).async.fetchAll(): scopeEscaped",
             "insert(contentsOf:): scopeEscaped",
             "prepareInvocation(with:): scopeEscaped",
             "@SQLQuery executor: scopeEscaped",
@@ -984,6 +979,30 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows(), [TestTable(id: "alpha", value: 1)])
     }
 }
+
+
+/// Runs `operation` in a detached task and blocks the calling thread until it
+/// finishes, so a transaction body can hand work to another thread and still
+/// be running when it does. Call it from a dispatch thread, not from a task,
+/// so the blocked thread is not one the task needs.
+private func resultOfTaskBlockingThisThread<Result: Sendable>(
+    _ operation: @escaping @Sendable () async -> Result
+) throws -> Result {
+    let finished = DispatchSemaphore(value: 0)
+    let result = LockedValue<Result?>(nil)
+    Task.detached {
+        let value = await operation()
+        result.withValue { $0 = value }
+        finished.signal()
+    }
+    guard finished.wait(timeout: .now() + 10) == .success, let value = result.read() else {
+        throw TaskTimedOut()
+    }
+    return value
+}
+
+
+private struct TaskTimedOut: Error {}
 
 
 /// Moves a non-`Sendable` value to another thread on purpose, for a test that
