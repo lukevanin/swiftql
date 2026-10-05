@@ -248,19 +248,34 @@ extension XLDatabaseDriverConnection {
     /// Copies each row ``withRowHandleStepper(_:_:)`` steps into values, in
     /// one reusable buffer, for a connection that declares its own row
     /// handle.
+    ///
+    /// A row that fails to copy ends the stepper as a failed step does: the
+    /// error is thrown once, and every later call returns `nil` without
+    /// stepping the handle stepper again.
     public mutating func withValuesStepper<Result>(
         _ statement: PhysicalStatement,
         _ body: (@escaping () throws -> [Dialect.Value]?) throws -> Result
     ) throws -> Result {
         try withRowHandleStepper(statement) { next in
             var values: [Dialect.Value] = []
+            var isTerminal = false
             return try body {
-                guard let row = try next() else {
+                guard !isTerminal else {
                     return nil
                 }
-                values.removeAll(keepingCapacity: true)
-                try row.appendValues(to: &values)
-                return values
+                do {
+                    guard let row = try next() else {
+                        isTerminal = true
+                        return nil
+                    }
+                    values.removeAll(keepingCapacity: true)
+                    try row.appendValues(to: &values)
+                    return values
+                }
+                catch {
+                    isTerminal = true
+                    throw error
+                }
             }
         }
     }

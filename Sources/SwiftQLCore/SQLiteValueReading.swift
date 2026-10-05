@@ -13,17 +13,17 @@ import Foundation
 
 package enum XLSQLiteValueReading {
 
-    /// The error a read at `index` reports when a row has `count` values and
-    /// `index` is not one of them, or `nil` when it is.
-    package static func indexOutOfBounds(
+    /// Throws the error a read at `index` reports when a row has `count`
+    /// values and `index` is not one of them.
+    package static func checkIndex(
         _ index: Int,
         count: Int,
         expectedType: String?
-    ) -> XLColumnReadError? {
+    ) throws {
         guard index < 0 || index >= count else {
-            return nil
+            return
         }
-        return XLColumnReadError(
+        throw XLColumnReadError(
             index: index,
             expectedType: expectedType,
             failure: .indexOutOfBounds(valueCount: count)
@@ -36,9 +36,7 @@ package enum XLSQLiteValueReading {
         in values: [XLSQLiteValue],
         expectedType: String?
     ) throws -> XLSQLiteValue {
-        if let error = indexOutOfBounds(index, count: values.count, expectedType: expectedType) {
-            throw error
-        }
+        try checkIndex(index, count: values.count, expectedType: expectedType)
         return values[index]
     }
 

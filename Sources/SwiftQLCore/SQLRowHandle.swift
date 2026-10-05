@@ -182,13 +182,7 @@ extension XLRowHandle where Value == XLSQLiteValue {
     /// type the caller asked for before ``value(at:)`` is called, so a
     /// handle's own `value(at:)` never sees an index outside the row.
     private func sqliteValue(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
-        if let error = XLSQLiteValueReading.indexOutOfBounds(
-            index,
-            count: columnCount,
-            expectedType: expectedType
-        ) {
-            throw error
-        }
+        try XLSQLiteValueReading.checkIndex(index, count: columnCount, expectedType: expectedType)
         return try value(at: index)
     }
 }
@@ -255,13 +249,7 @@ public struct XLValuesRowHandle<Value: XLDialectValue>: XLRowHandle {
     }
 
     private func checked(_ index: Int, expectedType: String?) throws -> Value {
-        if let error = XLSQLiteValueReading.indexOutOfBounds(
-            index,
-            count: values.count,
-            expectedType: expectedType
-        ) {
-            throw error
-        }
+        try XLSQLiteValueReading.checkIndex(index, count: values.count, expectedType: expectedType)
         return values[index]
     }
 

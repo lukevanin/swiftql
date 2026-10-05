@@ -54,7 +54,10 @@ package struct GRDBRowDecoder<Output> {
     package func decode<Handle>(row: Handle) throws -> Output
         where Handle: XLRowHandle, Handle.Value == XLSQLiteValue
     {
-        if let valuesRow = row as? XLValuesRowHandle<XLSQLiteValue> {
+        // A metatype comparison, so a connection with its own handle, such
+        // as GRDB's, pays no dynamic cast per row.
+        if Handle.self == XLValuesRowHandle<XLSQLiteValue>.self,
+           let valuesRow = row as? XLValuesRowHandle<XLSQLiteValue> {
             return try decode(values: valuesRow.values)
         }
         return try XLColumnValuesRowReader<Output>.withReader(row) { columnReader in

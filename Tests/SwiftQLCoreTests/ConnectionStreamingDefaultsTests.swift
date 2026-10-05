@@ -165,6 +165,47 @@ final class ConnectionStreamingDefaultsTests: XCTestCase {
         XCTAssertEqual(try row.copyValues(), [.text("skip"), .integer(7), .blob(Data([1]))])
     }
 
+    /// A connection with its own handle gets value-level defaults that copy
+    /// each handle's row, stepping its cursor rather than fetching first.
+    func testValueDefaultsForACustomHandleCopyEachSteppedRow() throws {
+        var connection = HandleConnection(rows: [[.integer(1)], [.integer(2)], [.integer(3)]])
+
+        var visited: [[XLSQLiteValue]] = []
+        try connection.forEachRow("SELECT") { values in
+            visited.append(values)
+            return visited.count == 2 ? .stop : .advance
+        }
+
+        XCTAssertEqual(visited, [[.integer(1)], [.integer(2)]])
+        XCTAssertEqual(connection.record.steps, 2)
+    }
+
+    /// A row that fails to copy ends the derived value stepper, as a failed
+    /// step does: every later call returns `nil` and steps nothing.
+    func testDerivedValueStepperEndsAfterARowFailsToCopy() throws {
+        var connection = HandleConnection(
+            rows: [[.integer(1)], [.integer(2)], [.integer(3)]],
+            failingRow: 0
+        )
+
+        let outcomes = try connection.withValuesStepper("SELECT") { next -> [String] in
+            var outcomes: [String] = []
+            do {
+                _ = try next()
+                outcomes.append("row")
+            }
+            catch {
+                outcomes.append("threw")
+            }
+            outcomes.append(try next() == nil ? "nil" : "row")
+            outcomes.append(try next() == nil ? "nil" : "row")
+            return outcomes
+        }
+
+        XCTAssertEqual(outcomes, ["threw", "nil", "nil"])
+        XCTAssertEqual(connection.record.steps, 1, "No row is stepped after the failure.")
+    }
+
     private func assertReadError<T>(
         _ expression: @autoclosure () throws -> T,
         _ expected: XLColumnReadError,
@@ -187,6 +228,102 @@ private struct OtherDialectValue: XLDialectValue {
 /// Records the column indices `value(at:)` was asked for.
 private final class ReadRecord {
     var indices: [Int] = []
+}
+
+
+/// Counts the rows a ``HandleConnection`` steps.
+private final class StepRecord {
+    var steps = 0
+}
+
+
+/// A row of a ``HandleConnection``, whose reads fail on its failing row.
+private struct FailingRowHandle: XLRowHandle {
+
+    struct ReadFailure: Error {}
+
+    let row: [XLSQLiteValue]
+
+    let fails: Bool
+
+    var columnCount: Int {
+        row.count
+    }
+
+    func value(at index: Int) throws -> XLSQLiteValue {
+        if fails {
+            throw ReadFailure()
+        }
+        return row[index]
+    }
+}
+
+
+/// A connection that declares its own handle and implements only the
+/// row-handle members, so its value-level members are the defaults that copy
+/// each handle's row.
+private struct HandleConnection: XLDatabaseDriverConnection {
+
+    typealias RowHandle = FailingRowHandle
+
+    let driverIdentifier = XLDriverIdentifier(rawValue: "handle-double")
+    let databaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
+    let dialect = XLSQLiteDialect()
+    let rows: [[XLSQLiteValue]]
+    var failingRow: Int?
+    let record = StepRecord()
+
+    mutating func preparePhysical(_ statement: XLValidatedLogicalPreparedStatement) throws -> String {
+        statement.logicalStatement.sql
+    }
+
+    mutating func bind(_ value: XLSQLiteValue, to key: XLBindingKey, in statement: String) throws -> String {
+        statement
+    }
+
+    mutating func fetchAll(_ statement: String) throws -> [[XLSQLiteValue]] {
+        XCTFail("A connection with its own handle must not fetch eagerly.")
+        return rows
+    }
+
+    mutating func fetchOne(_ statement: String) throws -> [XLSQLiteValue]? {
+        try fetchAll(statement).first
+    }
+
+    mutating func execute(_ statement: String) throws -> XLExecutionResult {
+        XLExecutionResult(rowsAffected: 0, access: .write)
+    }
+
+    mutating func forEachRowHandle(
+        _ statement: String,
+        _ body: (FailingRowHandle) throws -> XLRowStreamControl
+    ) throws {
+        for (index, row) in rows.enumerated() {
+            record.steps += 1
+            if try body(FailingRowHandle(row: row, fails: index == failingRow)) == .stop {
+                return
+            }
+        }
+    }
+
+    mutating func withRowHandleStepper<Result>(
+        _ statement: String,
+        _ body: (@escaping () throws -> FailingRowHandle?) throws -> Result
+    ) throws -> Result {
+        let rows = rows
+        let failingRow = failingRow
+        let record = record
+        var nextIndex = 0
+        return try body {
+            guard nextIndex < rows.count else {
+                return nil
+            }
+            let index = nextIndex
+            nextIndex += 1
+            record.steps += 1
+            return FailingRowHandle(row: rows[index], fails: index == failingRow)
+        }
+    }
 }
 
 

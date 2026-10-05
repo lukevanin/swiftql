@@ -245,6 +245,9 @@
   - SwiftQL's requests call the row-handle members now. A connection that
     overrides only the value-level members still serves them, through the
     defaults.
+  - A connection that already declares a type or typealias named
+    `RowHandle` now provides the associated type with it, and fails to
+    compile unless that type conforms to `XLRowHandle`. Rename it.
   - `XLColumnReader` moved to SwiftQLCore, so that a driver's row handle can
     be one. `import SwiftQL` re-exports it, so source that names it compiles
     unchanged. Its module-qualified name changes, for example in

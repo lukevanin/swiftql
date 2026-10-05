@@ -1324,13 +1324,7 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
     /// checks it first and reports it as every other reader does. The typed
     /// reads check it again, with their type, before they get here.
     private func checkIndex(_ index: Int) throws {
-        if let error = XLSQLiteValueReading.indexOutOfBounds(
-            index,
-            count: columnCount,
-            expectedType: nil
-        ) {
-            throw error
-        }
+        try XLSQLiteValueReading.checkIndex(index, count: columnCount, expectedType: nil)
     }
 }
 
