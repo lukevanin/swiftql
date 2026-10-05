@@ -110,6 +110,26 @@ final class StatementCachingConnectionTests: XCTestCase {
         )
     }
 
+    func testTheCacheReturnsToCapacityWhenANestedStatementIsFinalized() throws {
+        let driver = try makeDriver(capacity: 1)
+        let outer = driver.logicalStatement("SELECT 1")
+        let nested = driver.logicalStatement("SELECT 2")
+
+        let statistics = try driver.withBlockingReadConnection { connection in
+            let outerStatement = try connection.prepare(outer)
+            let nestedStatement = try connection.prepare(nested)
+            XCTAssertEqual(connection.statementCacheStatistics.cachedStatementCount, 2)
+            connection.finalizePhysical(nestedStatement)
+            connection.finalizePhysical(outerStatement)
+            return connection.statementCacheStatistics
+        }
+
+        XCTAssertEqual(
+            statistics,
+            XLStatementCacheStatistics(misses: 2, evictions: 1, cachedStatementCount: 1)
+        )
+    }
+
     // MARK: - Reset
 
     func testResetReadiesAStatementToBeBoundAndRunAgain() throws {
@@ -355,6 +375,8 @@ final class SQLiteStatementCache: @unchecked Sendable {
         }
         entry.isInUse = false
         entries[sql] = entry
+        // A statement in use could not be evicted when the cache filled.
+        evictIfFull()
     }
 
     func invalidate() {
@@ -432,7 +454,7 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
     }
 
     mutating func fetchAll(_ statement: CachingSQLiteStatement) throws -> [[XLSQLiteValue]] {
-        try invalidatingOnSchemaChange {
+        try invalidatingOnSchemaChange(statement) {
             try Row.fetchAll(statement.statement, arguments: arguments(statement)).map { row in
                 row.databaseValues.map(\.sqliteDialectValue)
             }
@@ -440,7 +462,7 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
     }
 
     mutating func fetchOne(_ statement: CachingSQLiteStatement) throws -> [XLSQLiteValue]? {
-        try invalidatingOnSchemaChange {
+        try invalidatingOnSchemaChange(statement) {
             try Row.fetchOne(statement.statement, arguments: arguments(statement))
                 .map { row in row.databaseValues.map(\.sqliteDialectValue) }
         }
@@ -450,7 +472,7 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
         _ statement: CachingSQLiteStatement,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
-        try invalidatingOnSchemaChange {
+        try invalidatingOnSchemaChange(statement) {
             let cursor = try Row.fetchCursor(statement.statement, arguments: arguments(statement))
             while let row = try cursor.next() {
                 if try body(row.databaseValues.map(\.sqliteDialectValue)) == .stop {
@@ -462,17 +484,22 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
 
     @discardableResult
     mutating func execute(_ statement: CachingSQLiteStatement) throws -> XLExecutionResult {
-        try invalidatingOnSchemaChange {
+        try invalidatingOnSchemaChange(statement) {
             try statement.statement.execute(arguments: arguments(statement))
             return XLExecutionResult(rowsAffected: database.changesCount, access: .write)
         }
     }
 
     /// Runs `body`, then invalidates the cache if the statement it ran
-    /// changed the schema, whichever run method ran it.
+    /// changed the schema, whichever run method ran it. A read-only
+    /// statement cannot change the schema, so it is not checked.
     private func invalidatingOnSchemaChange<Result>(
+        _ statement: CachingSQLiteStatement,
         _ body: () throws -> Result
     ) throws -> Result {
+        guard !statement.statement.isReadonly else {
+            return try body()
+        }
         let schemaVersion = try database.schemaVersion()
         let result = try body()
         if try database.schemaVersion() != schemaVersion {
