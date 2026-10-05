@@ -222,9 +222,10 @@ where
         let layout = executor.parameterLayout
         // Prepared once for this call, on this connection. It is a local value,
         // so it cannot outlive the connection access the caller holds. It is
-        // reset after each row, and finalized when the batch ends however it
-        // ends (issue #677).
-        var statement = try connection.prepare(executor.logicalStatement)
+        // finalized when the batch ends, however it ends (issue #677). It is
+        // not reset between rows: `executeBatchRow` binds every value by
+        // position, and GRDB resets the SQLite statement before each run.
+        let statement = try connection.prepare(executor.logicalStatement)
         defer {
             connection.finalizePhysical(statement)
         }
@@ -255,7 +256,6 @@ where
                     "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>"
                 )
                 try connection.executeBatchRow(statement, bindings: packet)
-                statement = try connection.resetPhysical(statement)
             }
             else {
                 try insertRendered(row, in: &connection)

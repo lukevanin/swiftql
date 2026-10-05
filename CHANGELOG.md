@@ -307,10 +307,11 @@
     state, and `finalizePhysical(_:)` tells the connection SwiftQL is done
     with a statement. The default reset returns the statement unchanged, and
     the default finalize does nothing.
-  - SwiftQL now finalizes every statement it prepares, on the connection
+  - SwiftQL's requests, result sets, prepared invocations, and batch
+    inserts now finalize every statement they prepare, on the connection
     access that prepared it, including when binding or running it throws.
-    The batch insert of `GRDBDatabase.insert(contentsOf:)` resets its
-    statement after each row.
+    The default `resetPhysical(_:)` suits only a connection whose statement
+    value carries no bound values; one that carries them implements it.
   - A connection that already declared a method with one of these
     signatures now provides the requirement, and SwiftQL calls it.
 
@@ -353,9 +354,11 @@
     as one made through another connection; a statement in use finishes its
     run and is not cached again.
   - `warmUp(_:)` prepares each statement of a manifest of logical statements
-    without running it: each is checked and prepared as `prepareValidated(_:)`
-    does, then finalized, so it stays in the cache. A warmed statement's first
-    run is a cache hit.
+    without running it. Its default checks and prepares each one as
+    `prepareValidated(_:)` does, then finalizes it, so it stays in the cache;
+    a connection can implement it to prepare in bulk. A warmed statement's
+    first run is a cache hit. It warms one connection; warming every
+    connection of a pool is the driver's to arrange.
   - The GRDB connection does not conform. GRDB keeps its statement cache
     private, counts nothing, and clears the cache itself when a statement
     changes the schema.

@@ -22,7 +22,8 @@ import Foundation
 extension XLDatabaseDriverConnection {
 
     /// Returns `statement` unchanged: the connection resets a statement
-    /// itself before it runs it.
+    /// itself before it runs it, and keeps no bound values in the statement
+    /// value.
     public mutating func resetPhysical(_ statement: PhysicalStatement) throws -> PhysicalStatement {
         statement
     }
@@ -77,6 +78,17 @@ public protocol XLStatementCachingDriverConnection: XLDatabaseDriverConnection {
     /// cached again when it is finalized. Each statement discarded counts in
     /// ``XLStatementCacheStatistics/invalidations``.
     mutating func invalidatePreparedStatements() throws
+
+    /// Prepares every statement in `manifest` without running it, so that
+    /// the first run of each on this connection is a cache hit.
+    ///
+    /// The default implementation prepares each statement with
+    /// ``XLDatabaseDriverConnection/prepareValidated(_:)`` and finalizes it.
+    /// A connection that can prepare a manifest more cheaply, such as in
+    /// bulk, implements this, and must leave the same statements cached.
+    mutating func warmUp<Manifest: Sequence>(
+        _ manifest: Manifest
+    ) throws where Manifest.Element == XLLogicalPreparedStatement
 }
 
 
@@ -91,8 +103,9 @@ extension XLStatementCachingDriverConnection {
     /// finalized without being bound or run, which leaves it in the cache.
     /// Nothing executes, so a statement that writes changes nothing.
     ///
-    /// Warm-up fills only this connection's cache. A driver with several
-    /// connections warms each one it lends.
+    /// Warm-up fills only this connection's cache. Warming every connection
+    /// of a pool, including ones it opens later, is the driver's to arrange,
+    /// for example when it opens each connection.
     ///
     /// - Parameter manifest: The statements to prepare, such as the declared
     ///   queries an application runs. A statement already cached counts as a

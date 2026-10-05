@@ -53,6 +53,15 @@ final class StatementLifecycleDefaultsTests: XCTestCase {
         XCTAssertEqual(connection.events, [], "Nothing was prepared, so nothing is finalized.")
     }
 
+    func testAConnectionsOwnWarmUpIsCalledThroughTheRefinement() throws {
+        var connection = RecordingCachingConnection(warmsInBulk: true)
+        let manifest = [connection.logicalStatement("SELECT 1")]
+
+        try warmThroughRefinement(&connection, manifest)
+
+        XCTAssertEqual(connection.events, ["bulk warm-up of 1"])
+    }
+
     func testStatisticsDefaultToZero() {
         XCTAssertEqual(
             XLStatementCacheStatistics(),
@@ -65,6 +74,15 @@ final class StatementLifecycleDefaultsTests: XCTestCase {
             )
         )
     }
+}
+
+
+/// Warms `connection` through generic code that knows only the refinement.
+private func warmThroughRefinement<Connection: XLStatementCachingDriverConnection>(
+    _ connection: inout Connection,
+    _ manifest: [XLLogicalPreparedStatement]
+) throws {
+    try connection.warmUp(manifest)
 }
 
 
@@ -109,6 +127,7 @@ private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
     let databaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
     let dialect = XLSQLiteDialect()
     var failingSQL: String?
+    var warmsInBulk = false
     var events: [String] = []
     var statementCacheStatistics = XLStatementCacheStatistics()
 
@@ -156,5 +175,17 @@ private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
 
     mutating func invalidatePreparedStatements() throws {
         statementCacheStatistics.invalidations += 1
+    }
+
+    mutating func warmUp<Manifest: Sequence>(
+        _ manifest: Manifest
+    ) throws where Manifest.Element == XLLogicalPreparedStatement {
+        guard warmsInBulk else {
+            for statement in manifest {
+                finalizePhysical(try prepareValidated(statement))
+            }
+            return
+        }
+        events.append("bulk warm-up of \(Array(manifest).count)")
     }
 }

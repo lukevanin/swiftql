@@ -166,12 +166,12 @@ still fail later on a newly leased connection, for example when its schema,
 registered functions, or available capabilities differ.
 
 A physical statement has a lifecycle on its connection (issue #677). SwiftQL
-prepares it, binds it, and runs it. Before it runs one statement again, such as
-for the next row of a batch insert, it calls the connection's
-`resetPhysical(_:)`. When it is done with the statement, including when binding
-or running it threw, it calls `finalizePhysical(_:)`, on the same connection
-access. Both default to doing nothing, so a driver that frees a statement on
-its own needs neither.
+prepares it, binds it, and runs it. When it is done with the statement,
+including when binding or running it threw, it calls the connection's
+`finalizePhysical(_:)`, on the same connection access. A caller that runs one
+statement more than once calls `resetPhysical(_:)` between the runs. Both
+default to doing nothing, so a driver that frees a statement on its own, and
+keeps no bound values in the statement value, needs neither.
 
 A connection that caches statements can also conform to
 `XLStatementCachingDriverConnection`, in SwiftQLCore. Its

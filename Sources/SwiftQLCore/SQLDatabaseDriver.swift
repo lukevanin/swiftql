@@ -102,19 +102,23 @@ public protocol XLDatabaseDriverConnection {
     /// Returns a statement that has run to its prepared state, so that it
     /// can be bound and run again on this connection (issue #677).
     ///
-    /// SwiftQL calls this between two runs of one statement, such as the
-    /// rows of a batch insert, and then binds every parameter again. The
-    /// returned statement has no open cursor and no bound values.
+    /// A caller that runs one statement more than once calls this between
+    /// the runs, then binds every parameter again. The returned statement has
+    /// no open cursor and no bound values. SwiftQL's requests prepare a
+    /// statement for each run, so they finalize it rather than reset it.
     ///
-    /// The default implementation returns `statement` unchanged, which is
-    /// correct for a connection that resets a statement itself before it
-    /// runs it.
+    /// The default implementation returns `statement` unchanged. That is
+    /// correct only for a connection that resets a statement itself before
+    /// it runs it and keeps no bound values in the statement value. A
+    /// connection whose statement value carries its bound values implements
+    /// this to drop them.
     mutating func resetPhysical(_ statement: PhysicalStatement) throws -> PhysicalStatement
 
     /// Tells the connection that SwiftQL is done with a statement it
     /// prepared (issue #677).
     ///
-    /// SwiftQL calls this once for every statement it prepares, on the
+    /// SwiftQL's requests, result sets, prepared invocations, and batch
+    /// inserts call this once for every statement they prepare, on the
     /// connection access that prepared it, after the statement's last run,
     /// and also when binding or running it threw. The statement is not used
     /// again. A connection that caches statements returns it to its cache; a
