@@ -93,6 +93,10 @@ public protocol XLStatementCachingDriverConnection: XLDatabaseDriverConnection {
     /// A statement in use keeps running, and is discarded rather than
     /// cached again when it is finalized. Each statement discarded counts in
     /// ``XLStatementCacheStatistics/invalidations``.
+    ///
+    /// - Throws: An error releasing a statement, such as a network failure
+    ///   closing a server-side one. The connection must still never lend a
+    ///   statement it cached before this call, whether or not it throws.
     mutating func invalidatePreparedStatements() throws
 
     /// Prepares every statement in `manifest` without running it, so that
@@ -131,8 +135,10 @@ extension XLStatementCachingDriverConnection {
     /// for example when it opens each connection.
     ///
     /// - Parameter manifest: The statements to prepare, such as the declared
-    ///   queries an application runs. A statement already cached counts as a
-    ///   hit and stays cached.
+    ///   queries an application runs. A statement already cached and free
+    ///   counts as a hit and stays cached. One in use, such as when warm-up
+    ///   runs inside a row callback for the same SQL, counts as a miss, as
+    ///   any preparation of it would.
     /// - Throws: The error of the first statement that fails to prepare.
     ///   The statements before it stay cached, and the ones after it are not
     ///   prepared.

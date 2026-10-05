@@ -180,9 +180,9 @@ statement after a schema change the connection cannot see for itself. Its
 on the same access. Its `warmUp(_:)` prepares and finalizes a list of logical
 statements without running them, so that their first runs are cache hits. A
 caching connection implements `finalizePhysical(_:)` to return each statement
-to its cache. A connection that does not cache statements does not conform. The GRDB connection does not conform:
-GRDB keeps its statement cache private, and clears it itself when the schema
-changes.
+to its cache. A connection that does not cache statements does not conform.
+The GRDB connection does not conform: GRDB keeps its statement cache private,
+and clears it itself when the schema changes.
 
 ## Incremental row lifetime
 

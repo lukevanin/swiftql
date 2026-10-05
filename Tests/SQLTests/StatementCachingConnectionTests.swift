@@ -154,7 +154,40 @@ final class StatementCachingConnectionTests: XCTestCase {
         )
     }
 
+    func testIndexedValuesBindByPosition() throws {
+        let driver = try makeDriver()
+
+        let row = try driver.withBlockingReadConnection { connection in
+            var statement = try connection.prepare(driver.logicalStatement("SELECT ?, ?"))
+            defer { connection.finalizePhysical(statement) }
+            statement = try connection.bind(.text("b"), to: .indexed(1), in: statement)
+            statement = try connection.bind(.text("a"), to: .indexed(0), in: statement)
+            return try connection.fetchOne(statement)
+        }
+
+        XCTAssertEqual(row, [.text("a"), .text("b")])
+    }
+
     // MARK: - Schema invalidation
+
+    func testASchemaChangeThroughAFetchInvalidatesTheCache() throws {
+        let driver = try makeDriver()
+        let select = XLInvocationExecutor(
+            driver: driver,
+            logicalStatement: driver.logicalStatement("SELECT * FROM item")
+        )
+        _ = try select.fetchAll(bindings: noBindings)
+
+        _ = try XLInvocationExecutor(
+            driver: driver,
+            logicalStatement: driver.logicalStatement("ALTER TABLE item ADD COLUMN note TEXT")
+        )
+        .fetchAll(bindings: noBindings)
+
+        XCTAssertEqual(driver.statistics.invalidations, 2)
+        _ = try select.fetchAll(bindings: noBindings)
+        XCTAssertEqual(driver.statistics.misses, 3, "The SELECT is prepared again after the change.")
+    }
 
     func testASchemaChangeInvalidatesTheCacheAndTheNextRunPreparesAgain() throws {
         let driver = try makeDriver()
@@ -399,36 +432,53 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
     }
 
     mutating func fetchAll(_ statement: CachingSQLiteStatement) throws -> [[XLSQLiteValue]] {
-        try Row.fetchAll(statement.statement, arguments: arguments(statement)).map { row in
-            row.databaseValues.map(\.sqliteDialectValue)
+        try invalidatingOnSchemaChange {
+            try Row.fetchAll(statement.statement, arguments: arguments(statement)).map { row in
+                row.databaseValues.map(\.sqliteDialectValue)
+            }
         }
     }
 
     mutating func fetchOne(_ statement: CachingSQLiteStatement) throws -> [XLSQLiteValue]? {
-        try Row.fetchOne(statement.statement, arguments: arguments(statement))
-            .map { row in row.databaseValues.map(\.sqliteDialectValue) }
+        try invalidatingOnSchemaChange {
+            try Row.fetchOne(statement.statement, arguments: arguments(statement))
+                .map { row in row.databaseValues.map(\.sqliteDialectValue) }
+        }
     }
 
     mutating func forEachRow(
         _ statement: CachingSQLiteStatement,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
-        let cursor = try Row.fetchCursor(statement.statement, arguments: arguments(statement))
-        while let row = try cursor.next() {
-            if try body(row.databaseValues.map(\.sqliteDialectValue)) == .stop {
-                return
+        try invalidatingOnSchemaChange {
+            let cursor = try Row.fetchCursor(statement.statement, arguments: arguments(statement))
+            while let row = try cursor.next() {
+                if try body(row.databaseValues.map(\.sqliteDialectValue)) == .stop {
+                    return
+                }
             }
         }
     }
 
     @discardableResult
     mutating func execute(_ statement: CachingSQLiteStatement) throws -> XLExecutionResult {
-        let schemaVersion = try database.schemaVersion()
-        try statement.statement.execute(arguments: arguments(statement))
-        if try database.schemaVersion() != schemaVersion {
-            try invalidatePreparedStatements()
+        try invalidatingOnSchemaChange {
+            try statement.statement.execute(arguments: arguments(statement))
+            return XLExecutionResult(rowsAffected: database.changesCount, access: .write)
         }
-        return XLExecutionResult(rowsAffected: database.changesCount, access: .write)
+    }
+
+    /// Runs `body`, then invalidates the cache if the statement it ran
+    /// changed the schema, whichever run method ran it.
+    private func invalidatingOnSchemaChange<Result>(
+        _ body: () throws -> Result
+    ) throws -> Result {
+        let schemaVersion = try database.schemaVersion()
+        let result = try body()
+        if try database.schemaVersion() != schemaVersion {
+            cache.invalidate()
+        }
+        return result
     }
 
     /// GRDB resets the SQLite statement before each run, and a GRDB row
@@ -452,14 +502,22 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
         cache.invalidate()
     }
 
+    /// The statement's values: named ones by name, and indexed ones by
+    /// position, in index order.
     private func arguments(_ statement: CachingSQLiteStatement) -> StatementArguments {
         var named: [String: (any DatabaseValueConvertible)?] = [:]
+        var indexed: [(index: Int, value: DatabaseValue)] = []
         for (key, value) in statement.bindings {
-            if case .named(let name) = key {
+            switch key {
+            case .named(let name):
                 named[name] = value.databaseValue
+            case .indexed(let index):
+                indexed.append((index, value.databaseValue))
             }
         }
-        return StatementArguments(named)
+        var arguments = StatementArguments(indexed.sorted { $0.index < $1.index }.map(\.value))
+        _ = arguments.append(contentsOf: StatementArguments(named))
+        return arguments
     }
 }
 
