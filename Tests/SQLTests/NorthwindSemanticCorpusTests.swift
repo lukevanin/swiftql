@@ -1,6 +1,6 @@
 import Foundation
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 import SwiftQLNorthwindFixtures
 import SwiftQLSQLiteConformanceFixtures
 import XCTest

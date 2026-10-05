@@ -19,7 +19,7 @@ import Foundation
 import GRDB
 // `@testable` only to reach a capture's intrinsic encoder, which no public
 // API applies for a dialect without a request layer.
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 import XCTest
 
 

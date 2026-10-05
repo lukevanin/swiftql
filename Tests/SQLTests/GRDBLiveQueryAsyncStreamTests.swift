@@ -15,7 +15,7 @@ import Foundation
 import SwiftQLTestSupport
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 // MARK: - Fixtures

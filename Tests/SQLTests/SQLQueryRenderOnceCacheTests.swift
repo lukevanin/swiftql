@@ -14,7 +14,7 @@
 import Foundation
 import XCTest
 import GRDB
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 ///

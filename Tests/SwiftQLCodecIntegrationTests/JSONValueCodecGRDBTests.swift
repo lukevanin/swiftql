@@ -2,7 +2,7 @@ import Foundation
 import SwiftQLTestSupport
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 /// Real GRDB/SQLite round trips for ``XLJSONValueCodec``. Value-level

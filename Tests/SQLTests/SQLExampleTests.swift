@@ -14,7 +14,7 @@ import OpenCombine
 #endif
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 /// Converts a public `XLSQLiteValue` into a GRDB bind argument using only public API. This file
 /// uses a plain `import SwiftQL` (not `@testable`), so it cannot reach the internal
@@ -177,10 +177,14 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
 
     public init(reader: XLFieldReader) throws {
         let rawValue = try reader.readReal()
-        guard let wrappedValue = Date(julianDay: rawValue) else {
+        guard rawValue.isFinite else {
             throw ReadError.invalidJulianDay(rawValue)
         }
-        self.wrappedValue = wrappedValue
+        // Julian day 2440587.5 is the Unix epoch. Round to the millisecond,
+        // the precision the text representation keeps.
+        let milliseconds = ((rawValue - 2440587.5) * 86_400_000)
+            .rounded(.toNearestOrAwayFromZero)
+        self.wrappedValue = Date(timeIntervalSince1970: milliseconds / 1000)
     }
 
     public func bind(context: inout XLBindingContext) {
@@ -663,8 +667,8 @@ final class XLDocumentationTests: XCTestCase {
         //        )
         
         // Use a database builder to install custom functions.
-        let config = Configuration()
-        var builder = try! GRDBDatabaseBuilder(url: fileURL, configuration: config, logger: nil)
+        let configuration = GRDBDatabaseConfiguration()
+        var builder = try! GRDBDatabaseBuilder(url: fileURL, configuration: configuration, logger: nil)
 
         builder.addFunction(HaversineDistance.self)
         builder.addFunction(MacroHaversineDistance.self)
@@ -1565,6 +1569,40 @@ extension XLDocumentationTests {
             5,
             "Both rows of the batch must commit with the transaction."
         )
+
+        // "Opening a GRDB database without GRDB" (issue #702).
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let configuredDatabaseURL = directory.appendingPathComponent("configured.sqlite")
+        var configuration = GRDBDatabaseConfiguration()
+        configuration.busyTimeout = 5
+        configuration.maximumReaderCount = 2
+        let configuredDatabase = try GRDBDatabase(
+            url: configuredDatabaseURL,
+            configuration: configuration,
+            logger: nil
+        )
+        // Close before the directory goes, whether or not the checks pass.
+        defer { try? configuredDatabase.databasePool.close() }
+        XCTAssertEqual(configuredDatabase.databasePool.configuration.maximumReaderCount, 2)
+        XCTAssertEqual(try configuredDatabase.makeRequest(with: sql { _ in Select(1) }).fetchOne(), 1)
+
+        // "The GRDB escape hatch".
+        let pooledDatabaseURL = directory.appendingPathComponent("pooled.sqlite")
+        let pool = try DatabasePool(path: pooledDatabaseURL.path)
+        defer { try? pool.close() }
+        let pooledDatabase = try GRDBDatabase(
+            databasePool: pool,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+        try pooledDatabase.databasePool.write { db in
+            try db.execute(sql: "CREATE TABLE Note (body TEXT)")
+        }
+        XCTAssertTrue(pooledDatabase.databasePool === pool)
+        XCTAssertTrue(try pool.read { db in try db.tableExists("Note") })
     }
 
     /// A nullable column is assigned in a `Setting` closure the same way an

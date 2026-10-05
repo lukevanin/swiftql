@@ -6,7 +6,7 @@ import OpenCombineDispatch
 #endif
 import Dispatch
 import Foundation
-import GRDB
+internal import GRDB
 
 
 /// Controls recovery after a GRDB-backed live query fails.

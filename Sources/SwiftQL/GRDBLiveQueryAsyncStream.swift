@@ -4,7 +4,7 @@ import Combine
 import OpenCombine
 #endif
 import Foundation
-import GRDB
+internal import GRDB
 
 
 /// Bridges a raw GRDB `ValueObservation` into SwiftQL's canonical,

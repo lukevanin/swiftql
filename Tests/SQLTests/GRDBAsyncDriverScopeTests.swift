@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 import SwiftQLTestSupport
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 /// The GRDB adapter's asynchronous driver scopes (issue #676): the shared

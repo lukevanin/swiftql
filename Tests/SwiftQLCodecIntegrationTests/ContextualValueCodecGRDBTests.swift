@@ -2,7 +2,7 @@ import Foundation
 import SwiftQLTestSupport
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 import SwiftQLSQLiteConformanceFixtures
 
 
@@ -332,7 +332,6 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         let builder = try GRDBDatabaseBuilder(
             url: directoryURL.appendingPathComponent("builder.sqlite"),
             codingConfiguration: configuration,
-            configuration: GRDB.Configuration(),
             logger: nil
         )
         let builtDatabase = try builder.build()
@@ -352,7 +351,6 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
 
         let oldBuilder = try GRDBDatabaseBuilder(
             url: directoryURL.appendingPathComponent("old-builder.sqlite"),
-            configuration: GRDB.Configuration(),
             logger: nil
         )
         let oldBuiltDatabase = try oldBuilder.build()

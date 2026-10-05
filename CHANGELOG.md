@@ -232,6 +232,56 @@
     runs. Its default checks nothing.
   - A connection that already declared a method with one of these signatures
     now provides the requirement, and SwiftQL calls it.
+- **No GRDB type appears in SwiftQL's public API** (issue #702). Opening a
+  database, registering functions and collations, and running requests need
+  only `import SwiftQL`. A file that imports both SwiftQL and GRDB sees both
+  modules' names, and once the `XL` prefix goes (#33) some of them would
+  collide, such as `Table` and `Database`.
+  - `GRDBDatabase.init(url:configuration:...)`,
+    `GRDBDatabaseBuilder.init(url:configuration:...)`, and their
+    `codingConfiguration:` forms take the new `GRDBDatabaseConfiguration`
+    instead of GRDB's `Configuration`, and default it everywhere. The
+    builder's `configuration:` argument was required, and no longer is. Drop
+    `configuration: Configuration()`, and replace a configured one with the
+    same options:
+
+    ```swift
+    // Before
+    var configuration = Configuration()
+    configuration.readonly = true
+    configuration.maximumReaderCount = 2
+    // After
+    var configuration = GRDBDatabaseConfiguration()
+    configuration.readonly = true
+    configuration.maximumReaderCount = 2
+    ```
+
+    It covers `readonly`, `foreignKeysEnabled`, `maximumReaderCount`,
+    `label`, and `busyTimeout`, which sets GRDB's `busyMode` to
+    `.timeout(_:)`. Like `busyMode`, it applies to the pool's writer; GRDB
+    keeps its own 10-second timeout for the pool's readers.
+  - A `maximumReaderCount` below 1, or a busy timeout outside 0 to
+    2,147,483.647 seconds, from either configuration, now makes opening the
+    database throw an `XLDatabaseError` whose code is `.misuse`. GRDB stopped
+    the process, or for a negative timeout, silently waited for nothing.
+  - Anything else GRDB offers is SwiftQL's GRDB SPI, which a file declares
+    with `@_spi(GRDB) import SwiftQL`:
+    - `GRDBDatabase.databasePool`;
+    - `GRDBDatabase.init(databasePool:...)` and its `codingConfiguration:`
+      form, unchanged;
+    - `GRDBDatabaseBuilder.init(url:grdbConfiguration:...)` and its
+      `codingConfiguration:` form, which take a GRDB `Configuration`, such as
+      one with a `prepareDatabase` hook. Rename the argument from
+      `configuration:`. `GRDBDatabase(url:configuration:...)` has no such
+      form, so a call that passed it a GRDB `Configuration` becomes
+      `GRDBDatabaseBuilder(url:grdbConfiguration:...).build()`, which opens
+      the same pool.
+
+    A file that uses one of these without the SPI import fails to compile
+    with "'databasePool' is inaccessible due to '@_spi' protection level", or
+    finds no initializer that takes a `DatabasePool`. `@testable import
+    SwiftQL` does not grant the SPI; write
+    `@_spi(GRDB) @testable import SwiftQL`.
 - **The coding factories are generic over the dialect** (issue #687). See
   "The macro output carries the dialect as a parameter" below. A call that
   passes a dialect value compiles unchanged.

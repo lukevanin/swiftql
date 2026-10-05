@@ -9,7 +9,7 @@
 import Foundation
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 final class XLExecutionResultTests: XCTestCase {
@@ -126,7 +126,7 @@ final class XLExecutionResultTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         XCTAssertThrowsError(
-            try GRDBDatabaseBuilder(url: fileURL, configuration: Configuration(), logger: nil).build()
+            try GRDBDatabaseBuilder(url: fileURL, logger: nil).build()
         ) { error in
             XCTAssertEqual((error as? XLDatabaseError)?.code, .notADatabase, "\(error)")
         }

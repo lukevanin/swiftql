@@ -17,7 +17,7 @@ import Combine
 #else
 import OpenCombine
 #endif
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 final class SQLRowExecutionTests: XCTestCase {

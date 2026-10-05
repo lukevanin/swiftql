@@ -1,6 +1,6 @@
 import Foundation
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 import XCTest
 
 
@@ -30,7 +30,6 @@ final class XLCustomCollationTests: XCTestCase {
             .appendingPathExtension("sqlite")
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         builder.addCollation(Self.byLength) { lhs, rhs in

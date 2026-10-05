@@ -6,7 +6,7 @@ import OpenCombine
 #endif
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 enum ColumnReadTestStatus: Int, XLEnum {
@@ -110,7 +110,7 @@ final class XLColumnReadErrorTests: XCTestCase {
         }
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: logger
         )
         builder.addFunction(ColumnReadIntegerFunction.self)

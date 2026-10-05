@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import GRDB
+internal import GRDB
 #if canImport(Combine)
 import Combine
 #else

@@ -8,7 +8,7 @@ import Foundation
 import SwiftQLTestSupport
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 private enum RetryTestError: Error, Equatable {
@@ -620,7 +620,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
             if let retryPolicy {
                 builder = try GRDBDatabaseBuilder(
                     url: databaseURL,
-                    configuration: configuration,
+                    grdbConfiguration: configuration,
                     logger: nil,
                     liveQueryRetryPolicy: retryPolicy
                 )
@@ -628,7 +628,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
             else {
                 builder = try GRDBDatabaseBuilder(
                     url: databaseURL,
-                    configuration: configuration,
+                    grdbConfiguration: configuration,
                     logger: nil
                 )
             }

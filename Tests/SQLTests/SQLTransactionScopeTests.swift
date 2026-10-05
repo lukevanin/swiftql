@@ -22,7 +22,7 @@ import OpenCombine
 import SwiftQLTestSupport
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 // A peer `@SQLQuery` declaration (not `@SQLQueries`, which would redeclare
