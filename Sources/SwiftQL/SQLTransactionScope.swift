@@ -81,7 +81,7 @@ public protocol XLTransactionalDatabase: XLDatabase {
     ///   transaction's connection. Use it exactly like the enclosing
     ///   database — `makeRequest(with:)`, the v1 fetch/execute methods, and
     ///   any `@SQLQueries`-generated `Context` all work unchanged — but only
-    ///   on the thread that runs `body`. See "One thread" above.
+    ///   on the thread that runs `body`; see ``XLTransactionalDatabase``.
     /// - Returns: `body`'s result, after the transaction has committed.
     /// - Throws: The original error `body` threw (preparation, binding,
     ///   execution, decoding, or user-thrown) after rolling back every write

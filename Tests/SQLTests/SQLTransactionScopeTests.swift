@@ -726,13 +726,13 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows().map(\.id), ["alpha"])
     }
 
-    /// A scope value used from a task created in the body would touch the
-    /// pinned connection off GRDB's writer queue, which GRDB stops with a
-    /// precondition. It throws `scopeEscaped` instead.
+    /// A request made from the scope and used from a task created in the
+    /// body would touch the pinned connection off GRDB's writer queue, which
+    /// GRDB stops with a precondition. It throws `scopeEscaped` instead.
     ///
     /// The body runs on a dispatch thread, so blocking it while the task
     /// runs cannot starve the cooperative pool.
-    func testAScopeUsedFromATaskCreatedInTheBodyThrowsScopeEscaped() async throws {
+    func testARequestFromTheScopeUsedFromATaskCreatedInTheBodyThrowsScopeEscaped() async throws {
         try createTestTable()
         let database = self.database!
         nonisolated(unsafe) let query = selectAllTestRowsQuery()
@@ -758,11 +758,12 @@ final class SQLTransactionScopeTests: XCTestCase {
     }
 
     /// The scope itself, not only a request made from it, is refused on
-    /// another thread (issue #696). A task that captures the scope and runs a
-    /// statement through each of its entry points gets `scopeEscaped` from
-    /// every one, rather than reaching the pinned connection, which GRDB
-    /// stops with a precondition off its writer queue. The body can still
-    /// use the scope afterwards, and none of the task's writes commits.
+    /// another thread (issue #696). A detached task, as in the issue, that
+    /// captures the scope and runs a statement through each of its entry
+    /// points gets `scopeEscaped` from every one, rather than reaching the
+    /// pinned connection, which GRDB stops with a precondition off its writer
+    /// queue. The body can still use the scope afterwards, and none of the
+    /// task's writes commits.
     ///
     /// Every row but the asynchronous one reaches the pinned connection's
     /// thread check: without that check, the process stops in GRDB.
@@ -778,7 +779,7 @@ final class SQLTransactionScopeTests: XCTestCase {
             try database.withTransaction { scope -> [String] in
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
 
-                let outcomes = try resultOfTaskBlockingThisThread {
+                let outcomes = try resultOfTaskBlockingThisThread(detached: true) {
                     func outcome(_ entryPoint: String, _ work: () async throws -> Void) async -> String {
                         do {
                             try await work()
@@ -799,6 +800,9 @@ final class SQLTransactionScopeTests: XCTestCase {
                     return [
                         await outcome("makeRequest(with:).fetchAll()") {
                             _ = try scope.makeRequest(with: select).fetchAll()
+                        },
+                        await outcome("makeRequest(with:).fetchOne()") {
+                            _ = try scope.makeRequest(with: select).fetchOne()
                         },
                         await outcome("makeRequest(with:).execute()") {
                             try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
@@ -837,6 +841,7 @@ final class SQLTransactionScopeTests: XCTestCase {
 
         XCTAssertEqual(outcomes, [
             "makeRequest(with:).fetchAll(): scopeEscaped",
+            "makeRequest(with:).fetchOne(): scopeEscaped",
             "makeRequest(with:).execute(): scopeEscaped",
             "makeRequest(with:).async.fetchAll(): scopeEscaped",
             "insert(contentsOf:): scopeEscaped",

@@ -311,9 +311,9 @@ above describes, plus the guarantees a typed, adapter-neutral surface adds:
   `GRDBDatabase` — the exact same type <doc:GettingStarted> uses — never a
   GRDB `Database`, `DatabasePool`, or statement handle.
 
-Three cases are rejected before any transaction work happens, each with a
-predictable, catchable `XLTransactionScopeError` rather than a crash or silent
-wrong answer:
+Four misuses are rejected, each with a predictable, catchable
+`XLTransactionScopeError` rather than a crash or silent wrong answer, except
+where the third rule below says otherwise:
 
 - **Nested transactions and savepoints are not supported.** Calling
   `withTransaction(_:)` again from inside an active body — on the scope it was
@@ -339,8 +339,9 @@ wrong answer:
   throws `.scopeEscaped` on that thread, rather than touching the connection.
   A block sent to `DispatchQueue.global()` runs on another thread. So does a
   task created in the body, unless it inherits the body's actor, such as the
-  main actor; then it runs only after the body returns, and the ended scope
-  throws `.scopeEscaped` too. Do not make the body wait for such a task. A
+  main actor. Such a task waits for the body's thread to be free, which is
+  normally after the body returns, so the ended scope throws `.scopeEscaped`
+  too; do not make the body wait for it. A
   call the scope refuses on any thread keeps its own error: a nested
   `withTransaction(_:)` throws `.nestedTransactionUnsupported`, `publish()`
   throws `.liveQueriesUnsupportedInTransaction`, and a request's `async`
@@ -354,9 +355,10 @@ wrong answer:
   dispatch queue. A block that another queue runs on the body's thread
   passes the check, and GRDB stops the process with "Database was not used
   on the correct thread". Two ways to get one are a `sync` call onto another
-  queue from inside the body, and main-queue work that a run loop the body
-  spins runs. Use the scope directly in the body, not from inside another
-  queue's block.
+  queue from inside the body, and main-queue work, including a main-actor
+  task, that a run loop the body spins runs. Use the scope directly in the
+  body, not from inside another queue's block, and do not spin a run loop in
+  the body.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a
