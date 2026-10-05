@@ -337,21 +337,26 @@ wrong answer:
   to the thread that runs the body until the body returns. A statement run
   through the scope, or through a request made from it, on any other thread
   throws `.scopeEscaped` on that thread, rather than touching the connection.
-  A task created in the body, or a block sent to `DispatchQueue.global()`,
-  runs on another thread. A call the scope refuses on any thread keeps its
-  own error: a nested `withTransaction(_:)` throws
-  `.nestedTransactionUnsupported`, and `publish()` throws
-  `.liveQueriesUnsupportedInTransaction`. The compiler does not catch this
+  A block sent to `DispatchQueue.global()` runs on another thread. So does a
+  task created in the body, unless it inherits the body's actor, such as the
+  main actor; then it runs only after the body returns, and the ended scope
+  throws `.scopeEscaped` too. Do not make the body wait for such a task. A
+  call the scope refuses on any thread keeps its own error: a nested
+  `withTransaction(_:)` throws `.nestedTransactionUnsupported`, `publish()`
+  throws `.liveQueriesUnsupportedInTransaction`, and a request's `async`
+  form throws `.scopeEscaped`. The compiler does not catch this
   yet: the scope is a `GRDBDatabase`, which is `Sendable`, so a `Task` or
   other `@Sendable` closure can capture it.
   [#802](https://github.com/lukevanin/swiftql/issues/802) tracks a scope type
   that the compiler would refuse to send.
 
   The check is by thread, but GRDB confines the connection to its writer
-  dispatch queue. A `sync` call onto another queue from inside the body runs
-  on the same thread, so the check cannot see it, and GRDB stops the process
-  with "Database was not used on the correct thread". Use the scope directly
-  in the body, not from inside another queue's block.
+  dispatch queue. A block that another queue runs on the body's thread
+  passes the check, and GRDB stops the process with "Database was not used
+  on the correct thread". Two ways to get one are a `sync` call onto another
+  queue from inside the body, and main-queue work that a run loop the body
+  spins runs. Use the scope directly in the body, not from inside another
+  queue's block.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

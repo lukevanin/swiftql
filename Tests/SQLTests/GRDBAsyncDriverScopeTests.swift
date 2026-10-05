@@ -204,7 +204,7 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
                 // Keep the scope open until the child has finished, so the
                 // child's access happens while the parent still holds.
                 guard started.wait(timeout: .now() + 10) == .success else {
-                    throw ChildTimedOut()
+                    throw TaskTimedOut()
                 }
             }
             if scope == "read" {
@@ -311,23 +311,14 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
 
         let childOutcome = try await onDispatchThread {
             try database.withTransaction { _ -> String in
-                let finished = DispatchSemaphore(value: 0)
-                let recorded = LockedValue<String?>(nil)
-                Task {
-                    let outcome: String
+                try resultOfTaskBlockingThisThread {
                     do {
-                        outcome = try await database.driver.withReadConnection { _ in "read" }
+                        return try await database.driver.withReadConnection { _ in "read" }
                     }
                     catch {
-                        outcome = "threw \(error)"
+                        return "threw \(error)"
                     }
-                    recorded.withValue { $0 = outcome }
-                    finished.signal()
                 }
-                guard finished.wait(timeout: .now() + 10) == .success else {
-                    throw ChildTimedOut()
-                }
-                return try XCTUnwrap(recorded.read())
             }
         }
 
@@ -454,23 +445,8 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
             )
         }
     }
-
-    /// Runs `body` on a dispatch thread, outside any task, and resumes with
-    /// its result.
-    private func onDispatchThread<Result: Sendable>(
-        _ body: @escaping @Sendable () throws -> Result
-    ) async throws -> Result {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().async {
-                continuation.resume(with: Swift.Result { try body() })
-            }
-        }
-    }
 }
 
-
-
-private struct ChildTimedOut: Error {}
 
 
 /// A contract fixture over real temporary SQLite databases. Every database it

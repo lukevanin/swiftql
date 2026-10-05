@@ -60,11 +60,11 @@ import Foundation
 /// ## One thread
 ///
 /// Use the scope only on the thread that runs `body`. The scope's connection
-/// is lent to that thread until `body` returns, and a conforming database
-/// refuses a statement run through the scope, or through a request made from
+/// is lent to that thread until `body` returns. A conforming database should
+/// refuse a statement run through the scope, or through a request made from
 /// it, on any other thread with ``XLTransactionScopeError/scopeEscaped``
-/// rather than share the connection. A task created in the body runs on
-/// another thread. <doc:AdvancedUsage> gives the full rule, including what
+/// rather than share the connection, as ``GRDBDatabase`` does.
+/// <doc:AdvancedUsage> gives the full rule for `GRDBDatabase`, including what
 /// the compiler does not yet catch.
 ///
 /// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for

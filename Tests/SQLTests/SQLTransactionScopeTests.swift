@@ -764,6 +764,9 @@ final class SQLTransactionScopeTests: XCTestCase {
     /// stops with a precondition off its writer queue. The body can still
     /// use the scope afterwards, and none of the task's writes commits.
     ///
+    /// Every row but the asynchronous one reaches the pinned connection's
+    /// thread check: without that check, the process stops in GRDB.
+    ///
     /// The capture compiles because the scope is a `GRDBDatabase`, which is
     /// `Sendable`. Rejecting it at compile time is issue #802's work; until
     /// then this guard is what stops it.
@@ -800,6 +803,9 @@ final class SQLTransactionScopeTests: XCTestCase {
                         await outcome("makeRequest(with:).execute()") {
                             try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
                         },
+                        // A scope's request has no asynchronous form on any
+                        // thread, so this row holds whether or not the thread
+                        // check runs; it pins that a task gets no further.
                         await outcome("makeRequest(with:).async.fetchAll()") {
                             _ = try await scope.makeRequest(with: select).async.fetchAll()
                         },
@@ -842,18 +848,6 @@ final class SQLTransactionScopeTests: XCTestCase {
             try freshRows().sorted { $0.id < $1.id },
             [TestTable(id: "alpha", value: 1), TestTable(id: "delta", value: 4)]
         )
-    }
-
-    /// Runs `body` on a dispatch thread, outside any task, and resumes with
-    /// its result.
-    private func onDispatchThread<Result: Sendable>(
-        _ body: @escaping @Sendable () throws -> Result
-    ) async throws -> Result {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().async {
-                continuation.resume(with: Swift.Result { try body() })
-            }
-        }
     }
 
     // MARK: - Cancellation
@@ -979,30 +973,6 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows(), [TestTable(id: "alpha", value: 1)])
     }
 }
-
-
-/// Runs `operation` in a detached task and blocks the calling thread until it
-/// finishes, so a transaction body can hand work to another thread and still
-/// be running when it does. Call it from a dispatch thread, not from a task,
-/// so the blocked thread is not one the task needs.
-private func resultOfTaskBlockingThisThread<Result: Sendable>(
-    _ operation: @escaping @Sendable () async -> Result
-) throws -> Result {
-    let finished = DispatchSemaphore(value: 0)
-    let result = LockedValue<Result?>(nil)
-    Task.detached {
-        let value = await operation()
-        result.withValue { $0 = value }
-        finished.signal()
-    }
-    guard finished.wait(timeout: .now() + 10) == .success, let value = result.read() else {
-        throw TaskTimedOut()
-    }
-    return value
-}
-
-
-private struct TaskTimedOut: Error {}
 
 
 /// Moves a non-`Sendable` value to another thread on purpose, for a test that
