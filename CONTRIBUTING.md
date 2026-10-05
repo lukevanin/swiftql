@@ -65,6 +65,7 @@ is not obvious at first glance:
 |---|---|---|
 | `Tests/SwiftQLCoreTests/` | `testTarget` | Unit tests for the GRDB-free `SwiftQLCore` contract layer (dialect contracts, static query descriptors, invocation bindings). |
 | `Tests/SwiftQLDriverDatabaseTests/` | `testTarget` | `XLDriverDatabase` over a scripted driver double with no GRDB import (issue #682). It depends on `SwiftQL` alone, and `scripts/ci/check-core-contract-boundary.py` rejects a GRDB, CSQLite, or Combine import in it. |
+| `Tests/SwiftQLGRDBFreeClientTests/` | `testTarget` | A client opens a `GRDBDatabase`, registers a function and a collation, and runs queries with no GRDB import (issue #702). It depends on `SwiftQL` alone, and `scripts/ci/check-core-contract-boundary.py` rejects a GRDB, CSQLite, or Combine import in it. |
 | `Tests/SQLMacrosTests/` (inside `Tests/`) | `testTarget` | Tests for the `@SQLTable` and `@SQLResult` macro expansions. |
 | `Tests/SQLTests/` | `testTarget` | Integration tests for the full `SwiftQL` API — queries, joins, expressions, aggregates, and the GRDB driver. |
 | `Tests/SwiftQLCodecIntegrationTests/` | `testTarget` | Codec integration tests isolated from `SQLTests` so Foundation codecs do not inherit its retroactive literal conformances. |
@@ -74,6 +75,8 @@ is not obvious at first glance:
 | `Tests/SwiftQLSQLiteConformanceFixtures/` | fixture library | A test-only library target (not a test target) that provides SQLite value cases shared across the core and integration tests. |
 | `Tests/SwiftQLNorthwindFixtures/` | fixture library | A test-only library target that bundles the Northwind SQLite database for semantic corpus tests. |
 | `Tests/SwiftQLStreamOnlyRequestFixture/` | compile-only fixture | `XLRequest` conformers that implement only the live-query stream members and never import Combine or OpenCombine. That it builds proves a request adapter needs neither (issue #684). `SQLTests` drives the conformers and checks the import rule. |
+| `Tests/SwiftQLV2Names/` | fixture library | The proposed v2 spelling of every public `XL` type, as typealiases, and the names that collide and still need one (issues #702 and #33). `SwiftQLV2NameInventoryTests` in `SQLTests` keeps it complete. |
+| `Tests/SwiftQLV2NameCollisionFixture/` | compile-only fixture | Imports SwiftQL, GRDB, Foundation, and SwiftUI where it exists, with `SwiftQLV2Names`, and names every proposed and unprefixed type unqualified. A name two of those modules declare is ambiguous, so a collision stops the package building (issue #702). |
 | `Tests/SwiftQLSQLiteCombinatorialSupport/` | support library | A test-only library target for the combinatorial SQL generator. |
 
 Benchmark and profiling executables live under `Benchmarks/` and have their own

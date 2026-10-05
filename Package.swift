@@ -368,6 +368,40 @@ let package = Package(
             dependencies: ["SwiftQL"]
         ),
 
+        // Issue #702: a client opens a GRDB-backed database, registers a
+        // function and a collation, and runs queries without importing GRDB.
+        // It depends on SwiftQL alone, and the core boundary check rejects a
+        // GRDB, CSQLite, or Combine import in it.
+        .testTarget(
+            name: "SwiftQLGRDBFreeClientTests",
+            dependencies: ["SwiftQL"]
+        ),
+
+        // Issue #702: the proposed v2 spelling of every public `XL` name, as
+        // typealiases in a module of their own, so a client that imports it
+        // beside GRDB, Foundation, and SwiftUI sees the same cross-module
+        // ambiguities the renamed types will (#33).
+        .target(
+            name: "SwiftQLV2Names",
+            dependencies: ["SwiftQL"],
+            path: "Tests/SwiftQLV2Names"
+        ),
+
+        // Compile-only collision fixture (issue #702). It imports SwiftQL,
+        // GRDB, Foundation, and SwiftUI where it exists, together with the
+        // proposed v2 names, and names each one unqualified. A proposed name
+        // another of those modules also declares is ambiguous there, so the
+        // package stops building.
+        .target(
+            name: "SwiftQLV2NameCollisionFixture",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLV2Names",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/SwiftQLV2NameCollisionFixture"
+        ),
+
         .testTarget(
             name: "SQLMacrosTests",
             dependencies: [

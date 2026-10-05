@@ -3,7 +3,7 @@ import SwiftQLTestSupport
 import GRDB
 import XCTest
 
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 final class StaticQueryDescriptorGRDBTests: XCTestCase {

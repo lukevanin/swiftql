@@ -2,7 +2,7 @@ import Foundation
 import SwiftQLTestSupport
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 /// One schema, two `UUID` properties, two different SQLite representations,

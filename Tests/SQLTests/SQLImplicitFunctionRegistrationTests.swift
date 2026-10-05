@@ -288,7 +288,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
             "database.sqlite",
             isDirectory: false
         )
-        var configuration = Configuration()
+        var configuration = GRDBDatabaseConfiguration()
         if let maximumReaderCount {
             configuration.maximumReaderCount = maximumReaderCount
         }
@@ -391,7 +391,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         )
 
         let otherURL = databaseDirectoryURL.appendingPathComponent("other.sqlite", isDirectory: false)
-        let other = try GRDBDatabaseBuilder(url: otherURL, configuration: Configuration(), logger: nil).build()
+        let other = try GRDBDatabaseBuilder(url: otherURL, logger: nil).build()
         let rebound = request.rebound(to: other.driver)
         XCTAssertEqual(
             rebound.executor.logicalStatement.requiredFunctions.keys.sorted(),
@@ -483,7 +483,6 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         )
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         builder.addFunction(UpfrontAndImplicitDoubleFunction.self)

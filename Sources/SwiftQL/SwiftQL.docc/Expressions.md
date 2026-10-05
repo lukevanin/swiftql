@@ -345,7 +345,7 @@ than the subject limit, use full-text search or match in Swift.
 > Note: An application that registers its own two-argument `regexp` keeps it.
 SwiftQL never installs its bundled `regexp` over one registered with
 `GRDBDatabaseBuilder.addFunction(_:)` or with
-`Configuration.prepareDatabase(_:)`, so upgrading does not change what `REGEXP`
+GRDB's `Configuration.prepareDatabase(_:)`, so upgrading does not change what `REGEXP`
 means for an application that already supplied one. An application
 `XLCustomFunction` named `regexp` with two arguments also wins, and replaces the
 bundled function on a connection where SwiftQL installed it first; see

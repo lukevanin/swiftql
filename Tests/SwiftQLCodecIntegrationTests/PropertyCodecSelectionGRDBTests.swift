@@ -3,7 +3,7 @@ import SwiftQLTestSupport
 import GRDB
 import XCTest
 
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 // Issue #66: real-SQLite proof that a property-level `@SQLCodec(_:)` selection is applied

@@ -1,0 +1,399 @@
+//
+//  V2NameCollisionFixture.swift
+//  SwiftQL
+//
+//  Compile-only fixture for issue #702. A client file that imports SwiftQL
+//  beside GRDB, Foundation, and SwiftUI names every proposed v2 type, and
+//  every public type SwiftQL already spells without a prefix, unqualified.
+//  Swift rejects a type name two imported modules declare as ambiguous, so a
+//  proposed name that collides stops the package building.
+//
+//  The proposed names live in `SwiftQLV2Names`, a module of their own, so the
+//  lookup here is a cross-module lookup, as it will be once #33 renames the
+//  types themselves. SwiftUI is imported where it exists; the other three
+//  modules are imported on every platform.
+//
+
+import Foundation
+import GRDB
+import SwiftQL
+import SwiftQLV2Names
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
+
+
+/// Each member names one type unqualified. The member names carry a `Name`
+/// suffix only so that they do not shadow the type they name.
+enum V2NameCollisionFixture {
+
+    // MARK: - Proposed v2 names for today's `XL` types
+
+    typealias AnyStaticSelectFieldName = AnyStaticSelectField
+    typealias AsyncRequestName = AsyncRequest
+    typealias AsyncStreamPublisherName = AsyncStreamPublisher
+    typealias AsyncWriteRequestName = AsyncWriteRequest
+    typealias BetweenExpressionName = BetweenExpression
+    typealias BinaryOperatorExpressionName = BinaryOperatorExpression
+    typealias BindingContextName = BindingContext
+    typealias BindingKeyName = BindingKey
+    typealias BindingPlaceholderName = BindingPlaceholder
+    typealias BindingReferenceName = BindingReference
+    typealias BlockingDatabaseDriverName = BlockingDatabaseDriver
+    typealias BooleanName = Boolean
+    typealias BuilderName = Builder
+    typealias CollationName = Collation
+    typealias CollationNameName = CollationName
+    typealias ColumnDefinitionsBuilderName = ColumnDefinitionsBuilder
+    typealias ColumnDependencyName = ColumnDependency
+    typealias ColumnReadErrorName = ColumnReadError
+    typealias ColumnReaderName = ColumnReader
+    typealias ColumnReferenceName = ColumnReference
+    typealias ColumnResultName = ColumnResult
+    typealias ColumnUpdateName = ColumnUpdate
+    typealias CommonTableDependencyName = CommonTableDependency
+    typealias CommonTableMaterializationName = CommonTableMaterialization
+    typealias CommonTablePrefixName = CommonTablePrefix
+    typealias CommonTablesBuilderName = CommonTablesBuilder
+    typealias ComparableName = Comparable
+    typealias ComparisonExpressionName = ComparisonExpression
+    typealias ComparisonOperatorName = ComparisonOperator
+    typealias ConcatenationExpressionName = ConcatenationExpression
+    typealias ConditionalFunctionName = ConditionalFunction
+    typealias ConflictResolutionName = ConflictResolution
+    typealias ContextualBindingReferenceName = ContextualBindingReference
+    typealias CreateExpressionBuilderName = CreateExpressionBuilder
+    typealias CreateStatementName = CreateStatement
+    typealias CreateTableAsStatementName = CreateTableAsStatement
+    typealias CreateTableStatementName = CreateTableStatement
+    typealias CreateTableStatementComponentsName = CreateTableStatementComponents
+    typealias CustomFunctionName = CustomFunction
+    typealias CustomFunctionDefinitionName = CustomFunctionDefinition
+    typealias CustomFunctionEvaluatorName = CustomFunctionEvaluator
+    typealias CustomFunctionRegistrationName = CustomFunctionRegistration
+    typealias CustomFunctionResultErrorName = CustomFunctionResultError
+    typealias CustomTypeName = CustomType
+    typealias DatabaseContractErrorName = DatabaseContractError
+    typealias DatabaseDriverName = DatabaseDriver
+    typealias DatabaseDriverConnectionName = DatabaseDriverConnection
+    typealias DatabaseErrorCodeName = DatabaseErrorCode
+    typealias DatabaseIdentifierName = DatabaseIdentifier
+    typealias DateFunctionModifiersName = DateFunctionModifiers
+    typealias DateModifierName = DateModifier
+    typealias DateModifierTermName = DateModifierTerm
+    typealias DateTextCodecName = DateTextCodec
+    typealias DateTextCodecErrorName = DateTextCodecError
+    typealias DateTextFormatName = DateTextFormat
+    typealias DateUnitName = DateUnit
+    typealias DeclaredQueryName = DeclaredQuery
+    typealias DeclaredQueryErrorName = DeclaredQueryError
+    typealias DeclaredQueryParameterName = DeclaredQueryParameter
+    typealias DeleteExpressionBuilderName = DeleteExpressionBuilder
+    typealias DeleteReturningStatementName = DeleteReturningStatement
+    typealias DeleteStatementName = DeleteStatement
+    typealias DeleteStatementComponentsName = DeleteStatementComponents
+    typealias DeleteTableStatementName = DeleteTableStatement
+    typealias DeleteWhereStatementName = DeleteWhereStatement
+    typealias DialectCapabilitiesName = DialectCapabilities
+    typealias DialectDescriptorName = DialectDescriptor
+    typealias DialectEncoderName = DialectEncoder
+    typealias DialectIdentifierName = DialectIdentifier
+    typealias DialectRequirementName = DialectRequirement
+    typealias DialectValueName = DialectValue
+    typealias DialectVersionName = DialectVersion
+    typealias DriverDatabaseName = DriverDatabase
+    typealias DriverIdentifierName = DriverIdentifier
+    typealias DriverScopeRefusalName = DriverScopeRefusal
+    typealias EncodableName = Encodable
+    typealias EncoderName = Encoder
+    typealias EncodingName = Encoding
+    typealias EnumName = Enum
+    typealias EquatableName = Equatable
+    typealias ExcludedTableDependencyName = ExcludedTableDependency
+    typealias ExecutionResultName = ExecutionResult
+    typealias FieldReaderName = FieldReader
+    typealias FromSubqueryDependencyName = FromSubqueryDependency
+    typealias FromTableDependencyName = FromTableDependency
+    typealias FunctionName = Function
+    typealias IfExpressionName = IfExpression
+    typealias InTableExpressionName = InTableExpression
+    typealias InValueExpressionName = InValueExpression
+    typealias InsertExpressionBuilderName = InsertExpressionBuilder
+    typealias InsertOnConflictStatementName = InsertOnConflictStatement
+    typealias InsertOrActionName = InsertOrAction
+    typealias InsertReturningStatementName = InsertReturningStatement
+    typealias InsertSelectGroupByStatementName = InsertSelectGroupByStatement
+    typealias InsertSelectHavingStatementName = InsertSelectHavingStatement
+    typealias InsertSelectLimitStatementName = InsertSelectLimitStatement
+    typealias InsertSelectOffsetStatementName = InsertSelectOffsetStatement
+    typealias InsertSelectOrderByStatementName = InsertSelectOrderByStatement
+    typealias InsertSelectStatementName = InsertSelectStatement
+    typealias InsertSelectTableStatementName = InsertSelectTableStatement
+    typealias InsertSelectWhereStatementName = InsertSelectWhereStatement
+    typealias InsertStatementName = InsertStatement
+    typealias InsertStatementComponentsName = InsertStatementComponents
+    typealias InsertTableStatementName = InsertTableStatement
+    typealias InsertTableValuesStatementName = InsertTableValuesStatement
+    typealias InsertTargetName = InsertTarget
+    typealias InvocationBindingName = InvocationBinding
+    typealias InvocationBindingErrorName = InvocationBindingError
+    typealias InvocationBindingPacketName = InvocationBindingPacket
+    typealias InvocationBindingsName = InvocationBindings
+    typealias JSONCodecConfigurationName = JSONCodecConfiguration
+    typealias JSONPathName = JSONPath
+    typealias JSONValidationFlagsName = JSONValidationFlags
+    typealias JSONValueCodecName = JSONValueCodec
+    typealias JSONValueCodecErrorName = JSONValueCodecError
+    typealias LegacyDynamicValueExpressionName = LegacyDynamicValueExpression
+    typealias LikeEscapeExpressionName = LikeEscapeExpression
+    typealias ListBuilderName = ListBuilder
+    typealias LiteralName = Literal
+    typealias LogLevelName = LogLevel
+    typealias LoggerName = Logger
+    typealias LogicalParameterIndexName = LogicalParameterIndex
+    typealias LogicalPreparedStatementName = LogicalPreparedStatement
+    typealias LogicalResultIndexName = LogicalResultIndex
+    typealias LoweredDeclaredQueryName = LoweredDeclaredQuery
+    typealias MetaCommonTableName = MetaCommonTable
+    typealias MetaCreateName = MetaCreate
+    typealias MetaInsertName = MetaInsert
+    typealias MetaNamedResultName = MetaNamedResult
+    typealias MetaNullableName = MetaNullable
+    typealias MetaNullableNamedResultName = MetaNullableNamedResult
+    typealias MetaNullableResultName = MetaNullableResult
+    typealias MetaResultName = MetaResult
+    typealias MetaUpdateName = MetaUpdate
+    typealias MetaWritableTableName = MetaWritableTable
+    typealias NameName = Name
+    typealias NamedBindingReferenceName = NamedBindingReference
+    typealias NamedDependencyName = NamedDependency
+    typealias NamedTableDeclarationName = NamedTableDeclaration
+    typealias NonFiniteRealValueName = NonFiniteRealValue
+    typealias NullCoalesceExpressionName = NullCoalesceExpression
+    typealias NullExpressionName = NullExpression
+    typealias NullTestName = NullTest
+    typealias NullTestExpressionName = NullTestExpression
+    typealias NullableColumnUpdateName = NullableColumnUpdate
+    #if canImport(Observation) && canImport(Darwin)
+    @available(iOS 17, macOS 14, *)
+    typealias ObservableQueryName = ObservableQuery
+    #endif
+    #if canImport(Observation) && canImport(Darwin)
+    @available(iOS 17, macOS 14, *)
+    typealias ObservableQueryRowName = ObservableQueryRow
+    #endif
+    typealias ObservingDatabaseDriverName = ObservingDatabaseDriver
+    typealias OrderingTermName = OrderingTerm
+    typealias OrderingTermsBuilderName = OrderingTermsBuilder
+    typealias ParameterDeclarationName = ParameterDeclaration
+    typealias ParameterLayoutName = ParameterLayout
+    typealias ParameterNullabilityName = ParameterNullability
+    typealias ParameterOccurrenceName = ParameterOccurrence
+    typealias ParameterPlaceholderAssignmentName = ParameterPlaceholderAssignment
+    typealias ParameterSlotName = ParameterSlot
+    typealias PlaceholderAssignerName = PlaceholderAssigner
+    typealias PositionalPlaceholderAssignerName = PositionalPlaceholderAssigner
+    typealias PostfixOperatorExpressionName = PostfixOperatorExpression
+    typealias PrefixOperatorExpressionName = PrefixOperatorExpression
+    typealias PreparedInvocationName = PreparedInvocation
+    typealias PreparedParameterName = PreparedParameter
+    typealias PreparedQueryName = PreparedQuery
+    typealias PreparedQueryCacheKeyName = PreparedQueryCacheKey
+    typealias PreparedStaticQueryName = PreparedStaticQuery
+    typealias PreparedTypedStaticQueryName = PreparedTypedStaticQuery
+    typealias PublisherAsyncBridgeName = PublisherAsyncBridge
+    typealias QualifiedNameName = QualifiedName
+    typealias QualifiedSelectColumnNameName = QualifiedSelectColumnName
+    typealias QualifiedTableAliasColumnNameName = QualifiedTableAliasColumnName
+    typealias QualifiedTableNameName = QualifiedTableName
+    typealias QueryCaptureName = QueryCapture
+    typealias QueryCaptureErrorName = QueryCaptureError
+    typealias QueryCardinalityName = QueryCardinality
+    typealias QueryCardinalityErrorName = QueryCardinalityError
+    typealias QueryCodecSelectionName = QueryCodecSelection
+    typealias QueryCodecSelectionErrorName = QueryCodecSelectionError
+    typealias QueryComponentName = QueryComponent
+    typealias QueryDefinitionIdentityName = QueryDefinitionIdentity
+    typealias QueryExpressionBuilderName = QueryExpressionBuilder
+    typealias QueryGroupByStatementName = QueryGroupByStatement
+    typealias QueryHavingStatementName = QueryHavingStatement
+    typealias QueryIdentityName = QueryIdentity
+    typealias QueryIdentityFormatVersionName = QueryIdentityFormatVersion
+    typealias QueryLimitStatementName = QueryLimitStatement
+    typealias QueryObserverName = QueryObserver
+    typealias QueryOffsetStatementName = QueryOffsetStatement
+    typealias QueryOrderByStatementName = QueryOrderByStatement
+    typealias QueryPartialUnionName = QueryPartialUnion
+    typealias QueryRowObserverName = QueryRowObserver
+    typealias QuerySelectStatementName = QuerySelectStatement
+    typealias QuerySlotIdentityName = QuerySlotIdentity
+    typealias QueryStatementName = QueryStatement
+    typealias QueryStatementComponentsName = QueryStatementComponents
+    typealias QueryTableStatementName = QueryTableStatement
+    typealias QueryUnionStatementName = QueryUnionStatement
+    typealias QueryWhereStatementName = QueryWhereStatement
+    typealias RecursiveCommonTableConstructionErrorName = RecursiveCommonTableConstructionError
+    typealias RecursiveCommonTableDraftName = RecursiveCommonTableDraft
+    typealias RecursiveCommonTableReferenceLayoutName = RecursiveCommonTableReferenceLayout
+    typealias RegexMatchOperatorName = RegexMatchOperator
+    typealias RegexPatternName = RegexPattern
+    typealias RegexPatternRegistryName = RegexPatternRegistry
+    typealias RegexpFunctionName = RegexpFunction
+    typealias RegexpFunctionErrorName = RegexpFunctionError
+    typealias RegexpLengthLimitErrorName = RegexpLengthLimitError
+    typealias RegexpMatcherName = RegexpMatcher
+    typealias RegexpPatternCacheName = RegexpPatternCache
+    typealias RenderOnceCacheName = RenderOnceCache
+    typealias RequestName = Request
+    typealias RequestBindingErrorName = RequestBindingError
+    typealias RequestBuilderName = RequestBuilder
+    typealias ResolvedValueCodecName = ResolvedValueCodec
+    typealias ResultName = Result
+    typealias ResultSetName = ResultSet
+    typealias ResultSetErrorName = ResultSetError
+    typealias ReturningRequestErrorName = ReturningRequestError
+    typealias ReturningStatementName = ReturningStatement
+    typealias RowReadableName = RowReadable
+    typealias RowReaderName = RowReader
+    typealias RowStreamControlName = RowStreamControl
+    typealias RowWritableName = RowWritable
+    typealias SQLDialectName = SQLDialect
+    typealias SQLValueEncodingErrorName = SQLValueEncodingError
+    typealias SQLVocabularyName = SQLVocabulary
+    typealias SQLiteDialectName = SQLiteDialect
+    typealias SQLiteIdentifierFormattingOptionsName = SQLiteIdentifierFormattingOptions
+    typealias SQLiteNumericDateCodecName = SQLiteNumericDateCodec
+    typealias SQLiteNumericDateCodecErrorName = SQLiteNumericDateCodecError
+    typealias SQLiteStorageClassName = SQLiteStorageClass
+    typealias SQLiteValueName = SQLiteValue
+    typealias SQLiteValueReaderName = SQLiteValueReader
+    typealias ScalarCommonTableName = ScalarCommonTable
+    typealias ScalarCommonTableReferenceName = ScalarCommonTableReference
+    typealias ScalarExpressionBuilderName = ScalarExpressionBuilder
+    typealias SchemaName = Schema
+    typealias SchemaNameName = SchemaName
+    typealias SelectResultDependencyName = SelectResultDependency
+    typealias SeparatorName = Separator
+    typealias SimpleSelectQueryStatementName = SimpleSelectQueryStatement
+    typealias StatementAccessName = StatementAccess
+    typealias StaticColumnReaderName = StaticColumnReader
+    typealias StaticFieldGroupName = StaticFieldGroup
+    typealias StaticQueryDescriptorName = StaticQueryDescriptor
+    typealias StaticQueryErrorName = StaticQueryError
+    typealias StaticQueryParameterMetadataName = StaticQueryParameterMetadata
+    typealias StaticQueryResultMetadataName = StaticQueryResultMetadata
+    typealias StaticQueryResultSlotName = StaticQueryResultSlot
+    typealias StaticRowFieldName = StaticRowField
+    typealias StaticRowFieldSourceName = StaticRowFieldSource
+    typealias StaticRowLayoutName = StaticRowLayout
+    typealias StaticRowLayoutErrorName = StaticRowLayoutError
+    typealias StaticRowMetadataName = StaticRowMetadata
+    typealias StaticRowMetadataErrorName = StaticRowMetadataError
+    typealias StaticRowReadErrorName = StaticRowReadError
+    typealias StaticRowReadableName = StaticRowReadable
+    typealias StaticSelectFieldName = StaticSelectField
+    typealias StaticSelectFieldProtocolName = StaticSelectFieldProtocol
+    typealias StaticStatementDefinitionName = StaticStatementDefinition
+    typealias StaticStatementDefinitionErrorName = StaticStatementDefinitionError
+    typealias StaticStorageRetypableExpressionName = StaticStorageRetypableExpression
+    typealias SubqueryDependencyName = SubqueryDependency
+    typealias TableDeclarationName = TableDeclaration
+    typealias TableStatementName = TableStatement
+    typealias TransactionKindName = TransactionKind
+    typealias TransactionScopeErrorName = TransactionScopeError
+    typealias TransactionalDatabaseName = TransactionalDatabase
+    typealias TypeAffinityExpressionName = TypeAffinityExpression
+    typealias TypeCastExpressionName = TypeCastExpression
+    typealias TypedStaticQueryDescriptorName = TypedStaticQueryDescriptor
+    typealias UUIDValueCodecName = UUIDValueCodec
+    typealias UUIDValueCodecErrorName = UUIDValueCodecError
+    typealias UnaryOperatorExpressionName = UnaryOperatorExpression
+    typealias UpdateExpressionBuilderName = UpdateExpressionBuilder
+    typealias UpdateFromStatementName = UpdateFromStatement
+    typealias UpdateFromTableDependencyName = UpdateFromTableDependency
+    typealias UpdateReturningStatementName = UpdateReturningStatement
+    typealias UpdateSetStatementName = UpdateSetStatement
+    typealias UpdateStatementName = UpdateStatement
+    typealias UpdateStatementComponentsName = UpdateStatementComponents
+    typealias UpdateTableStatementName = UpdateTableStatement
+    typealias UpdateWhereStatementName = UpdateWhereStatement
+    typealias V1LiteralCodecName = V1LiteralCodec
+    typealias ValidatedLogicalPreparedStatementName = ValidatedLogicalPreparedStatement
+    typealias ValueCodecName = ValueCodec
+    typealias ValueCodecErrorName = ValueCodecError
+    typealias ValueCodecIdentityName = ValueCodecIdentity
+    typealias ValueCodecKeyName = ValueCodecKey
+    typealias ValueCodecRegistryName = ValueCodecRegistry
+    typealias ValueCodecSelectionName = ValueCodecSelection
+    typealias ValueCodecSelectionSourceName = ValueCodecSelectionSource
+    typealias ValueCodecTargetName = ValueCodecTarget
+    typealias ValueCodingConfigurationName = ValueCodingConfiguration
+    typealias ValueCodingContextName = ValueCodingContext
+    typealias ValueCodingDialectName = ValueCodingDialect
+    typealias ValueCodingPathName = ValueCodingPath
+    typealias ValueCodingSiteName = ValueCodingSite
+    typealias ValueStorageIdentifierName = ValueStorageIdentifier
+    typealias ValueTypeIdentifierName = ValueTypeIdentifier
+    typealias WithStatementName = WithStatement
+    typealias WriteRequestName = WriteRequest
+    typealias SQLiteBuilderName = SQLiteBuilder
+    typealias SQLiteColumnDefinitionsBuilderName = SQLiteColumnDefinitionsBuilder
+    typealias SQLiteCommonTablesBuilderName = SQLiteCommonTablesBuilder
+    typealias SQLiteEncoderName = SQLiteEncoder
+    typealias SQLiteFormatterName = SQLiteFormatter
+    typealias SQLiteListBuilderName = SQLiteListBuilder
+    typealias SQLitePlaceholderAssignerName = SQLitePlaceholderAssigner
+    typealias SQLiteVocabularyName = SQLiteVocabulary
+
+    // MARK: - Public types SwiftQL already spells without a prefix
+
+    typealias AsName = As
+    typealias AscendingName = Ascending
+    typealias ConstantCaseName = ConstantCase
+    typealias ConstantCaseWhenThenName = ConstantCaseWhenThen
+    typealias ConstantCaseWhenThenElseName = ConstantCaseWhenThenElse
+    typealias CreateName = Create
+    typealias DeleteName = Delete
+    typealias DescendingName = Descending
+    typealias ExceptName = Except
+    typealias FromName = From
+    typealias GRDBDatabaseName = GRDBDatabase
+    typealias GRDBDatabaseBuilderName = GRDBDatabaseBuilder
+    typealias GRDBDatabaseConfigurationName = GRDBDatabaseConfiguration
+    typealias GRDBLiveQueryRetryPolicyName = GRDBLiveQueryRetryPolicy
+    typealias GRDBPreparedInvocationName = GRDBPreparedInvocation
+    typealias GRDBPreparedStaticQueryName = GRDBPreparedStaticQuery
+    typealias GRDBPreparedTypedStaticQueryName = GRDBPreparedTypedStaticQuery
+    typealias GRDBStaticQueryArgumentName = GRDBStaticQueryArgument
+    typealias GRDBStaticQueryErrorName = GRDBStaticQueryError
+    typealias GRDBStaticQueryInvocationBuilderName = GRDBStaticQueryInvocationBuilder
+    typealias GroupByName = GroupBy
+    typealias HavingName = Having
+    typealias InsertName = Insert
+    typealias InsertBuilderName = InsertBuilder
+    typealias IntersectName = Intersect
+    typealias JoinName = Join
+    typealias LimitName = Limit
+    typealias OffsetName = Offset
+    typealias OnConflictName = OnConflict
+    typealias OrderByName = OrderBy
+    typealias QueryBuilderName = QueryBuilder
+    typealias ReplaceName = Replace
+    typealias ReturningName = Returning
+    typealias SQLRow2Name = SQLRow2
+    typealias SQLRow3Name = SQLRow3
+    typealias SQLRow4Name = SQLRow4
+    typealias SQLRow5Name = SQLRow5
+    typealias SQLRow6Name = SQLRow6
+    typealias SQLScalarResultName = SQLScalarResult
+    typealias SelectName = Select
+    typealias SettingName = Setting
+    typealias UnionName = Union
+    typealias UnionAllName = UnionAll
+    typealias UpdateName = Update
+    typealias ValuesName = Values
+    typealias VariableCaseElseName = VariableCaseElse
+    typealias VariableCaseWhenThenName = VariableCaseWhenThen
+    typealias WhereName = Where
+    typealias WithName = With
+}

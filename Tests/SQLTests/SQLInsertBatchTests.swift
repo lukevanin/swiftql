@@ -13,7 +13,7 @@
 import Foundation
 import XCTest
 import GRDB
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 @SQLTable(name: "InsertBatchMixed")
@@ -136,7 +136,7 @@ final class SQLInsertBatchTests: XCTestCase {
         let encoder = CountingEncoder(base: XLiteEncoder(dialect: XLSQLiteDialect()))
         let database = GRDBDatabase(
             databasePool: pool,
-            configuration: GRDBDatabaseConfiguration(
+            settings: GRDBDatabaseSettings(
                 codingConfiguration: try XLValueCodingConfiguration(),
                 encoder: encoder
             )

@@ -25,7 +25,7 @@ import OpenCombine
 /// build one of these and hand it to a single designated initializer, so the
 /// defaults live in one place rather than being re-stated down a chain (issue
 /// #560).
-struct GRDBDatabaseConfiguration {
+struct GRDBDatabaseSettings {
 
     /// Contextual codecs and defaults captured by the database and every
     /// request it creates.
@@ -55,9 +55,19 @@ struct GRDBDatabaseConfiguration {
 
 
 /// A SwiftQL database adapter backed by a GRDB `DatabasePool`.
+///
+/// Opening a database, registering custom functions through
+/// ``GRDBDatabaseBuilder``, and running requests need only `import SwiftQL`;
+/// no GRDB type appears in that API (issue #702). The pool itself, and the
+/// initializers that wrap an existing one, are the GRDB escape hatch: declare
+/// them with `@_spi(GRDB) import SwiftQL`. See <doc:AdvancedUsage>.
 public struct GRDBDatabase: XLDatabase {
     
     /// The GRDB connection pool used to execute requests.
+    ///
+    /// Part of the GRDB escape hatch: declare it with
+    /// `@_spi(GRDB) import SwiftQL`.
+    @_spi(GRDB)
     public let databasePool: DatabasePool
     
     /// The encoder used to render SwiftQL statements.
@@ -91,14 +101,14 @@ public struct GRDBDatabase: XLDatabase {
     ///
     /// - Parameters:
     ///   - url: The SQLite database file URL.
-    ///   - configuration: The GRDB connection configuration.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
     ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
     public init(
         url: URL,
-        configuration: GRDB.Configuration = GRDB.Configuration(),
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
@@ -122,14 +132,14 @@ public struct GRDBDatabase: XLDatabase {
     ///   - url: The SQLite database file URL.
     ///   - codingConfiguration: Contextual codecs and defaults captured by the
     ///     database and every request it creates.
-    ///   - configuration: The GRDB connection configuration.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
     public init(
         url: URL,
         codingConfiguration: XLValueCodingConfiguration,
-        configuration: GRDB.Configuration = GRDB.Configuration(),
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
@@ -152,12 +162,16 @@ public struct GRDBDatabase: XLDatabase {
 
     /// Wraps an existing GRDB database pool.
     ///
+    /// Part of the GRDB escape hatch: declare it with
+    /// `@_spi(GRDB) import SwiftQL`.
+    ///
     /// - Parameters:
     ///   - databasePool: The pool used to execute requests.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
     ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
+    @_spi(GRDB)
     public init(
         databasePool: DatabasePool,
         formatter: XLiteFormatter,
@@ -166,7 +180,7 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         self.init(
             databasePool: databasePool,
-            configuration: GRDBDatabaseConfiguration(
+            settings: GRDBDatabaseSettings(
                 codingConfiguration: try XLValueCodingConfiguration(),
                 formatter: formatter,
                 logger: logger,
@@ -177,6 +191,9 @@ public struct GRDBDatabase: XLDatabase {
 
     /// Wraps an existing GRDB pool with a value-coding snapshot.
     ///
+    /// Part of the GRDB escape hatch: declare it with
+    /// `@_spi(GRDB) import SwiftQL`.
+    ///
     /// - Parameters:
     ///   - databasePool: The pool used to execute requests.
     ///   - codingConfiguration: Contextual codecs and defaults captured by the
@@ -184,6 +201,7 @@ public struct GRDBDatabase: XLDatabase {
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    @_spi(GRDB)
     public init(
         databasePool: DatabasePool,
         codingConfiguration: XLValueCodingConfiguration,
@@ -193,7 +211,7 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         self.init(
             databasePool: databasePool,
-            configuration: GRDBDatabaseConfiguration(
+            settings: GRDBDatabaseSettings(
                 codingConfiguration: codingConfiguration,
                 formatter: formatter,
                 logger: logger,
@@ -211,7 +229,7 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         self.init(
             databasePool: databasePool,
-            configuration: GRDBDatabaseConfiguration(
+            settings: GRDBDatabaseSettings(
                 codingConfiguration: try XLValueCodingConfiguration(),
                 formatter: formatter,
                 logger: logger,
@@ -231,7 +249,7 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         self.init(
             databasePool: databasePool,
-            configuration: GRDBDatabaseConfiguration(
+            settings: GRDBDatabaseSettings(
                 codingConfiguration: codingConfiguration,
                 formatter: formatter,
                 logger: logger,
@@ -242,29 +260,29 @@ public struct GRDBDatabase: XLDatabase {
     }
 
     /// The designated initializer. Every other one settles its arguments into a
-    /// ``GRDBDatabaseConfiguration`` and arrives here.
+    /// ``GRDBDatabaseSettings`` and arrives here.
     init(
         databasePool: DatabasePool,
-        configuration: GRDBDatabaseConfiguration
+        settings: GRDBDatabaseSettings
     ) {
         let dialect = XLSQLiteDialect(
-            identifierFormattingOptions: configuration.formatter
+            identifierFormattingOptions: settings.formatter
                 .identifierFormattingOptions
         )
         let driver = GRDBDatabaseDriver(
             databasePool: databasePool,
             dialect: dialect,
-            liveQueryRetryPolicy: configuration.liveQueryRetryPolicy,
-            liveQueryRetryScheduler: configuration.liveQueryRetryScheduler
+            liveQueryRetryPolicy: settings.liveQueryRetryPolicy,
+            liveQueryRetryScheduler: settings.liveQueryRetryScheduler
         )
         self.dialect = dialect
-        self.codingConfiguration = configuration.codingConfiguration
-        self.encoder = configuration.encoder ?? XLiteEncoder(dialect: dialect)
+        self.codingConfiguration = settings.codingConfiguration
+        self.encoder = settings.encoder ?? XLiteEncoder(dialect: dialect)
         self.databasePool = databasePool
         self.driverIdentifier = driver.driverIdentifier
         self.driver = driver
         self.renderCacheIdentifier = driver.databaseIdentifier
-        self.logger = configuration.logger
+        self.logger = settings.logger
     }
 
     /// Constructs a transaction-scoped copy of this database (issue #284),

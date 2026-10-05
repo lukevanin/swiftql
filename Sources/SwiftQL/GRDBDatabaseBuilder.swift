@@ -41,14 +41,14 @@ public struct GRDBDatabaseBuilder {
     ///
     /// - Parameters:
     ///   - url: The SQLite database file URL.
-    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
     ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
     public init(
         url: URL,
-        configuration: GRDB.Configuration,
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
@@ -56,7 +56,7 @@ public struct GRDBDatabaseBuilder {
         try self.init(
             url: url,
             codingConfiguration: XLValueCodingConfiguration(),
-            configuration: configuration,
+            grdbConfiguration: configuration.grdbConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
@@ -69,20 +69,85 @@ public struct GRDBDatabaseBuilder {
     ///   - url: The SQLite database file URL.
     ///   - codingConfiguration: Contextual codecs and defaults captured by the
     ///     database and requests built from it.
-    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
     public init(
         url: URL,
         codingConfiguration: XLValueCodingConfiguration,
-        configuration: GRDB.Configuration,
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
+        formatter: XLiteFormatter = XLiteFormatter(),
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
+        try self.init(
+            url: url,
+            codingConfiguration: codingConfiguration,
+            grdbConfiguration: configuration.grdbConfiguration,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// Creates a database builder that extends a GRDB configuration.
+    ///
+    /// Part of the GRDB escape hatch (issue #702): declare it with
+    /// `@_spi(GRDB) import SwiftQL`. Use it for a GRDB option that
+    /// ``GRDBDatabaseConfiguration`` does not cover, such as a
+    /// `prepareDatabase` hook. Functions and collations added to the builder
+    /// are registered after the configuration's own `prepareDatabase` hooks.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - grdbConfiguration: The GRDB connection configuration to extend.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    @_spi(GRDB)
+    public init(
+        url: URL,
+        grdbConfiguration: GRDB.Configuration,
+        formatter: XLiteFormatter = XLiteFormatter(),
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
+        try self.init(
+            url: url,
+            codingConfiguration: XLValueCodingConfiguration(),
+            grdbConfiguration: grdbConfiguration,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// Creates a database builder that extends a GRDB configuration, with an
+    /// immutable value-coding snapshot.
+    ///
+    /// Part of the GRDB escape hatch (issue #702): declare it with
+    /// `@_spi(GRDB) import SwiftQL`.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - codingConfiguration: Contextual codecs and defaults captured by the
+    ///     database and requests built from it.
+    ///   - grdbConfiguration: The GRDB connection configuration to extend.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    @_spi(GRDB)
+    public init(
+        url: URL,
+        codingConfiguration: XLValueCodingConfiguration,
+        grdbConfiguration: GRDB.Configuration,
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
         self.url = url
-        self.configuration = configuration
+        self.configuration = grdbConfiguration
         self.codingConfiguration = codingConfiguration
         self.formatter = formatter
         self.logger = logger
@@ -146,9 +211,9 @@ public struct GRDBDatabaseBuilder {
         }
     }
 
-    /// The database configuration this builder was given.
-    var databaseConfiguration: GRDBDatabaseConfiguration {
-        GRDBDatabaseConfiguration(
+    /// The database settings this builder was given.
+    var databaseSettings: GRDBDatabaseSettings {
+        GRDBDatabaseSettings(
             codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
@@ -164,7 +229,7 @@ extension GRDBDatabase {
     init(builder: GRDBDatabaseBuilder) throws {
         self.init(
             databasePool: try builder.makeDatabasePool(),
-            configuration: builder.databaseConfiguration
+            settings: builder.databaseSettings
         )
     }
 }

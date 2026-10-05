@@ -138,7 +138,7 @@ names.
 
 If a connection already has a function with the same name and argument count that your
 application installed itself -- with `builder.addFunction(_:)` or your own
-`Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a
+GRDB `Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a
 second copy, even for a function whose `makeSQL` calls `customFunctionCall`. So registering a
 function up front and calling it through `customFunctionCall` works everywhere, including the
 first call on a connection inside a `withResultSet(_:)` callback. A SQLite built-in function,
@@ -176,7 +176,7 @@ implementation the `REGEXP` operator needs, described in
 already provides one of that signature -- the same name and either the same
 argument count or the `-1` SQLite reports for a variadic function, which can
 serve a fixed-arity call. An `addFunction(_:)` call
-or a `Configuration.prepareDatabase(_:)` registration of your own `regexp`
+or a GRDB `Configuration.prepareDatabase(_:)` registration of your own `regexp`
 therefore keeps deciding what `REGEXP` means, and upgrading SwiftQL does not
 change it.
 
@@ -255,19 +255,18 @@ generated or hand-written, so the rest of this guide applies unchanged.
 ## Installing the function
 
 A function whose `makeSQL` calls `simpleFunction` directly, as `HaversineDistance` does above,
-still needs to be installed on the database upfront. For GRDB this can be done by adding the
-function in the configuration, or by using the `GRDBDatabaseBuilder` provided by SwiftQL:
+still needs to be installed on the database upfront. Add it to a `GRDBDatabaseBuilder`, which
+registers it on every connection the database opens. Neither step needs `import GRDB`:
 
 <!-- test: XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution -->
 ```swift
 import Foundation
-import GRDB
 import SwiftQL
 
 // Create the builder.
 let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 let databaseURL = directory.appending(path: "my_database.sqlite")
-let configuration = Configuration()
+let configuration = GRDBDatabaseConfiguration()
 var builder = try GRDBDatabaseBuilder(
     url: databaseURL,
     configuration: configuration,

@@ -3,7 +3,7 @@ import SwiftQLTestSupport
 import GRDB
 import XCTest
 
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 // Issue #651: `@SQLTable` accepts a column whose type has no `XLEncodable` conformance, such as

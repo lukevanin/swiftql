@@ -20,7 +20,7 @@ import OpenCombine
 #endif
 import Foundation
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 import XCTest
 
 
@@ -96,11 +96,11 @@ final class XLResultSetTests: XCTestCase {
                 }
             )
         }
-        database = try GRDBDatabase(
+        database = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: nil
-        )
+        ).build()
         databasePool = database.databasePool
     }
 

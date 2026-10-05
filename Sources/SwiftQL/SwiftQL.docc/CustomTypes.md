@@ -972,7 +972,6 @@ converted when it is used.
 <!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
 ```swift
 import Foundation
-import GRDB
 import SwiftQL
 
 struct SQLDate: XLCustomType, XLComparable, Equatable {

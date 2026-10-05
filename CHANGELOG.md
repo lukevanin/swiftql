@@ -232,6 +232,48 @@
     runs. Its default checks nothing.
   - A connection that already declared a method with one of these signatures
     now provides the requirement, and SwiftQL calls it.
+- **No GRDB type appears in SwiftQL's public API** (issue #702). Opening a
+  database, registering functions and collations, and running requests need
+  only `import SwiftQL`. A file that imports both SwiftQL and GRDB sees both
+  modules' names, and once the `XL` prefix goes (#33) some of them would
+  collide, such as `Table` and `Database`.
+  - `GRDBDatabase.init(url:configuration:...)`,
+    `GRDBDatabaseBuilder.init(url:configuration:...)`, and their
+    `codingConfiguration:` forms take the new `GRDBDatabaseConfiguration`
+    instead of GRDB's `Configuration`, and default it everywhere. The
+    builder's `configuration:` argument was required, and no longer is. Drop
+    `configuration: Configuration()`, and replace a configured one with the
+    same options:
+
+    ```swift
+    // Before
+    var configuration = Configuration()
+    configuration.readonly = true
+    configuration.maximumReaderCount = 2
+    // After
+    var configuration = GRDBDatabaseConfiguration()
+    configuration.readonly = true
+    configuration.maximumReaderCount = 2
+    ```
+
+    It covers `readonly`, `foreignKeysEnabled`, `maximumReaderCount`,
+    `label`, and `busyTimeout`, which sets GRDB's `busyMode` to
+    `.timeout(_:)`.
+  - Anything else GRDB offers is SwiftQL's GRDB SPI, which a file declares
+    with `@_spi(GRDB) import SwiftQL`:
+    - `GRDBDatabase.databasePool`;
+    - `GRDBDatabase.init(databasePool:...)` and its `codingConfiguration:`
+      form, unchanged;
+    - `GRDBDatabaseBuilder.init(url:grdbConfiguration:...)` and its
+      `codingConfiguration:` form, which take a GRDB `Configuration`, such as
+      one with a `prepareDatabase` hook. Rename the argument from
+      `configuration:`.
+
+    A file that uses one of these without the SPI import fails to compile
+    with "'databasePool' is inaccessible due to '@_spi' protection level", or
+    finds no initializer that takes a `DatabasePool`. `@testable import
+    SwiftQL` does not grant the SPI; write
+    `@_spi(GRDB) @testable import SwiftQL`.
 
 ### Added
 

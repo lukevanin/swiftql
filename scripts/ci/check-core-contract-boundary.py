@@ -24,6 +24,9 @@ SOURCE_ROOTS = (
     # Issue #682: the driver double that backs `XLDriverDatabase` must reach
     # SwiftQL through the driver contract alone.
     "Tests/SwiftQLDriverDatabaseTests",
+    # Issue #702: a client opens a GRDB-backed database, registers a function,
+    # and runs queries through SwiftQL without importing GRDB.
+    "Tests/SwiftQLGRDBFreeClientTests",
 )
 DEPENDENCY_FIELDS = (
     "target_dependencies",
