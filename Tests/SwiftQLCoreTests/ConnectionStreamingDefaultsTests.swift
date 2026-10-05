@@ -116,6 +116,8 @@ final class ConnectionStreamingDefaultsTests: XCTestCase {
         XCTAssertTrue(try row.isNull(at: 4))
         XCTAssertFalse(try row.isNull(at: 0))
         XCTAssertEqual(try row.copyValues(), row.values)
+        let sendable: any Sendable = row
+        XCTAssertTrue(sendable is XLValuesRowHandle<XLSQLiteValue>, "A values handle is Sendable.")
         assertReadError(
             try row.readText(at: 0),
             XLColumnReadError(index: 0, expectedType: "String", failure: .typeMismatch(actualType: "INTEGER"))

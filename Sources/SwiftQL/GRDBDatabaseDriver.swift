@@ -633,14 +633,17 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// `removeAll(keepingCapacity:)` copy-on-writes a fresh buffer for the
     /// next row and the retained values stay intact. SwiftQL's own typed
     /// decode reads the handle instead, and builds no buffer (issue #678).
+    ///
+    /// The row is normalized with ``GRDBRowHandle/normalizeValues(into:)``,
+    /// which walks GRDB's values without a per-column index check and cannot
+    /// throw, so the value path costs what it did before handles existed.
     mutating func forEachRow(
         _ statement: GRDBPhysicalStatement,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         var values: [XLSQLiteValue] = []
         try forEachRowHandle(statement) { row in
-            values.removeAll(keepingCapacity: true)
-            try row.appendValues(to: &values)
+            row.normalizeValues(into: &values)
             return try body(values)
         }
     }
@@ -731,8 +734,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
                 guard let row = try next() else {
                     return nil
                 }
-                values.removeAll(keepingCapacity: true)
-                try row.appendValues(to: &values)
+                row.normalizeValues(into: &values)
                 return values
             }
         }
@@ -1306,6 +1308,16 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
         using _: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
         try xlDialectValue(at: index, of: self, as: Dialect.Value.self)
+    }
+
+    /// Replaces `values` with every column of the row, normalized in one pass
+    /// over GRDB's values, for the connection's value-level members.
+    func normalizeValues(into values: inout [XLSQLiteValue]) {
+        values.removeAll(keepingCapacity: true)
+        values.reserveCapacity(columnCount)
+        for databaseValue in row.databaseValues {
+            values.append(databaseValue.sqliteDialectValue)
+        }
     }
 
     /// GRDB stops the process for an index outside the row, so every read

@@ -316,9 +316,10 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         using dialect: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
         guard let staticReader = state.pointee.reader as? any XLStaticColumnReader else {
-            // A row handle from a driver outside SwiftQL cannot conform to
-            // `XLStaticColumnReader`, which is SwiftQL's, but it carries the
-            // dialect's values itself (issue #678).
+            // A row handle from a driver built on SwiftQLCore alone cannot
+            // conform to `XLStaticColumnReader`, which is SwiftQL's, but it
+            // carries the dialect's values itself (issue #678). A driver that
+            // imports SwiftQL can conform its handle and skip this cast.
             if let handle = state.pointee.reader as? any XLRowHandle {
                 return try xlDialectValue(at: index, of: handle, as: Dialect.Value.self)
             }

@@ -266,8 +266,9 @@ public struct XLValuesRowHandle<Value: XLDialectValue>: XLRowHandle {
     }
 
     /// The value at `index` as a SQLite value. The type is checked at run
-    /// time because the handle is generic over every dialect's value, and the
-    /// check folds away once the compiler knows `Value`.
+    /// time because the handle is generic over every dialect's value. SwiftQL
+    /// decodes a SQLite `XLValuesRowHandle` through `XLSQLiteValueReader`
+    /// instead, so its requests do not pay this cast per column.
     private func sqliteValue(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
         let value = try checked(index, expectedType: expectedType)
         if let value = value as? XLSQLiteValue {
@@ -280,3 +281,8 @@ public struct XLValuesRowHandle<Value: XLDialectValue>: XLRowHandle {
         )
     }
 }
+
+
+/// A row handle owns only its values, which every dialect's value type keeps
+/// `Sendable`.
+extension XLValuesRowHandle: Sendable {}

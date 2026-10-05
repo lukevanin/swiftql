@@ -45,10 +45,19 @@ package struct GRDBRowDecoder<Output> {
     /// Decodes the row a cursor is on, reading each column the row reader
     /// asks for straight from `row`, with no array of values in between
     /// (issue #678).
+    ///
+    /// A connection that declares no handle of its own lends the contract's
+    /// `XLValuesRowHandle`, whose row is already in memory. That row decodes
+    /// through ``decode(values:)``, the concrete reader it decoded through
+    /// before handles existed, rather than through the handle's reads, which
+    /// are generic over every dialect's value.
     package func decode<Handle>(row: Handle) throws -> Output
         where Handle: XLRowHandle, Handle.Value == XLSQLiteValue
     {
-        try XLColumnValuesRowReader<Output>.withReader(row) { columnReader in
+        if let valuesRow = row as? XLValuesRowHandle<XLSQLiteValue> {
+            return try decode(values: valuesRow.values)
+        }
+        return try XLColumnValuesRowReader<Output>.withReader(row) { columnReader in
             try reader.readRow(reader: columnReader)
         }
     }

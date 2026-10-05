@@ -36,12 +36,8 @@ package enum XLSQLiteValueReading {
         in values: [XLSQLiteValue],
         expectedType: String?
     ) throws -> XLSQLiteValue {
-        guard values.indices.contains(index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: expectedType,
-                failure: .indexOutOfBounds(valueCount: values.count)
-            )
+        if let error = indexOutOfBounds(index, count: values.count, expectedType: expectedType) {
+            throw error
         }
         return values[index]
     }
