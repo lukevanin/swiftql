@@ -299,21 +299,16 @@
   - `XLStaticRowLayoutError.unsupportedSQLiteStorage` and
     `XLQueryCaptureError.unsupportedLiteralStorage` keep their names, and
     their messages no longer say SQLite.
-- **`XLDatabaseDriverConnection` has statement lifecycle requirements, with
-  defaults** (issue #677), so a connection outside SwiftQL keeps compiling.
-  See "A connection's statement cache can be observed and warmed" under
-  "Added".
-  - `resetPhysical(_:)` returns a statement that has run to its prepared
-    state, and `finalizePhysical(_:)` tells the connection SwiftQL is done
-    with a statement. The default reset returns the statement unchanged, and
-    the default finalize does nothing.
+- **`XLDatabaseDriverConnection` has a new requirement, with a default**
+  (issue #677), so a connection outside SwiftQL keeps compiling. See "A
+  connection's statement cache can be observed and warmed" under "Added".
+  - `finalizePhysical(_:)` tells the connection SwiftQL is done with a
+    statement. Its default does nothing.
   - SwiftQL's requests, result sets, prepared invocations, and batch
     inserts now finalize every statement they prepare, on the connection
     access that prepared it, including when binding or running it throws.
-    The default `resetPhysical(_:)` suits only a connection whose statement
-    value carries no bound values; one that carries them implements it.
-  - A connection that already declared a method with one of these
-    signatures now provides the requirement, and SwiftQL calls it.
+  - A connection that already declared a method with this signature now
+    provides the requirement, and SwiftQL calls it.
 
 ### Added
 
@@ -352,10 +347,12 @@
     holds. Its `invalidatePreparedStatements()` discards every cached
     statement after a schema change the connection cannot see itself, such
     as one made through another connection; a statement in use finishes its
-    run and is not cached again.
+    run and is not cached again. Its `resetPhysical(_:)` returns a statement
+    that has run to its prepared state, for a caller that runs one cached
+    statement more than once.
   - `warmUp(_:)` prepares each statement of a manifest of logical statements
-    without running it. Its default checks and prepares each one as
-    `prepareValidated(_:)` does, then finalizes it, so it stays in the cache;
+    without running it. Its default prepares each one as a request does,
+    with `prepare(_:)`, then finalizes it, so it stays in the cache;
     a connection can implement it to prepare in bulk. A warmed statement's
     first run is a cache hit. It warms one connection; warming every
     connection of a pool is the driver's to arrange.

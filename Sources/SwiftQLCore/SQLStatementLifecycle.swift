@@ -3,11 +3,15 @@
 //  SwiftQLCore
 //
 //  The statement lifecycle a connection's statement cache needs (issue #677):
-//  reset and finalize on every connection, and, for a connection that caches
-//  statements, warm-up, schema invalidation, and cache statistics.
+//  finalize on every connection, and, for a connection that caches
+//  statements, reset, warm-up, schema invalidation, and cache statistics.
 //
-//  A statement SwiftQL runs goes through these calls, all on one connection
-//  access:
+//  A statement goes through these calls, all on one connection access:
+//
+//      prepare → bind… → run → finalize
+//
+//  A caller that runs a cached statement more than once resets it between
+//  runs:
 //
 //      prepare → bind… → run → (reset → bind… → run)… → finalize
 //
@@ -20,13 +24,6 @@ import Foundation
 
 
 extension XLDatabaseDriverConnection {
-
-    /// Returns `statement` unchanged: the connection resets a statement
-    /// itself before it runs it, and keeps no bound values in the statement
-    /// value.
-    public mutating func resetPhysical(_ statement: PhysicalStatement) throws -> PhysicalStatement {
-        statement
-    }
 
     /// Does nothing: the connection releases a statement when its last
     /// reference goes.
@@ -54,7 +51,8 @@ extension XLDatabaseDriverConnection {
 ///   separate statement.
 /// - ``XLDatabaseDriverConnection/finalizePhysical(_:)`` returns the
 ///   statement to the cache, reset and with no values bound, unless the
-///   cache was invalidated while the statement was in use.
+///   cache was invalidated while the statement was in use or the statement
+///   cannot be reset, in which case it is discarded.
 ///
 /// A cached statement belongs to the physical connection that prepared it.
 /// It is never lent to another connection, and it never leaves the
@@ -67,12 +65,28 @@ extension XLDatabaseDriverConnection {
 /// ``invalidatePreparedStatements()``.
 public protocol XLStatementCachingDriverConnection: XLDatabaseDriverConnection {
 
+    /// Returns a statement that has run to its prepared state, so that it
+    /// can be bound and run again on this connection.
+    ///
+    /// A caller that runs one statement more than once calls this between
+    /// the runs, then binds every parameter again. The returned statement has
+    /// no open cursor and no bound values, and it stays in use until it is
+    /// finalized. SwiftQL's requests prepare a statement for each run, so
+    /// they finalize it rather than reset it.
+    ///
+    /// - Throws: The error the database reports for the reset. The statement
+    ///   must then not run again; finalize it, and the cache discards it.
+    mutating func resetPhysical(_ statement: PhysicalStatement) throws -> PhysicalStatement
+
     /// What this connection's statement cache has done since the physical
     /// connection opened.
     var statementCacheStatistics: XLStatementCacheStatistics { get }
 
     /// Discards every cached statement, so that the next preparation of each
     /// SQL text prepares it again against the current schema.
+    ///
+    /// This reaches only this connection's cache. A driver with several
+    /// connections reports a schema change to each of them.
     ///
     /// A statement in use keeps running, and is discarded rather than
     /// cached again when it is finalized. Each statement discarded counts in
@@ -83,7 +97,8 @@ public protocol XLStatementCachingDriverConnection: XLDatabaseDriverConnection {
     /// the first run of each on this connection is a cache hit.
     ///
     /// The default implementation prepares each statement with
-    /// ``XLDatabaseDriverConnection/prepareValidated(_:)`` and finalizes it.
+    /// ``XLDatabaseDriverConnection/prepare(_:)``, as a request does, and
+    /// finalizes it.
     /// A connection that can prepare a manifest more cheaply, such as in
     /// bulk, implements this, and must leave the same statements cached.
     mutating func warmUp<Manifest: Sequence>(
@@ -97,10 +112,11 @@ extension XLStatementCachingDriverConnection {
     /// Prepares every statement in `manifest` without running it, so that
     /// the first run of each on this connection is a cache hit (issue #677).
     ///
-    /// Each statement is checked against the connection's database and
-    /// dialect, and the functions it calls are installed, as
-    /// ``XLDatabaseDriverConnection/prepareValidated(_:)`` does. It is then
-    /// finalized without being bound or run, which leaves it in the cache.
+    /// Each statement is prepared as a request prepares it, with
+    /// ``XLDatabaseDriverConnection/prepare(_:)``: it is checked against the
+    /// connection's database and dialect, and the functions it calls are
+    /// installed. It is then finalized without being bound or run, which
+    /// leaves it in the cache.
     /// Nothing executes, so a statement that writes changes nothing.
     ///
     /// Warm-up fills only this connection's cache. Warming every connection
@@ -117,7 +133,7 @@ extension XLStatementCachingDriverConnection {
         _ manifest: Manifest
     ) throws where Manifest.Element == XLLogicalPreparedStatement {
         for statement in manifest {
-            let physicalStatement = try prepareValidated(statement)
+            let physicalStatement = try prepare(statement)
             finalizePhysical(physicalStatement)
         }
     }

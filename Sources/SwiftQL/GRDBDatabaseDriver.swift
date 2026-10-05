@@ -806,24 +806,13 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         }
     }
 
-    /// Drops the values bound to `statement` (issue #677).
-    ///
-    /// GRDB resets the SQLite statement itself before each run, so only the
-    /// values this value carries need clearing.
-    ///
-    /// The connection keeps the default `finalizePhysical(_:)`, which does
-    /// nothing. GRDB owns the statements in its cache, and releases a
-    /// statement prepared outside it when its last reference goes. GRDB also
-    /// keeps its cache to itself: it counts nothing, and it clears the cache
-    /// on its own when a statement changes the schema or a pooled reader
-    /// sees a new schema version. So this connection does not conform to
-    /// `XLStatementCachingDriverConnection`.
-    mutating func resetPhysical(_ statement: GRDBPhysicalStatement) throws -> GRDBPhysicalStatement {
-        try validateOwnership(of: statement)
-        var reset = statement
-        reset.bindings = [:]
-        return reset
-    }
+    // The connection keeps the default `finalizePhysical(_:)`, which does
+    // nothing (issue #677). GRDB owns the statements in its cache, and
+    // releases a statement prepared outside it when its last reference goes.
+    // GRDB also keeps its cache to itself: it counts nothing, and it clears
+    // the cache on its own when a statement changes the schema or a pooled
+    // reader sees a new schema version. So this connection does not conform
+    // to `XLStatementCachingDriverConnection`.
 
     ///
     /// Runs `body`, reporting a GRDB `DatabaseError` it throws as an

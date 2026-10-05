@@ -110,6 +110,33 @@ final class StatementCachingConnectionTests: XCTestCase {
         )
     }
 
+    // MARK: - Reset
+
+    func testResetReadiesAStatementToBeBoundAndRunAgain() throws {
+        let driver = try makeDriver()
+        let insert = driver.logicalStatement("INSERT INTO item (name) VALUES (:name)")
+
+        let statistics = try driver.withBlockingWriteConnection { connection in
+            var statement = try connection.prepare(insert)
+            defer { connection.finalizePhysical(statement) }
+            statement = try connection.bind(.text("cup"), to: .named("name"), in: statement)
+            try connection.execute(statement)
+
+            statement = try connection.resetPhysical(statement)
+            XCTAssertThrowsError(
+                try connection.execute(statement),
+                "A reset statement has no values bound."
+            )
+
+            statement = try connection.bind(.text("jar"), to: .named("name"), in: statement)
+            try connection.execute(statement)
+            return connection.statementCacheStatistics
+        }
+
+        XCTAssertEqual(statistics, XLStatementCacheStatistics(misses: 1, cachedStatementCount: 1))
+        XCTAssertEqual(try driver.itemCount(), 2)
+    }
+
     // MARK: - Schema invalidation
 
     func testASchemaChangeInvalidatesTheCacheAndTheNextRunPreparesAgain() throws {
@@ -367,6 +394,7 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
         }
     }
 
+    @discardableResult
     mutating func execute(_ statement: CachingSQLiteStatement) throws -> XLExecutionResult {
         let schemaVersion = try database.schemaVersion()
         try statement.statement.execute(arguments: arguments(statement))
@@ -376,12 +404,17 @@ struct CachingSQLiteConnection: XLStatementCachingDriverConnection {
         return XLExecutionResult(rowsAffected: database.changesCount, access: .write)
     }
 
+    /// GRDB resets the SQLite statement before each run, and a GRDB row
+    /// cursor resets it when the cursor goes away, so a statement that has
+    /// run is already idle here. Only the values it carries need dropping.
     mutating func resetPhysical(_ statement: CachingSQLiteStatement) throws -> CachingSQLiteStatement {
         var reset = statement
         reset.bindings = [:]
         return reset
     }
 
+    /// Every run either finished its statement or ended a GRDB row cursor,
+    /// which resets the statement, so the statement goes back idle.
     mutating func finalizePhysical(_ statement: CachingSQLiteStatement) {
         if statement.isCached {
             cache.checkIn(sql: statement.sql, generation: statement.generation)

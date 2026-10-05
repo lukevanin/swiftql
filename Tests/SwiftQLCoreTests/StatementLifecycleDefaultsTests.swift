@@ -4,27 +4,23 @@ import XCTest
 import SwiftQLCore
 
 
-/// Issue #677: `resetPhysical(_:)` and `finalizePhysical(_:)` are connection
-/// requirements with defaults, so a connection written before them keeps
-/// compiling, and `warmUp(_:)` is the prepare-then-finalize lifecycle of a
-/// caching connection.
+/// Issue #677: `finalizePhysical(_:)` is a connection requirement with a
+/// default, so a connection written before it keeps compiling, and the
+/// default `warmUp(_:)` of a caching connection is the prepare-then-finalize
+/// lifecycle.
 final class StatementLifecycleDefaultsTests: XCTestCase {
 
-    func testDefaultResetReturnsTheStatementUnchanged() throws {
+    func testDefaultFinalizeLeavesTheConnectionAsItWas() throws {
         var connection = PlainConnection()
+        let statement = try connection.prepare(connection.logicalStatement("SELECT 1"))
 
-        XCTAssertEqual(try connection.resetPhysical("SELECT ?"), "SELECT ?")
+        connection.finalizePhysical(statement)
+
+        XCTAssertEqual(connection.preparedSQL, ["SELECT 1"])
+        XCTAssertEqual(try connection.fetchAll(statement), [[.integer(1)]])
     }
 
-    func testDefaultFinalizeDoesNothing() {
-        var connection = PlainConnection()
-
-        connection.finalizePhysical("SELECT 1")
-
-        XCTAssertEqual(connection.preparedSQL, [])
-    }
-
-    func testWarmUpPreparesAndFinalizesEachStatementInOrder() throws {
+    func testDefaultWarmUpPreparesAndFinalizesEachStatementInOrder() throws {
         var connection = RecordingCachingConnection()
         let manifest = ["SELECT 1", "INSERT INTO t VALUES (1)"].map {
             connection.logicalStatement($0)
@@ -39,27 +35,27 @@ final class StatementLifecycleDefaultsTests: XCTestCase {
         XCTAssertEqual(connection.statementCacheStatistics.misses, 2)
     }
 
-    func testWarmUpReportsAPrepareFailureAndStops() {
+    /// Warm-up prepares as a request does, so a prepare failure reaches the
+    /// caller as the connection threw it.
+    func testDefaultWarmUpStopsAtTheFirstPrepareFailure() {
         var connection = RecordingCachingConnection(failingSQL: "SELECT broken")
-        let manifest = ["SELECT broken", "SELECT 2"].map {
+        let manifest = ["SELECT 1", "SELECT broken", "SELECT 2"].map {
             connection.logicalStatement($0)
         }
 
         XCTAssertThrowsError(try connection.warmUp(manifest)) { error in
-            guard case .prepareFailure = error as? XLDatabaseContractError else {
-                return XCTFail("Expected a prepare failure, got \(error).")
-            }
+            XCTAssertTrue(error is RecordingCachingConnection.PrepareFailure, "\(error)")
         }
-        XCTAssertEqual(connection.events, [], "Nothing was prepared, so nothing is finalized.")
+        XCTAssertEqual(connection.events, ["prepare SELECT 1", "finalize SELECT 1"])
     }
 
     func testAConnectionsOwnWarmUpIsCalledThroughTheRefinement() throws {
-        var connection = RecordingCachingConnection(warmsInBulk: true)
-        let manifest = [connection.logicalStatement("SELECT 1")]
+        var connection = BulkWarmingConnection()
+        let manifest = [connection.recording.logicalStatement("SELECT 1")]
 
         try warmThroughRefinement(&connection, manifest)
 
-        XCTAssertEqual(connection.events, ["bulk warm-up of 1"])
+        XCTAssertEqual(connection.recording.events, ["bulk warm-up of 1"])
     }
 
     func testStatisticsDefaultToZero() {
@@ -94,6 +90,14 @@ private struct PlainConnection: XLDatabaseDriverConnection {
     let dialect = XLSQLiteDialect()
     var preparedSQL: [String] = []
 
+    func logicalStatement(_ sql: String) -> XLLogicalPreparedStatement {
+        XLLogicalPreparedStatement(
+            databaseIdentifier: databaseIdentifier,
+            dialectRequirement: XLDialectRequirement(identity: XLSQLiteDialect.identity),
+            sql: sql
+        )
+    }
+
     mutating func preparePhysical(_ statement: XLValidatedLogicalPreparedStatement) throws -> String {
         preparedSQL.append(statement.logicalStatement.sql)
         return statement.logicalStatement.sql
@@ -104,11 +108,11 @@ private struct PlainConnection: XLDatabaseDriverConnection {
     }
 
     mutating func fetchAll(_ statement: String) throws -> [[XLSQLiteValue]] {
-        []
+        [[.integer(1)]]
     }
 
     mutating func fetchOne(_ statement: String) throws -> [XLSQLiteValue]? {
-        nil
+        try fetchAll(statement).first
     }
 
     mutating func execute(_ statement: String) throws -> XLExecutionResult {
@@ -117,8 +121,8 @@ private struct PlainConnection: XLDatabaseDriverConnection {
 }
 
 
-/// A caching connection that records each lifecycle call, and counts every
-/// preparation as a miss.
+/// A caching connection that records each lifecycle call, counts every
+/// preparation as a miss, and keeps the default warm-up.
 private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
 
     struct PrepareFailure: Error {}
@@ -127,7 +131,6 @@ private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
     let databaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
     let dialect = XLSQLiteDialect()
     var failingSQL: String?
-    var warmsInBulk = false
     var events: [String] = []
     var statementCacheStatistics = XLStatementCacheStatistics()
 
@@ -169,6 +172,11 @@ private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
         return XLExecutionResult(rowsAffected: 0, access: .write)
     }
 
+    mutating func resetPhysical(_ statement: String) throws -> String {
+        events.append("reset \(statement)")
+        return statement
+    }
+
     mutating func finalizePhysical(_ statement: String) {
         events.append("finalize \(statement)")
     }
@@ -176,16 +184,51 @@ private struct RecordingCachingConnection: XLStatementCachingDriverConnection {
     mutating func invalidatePreparedStatements() throws {
         statementCacheStatistics.invalidations += 1
     }
+}
+
+
+/// A caching connection with its own warm-up, which prepares a manifest in
+/// one step.
+private struct BulkWarmingConnection: XLStatementCachingDriverConnection {
+
+    var recording = RecordingCachingConnection()
+
+    var driverIdentifier: XLDriverIdentifier { recording.driverIdentifier }
+    var databaseIdentifier: XLDatabaseIdentifier { recording.databaseIdentifier }
+    var dialect: XLSQLiteDialect { recording.dialect }
+    var statementCacheStatistics: XLStatementCacheStatistics { recording.statementCacheStatistics }
+
+    mutating func preparePhysical(_ statement: XLValidatedLogicalPreparedStatement) throws -> String {
+        try recording.preparePhysical(statement)
+    }
+
+    mutating func bind(_ value: XLSQLiteValue, to key: XLBindingKey, in statement: String) throws -> String {
+        try recording.bind(value, to: key, in: statement)
+    }
+
+    mutating func fetchAll(_ statement: String) throws -> [[XLSQLiteValue]] {
+        try recording.fetchAll(statement)
+    }
+
+    mutating func fetchOne(_ statement: String) throws -> [XLSQLiteValue]? {
+        try recording.fetchOne(statement)
+    }
+
+    mutating func execute(_ statement: String) throws -> XLExecutionResult {
+        try recording.execute(statement)
+    }
+
+    mutating func resetPhysical(_ statement: String) throws -> String {
+        try recording.resetPhysical(statement)
+    }
+
+    mutating func invalidatePreparedStatements() throws {
+        try recording.invalidatePreparedStatements()
+    }
 
     mutating func warmUp<Manifest: Sequence>(
         _ manifest: Manifest
     ) throws where Manifest.Element == XLLogicalPreparedStatement {
-        guard warmsInBulk else {
-            for statement in manifest {
-                finalizePhysical(try prepareValidated(statement))
-            }
-            return
-        }
-        events.append("bulk warm-up of \(Array(manifest).count)")
+        recording.events.append("bulk warm-up of \(Array(manifest).count)")
     }
 }
