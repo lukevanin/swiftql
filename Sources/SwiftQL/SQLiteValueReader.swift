@@ -7,7 +7,10 @@ import Foundation
 
 /// Reads legacy SwiftQL literals from SQLite dialect values without depending
 /// on a database-driver transport.
-public struct XLSQLiteValueReader: XLStaticColumnReader {
+///
+/// It is a row handle over values in memory, and reads its values by the
+/// rules every SQLite row handle shares.
+public struct XLSQLiteValueReader: XLStaticColumnReader, XLRowHandle {
 
     public let values: [XLSQLiteValue]
 
@@ -15,90 +18,56 @@ public struct XLSQLiteValueReader: XLStaticColumnReader {
         self.values = values
     }
 
+    /// The number of values, so the reader is an `XLRowHandle` (issue #678).
+    public var columnCount: Int {
+        values.count
+    }
+
+    public func value(at index: Int) throws -> XLSQLiteValue {
+        try XLSQLiteValueReading.value(at: index, in: values, expectedType: nil)
+    }
+
+    // The five column reads are written here, rather than taken from the
+    // `XLRowHandle` defaults in SwiftQLCore, so each read checks its index
+    // once and runs code compiled for this reader. It serves `fetchOne()`,
+    // live queries, and custom-function arguments.
+
     public func isNull(at index: Int) throws -> Bool {
-        if case .null = try value(at: index, expectedType: nil) {
-            return true
-        }
-        return false
+        XLSQLiteValueReading.isNull(try value(at: index))
     }
 
     public func readInteger(at index: Int) throws -> Int {
-        let value = try value(at: index, expectedType: "Int")
-        switch value {
-        case .integer(let integer):
-            guard let result = Int(exactly: integer) else {
-                throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
-            }
-            return result
-        case .real(let real):
-            let truncated = real.rounded(.towardZero)
-            let upperBound = -Double(Int64.min)
-            guard
-                truncated.isFinite,
-                truncated >= Double(Int64.min),
-                truncated < upperBound
-            else {
-                throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
-            }
-            return Int(Int64(truncated))
-        case .null:
-            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Int")
-        case .text, .blob:
-            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Int")
-        }
+        try XLSQLiteValueReading.integer(
+            XLSQLiteValueReading.value(at: index, in: values, expectedType: "Int"),
+            at: index
+        )
     }
 
     public func readReal(at index: Int) throws -> Double {
-        let value = try value(at: index, expectedType: "Double")
-        switch value {
-        case .integer(let integer):
-            return Double(integer)
-        case .real(let real):
-            return real
-        case .null:
-            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Double")
-        case .text, .blob:
-            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Double")
-        }
+        try XLSQLiteValueReading.real(
+            XLSQLiteValueReading.value(at: index, in: values, expectedType: "Double"),
+            at: index
+        )
     }
 
     public func readText(at index: Int) throws -> String {
         try XLSQLiteValueReading.text(
-            value(at: index, expectedType: "String"),
+            XLSQLiteValueReading.value(at: index, in: values, expectedType: "String"),
             at: index
         )
     }
 
     public func readBlob(at index: Int) throws -> Data {
-        let value = try value(at: index, expectedType: "Data")
-        switch value {
-        case .blob(let blob):
-            return blob
-        case .text(let text):
-            return Data(text.utf8)
-        case .null:
-            throw XLSQLiteValueReading.nullValue(at: index, expectedType: "Data")
-        case .integer, .real:
-            throw XLSQLiteValueReading.typeMismatch(value, at: index, expectedType: "Data")
-        }
+        try XLSQLiteValueReading.blob(
+            XLSQLiteValueReading.value(at: index, in: values, expectedType: "Data"),
+            at: index
+        )
     }
 
     public func dialectValue<Dialect>(
         at index: Int,
         using _: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
-        let value = try value(at: index, expectedType: String(reflecting: Dialect.Value.self))
-        guard let typed = value as? Dialect.Value else {
-            throw XLStaticRowReadError.dialectValueTypeMismatch(
-                index: index,
-                expected: String(reflecting: Dialect.Value.self),
-                actual: String(reflecting: XLSQLiteValue.self)
-            )
-        }
-        return typed
-    }
-
-    private func value(at index: Int, expectedType: String?) throws -> XLSQLiteValue {
-        try XLSQLiteValueReading.value(at: index, in: values, expectedType: expectedType)
+        try xlDialectValue(at: index, of: self, as: Dialect.Value.self)
     }
 }

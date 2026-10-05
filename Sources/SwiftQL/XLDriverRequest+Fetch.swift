@@ -66,9 +66,9 @@ extension XLDriverRequest {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
-        try executor.forEachRow(packet: packet, in: &connection) { values in
+        try executor.forEachRowHandle(packet: packet, in: &connection) { row in
             do {
-                let item = try rowDecoder.decode(values: values)
+                let item = try rowDecoder.decode(row: row)
                 items.append(item)
                 return .advance
             }
@@ -87,8 +87,8 @@ extension XLDriverRequest {
     /// unapplied work. The commit needs the statement to be reset first,
     /// because SQLite refuses to commit while a statement is still in
     /// progress. The connection contract releases the cursor behind
-    /// `forEachRow` when it returns (issue #682), which resets the statement
-    /// before the transaction commits.
+    /// `forEachRowHandle` when it returns (issues #682 and #678), which
+    /// resets the statement before the transaction commits.
     ///
     func fetchAtMost(
         _ limit: Int,
@@ -112,9 +112,9 @@ extension XLDriverRequest {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
-        try executor.forEachRow(packet: packet, in: &connection) { values in
+        try executor.forEachRowHandle(packet: packet, in: &connection) { row in
             do {
-                let item = try rowDecoder.decode(values: values)
+                let item = try rowDecoder.decode(row: row)
                 items.append(item)
                 return items.count < limit ? .advance : .stop
             }

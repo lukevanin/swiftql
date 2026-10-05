@@ -681,6 +681,7 @@ final class XLPublisherTests: XCTestCase {
         let didFulfillInitial = PublisherLockedValue(false)
         let didFulfillFinal = PublisherLockedValue(false)
         let didGrantIntermediateDemand = PublisherLockedValue(false)
+        let didGrantRepeatDemand = PublisherLockedValue(false)
         let initialRows = [TestTable(id: "initial", value: 1)]
         let intermediateRows = [
             TestTable(id: "initial", value: 1),
@@ -717,6 +718,22 @@ final class XLPublisherTests: XCTestCase {
                 // consume newly requested demand. Replenish exactly once so
                 // the later liveness commit can still publish current state
                 // without turning finite demand into an open-ended loop.
+                //
+                // GRDB may also fetch the initial value a second time when
+                // the observation first takes the writer, and does on Linux,
+                // where GRDB 7 has no WAL-snapshot path (see LiveQueries, "A
+                // live query may deliver the same value twice"). That repeat
+                // can be the value buffered when demand returns, so it may
+                // consume the second demand too. Replenish once for it, the
+                // same way.
+                if rows == initialRows,
+                   values.read().filter({ $0 == initialRows }).count > 1 {
+                    return didGrantRepeatDemand.withValue { didGrant in
+                        guard !didGrant else { return .none }
+                        didGrant = true
+                        return .max(1)
+                    }
+                }
                 guard rows == intermediateRows else { return .none }
                 return didGrantIntermediateDemand.withValue { didGrant in
                     guard !didGrant else { return .none }
@@ -747,9 +764,14 @@ final class XLPublisherTests: XCTestCase {
         try insertDirect(TestTable(id: "demanded", value: 3))
         wait(for: [finalExpectation], timeout: 2)
         let observed = values.read()
+        // A repeat of the initial value, described above, is allowed once,
+        // straight after the first.
+        let withoutRepeat = observed.count > 2 && observed[1] == initialRows
+            ? [observed[0]] + observed.dropFirst(2)
+            : observed
         XCTAssertTrue(
-            observed == [initialRows, finalRows]
-                || observed == [initialRows, intermediateRows, finalRows],
+            withoutRepeat == [initialRows, finalRows]
+                || withoutRepeat == [initialRows, intermediateRows, finalRows],
             "Unexpected incremental-demand snapshots: \(observed)"
         )
         subscriber.cancel()

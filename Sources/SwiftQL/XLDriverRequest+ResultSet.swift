@@ -22,9 +22,10 @@ extension XLDriverRequest {
     ///
     /// True-streaming override of the ``XLRequest`` default: lends an
     /// `XLResultSet` backed directly by `XLInvocationExecutor<Driver>`'s
-    /// value-level cursor stepper, so `next()` performs one real SQLite step
-    /// and one real typed decode -- nothing is prefetched, and nothing is
-    /// buffered beyond the one row currently being decoded.
+    /// row-handle stepper, so `next()` performs one real SQLite step and one
+    /// real typed decode, reading each column from the cursor's row (issue
+    /// #678) -- nothing is prefetched, and nothing is buffered beyond the one
+    /// row currently being decoded.
     ///
     /// A `RETURNING` request (`requiresWriteConnection`) is the one
     /// exception. It changes the database, and a pooled reader connection is
@@ -58,15 +59,15 @@ extension XLDriverRequest {
         }
 
         let rowDecoder = GRDBRowDecoder(reader: reader)
-        return try executor.withValuesStepper(
+        return try executor.withRowHandleStepper(
             packet: packet,
             requiresWriteConnection: false
-        ) { valuesStepper in
+        ) { rowStepper in
             let resultSet = XLResultSet<Row>(stepper: {
-                guard let values = try valuesStepper() else {
+                guard let row = try rowStepper() else {
                     return nil
                 }
-                return try rowDecoder.decode(values: values)
+                return try rowDecoder.decode(row: row)
             })
             defer { resultSet.close() }
             return try operation(resultSet)

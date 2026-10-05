@@ -268,6 +268,7 @@ enum V2NameCollisionFixture {
     typealias Check_ResultSetError = ResultSetError
     typealias Check_ReturningRequestError = ReturningRequestError
     typealias Check_ReturningStatement = ReturningStatement
+    typealias Check_RowHandle = RowHandle
     typealias Check_RowReadable = RowReadable
     typealias Check_RowReader = RowReader
     typealias Check_RowStreamControl = RowStreamControl
@@ -350,6 +351,7 @@ enum V2NameCollisionFixture {
     typealias Check_ValueCodingSite = ValueCodingSite
     typealias Check_ValueStorageIdentifier = ValueStorageIdentifier
     typealias Check_ValueTypeIdentifier = ValueTypeIdentifier
+    typealias Check_ValuesRowHandle = ValuesRowHandle
     typealias Check_WithStatement = WithStatement
     typealias Check_WriteRequest = WriteRequest
     typealias Check_SQLiteBuilder = SQLiteBuilder

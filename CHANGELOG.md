@@ -232,6 +232,26 @@
     runs. Its default checks nothing.
   - A connection that already declared a method with one of these signatures
     now provides the requirement, and SwiftQL calls it.
+- **`XLDatabaseDriverConnection` has a row-handle seam, with defaults**
+  (issue #678), so a connection outside SwiftQL keeps compiling. See "Rows
+  decode from the cursor's row" under "Added".
+  - The new associated type `RowHandle` defaults to
+    `XLValuesRowHandle<Dialect.Value>`, and the new requirements
+    `forEachRowHandle(_:_:)` and `withRowHandleStepper(_:_:)` default to
+    wrapping each row of `forEachRow(_:_:)` and `withValuesStepper(_:_:)`.
+    A connection that declares its own `RowHandle` implements both, and
+    its `forEachRow(_:_:)` and `withValuesStepper(_:_:)` then default to
+    copying each handle's row, instead of fetching every row first.
+  - SwiftQL's requests call the row-handle members now. A connection that
+    overrides only the value-level members still serves them, through the
+    defaults.
+  - A connection that already declares a type or typealias named
+    `RowHandle` now provides the associated type with it, and fails to
+    compile unless that type conforms to `XLRowHandle`. Rename it.
+  - `XLColumnReader` moved to SwiftQLCore, so that a driver's row handle can
+    be one. `import SwiftQL` re-exports it, so source that names it compiles
+    unchanged. Its module-qualified name changes, for example in
+    `String(reflecting:)`.
 - **No GRDB type appears in SwiftQL's public API** (issue #702). Opening a
   database, registering functions and collations, and running requests need
   only `import SwiftQL`. A file that imports both SwiftQL and GRDB sees both
@@ -311,6 +331,30 @@
     provides the requirement, and SwiftQL calls it.
 
 ### Added
+
+- **Rows decode from the cursor's row** (issue #678). A connection lends
+  each result row as a row handle, and SwiftQL decodes it by reading the
+  columns it needs from the handle, so no array of dialect values is built
+  for the row first.
+  - `XLRowHandle`, in SwiftQLCore, refines `XLColumnReader` with
+    `columnCount` and `value(at:)`. A handle whose `Value` is `XLSQLiteValue`
+    gets the five column reads from `value(at:)`, by the storage-class rules
+    every SwiftQL reader follows, and can override any of them, for example
+    with `sqlite3_column_int64`. `copyValues()` and `appendValues(to:)` copy
+    the row as values when a caller needs them.
+  - `XLValuesRowHandle` is a row handle over values already in memory, and
+    the default `RowHandle`. `XLSQLiteValueReader` is a row handle too, and
+    reads its values by the same shared rules.
+  - The GRDB adapter lends a handle over GRDB's own row. `fetchAll()`,
+    `fetchAtMost(_:bindings:)`, their `async` forms, and `withResultSet(_:)`
+    decode from it. `fetchOne()`, live queries, the prepared value handles,
+    and static queries, including the typed `fetchAll(bindings:)` of
+    `XLPreparedTypedStaticQuery`, still read rows as values.
+  - A driver outside SwiftQL that implements `withRowHandleStepper(_:_:)`
+    backs a lazily stepped `XLResultSet` through `XLDriverDatabase`, with
+    SwiftQL's public API alone. `XLResultSet.init(stepper:)` stays internal;
+    a request conformer that builds a result set from its own cursor is
+    issue #458.
 
 - **The macro output carries the dialect as a parameter** (issue #687). The
   code the macros generate no longer names SQLite, so a model declared once

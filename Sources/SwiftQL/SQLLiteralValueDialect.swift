@@ -33,7 +33,7 @@ import Foundation
 ///
 /// The literal protocols themselves are still SQLite's binding vocabulary:
 /// ``XLBindable`` binds through ``XLBindingContext``'s five storage classes
-/// and ``XLLiteral`` reads through ``XLColumnReader``. A conforming dialect
+/// and ``XLLiteral`` reads through `XLColumnReader`. A conforming dialect
 /// maps those onto its own value type. Issue #686 replaces that vocabulary
 /// with a dialect-parametric storage witness.
 ///

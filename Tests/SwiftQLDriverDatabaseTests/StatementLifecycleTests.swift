@@ -145,3 +145,115 @@ final class StatementLifecycleTests: XCTestCase {
         }
     }
 }
+
+
+/// Issue #677 with #678: the row-handle paths finalize their statement once,
+/// after the cursor's last step, whether the rows run out, the request stops
+/// early, or the body throws. The cursor driver implements the row-handle
+/// members itself, so these tests run SwiftQL's row-handle paths rather than
+/// the value-level defaults.
+final class RowHandleLifecycleTests: XCTestCase {
+
+    private struct BodyFailure: Error {}
+
+    private var driver: CursorDriver!
+
+    private var database: XLDriverDatabase<CursorDriver>!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        driver = CursorDriver()
+        database = try XLDriverDatabase(driver: driver)
+        driver.log.rows = [[.text("ann"), .integer(31)], [.text("ben"), .integer(42)]]
+    }
+
+    override func tearDown() {
+        database = nil
+        driver = nil
+        super.tearDown()
+    }
+
+    // MARK: - forEachRowHandle
+
+    func testFetchAllFinalizesAfterTheLastRow() throws {
+        _ = try database.makeRequest(with: selectPeople()).fetchAll()
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "step 1", "finalize"])
+    }
+
+    func testAsyncFetchAllFinalizesAfterTheLastRow() async throws {
+        _ = try await database.makeRequest(with: selectPeople()).async.fetchAll()
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "step 1", "finalize"])
+    }
+
+    func testFetchAtMostFinalizesWhenItStopsEarly() throws {
+        _ = try database.makeRequest(with: selectPeople())
+            .fetchAtMost(1, bindings: XLInvocationBindings<XLSQLiteValue>(layout: .empty))
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "finalize"])
+    }
+
+    func testFetchAllFinalizesWhenARowFailsToDecode() {
+        driver.log.rows = [[.null, .integer(31)], [.text("ben"), .integer(42)]]
+
+        XCTAssertThrowsError(try database.makeRequest(with: selectPeople()).fetchAll())
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "finalize"])
+    }
+
+    // MARK: - withRowHandleStepper
+
+    func testResultSetFinalizesAfterTheRowsRunOut() throws {
+        _ = try database.makeRequest(with: selectPeople()).withResultSet { rows -> Int in
+            var count = 0
+            while try rows.next() != nil {
+                count += 1
+            }
+            return count
+        }
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "step 1", "finalize"])
+    }
+
+    func testResultSetFinalizesWhenTheBodyStopsEarly() throws {
+        _ = try database.makeRequest(with: selectPeople()).withResultSet { rows in
+            try rows.next()
+        }
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "finalize"])
+    }
+
+    func testResultSetFinalizesWhenTheBodyThrows() {
+        XCTAssertThrowsError(
+            try database.makeRequest(with: selectPeople()).withResultSet { rows -> Void in
+                _ = try rows.next()
+                throw BodyFailure()
+            }
+        ) { error in
+            XCTAssertTrue(error is BodyFailure, "\(error)")
+        }
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "finalize"])
+    }
+
+    func testResultSetFinalizesWhenARowFailsToDecode() {
+        driver.log.rows = [[.null, .integer(31)]]
+
+        XCTAssertThrowsError(
+            try database.makeRequest(with: selectPeople()).withResultSet { rows in
+                try rows.next()
+            }
+        )
+
+        XCTAssertEqual(driver.log.lifecycle, ["prepare", "step 0", "finalize"])
+    }
+
+    private func selectPeople() -> any XLQueryStatement<DriverPerson> {
+        sql { schema in
+            let person = schema.table(DriverPerson.self)
+            Select(person)
+            From(person)
+        }
+    }
+}
