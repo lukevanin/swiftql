@@ -478,6 +478,10 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 
     typealias PhysicalStatement = GRDBPhysicalStatement
 
+    /// Named rather than inferred, so the connection cannot fall back to the
+    /// contract's default handle and copy every row (issue #678).
+    typealias RowHandle = GRDBRowHandle
+
     let driverIdentifier: XLDriverIdentifier
 
     let databaseIdentifier: XLDatabaseIdentifier
@@ -1275,12 +1279,13 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
 
     private let row: Row
 
+    /// Read once, because GRDB asks SQLite for it on every `Row.count`, and
+    /// every column read checks its index against it.
+    let columnCount: Int
+
     init(row: Row) {
         self.row = row
-    }
-
-    var columnCount: Int {
-        row.count
+        self.columnCount = row.count
     }
 
     func value(at index: Int) throws -> XLSQLiteValue {
@@ -1309,7 +1314,7 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
     private func checkIndex(_ index: Int) throws {
         if let error = XLSQLiteValueReading.indexOutOfBounds(
             index,
-            count: row.count,
+            count: columnCount,
             expectedType: nil
         ) {
             throw error

@@ -31,7 +31,7 @@ package struct GRDBRowDecoder<Output> {
     }
 
     package func decode(_ row: GRDB.Row) throws -> Output {
-        try decode(values: row.databaseValues.map(\.sqliteDialectValue))
+        try decode(row: GRDBRowHandle(row: row))
     }
 
     package func decode(values: [XLSQLiteValue]) throws -> Output {

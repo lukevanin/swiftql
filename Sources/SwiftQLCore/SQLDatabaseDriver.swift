@@ -245,15 +245,22 @@ extension XLDatabaseDriverConnection {
         }
     }
 
-    /// Copies each row ``withRowHandleStepper(_:_:)`` steps into values, for
-    /// a connection that declares its own row handle.
+    /// Copies each row ``withRowHandleStepper(_:_:)`` steps into values, in
+    /// one reusable buffer, for a connection that declares its own row
+    /// handle.
     public mutating func withValuesStepper<Result>(
         _ statement: PhysicalStatement,
         _ body: (@escaping () throws -> [Dialect.Value]?) throws -> Result
     ) throws -> Result {
         try withRowHandleStepper(statement) { next in
-            try body {
-                try next()?.copyValues()
+            var values: [Dialect.Value] = []
+            return try body {
+                guard let row = try next() else {
+                    return nil
+                }
+                values.removeAll(keepingCapacity: true)
+                try row.appendValues(to: &values)
+                return values
             }
         }
     }

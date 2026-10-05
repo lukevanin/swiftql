@@ -19,6 +19,13 @@ final class GRDBDriverContractTests: XCTestCase {
         case requested
     }
 
+    /// The GRDB connection lends its own handle over GRDB's row (issue #678).
+    /// With the contract's default handle instead, every request would copy
+    /// each row into values and wrap them, and no decode test would notice.
+    func testConnectionLendsTheGRDBRowHandle() {
+        XCTAssertTrue(GRDBDatabaseDriverConnection.RowHandle.self == GRDBRowHandle.self)
+    }
+
     func testSharedSQLiteStorageCasesRoundTripWithTypeofEvidence() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
