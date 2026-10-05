@@ -14,71 +14,10 @@ import Foundation
 
 // `XLColumnReadError` is declared in SwiftQLCore (issue #683), so the
 // bundled `regexp` there can report an argument it cannot read.
-
-
-///
-/// Reads the value for a column for a row returned from a select query.
-///
-/// Used when reading results of a query returned by SQLite.
-///
-/// Readers use SQLite storage classes consistently for query results and
-/// custom-function arguments. Integer reads accept INTEGER and representable
-/// REAL values; real reads accept INTEGER and REAL; text reads accept TEXT and
-/// UTF-8 BLOB; and BLOB reads accept BLOB and the UTF-8 bytes of TEXT. Other
-/// storage-class conversions throw `XLColumnReadError`.
-///
-public protocol XLColumnReader {
-    
-    ///
-    /// Determines if the value for a column at a given index contains a NULL value.
-    ///
-    /// - Parameter index: Index of the column to examine.
-    ///
-    /// - Returns: `true` if the column value is NULL.
-    /// - Throws: `XLColumnReadError` if `index` is outside the available values.
-    ///
-    func isNull(at index: Int) throws -> Bool
-    
-    ///
-    /// Reads an integer value for a column at a given index.
-    ///
-    /// - Parameter index: Index of the column to read.
-    ///
-    /// - Returns: Integer value for the column.
-    /// - Throws: `XLColumnReadError` if the value cannot be read as an integer.
-    ///
-    func readInteger(at index: Int) throws -> Int
-    
-    ///
-    /// Reads a real number for a column at a given index.
-    ///
-    /// - Parameter index: Index of the column to read.
-    ///
-    /// - Returns: Floating point value for the column.
-    /// - Throws: `XLColumnReadError` if the value cannot be read as a real number.
-    ///
-    func readReal(at index: Int) throws -> Double
-    
-    ///
-    /// Reads a text value for the column at a given index
-    ///
-    /// - Parameter index: Index of the column to read.
-    ///
-    /// - Returns: String value for the column.
-    /// - Throws: `XLColumnReadError` if the value cannot be read as text.
-    ///
-    func readText(at index: Int) throws -> String
-    
-    ///
-    /// Reads a BLOB value for the column at a given index.
-    ///
-    /// - Parameter index: Index of the column to read.
-    ///
-    /// - Returns: Data value for the column.
-    /// - Throws: `XLColumnReadError` if the value cannot be read as a BLOB.
-    ///
-    func readBlob(at index: Int) throws -> Data
-}
+//
+// `XLColumnReader` is declared in SwiftQLCore too (issue #678), so a row
+// handle a connection lends can be one, and the decoder reads its columns
+// without first copying the row into an array of values.
 
 
 /// Reads one field from a database result or custom-function argument.
@@ -377,6 +316,12 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         using dialect: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
         guard let staticReader = state.pointee.reader as? any XLStaticColumnReader else {
+            // A row handle from a driver outside SwiftQL cannot conform to
+            // `XLStaticColumnReader`, which is SwiftQL's, but it carries the
+            // dialect's values itself (issue #678).
+            if let handle = state.pointee.reader as? any XLRowHandle {
+                return try Self.dialectValue(at: index, of: handle, as: Dialect.Value.self)
+            }
             throw XLStaticRowReadError.rawDialectValuesUnavailable(
                 index: index,
                 dialect: dialect.descriptor.identity,
@@ -388,6 +333,23 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         return try staticReader.dialectValue(at: index, using: dialect)
     }
 
+    /// The value at `index` of `handle`, as the static layout's dialect value
+    /// type, opened from the existential so the handle's own `Value` is known.
+    private static func dialectValue<Handle, Expected>(
+        at index: Int,
+        of handle: Handle,
+        as _: Expected.Type
+    ) throws -> Expected where Handle: XLRowHandle {
+        let value = try handle.value(at: index)
+        guard let typed = value as? Expected else {
+            throw XLStaticRowReadError.dialectValueTypeMismatch(
+                index: index,
+                expected: String(reflecting: Expected.self),
+                actual: String(reflecting: Handle.Value.self)
+            )
+        }
+        return typed
+    }
 }
 
 

@@ -72,6 +72,16 @@ public protocol XLDatabaseDriverConnection {
 
     associatedtype PhysicalStatement
 
+    /// The row a cursor lends to ``forEachRowHandle(_:_:)`` and
+    /// ``withRowHandleStepper(_:_:)`` (issue #678).
+    ///
+    /// It defaults to ``XLValuesRowHandle``, over the values
+    /// ``forEachRow(_:_:)`` and ``withValuesStepper(_:_:)`` return. A
+    /// connection that can read a column straight from its cursor declares
+    /// its own handle and implements both members.
+    associatedtype RowHandle: XLRowHandle = XLValuesRowHandle<Dialect.Value>
+        where RowHandle.Value == Dialect.Value
+
     var driverIdentifier: XLDriverIdentifier { get }
 
     var databaseIdentifier: XLDatabaseIdentifier { get }
@@ -165,6 +175,38 @@ public protocol XLDatabaseDriverConnection {
         _ statement: PhysicalStatement,
         _ body: (@escaping () throws -> [Dialect.Value]?) throws -> Result
     ) throws -> Result
+
+    /// Visits a statement's result rows one at a time as row handles,
+    /// stopping as soon as `body` returns ``XLRowStreamControl/stop``
+    /// (issue #678).
+    ///
+    /// This is ``forEachRow(_:_:)`` without the array of values: `body` reads
+    /// the columns it needs from the handle. The handle is valid only until
+    /// `body` returns, and the rules for the cursor are `forEachRow`'s.
+    ///
+    /// The default implementation, for a connection whose ``RowHandle`` is
+    /// ``XLValuesRowHandle``, wraps each row ``forEachRow(_:_:)`` visits.
+    mutating func forEachRowHandle(
+        _ statement: PhysicalStatement,
+        _ body: (RowHandle) throws -> XLRowStreamControl
+    ) throws
+
+    /// Lends a stepper over a statement's result rows as row handles for the
+    /// duration of `body` (issue #678).
+    ///
+    /// This is ``withValuesStepper(_:_:)`` without the array of values. Each
+    /// handle the stepper returns is valid only until the stepper is called
+    /// again or `body` returns, and the rules for the stepper are
+    /// `withValuesStepper`'s: `nil` once the rows are exhausted, and every
+    /// call after exhaustion or a thrown error returns `nil`.
+    ///
+    /// The default implementation, for a connection whose ``RowHandle`` is
+    /// ``XLValuesRowHandle``, wraps each row ``withValuesStepper(_:_:)``
+    /// steps.
+    mutating func withRowHandleStepper<Result>(
+        _ statement: PhysicalStatement,
+        _ body: (@escaping () throws -> RowHandle?) throws -> Result
+    ) throws -> Result
 }
 
 
@@ -203,6 +245,34 @@ extension XLDatabaseDriverConnection {
         let rows = try fetchAll(statement)
         let stepper = XLEagerRowStepper(rows)
         return try body(stepper.next)
+    }
+}
+
+
+/// The row-handle members for a connection that streams only values: each
+/// row of the value-level members, wrapped in an ``XLValuesRowHandle``.
+extension XLDatabaseDriverConnection where RowHandle == XLValuesRowHandle<Dialect.Value> {
+
+    /// Wraps each row ``forEachRow(_:_:)`` visits in a handle.
+    public mutating func forEachRowHandle(
+        _ statement: PhysicalStatement,
+        _ body: (RowHandle) throws -> XLRowStreamControl
+    ) throws {
+        try forEachRow(statement) { values in
+            try body(XLValuesRowHandle(values))
+        }
+    }
+
+    /// Wraps each row ``withValuesStepper(_:_:)`` steps in a handle.
+    public mutating func withRowHandleStepper<Result>(
+        _ statement: PhysicalStatement,
+        _ body: (@escaping () throws -> RowHandle?) throws -> Result
+    ) throws -> Result {
+        try withValuesStepper(statement) { next in
+            try body {
+                try next().map(XLValuesRowHandle.init)
+            }
+        }
     }
 }
 

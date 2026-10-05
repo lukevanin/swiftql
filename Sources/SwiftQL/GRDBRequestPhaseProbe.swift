@@ -59,8 +59,11 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
         self.usesWriteConnection = request.requiresWriteConnection
     }
 
-    /// Decodes normalized rows through ``GRDBRowDecoder/decode(values:)``, the
-    /// per-row call that `fetchAll()` makes inside its cursor loop.
+    /// Decodes normalized rows through ``GRDBRowDecoder/decode(values:)``.
+    ///
+    /// `fetchAll()` reads each column from the cursor's row handle instead
+    /// (issue #678), through the same row reader and literal decoders, so
+    /// this phase times the decode without the cursor that the handle reads.
     package func decode(_ rows: [[XLSQLiteValue]]) throws -> [Output] {
         guard let reader else {
             return []

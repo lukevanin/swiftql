@@ -616,56 +616,64 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         return first
     }
 
+    /// Every row as normalized values, read through ``forEachRowHandle(_:_:)``.
+    ///
+    /// One reusable normalization buffer serves the whole fetch. RowCursor
+    /// reuses its row storage, and the streaming contract requires the
+    /// callback to consume (decode or copy) each row before advancing, so a
+    /// synchronous, non-retaining consumer reuses this buffer's storage
+    /// row-to-row instead of allocating a fresh `[XLSQLiteValue]` per row. A
+    /// consumer that retains the row (the eager `fetchAll`/`fetchOne`
+    /// compatibility shims) keeps a second reference, so
+    /// `removeAll(keepingCapacity:)` copy-on-writes a fresh buffer for the
+    /// next row and the retained values stay intact. SwiftQL's own typed
+    /// decode reads the handle instead, and builds no buffer (issue #678).
     mutating func forEachRow(
         _ statement: GRDBPhysicalStatement,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        var values: [XLSQLiteValue] = []
+        try forEachRowHandle(statement) { row in
+            values.removeAll(keepingCapacity: true)
+            try row.appendValues(to: &values)
+            return try body(values)
+        }
+    }
+
+    /// Visits each row as a ``GRDBRowHandle`` over the cursor's own row, so a
+    /// reader decodes the columns it asks for and nothing else (issue #678).
+    mutating func forEachRowHandle(
+        _ statement: GRDBPhysicalStatement,
+        _ body: (GRDBRowHandle) throws -> XLRowStreamControl
     ) throws {
         try validateOwnership(of: statement)
         // The callback's own error is the caller's, so it is kept aside
         // rather than mapped with the cursor's.
         try xlMappingScopeErrors(driver: driverIdentifier) { callbackError in
-            try forEachRowUnmapped(statement, body, callbackError: &callbackError)
+            try forEachRowHandleUnmapped(statement, body, callbackError: &callbackError)
         }
     }
 
-    /// `forEachRow(_:_:)` before its GRDB errors are mapped. An error `body`
-    /// throws is kept in `callbackError`, so the caller can tell it apart
-    /// from the cursor's.
-    private func forEachRowUnmapped(
+    /// `forEachRowHandle(_:_:)` before its GRDB errors are mapped. An error
+    /// `body` throws is kept in `callbackError`, so the caller can tell it
+    /// apart from the cursor's.
+    private func forEachRowHandleUnmapped(
         _ statement: GRDBPhysicalStatement,
-        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl,
+        _ body: (GRDBRowHandle) throws -> XLRowStreamControl,
         callbackError: inout XLOperationErrorSlot
     ) throws {
         let cursor = try Row.fetchCursor(
             statement.statement,
             arguments: statementArguments(statement)
         )
-        // One reusable normalization buffer for the whole fetch. RowCursor
-        // reuses its row storage, and the streaming contract requires the
-        // callback to consume (decode or copy) each row before advancing, so a
-        // synchronous, non-retaining consumer (the typed decode path) reuses
-        // this buffer's storage row-to-row instead of allocating a fresh
-        // `[XLSQLiteValue]` per row. A consumer that retains the row (the eager
-        // `fetchAll`/`fetchOne` compatibility shims) keeps a second
-        // reference, so `removeAll(keepingCapacity:)` copy-on-writes a fresh
-        // buffer for the next row and the retained values stay intact. The typed
-        // decode path (the hot path) therefore materializes no intermediate
-        // matrix; the eager `fetchAll`/`fetchOne` compatibility
-        // shims still build only the result they already contract to return.
-        var values: [XLSQLiteValue] = []
         // `body` can issue a nested request on the same connection, so mark
         // the statement in use until the loop ends; see
         // `GRDBOpenCursorStatements`.
         try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
             while let row = try cursor.next() {
-                values.removeAll(keepingCapacity: true)
-                values.reserveCapacity(row.count)
-                for databaseValue in row.databaseValues {
-                    values.append(databaseValue.sqliteDialectValue)
-                }
                 let control: XLRowStreamControl
                 do {
-                    control = try body(values)
+                    control = try body(GRDBRowHandle(row: row))
                 }
                 catch {
                     callbackError.record(error)
@@ -705,42 +713,64 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         database
     }
 
+    /// Lends ``withRowHandleStepper(_:_:)``'s stepper with each row
+    /// normalized into values, in one reusable buffer as ``forEachRow(_:_:)``
+    /// does.
+    mutating func withValuesStepper<Result>(
+        _ statement: GRDBPhysicalStatement,
+        _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        try withRowHandleStepper(statement) { next in
+            var values: [XLSQLiteValue] = []
+            return try body {
+                guard let row = try next() else {
+                    return nil
+                }
+                values.removeAll(keepingCapacity: true)
+                try row.appendValues(to: &values)
+                return values
+            }
+        }
+    }
+
     ///
-    /// Lends ``makeValuesStepper(_:)``'s stepper for the duration of `body`,
-    /// with the statement marked in use for all of it.
+    /// Lends ``makeRowHandleStepper(_:)``'s stepper for the duration of
+    /// `body`, with the statement marked in use for all of it.
     ///
     /// `body` can issue nested requests on this connection, and the mark is
     /// removed on the same return or throw that ends `body`. A nested request
     /// with the same SQL then prepares its own statement instead of resetting
     /// this cursor (issue #641). See `GRDBOpenCursorStatements`.
-    mutating func withValuesStepper<Result>(
+    mutating func withRowHandleStepper<Result>(
         _ statement: GRDBPhysicalStatement,
-        _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+        _ body: (@escaping () throws -> GRDBRowHandle?) throws -> Result
     ) throws -> Result {
         try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
-            let stepper = try makeValuesStepper(statement)
+            let stepper = try makeRowHandleStepper(statement)
             return try body(stepper)
         }
     }
 
-    /// The GRDB stepper behind ``withValuesStepper(_:_:)``: takes one already-prepared physical statement and returns a
-    /// value-level stepper that performs at most one additional SQLite step
-    /// and value-normalization per call, returning `nil` once the underlying
-    /// cursor is exhausted.
+    /// The GRDB stepper behind ``withRowHandleStepper(_:_:)``: takes one
+    /// already-prepared physical statement and returns a stepper that
+    /// performs at most one additional SQLite step per call, returning the
+    /// cursor's row as a handle, or `nil` once the underlying cursor is
+    /// exhausted.
     ///
-    /// This is the pull-based counterpart to `forEachRow(_:_:)`'s push-based
-    /// callback: `XLResultSet.next()` needs to step exactly one row per call
-    /// from outside code that already ran and returned, which a callback
-    /// invoked once per row cannot express. The returned closure remains
-    /// valid only for the lifetime of this connection's database access: it
-    /// captures a GRDB row cursor bound to `database`, which must not survive
-    /// the access that produced this connection. The caller must stop
-    /// invoking the closure -- and release every reference to it -- no later
-    /// than when that access returns.
+    /// This is the pull-based counterpart to `forEachRowHandle(_:_:)`'s
+    /// push-based callback: `XLResultSet.next()` needs to step exactly one
+    /// row per call from outside code that already ran and returned, which a
+    /// callback invoked once per row cannot express. The returned closure
+    /// remains valid only for the lifetime of this connection's database
+    /// access: it captures a GRDB row cursor bound to `database`, which must
+    /// not survive the access that produced this connection. The caller must
+    /// stop invoking the closure -- and release every reference to it -- no
+    /// later than when that access returns. Each handle it returns is valid
+    /// only until the next call, because the cursor reuses its row.
     ///
-    mutating func makeValuesStepper(
+    mutating func makeRowHandleStepper(
         _ statement: GRDBPhysicalStatement
-    ) throws -> () throws -> [XLSQLiteValue]? {
+    ) throws -> () throws -> GRDBRowHandle? {
         try validateOwnership(of: statement)
         let driver = driverIdentifier
         let cursor = try mappingDatabaseErrors {
@@ -749,11 +779,6 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
                 arguments: statementArguments(statement)
             )
         }
-        // Same reusable normalization buffer as forEachRow(_:_:) above, for
-        // the same reason: the streaming contract requires the caller to
-        // consume (decode or copy) each row's values before requesting the
-        // next one.
-        var values: [XLSQLiteValue] = []
         // Exhaustion and a thrown step error are both terminal: GRDB does not
         // document `Cursor.next()` as safe to call again after it throws, so
         // once this closure has returned `nil` or thrown once, every later
@@ -777,12 +802,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
                 isTerminal = true
                 return nil
             }
-            values.removeAll(keepingCapacity: true)
-            values.reserveCapacity(row.count)
-            for databaseValue in row.databaseValues {
-                values.append(databaseValue.sqliteDialectValue)
-            }
-            return values
+            return GRDBRowHandle(row: row)
         }
     }
 
@@ -1231,6 +1251,62 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         var arguments = StatementArguments(positional)
         _ = arguments.append(contentsOf: StatementArguments(named))
         return arguments
+    }
+}
+
+
+///
+/// The row a GRDB cursor is on, read one column at a time (issue #678).
+///
+/// Each read asks GRDB for that column alone, so a decoder reads only the
+/// columns it needs, and builds no array of values for the row. GRDB reuses
+/// a cursor's row for the next step, so a handle is valid only until the
+/// callback that received it returns or the stepper that returned it is
+/// called again.
+///
+/// It is an ``XLStaticColumnReader`` too, so a static row layout reads a raw
+/// value from it without the cast a third-party handle needs.
+///
+struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
+
+    typealias Value = XLSQLiteValue
+
+    private let row: Row
+
+    init(row: Row) {
+        self.row = row
+    }
+
+    var columnCount: Int {
+        row.count
+    }
+
+    func value(at index: Int) throws -> XLSQLiteValue {
+        // GRDB stops the process for an index outside the row, so the read
+        // is checked first and reported as every other reader reports it.
+        if let error = XLSQLiteValueReading.indexOutOfBounds(
+            index,
+            count: row.count,
+            expectedType: nil
+        ) {
+            throw error
+        }
+        return try row.decode(DatabaseValue.self, atIndex: index).sqliteDialectValue
+    }
+
+    func dialectValue<Dialect>(
+        at index: Int,
+        using _: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
+        let value = try value(at: index)
+        guard let typed = value as? Dialect.Value else {
+            throw XLStaticRowReadError.dialectValueTypeMismatch(
+                index: index,
+                expected: String(reflecting: Dialect.Value.self),
+                actual: String(reflecting: XLSQLiteValue.self)
+            )
+        }
+        return typed
     }
 }
 

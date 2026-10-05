@@ -83,11 +83,29 @@ final class GRDBDriverContractTests: XCTestCase {
                     }
                     return rows
                 }
+                // The row handle reads each column from the cursor's own row
+                // (issue #678), and must read what the value path normalizes.
+                let handleRows = try driver.withBlockingReadConnection { connection in
+                    var statement = try connection.prepare(logicalStatement)
+                    statement = try connection.bind(
+                        testCase.value,
+                        to: .named("value"),
+                        in: statement
+                    )
+                    var rows: [[XLSQLiteValue]] = []
+                    try connection.forEachRowHandle(statement) { handle in
+                        XCTAssertEqual(handle.columnCount, 3, testCase.id.rawValue)
+                        rows.append(try handle.copyValues())
+                        return .advance
+                    }
+                    return rows
+                }
                 XCTAssertEqual(
                     streamedRows,
                     [row],
                     testCase.id.rawValue
                 )
+                XCTAssertEqual(handleRows, [row], testCase.id.rawValue)
                 XCTAssertEqual(row[0], testCase.value, testCase.id.rawValue)
                 XCTAssertEqual(
                     row[1],
@@ -435,6 +453,26 @@ final class GRDBDriverContractTests: XCTestCase {
             XCTAssertTrue(
                 try connection.prepare(select).sharesGRDBStatement(with: reference),
                 "An early return must remove the open-cursor mark."
+            )
+
+            // The row-handle stepper that result sets use marks the
+            // statement the same way (issue #678).
+            let firstIdentifiers = try executor.withRowHandleStepper(
+                packet: packet,
+                requiresWriteConnection: false
+            ) { stepper -> [Int] in
+                XCTAssertFalse(
+                    try connection.prepare(select).sharesGRDBStatement(with: reference),
+                    "The handle stepper's statement must be marked while its callback runs."
+                )
+                let first = try XCTUnwrap(stepper()).readInteger(at: 0)
+                let second = try XCTUnwrap(stepper()).readInteger(at: 0)
+                return [first, second]
+            }
+            XCTAssertEqual(firstIdentifiers, [1, 2])
+            XCTAssertTrue(
+                try connection.prepare(select).sharesGRDBStatement(with: reference),
+                "An early return from the handle stepper must remove the open-cursor mark."
             )
 
             XCTAssertThrowsError(

@@ -162,7 +162,17 @@ final class XLColumnReadErrorTests: XCTestCase {
             "blob".databaseValue,
         ])
 
-        for reader in [rowReader as any XLColumnReader, valuesReader as any XLColumnReader] {
+        // The GRDB adapter's row handle reads a cursor's row one column at a
+        // time (issue #678), by the same rules.
+        let rowHandle = GRDBRowHandle(
+            row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
+        )
+
+        for reader in [
+            rowReader as any XLColumnReader,
+            valuesReader as any XLColumnReader,
+            rowHandle as any XLColumnReader,
+        ] {
             XCTAssertEqual(try reader.readReal(at: 0), 42)
             XCTAssertEqual(try reader.readInteger(at: 1), 42)
             XCTAssertEqual(try reader.readText(at: 2), "text")
@@ -173,6 +183,58 @@ final class XLColumnReadErrorTests: XCTestCase {
                     index: 0,
                     expectedType: "String",
                     failure: .typeMismatch(actualType: "INTEGER")
+                )
+            )
+        }
+    }
+
+    /// GRDB stops the process for a column index outside the row, so the
+    /// row handle checks the index first and throws (issue #678).
+    func testRowHandleReportsAnIndexOutsideTheRow() throws {
+        let row = GRDBRowHandle(row: try fetchRow(sql: "SELECT 1, NULL"))
+
+        XCTAssertEqual(row.columnCount, 2)
+        XCTAssertTrue(try row.isNull(at: 1))
+        assertColumnReadError(
+            try row.readInteger(at: 2),
+            equals: XLColumnReadError(
+                index: 2,
+                expectedType: "Int",
+                failure: .indexOutOfBounds(valueCount: 2)
+            )
+        )
+        assertColumnReadError(
+            try row.isNull(at: -1),
+            equals: XLColumnReadError(
+                index: -1,
+                expectedType: nil,
+                failure: .indexOutOfBounds(valueCount: 2)
+            )
+        )
+    }
+
+    /// A static row layout asks the row reader for a raw dialect value. A row
+    /// handle from a driver outside SwiftQL is not an `XLStaticColumnReader`,
+    /// so the reader takes the value from the handle itself (issue #678).
+    func testRowReaderTakesARawDialectValueFromAThirdPartyRowHandle() throws {
+        let handle = XLValuesRowHandle<XLSQLiteValue>([.text("raw"), .integer(3)])
+
+        let value = try XLColumnValuesRowReader<Void>.withReader(handle) { reader in
+            try reader.dialectValue(at: 1, using: XLSQLiteDialect())
+        }
+        XCTAssertEqual(value, .integer(3))
+
+        XCTAssertThrowsError(
+            try XLColumnValuesRowReader<Void>.withReader(handle) { reader in
+                try reader.dialectValue(at: 2, using: XLSQLiteDialect())
+            }
+        ) { error in
+            XCTAssertEqual(
+                error as? XLColumnReadError,
+                XLColumnReadError(
+                    index: 2,
+                    expectedType: nil,
+                    failure: .indexOutOfBounds(valueCount: 2)
                 )
             )
         }
