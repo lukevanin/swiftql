@@ -766,7 +766,8 @@ final class SQLTransactionScopeTests: XCTestCase {
     /// task's writes commits.
     ///
     /// Every row but the asynchronous one reaches the pinned connection's
-    /// thread check: without that check, the process stops in GRDB.
+    /// thread check. The test asserts only the error, so that is checked by
+    /// hand: with the check removed, the test process stops in GRDB.
     ///
     /// The capture compiles because the scope is a `GRDBDatabase`, which is
     /// `Sendable`. Rejecting it at compile time is issue #802's work; until

@@ -337,28 +337,28 @@ where the third rule below says otherwise:
   to the thread that runs the body until the body returns. A statement run
   through the scope, or through a request made from it, on any other thread
   throws `.scopeEscaped` on that thread, rather than touching the connection.
-  A block sent to `DispatchQueue.global()` runs on another thread. So does a
-  task created in the body, unless it inherits the body's actor, such as the
-  main actor. Such a task waits for the body's thread to be free, which is
-  normally after the body returns, so the ended scope throws `.scopeEscaped`
-  too; do not make the body wait for it. A
-  call the scope refuses on any thread keeps its own error: a nested
+  A block sent with `DispatchQueue.global().async` runs on another thread, and
+  so does a task created in the body, unless it inherits the body's actor,
+  such as the main actor. Such a task waits for that actor, which the body
+  holds until it returns, so it normally runs after the body and the ended
+  scope throws `.scopeEscaped` too; do not make the body wait for it. A call
+  the scope refuses on any thread keeps its own error: a nested
   `withTransaction(_:)` throws `.nestedTransactionUnsupported`, `publish()`
-  throws `.liveQueriesUnsupportedInTransaction`, and a request's `async`
-  form throws `.scopeEscaped`. The compiler does not catch this
-  yet: the scope is a `GRDBDatabase`, which is `Sendable`, so a `Task` or
-  other `@Sendable` closure can capture it.
+  throws `.liveQueriesUnsupportedInTransaction`, and awaiting a request's
+  `async` form throws `.scopeEscaped`. The compiler does not catch this yet:
+  the scope is a `GRDBDatabase`, which is `Sendable`, so a `Task` or other
+  `@Sendable` closure can capture it.
   [#802](https://github.com/lukevanin/swiftql/issues/802) tracks a scope type
   that the compiler would refuse to send.
 
   The check is by thread, but GRDB confines the connection to its writer
   dispatch queue. A block that another queue runs on the body's thread
   passes the check, and GRDB stops the process with "Database was not used
-  on the correct thread". Two ways to get one are a `sync` call onto another
-  queue from inside the body, and main-queue work, including a main-actor
-  task, that a run loop the body spins runs. Use the scope directly in the
-  body, not from inside another queue's block, and do not spin a run loop in
-  the body.
+  on the correct thread". Any `sync` call from inside the body, even onto a
+  global queue, runs its block on the body's thread this way. So does
+  main-queue work, including a main-actor task, that a run loop the body
+  spins runs. Use the scope directly in the body, not from inside another
+  queue's block, and do not spin a run loop in the body.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

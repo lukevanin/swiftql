@@ -35,9 +35,11 @@ public func onDispatchThread<Result: Sendable>(
 /// not from a task, so the blocked thread is not one the task needs.
 ///
 /// - Parameters:
-///   - detached: `false`, the default, creates the task with `Task {}`, the
-///     way a body usually does, so it inherits the caller's task-local
-///     values. `true` creates it with `Task.detached`, which does not.
+///   - detached: `false`, the default, creates the task with `Task.init`,
+///     which inherits the caller's task-local values, as a `Task {}` in a
+///     body does. `true` creates it with `Task.detached`, which does not.
+///     Called from a dispatch thread, neither has an actor to inherit, so
+///     this helper cannot model a task that inherits the body's actor.
 ///   - operation: The task's work.
 /// - Throws: ``TaskTimedOut`` when `operation` has not finished after ten
 ///   seconds. The task is left running.
