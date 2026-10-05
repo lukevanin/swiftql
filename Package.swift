@@ -371,10 +371,13 @@ let package = Package(
         // Issue #702: a client opens a GRDB-backed database, registers a
         // function and a collation, and runs queries without importing GRDB.
         // It depends on SwiftQL alone, and the core boundary check rejects a
-        // GRDB, CSQLite, or Combine import in it.
+        // GRDB, CSQLite, or Combine import in it, the GRDB SPI, and
+        // `@testable import SwiftQL`. Member import visibility keeps GRDB's
+        // extension members, which SwiftQL's module loads, out of reach too.
         .testTarget(
             name: "SwiftQLGRDBFreeClientTests",
-            dependencies: ["SwiftQL"]
+            dependencies: ["SwiftQL"],
+            swiftSettings: [.enableUpcomingFeature("MemberImportVisibility")]
         ),
 
         // Issue #702: the proposed v2 spelling of every public `XL` name, as

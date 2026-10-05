@@ -9,6 +9,7 @@
 
 import Foundation
 import GRDB
+import SwiftQLTestSupport
 import XCTest
 @_spi(GRDB) @testable import SwiftQL
 
@@ -18,12 +19,7 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
     private var directory: URL!
 
     override func setUpWithError() throws {
-        directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: directory,
-            withIntermediateDirectories: true
-        )
+        directory = try makeTemporaryDirectory(named: "GRDBDatabaseConfigurationTests")
     }
 
     override func tearDown() {

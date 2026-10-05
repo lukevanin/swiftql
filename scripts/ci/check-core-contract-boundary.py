@@ -72,6 +72,18 @@ CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
 # GRDB's types through SwiftQL without importing GRDB, and members of those
 # types resolve without the import, so the patterns above would not see it.
 SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
+# Patterns forbidden in one source root only. The GRDB-free client target
+# proves what a client of SwiftQL's public API needs, so it may not reach
+# SwiftQL's internals, whose GRDB-typed values it could then use without an
+# import (issue #702). The driver tests need `@testable` and keep it.
+ROOT_FORBIDDEN_PATTERNS = {
+    "Tests/SwiftQLGRDBFreeClientTests": (
+        (
+            re.compile(r"@testable[ \t]+(?:[A-Za-z_@()]+[ \t]+)*import[ \t]+SwiftQL\b(?!Core)"),
+            "forbidden testable SwiftQL import",
+        ),
+    ),
+}
 DETECTOR_FIXTURES = (
     "import GRDB",
     "@_spi(GRDB) import SwiftQL",
@@ -356,6 +368,11 @@ def check_source_references(package_root):
                     violations.append(
                         (relative_path, line_number, kind)
                     )
+                for pattern, kind in ROOT_FORBIDDEN_PATTERNS.get(source_root_name, ()):
+                    if pattern.search(line):
+                        violations.append(
+                            (relative_path, line_number, kind)
+                        )
 
     if violations:
         formatted = [

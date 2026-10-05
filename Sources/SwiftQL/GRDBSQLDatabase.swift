@@ -9,10 +9,7 @@
 //
 
 import Foundation
-// Public only for the `@_spi(GRDB)` escape hatch declared here. Every other
-// SwiftQL file imports GRDB `internal` or `package`, so the compiler rejects a
-// GRDB type in their public declarations (issue #702).
-public import GRDB
+internal import GRDB
 #if canImport(Combine)
 import Combine
 #else
@@ -66,12 +63,9 @@ struct GRDBDatabaseSettings {
 /// them with `@_spi(GRDB) import SwiftQL`. See <doc:AdvancedUsage>.
 public struct GRDBDatabase: XLDatabase {
     
-    /// The GRDB connection pool used to execute requests.
-    ///
-    /// Part of the GRDB escape hatch: declare it with
-    /// `@_spi(GRDB) import SwiftQL`.
-    @_spi(GRDB)
-    public let databasePool: DatabasePool
+    /// The GRDB connection pool used to execute requests. The escape hatch
+    /// exposes it as `databasePool`; see `GRDBDatabase+GRDBSPI.swift`.
+    let pool: DatabasePool
     
     /// The encoder used to render SwiftQL statements.
     public let encoder: XLEncoder
@@ -163,66 +157,6 @@ public struct GRDBDatabase: XLDatabase {
         )
     }
 
-    /// Wraps an existing GRDB database pool.
-    ///
-    /// Part of the GRDB escape hatch: declare it with
-    /// `@_spi(GRDB) import SwiftQL`.
-    ///
-    /// - Parameters:
-    ///   - databasePool: The pool used to execute requests.
-    ///   - formatter: The formatter used when SwiftQL renders SQL.
-    ///   - logger: An optional logger for executed statements.
-    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
-    ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
-    @_spi(GRDB)
-    public init(
-        databasePool: DatabasePool,
-        formatter: XLiteFormatter,
-        logger: XLLogger?,
-        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
-    ) throws {
-        self.init(
-            databasePool: databasePool,
-            settings: GRDBDatabaseSettings(
-                codingConfiguration: try XLValueCodingConfiguration(),
-                formatter: formatter,
-                logger: logger,
-                liveQueryRetryPolicy: liveQueryRetryPolicy
-            )
-        )
-    }
-
-    /// Wraps an existing GRDB pool with a value-coding snapshot.
-    ///
-    /// Part of the GRDB escape hatch: declare it with
-    /// `@_spi(GRDB) import SwiftQL`.
-    ///
-    /// - Parameters:
-    ///   - databasePool: The pool used to execute requests.
-    ///   - codingConfiguration: Contextual codecs and defaults captured by the
-    ///     database and every request it creates.
-    ///   - formatter: The formatter used when SwiftQL renders SQL.
-    ///   - logger: An optional logger for executed statements.
-    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
-    @_spi(GRDB)
-    public init(
-        databasePool: DatabasePool,
-        codingConfiguration: XLValueCodingConfiguration,
-        formatter: XLiteFormatter,
-        logger: XLLogger?,
-        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
-    ) throws {
-        self.init(
-            databasePool: databasePool,
-            settings: GRDBDatabaseSettings(
-                codingConfiguration: codingConfiguration,
-                formatter: formatter,
-                logger: logger,
-                liveQueryRetryPolicy: liveQueryRetryPolicy
-            )
-        )
-    }
-
     init(
         databasePool: DatabasePool,
         formatter: XLiteFormatter,
@@ -281,7 +215,7 @@ public struct GRDBDatabase: XLDatabase {
         self.dialect = dialect
         self.codingConfiguration = settings.codingConfiguration
         self.encoder = settings.encoder ?? XLiteEncoder(dialect: dialect)
-        self.databasePool = databasePool
+        self.pool = databasePool
         self.driverIdentifier = driver.driverIdentifier
         self.driver = driver
         self.renderCacheIdentifier = driver.databaseIdentifier
@@ -300,7 +234,7 @@ public struct GRDBDatabase: XLDatabase {
         self.dialect = other.dialect
         self.encoder = other.encoder
         self.codingConfiguration = other.codingConfiguration
-        self.databasePool = other.databasePool
+        self.pool = other.pool
         self.driverIdentifier = other.driverIdentifier
         self.driver = pinnedDriver
         self.renderCacheIdentifier = other.renderCacheIdentifier
@@ -370,7 +304,7 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
         }
         return grdbRequest.rebound(
             to: GRDBDatabaseDriver(
-                databasePool: databasePool,
+                databasePool: pool,
                 dialect: dialect,
                 databaseIdentifier: renderCacheIdentifier,
                 liveQueryRetryPolicy: driver.liveQueryRetryPolicy,

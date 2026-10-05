@@ -8,10 +8,7 @@
 //
 
 import Foundation
-// Public only for the `@_spi(GRDB)` escape hatch declared here. Every other
-// SwiftQL file imports GRDB `internal` or `package`, so the compiler rejects a
-// GRDB type in their public declarations (issue #702).
-public import GRDB
+internal import GRDB
 #if canImport(Combine)
 import Combine
 #else
@@ -59,7 +56,7 @@ public struct GRDBDatabaseBuilder {
         try self.init(
             url: url,
             codingConfiguration: XLValueCodingConfiguration(),
-            grdbConfiguration: configuration.grdbConfiguration,
+            connectionConfiguration: configuration.grdbConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
@@ -84,73 +81,28 @@ public struct GRDBDatabaseBuilder {
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
-        try self.init(
+        self.init(
             url: url,
             codingConfiguration: codingConfiguration,
-            grdbConfiguration: configuration.grdbConfiguration,
+            connectionConfiguration: configuration.grdbConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
         )
     }
 
-    /// Creates a database builder that extends a GRDB configuration.
-    ///
-    /// Part of the GRDB escape hatch (issue #702): declare it with
-    /// `@_spi(GRDB) import SwiftQL`. Use it for a GRDB option that
-    /// ``GRDBDatabaseConfiguration`` does not cover, such as a
-    /// `prepareDatabase` hook. Functions and collations added to the builder
-    /// are registered after the configuration's own `prepareDatabase` hooks.
-    ///
-    /// - Parameters:
-    ///   - url: The SQLite database file URL.
-    ///   - grdbConfiguration: The GRDB connection configuration to extend.
-    ///   - formatter: The formatter used when SwiftQL renders SQL.
-    ///   - logger: An optional logger for executed statements.
-    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
-    @_spi(GRDB)
-    public init(
-        url: URL,
-        grdbConfiguration: GRDB.Configuration,
-        formatter: XLiteFormatter = XLiteFormatter(),
-        logger: XLLogger?,
-        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
-    ) throws {
-        try self.init(
-            url: url,
-            codingConfiguration: XLValueCodingConfiguration(),
-            grdbConfiguration: grdbConfiguration,
-            formatter: formatter,
-            logger: logger,
-            liveQueryRetryPolicy: liveQueryRetryPolicy
-        )
-    }
-
-    /// Creates a database builder that extends a GRDB configuration, with an
-    /// immutable value-coding snapshot.
-    ///
-    /// Part of the GRDB escape hatch (issue #702): declare it with
-    /// `@_spi(GRDB) import SwiftQL`.
-    ///
-    /// - Parameters:
-    ///   - url: The SQLite database file URL.
-    ///   - codingConfiguration: Contextual codecs and defaults captured by the
-    ///     database and requests built from it.
-    ///   - grdbConfiguration: The GRDB connection configuration to extend.
-    ///   - formatter: The formatter used when SwiftQL renders SQL.
-    ///   - logger: An optional logger for executed statements.
-    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
-    @_spi(GRDB)
-    public init(
+    /// The designated initializer. The public initializers, and the GRDB
+    /// escape hatch's in `GRDBDatabase+GRDBSPI.swift`, arrive here.
+    init(
         url: URL,
         codingConfiguration: XLValueCodingConfiguration,
-        grdbConfiguration: GRDB.Configuration,
-        formatter: XLiteFormatter = XLiteFormatter(),
+        connectionConfiguration: GRDB.Configuration,
+        formatter: XLiteFormatter,
         logger: XLLogger?,
-        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
-    ) throws {
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
+    ) {
         self.url = url
-        self.configuration = grdbConfiguration
+        self.configuration = connectionConfiguration
         self.codingConfiguration = codingConfiguration
         self.formatter = formatter
         self.logger = logger
