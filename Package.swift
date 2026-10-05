@@ -379,8 +379,9 @@ let package = Package(
 
         // Issue #702: the proposed v2 spelling of every public `XL` name, as
         // typealiases in a module of their own, so a client that imports it
-        // beside GRDB, Foundation, and SwiftUI sees the same cross-module
-        // ambiguities the renamed types will (#33).
+        // beside GRDB, Foundation, SwiftUI, and the other Apple frameworks an
+        // app commonly imports sees the same cross-module ambiguities the
+        // renamed types will (#33).
         .target(
             name: "SwiftQLV2Names",
             dependencies: ["SwiftQL"],
@@ -388,10 +389,11 @@ let package = Package(
         ),
 
         // Compile-only collision fixture (issue #702). It imports SwiftQL,
-        // GRDB, Foundation, and SwiftUI where it exists, together with the
-        // proposed v2 names, and names each one unqualified. A proposed name
-        // another of those modules also declares is ambiguous there, so the
-        // package stops building.
+        // GRDB, Foundation, and, where they exist, SwiftUI, Combine,
+        // Observation, os, and SwiftData, together with the proposed v2 names,
+        // and names each one unqualified. A proposed name another of those
+        // modules also declares is ambiguous there, so the package stops
+        // building.
         .target(
             name: "SwiftQLV2NameCollisionFixture",
             dependencies: [

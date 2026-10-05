@@ -3,15 +3,17 @@
 //  SwiftQL
 //
 //  Compile-only fixture for issue #702. A client file that imports SwiftQL
-//  beside GRDB, Foundation, and SwiftUI names every proposed v2 type, and
-//  every public type SwiftQL already spells without a prefix, unqualified.
+//  beside GRDB, Foundation, and SwiftUI, and the Apple frameworks an app
+//  commonly imports with them (Combine, Observation, os, and SwiftData),
+//  names every proposed v2 type, and every public type SwiftQL already spells
+//  without a prefix, unqualified.
 //  Swift rejects a type name two imported modules declare as ambiguous, so a
 //  proposed name that collides stops the package building.
 //
 //  The proposed names live in `SwiftQLV2Names`, a module of their own, so the
 //  lookup here is a cross-module lookup, as it will be once #33 renames the
-//  types themselves. SwiftUI is imported where it exists; the other three
-//  modules are imported on every platform.
+//  types themselves. Foundation and GRDB are imported on every platform, and
+//  the Apple frameworks where they exist.
 //
 //  A type the Swift standard library declares is shadowed rather than
 //  ambiguous, so this file cannot catch it; `SwiftQLV2NameInventoryTests`
@@ -24,6 +26,18 @@ import SwiftQL
 import SwiftQLV2Names
 #if canImport(SwiftUI)
 import SwiftUI
+#endif
+#if canImport(Combine)
+import Combine
+#endif
+#if canImport(Observation)
+import Observation
+#endif
+#if canImport(os)
+import os
+#endif
+#if canImport(SwiftData)
+import SwiftData
 #endif
 
 
@@ -151,7 +165,6 @@ enum V2NameCollisionFixture {
     typealias Check_Literal = Literal
     typealias Check_LiteralValueDialect = LiteralValueDialect
     typealias Check_LogLevel = LogLevel
-    typealias Check_Logger = Logger
     typealias Check_LogicalParameterIndex = LogicalParameterIndex
     typealias Check_LogicalPreparedStatement = LogicalPreparedStatement
     typealias Check_LogicalResultIndex = LogicalResultIndex
@@ -271,7 +284,6 @@ enum V2NameCollisionFixture {
     typealias Check_ScalarCommonTable = ScalarCommonTable
     typealias Check_ScalarCommonTableReference = ScalarCommonTableReference
     typealias Check_ScalarExpressionBuilder = ScalarExpressionBuilder
-    typealias Check_Schema = Schema
     typealias Check_SchemaName = SchemaName
     typealias Check_SelectResultDependency = SelectResultDependency
     typealias Check_Separator = Separator

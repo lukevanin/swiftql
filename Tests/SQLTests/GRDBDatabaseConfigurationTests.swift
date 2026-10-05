@@ -131,6 +131,28 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
         }
     }
 
+    /// GRDB converts a busy timeout to whole milliseconds and stops the
+    /// process for one that does not fit, so SwiftQL checks first and throws.
+    func testUnrepresentableBusyTimeoutThrowsAMisuseErrorInsteadOfTrapping() throws {
+        for busyTimeout in [TimeInterval.infinity, .nan, 3_000_000] {
+            XCTAssertThrowsError(
+                try GRDBDatabase(
+                    url: directory.appendingPathComponent("busy.sqlite"),
+                    configuration: GRDBDatabaseConfiguration(busyTimeout: busyTimeout),
+                    logger: nil
+                )
+            ) { error in
+                XCTAssertEqual((error as? XLDatabaseError)?.code, .misuse, "\(busyTimeout): \(error)")
+            }
+        }
+        let database = try GRDBDatabase(
+            url: directory.appendingPathComponent("busy.sqlite"),
+            configuration: GRDBDatabaseConfiguration(busyTimeout: 2_000_000),
+            logger: nil
+        )
+        try database.databasePool.close()
+    }
+
     /// The escape hatch keeps a GRDB configuration's own hooks, and the
     /// builder's registrations still reach every connection.
     func testGRDBConfigurationEscapeHatchKeepsItsHooks() throws {

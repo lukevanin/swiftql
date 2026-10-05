@@ -258,10 +258,12 @@
 
     It covers `readonly`, `foreignKeysEnabled`, `maximumReaderCount`,
     `label`, and `busyTimeout`, which sets GRDB's `busyMode` to
-    `.timeout(_:)`.
-  - A `maximumReaderCount` below 1, from either configuration, now makes
-    opening the database throw an `XLDatabaseError` whose code is `.misuse`.
-    GRDB stopped the process with a precondition failure.
+    `.timeout(_:)`. Like `busyMode`, it applies to the pool's writer; GRDB
+    keeps its own 10-second timeout for the pool's readers.
+  - A `maximumReaderCount` below 1, or a busy timeout that is not finite or
+    exceeds 2,147,483 seconds, from either configuration, now makes opening
+    the database throw an `XLDatabaseError` whose code is `.misuse`. GRDB
+    stopped the process.
   - Anything else GRDB offers is SwiftQL's GRDB SPI, which a file declares
     with `@_spi(GRDB) import SwiftQL`:
     - `GRDBDatabase.databasePool`;

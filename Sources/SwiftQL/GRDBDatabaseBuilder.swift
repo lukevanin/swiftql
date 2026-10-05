@@ -206,9 +206,9 @@ public struct GRDBDatabaseBuilder {
     /// is reported as an `XLDatabaseError` (issue #679), including one raised
     /// by a `prepareDatabase` hook in the configuration.
     ///
-    /// A `maximumReaderCount` below 1 fails here with an `XLDatabaseError`
-    /// whose code is `.misuse` (issue #702). GRDB would stop the process
-    /// with a precondition failure instead.
+    /// A `maximumReaderCount` below 1, or a busy timeout GRDB cannot convert
+    /// to whole milliseconds, fails here with an `XLDatabaseError` whose code
+    /// is `.misuse` (issue #702). GRDB would stop the process instead.
     func makeDatabasePool() throws -> DatabasePool {
         try xlMappingDatabaseErrors(driver: .grdb) {
             guard configuration.maximumReaderCount > 0 else {
@@ -217,6 +217,21 @@ public struct GRDBDatabaseBuilder {
                     message: "maximumReaderCount must be at least 1; it is "
                         + "\(configuration.maximumReaderCount)"
                 )
+            }
+            if case .timeout(let timeout) = configuration.busyMode {
+                // GRDB passes `CInt(timeout * 1000)` to SQLite, which traps
+                // for a value that is not finite or does not fit.
+                let milliseconds = timeout * 1000
+                guard milliseconds.isFinite,
+                      milliseconds >= Double(CInt.min),
+                      milliseconds <= Double(CInt.max)
+                else {
+                    throw DatabaseError(
+                        resultCode: .SQLITE_MISUSE,
+                        message: "busy timeout must be finite and at most "
+                            + "\(CInt.max / 1000) seconds; it is \(timeout)"
+                    )
+                }
             }
             return try DatabasePool(path: url.path, configuration: configuration)
         }

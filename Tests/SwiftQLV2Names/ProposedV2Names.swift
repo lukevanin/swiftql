@@ -7,9 +7,10 @@
 //  One typealias per type, from the name #33 is expected to give it to the
 //  type it names today. The rule is mechanical: drop `XL`, and spell the
 //  `XLite` family `SQLite`. `SwiftQLV2NameCollisionFixture` imports this
-//  module beside SwiftQL, GRDB, Foundation, and SwiftUI and names every alias
-//  unqualified, so a proposed name that another of those modules declares
-//  stops the package building. `SwiftQLV2NameInventoryTests` keeps the list
+//  module beside SwiftQL, GRDB, Foundation, and SwiftUI, and the Apple
+//  frameworks an app commonly imports with them (Combine, Observation, os,
+//  and SwiftData), and names every alias unqualified, so a proposed name that
+//  another of those modules declares stops the package building. `SwiftQLV2NameInventoryTests` keeps the list
 //  complete: every public `XL` type in SwiftQL and SwiftQLCore has exactly one
 //  line here, as an alias or below.
 //
@@ -35,8 +36,10 @@
 //  unresolved: XLEquatable -> Equatable (Swift, shadowed)
 //  unresolved: XLExpression -> Expression (Foundation)
 //  unresolved: XLFormatter -> Formatter (Foundation)
+//  unresolved: XLLogger -> Logger (os)
 //  unresolved: XLNamespace -> Namespace (SwiftUI)
 //  unresolved: XLResult -> Result (Swift, shadowed)
+//  unresolved: XLSchema -> Schema (SwiftData)
 //  unresolved: XLTable -> Table (GRDB and SwiftUI)
 //
 //  Deprecated types are not carried into v2, so they have no alias either,
@@ -165,7 +168,6 @@ public typealias ListBuilder = SwiftQL.XLListBuilder
 public typealias Literal = SwiftQL.XLLiteral
 public typealias LiteralValueDialect = SwiftQL.XLLiteralValueDialect
 public typealias LogLevel = SwiftQL.XLLogLevel
-public typealias Logger = SwiftQL.XLLogger
 public typealias LogicalParameterIndex = SwiftQLCore.XLLogicalParameterIndex
 public typealias LogicalPreparedStatement = SwiftQLCore.XLLogicalPreparedStatement
 public typealias LogicalResultIndex = SwiftQLCore.XLLogicalResultIndex
@@ -285,7 +287,6 @@ public typealias SQLiteValueReader = SwiftQL.XLSQLiteValueReader
 public typealias ScalarCommonTable = SwiftQL.XLScalarCommonTable
 public typealias ScalarCommonTableReference = SwiftQL.XLScalarCommonTableReference
 public typealias ScalarExpressionBuilder = SwiftQL.XLScalarExpressionBuilder
-public typealias Schema = SwiftQL.XLSchema
 public typealias SchemaName = SwiftQL.XLSchemaName
 public typealias SelectResultDependency = SwiftQL.XLSelectResultDependency
 public typealias Separator = SwiftQL.XLSeparator

@@ -44,12 +44,18 @@ public struct GRDBDatabaseConfiguration: Hashable, Sendable {
     /// Whether SQLite enforces foreign keys. The default is `true`.
     public var foreignKeysEnabled: Bool
 
-    /// How long, in seconds, a statement waits for a lock another connection
+    /// How long, in seconds, a write waits for a lock another connection
     /// holds before it fails with an `XLDatabaseError` whose code is `.busy`.
     ///
     /// The default, `nil`, fails at once. A pool serializes its own writes and
     /// its readers do not block its writer, so this matters mostly when
     /// another process, or another pool, writes the same file.
+    ///
+    /// It applies to the pool's writer connection. GRDB gives the pool's
+    /// reader connections a 10-second timeout of its own, which this does
+    /// not change. It must be finite, and at most 2,147,483 seconds: opening
+    /// a database with any other value throws an `XLDatabaseError` whose code
+    /// is `.misuse`.
     public var busyTimeout: TimeInterval?
 
     /// The most reader connections the pool opens at once. The default is

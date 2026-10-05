@@ -100,23 +100,29 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
     /// A type from any other module shadows a standard library type of the
     /// same name instead of making it ambiguous, so the fixture builds even
     /// when a proposed name is `Result`. Ask the compiler which names the
-    /// standard library declares: every `Swift.<name>` must fail to resolve.
+    /// standard library declares: every `Swift.<name>` must fail with "no
+    /// type named". Spawning the compiler needs `Process`, which iOS lacks.
     func testNoProposedOrUnprefixedNameIsAStandardLibraryType() throws {
+        #if os(macOS) || os(Linux)
         let declared = try Self.declared.get()
         let inventory = try Self.inventory.get()
         let names = Set(inventory.aliases.map(\.newName))
             .union(declared.filter { !$0.hasPrefix("XL") })
             .sorted()
 
-        for module in ["Swift", "_Concurrency", "_StringProcessing"] {
-            let resolved = try namesResolving(in: module, names)
-            XCTAssertEqual(
-                resolved,
-                [],
-                "\(module) already declares these names. List each one as an unresolved "
-                    + "collision in ProposedV2Names.swift rather than proposing it."
-            )
-        }
+        let declaredByStandardLibrary = try Self.namesNotMissing(
+            from: ["Swift", "_Concurrency", "_StringProcessing"],
+            names
+        )
+        XCTAssertEqual(
+            declaredByStandardLibrary,
+            [],
+            "The standard library already declares these. List each one as an unresolved "
+                + "collision in ProposedV2Names.swift rather than proposing it."
+        )
+        #else
+        throw XCTSkip("Spawning the compiler needs Process.")
+        #endif
     }
 
     // MARK: - Helpers
@@ -275,17 +281,23 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
         return statements
     }
 
-    /// The names in `names` that `module.<name>` resolves, found by type
-    /// checking one alias per name: every line that does not fail names a
-    /// type the module declares.
-    private func namesResolving(in module: String, _ names: [String]) throws -> [String] {
+    #if os(macOS) || os(Linux)
+    /// The `module.name` pairs the compiler does not report missing, found by
+    /// type checking one alias per pair in one compiler run. Only a "no type
+    /// named" error counts as missing: an availability error, for example,
+    /// means the module does declare the name.
+    private static func namesNotMissing(
+        from modules: [String],
+        _ names: [String]
+    ) throws -> [String] {
+        let pairs = modules.flatMap { module in names.map { "\(module).\($0)" } }
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("Probe.swift")
-        let source = names.enumerated()
-            .map { "typealias Probe\($0.offset) = \(module).\($0.element)\n" }
+        let source = pairs.enumerated()
+            .map { "typealias Probe\($0.offset) = \($0.element)\n" }
             .joined()
         try source.write(to: file, atomically: true, encoding: .utf8)
 
@@ -300,18 +312,19 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
         process.waitUntilExit()
         let diagnostics = String(decoding: data, as: UTF8.self)
 
-        let failedLines = Set(try Self.matches(
-            of: #"Probe\.swift:([0-9]+):[0-9]+: error:"#,
+        let missingLines = Set(try matches(
+            of: #"Probe\.swift:([0-9]+):[0-9]+: error: no type named '[^']*' in module '[^']*'$"#,
             in: diagnostics
         ).compactMap { Int($0[0]) })
-        // If every line resolved, the compiler did not run at all.
-        guard !failedLines.isEmpty else {
-            throw InventoryError.formatChanged("swiftc reported no errors:\n\(diagnostics)")
+        // If nothing was missing, the compiler did not run as expected.
+        guard !missingLines.isEmpty else {
+            throw InventoryError.formatChanged("swiftc reported no missing types:\n\(diagnostics)")
         }
-        return names.enumerated()
-            .filter { !failedLines.contains($0.offset + 1) }
+        return pairs.enumerated()
+            .filter { !missingLines.contains($0.offset + 1) }
             .map(\.element)
     }
+    #endif
 
     private static func matches(of pattern: String, in text: String) throws -> [[String]] {
         let expression = try NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines])
