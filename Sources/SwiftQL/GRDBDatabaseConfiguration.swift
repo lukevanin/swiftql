@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import GRDB
+internal import GRDB
 
 
 /// The connection options a ``GRDBDatabase`` opens its connection pool with.
@@ -53,9 +53,9 @@ public struct GRDBDatabaseConfiguration: Hashable, Sendable {
     ///
     /// It applies to the pool's writer connection. GRDB gives the pool's
     /// reader connections a 10-second timeout of its own, which this does
-    /// not change. It must be finite, and at most 2,147,483 seconds: opening
-    /// a database with any other value throws an `XLDatabaseError` whose code
-    /// is `.misuse`.
+    /// not change. It must be between 0 and 2,147,483 seconds: opening a
+    /// database with any other value, or with NaN, throws an `XLDatabaseError`
+    /// whose code is `.misuse`.
     public var busyTimeout: TimeInterval?
 
     /// The most reader connections the pool opens at once. The default is

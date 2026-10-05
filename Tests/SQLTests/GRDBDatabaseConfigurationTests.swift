@@ -132,9 +132,10 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
     }
 
     /// GRDB converts a busy timeout to whole milliseconds and stops the
-    /// process for one that does not fit, so SwiftQL checks first and throws.
-    func testUnrepresentableBusyTimeoutThrowsAMisuseErrorInsteadOfTrapping() throws {
-        for busyTimeout in [TimeInterval.infinity, .nan, 3_000_000] {
+    /// process for one that does not fit, and SQLite treats a negative one as
+    /// none, so SwiftQL checks first and throws.
+    func testOutOfRangeBusyTimeoutThrowsAMisuseError() throws {
+        for busyTimeout in [TimeInterval.infinity, -.infinity, .nan, 3_000_000, -1] {
             XCTAssertThrowsError(
                 try GRDBDatabase(
                     url: directory.appendingPathComponent("busy.sqlite"),
@@ -142,7 +143,12 @@ final class GRDBDatabaseConfigurationTests: XCTestCase {
                     logger: nil
                 )
             ) { error in
-                XCTAssertEqual((error as? XLDatabaseError)?.code, .misuse, "\(busyTimeout): \(error)")
+                let databaseError = error as? XLDatabaseError
+                XCTAssertEqual(databaseError?.code, .misuse, "\(busyTimeout): \(error)")
+                XCTAssertEqual(
+                    databaseError?.message,
+                    "busy timeout must be between 0 and 2147483 seconds; it is \(busyTimeout)"
+                )
             }
         }
         let database = try GRDBDatabase(

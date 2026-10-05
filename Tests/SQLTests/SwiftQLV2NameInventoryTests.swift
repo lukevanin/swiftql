@@ -200,15 +200,17 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
         return names.sorted()
     }
 
+    /// A line that holds only attributes, such as `@available(...)`.
+    private static let attributesOnly = try! NSRegularExpression(
+        pattern: #"^(?:@[A-Za-z_][A-Za-z0-9_.]*(?:\([^()]*\))?\s*)+$"#
+    )
+
     /// The statements of `source` that sit outside every brace, one per
     /// line, with comments removed and every string literal emptied, so a
     /// brace or parenthesis inside one is not counted. Lines that hold only
     /// attributes join the line after them, so a declaration keeps the
     /// attributes written above it.
     private static func fileScopeStatements(in source: String) -> [String] {
-        let attributesOnly = try! NSRegularExpression(
-            pattern: #"^(?:@[A-Za-z_][A-Za-z0-9_.]*(?:\([^()]*\))?\s*)+$"#
-        )
         var statements: [String] = []
         var current = ""
         var depth = 0

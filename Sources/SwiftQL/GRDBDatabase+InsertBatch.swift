@@ -14,7 +14,7 @@
 //
 
 import Foundation
-import GRDB
+internal import GRDB
 
 
 extension GRDBDatabase {

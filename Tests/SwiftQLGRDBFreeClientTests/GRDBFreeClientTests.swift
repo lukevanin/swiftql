@@ -89,6 +89,22 @@ final class GRDBFreeClientTests: XCTestCase {
         XCTAssertEqual(doubledAges, [170, 72])
     }
 
+    /// The first snippet in AdvancedUsage's "Opening a GRDB database without
+    /// GRDB", verbatim. `XLDocumentationTests` runs it too, but from a file
+    /// that imports GRDB, so only this target shows it needs no GRDB import.
+    func testAdvancedUsageConfigurationSnippetNeedsNoGRDB() throws {
+        let configuredDatabaseURL = directory.appendingPathComponent("configured.sqlite")
+        var configuration = GRDBDatabaseConfiguration()
+        configuration.busyTimeout = 5
+        configuration.maximumReaderCount = 2
+        let configuredDatabase = try GRDBDatabase(
+            url: configuredDatabaseURL,
+            configuration: configuration,
+            logger: nil
+        )
+        XCTAssertEqual(try configuredDatabase.makeRequest(with: sql { _ in Select(1) }).fetchOne(), 1)
+    }
+
     func testDefaultConfigurationOpensAWritableDatabase() throws {
         let database = try GRDBDatabase(
             url: directory.appendingPathComponent("default.sqlite"),

@@ -61,8 +61,14 @@ IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
 CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
     r"\bcanImport[ \t]*\([ \t]*" + OBSERVATION_FRAMEWORK_PATTERN + r"[ \t]*\)"
 )
+# SwiftQL's GRDB escape hatch (issue #702). A file that declares it reaches
+# GRDB's types through SwiftQL without importing GRDB, and members of those
+# types resolve without the import, so the patterns above would not see it.
+SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
 DETECTOR_FIXTURES = (
     "import GRDB",
+    "@_spi(GRDB) import SwiftQL",
+    "@_spi(GRDB) @testable import SwiftQL",
     "import struct GRDB.Row",
     "@preconcurrency import GRDB",
     "@_implementationOnly import GRDB",
@@ -235,6 +241,8 @@ def forbidden_reference_kinds(line):
         kinds.append("forbidden database-module availability check")
     if QUALIFIED_FORBIDDEN_PATTERN.search(line):
         kinds.append("forbidden database-module qualified symbol")
+    if SPI_FORBIDDEN_PATTERN.search(line):
+        kinds.append("forbidden GRDB SPI import")
     if IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):
         kinds.append("forbidden Combine import")
     if CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):

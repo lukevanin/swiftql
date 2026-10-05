@@ -8,7 +8,10 @@
 //
 
 import Foundation
-import GRDB
+// Public only for the `@_spi(GRDB)` escape hatch declared here. Every other
+// SwiftQL file imports GRDB `internal` or `package`, so the compiler rejects a
+// GRDB type in their public declarations (issue #702).
+public import GRDB
 #if canImport(Combine)
 import Combine
 #else
@@ -206,9 +209,11 @@ public struct GRDBDatabaseBuilder {
     /// is reported as an `XLDatabaseError` (issue #679), including one raised
     /// by a `prepareDatabase` hook in the configuration.
     ///
-    /// A `maximumReaderCount` below 1, or a busy timeout GRDB cannot convert
-    /// to whole milliseconds, fails here with an `XLDatabaseError` whose code
-    /// is `.misuse` (issue #702). GRDB would stop the process instead.
+    /// A `maximumReaderCount` below 1, or a busy timeout that is negative or
+    /// that GRDB cannot convert to whole milliseconds, fails here with an
+    /// `XLDatabaseError` whose code is `.misuse` (issue #702). GRDB would stop
+    /// the process for all but a negative timeout, which SQLite would treat
+    /// as no timeout at all.
     func makeDatabasePool() throws -> DatabasePool {
         try xlMappingDatabaseErrors(driver: .grdb) {
             guard configuration.maximumReaderCount > 0 else {
@@ -223,12 +228,12 @@ public struct GRDBDatabaseBuilder {
                 // for a value that is not finite or does not fit.
                 let milliseconds = timeout * 1000
                 guard milliseconds.isFinite,
-                      milliseconds >= Double(CInt.min),
+                      milliseconds >= 0,
                       milliseconds <= Double(CInt.max)
                 else {
                     throw DatabaseError(
                         resultCode: .SQLITE_MISUSE,
-                        message: "busy timeout must be finite and at most "
+                        message: "busy timeout must be between 0 and "
                             + "\(CInt.max / 1000) seconds; it is \(timeout)"
                     )
                 }

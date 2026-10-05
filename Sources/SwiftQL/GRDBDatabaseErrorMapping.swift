@@ -9,8 +9,8 @@
 //
 
 import Foundation
-import GRDB
-import GRDBSQLite
+internal import GRDB
+internal import GRDBSQLite
 
 
 extension XLDriverIdentifier {

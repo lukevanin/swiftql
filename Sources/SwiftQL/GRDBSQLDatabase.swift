@@ -9,7 +9,10 @@
 //
 
 import Foundation
-import GRDB
+// Public only for the `@_spi(GRDB)` escape hatch declared here. Every other
+// SwiftQL file imports GRDB `internal` or `package`, so the compiler rejects a
+// GRDB type in their public declarations (issue #702).
+public import GRDB
 #if canImport(Combine)
 import Combine
 #else
