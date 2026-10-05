@@ -186,10 +186,12 @@ let matches = try database.withTransaction { scope in
   render-once cache entry, bound to the scope's connection, and the binding
   packet a call on the database builds. See "Inside a transaction" under
   "Render-once caching" below.
-- **The scope rules do not change.** A scope used after its body returns
-  throws `XLTransactionScopeError.scopeEscaped`. The original database, called
-  inside a body, and `execute(_:)`, called on a scope, still open a transaction
-  of their own and throw `nestedTransactionUnsupported`.
+- **The scope rules do not change.** A scope used after its body returns, or
+  from another thread such as a task created in the body, throws
+  `XLTransactionScopeError.scopeEscaped`; see <doc:AdvancedUsage>. The
+  original database, called inside a body, and `execute(_:)`, called on a
+  scope, still open a transaction of their own and throw
+  `nestedTransactionUnsupported`.
 - **Fetch, do not observe.** A declared query called on a scope fetches. An
   observation from a scope fails with `liveQueriesUnsupportedInTransaction`;
   see "Observe a declared query" below.

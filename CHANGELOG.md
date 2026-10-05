@@ -83,12 +83,14 @@
     root write from inside that body, still run.
   - A `withTransaction(_:)` scope, or a request made from it, used from
     another thread, such as a task created in the body, throws
-    `XLTransactionScopeError.scopeEscaped`. On 1.9 GRDB stopped the process
-    with "Database was not used on the correct thread". The check is by
-    thread, so a block another queue runs on the body's thread, such as a
-    `sync` call from the body, still stops the process; see <doc:AdvancedUsage>.
-    The scope is still a `Sendable` `GRDBDatabase`, so the compiler accepts the
-    capture; a scope type it rejects is issue #802 (issue #696).
+    `XLTransactionScopeError.scopeEscaped` (issue #696). On 1.9 GRDB stopped
+    the process with "Database was not used on the correct thread". The check
+    is by thread, so a block another queue runs on the body's thread still
+    stops the process: for example a `sync` call from the body onto a global
+    queue, though not `DispatchQueue.main.sync`, which runs on the main
+    thread. See <doc:AdvancedUsage>; closing this gap is issue #816. The
+    scope is still a `Sendable` `GRDBDatabase`, so the compiler accepts the
+    capture; a scope type it rejects is issue #802.
   - These checks apply to every `GRDBDatabase` over the same
     `DatabasePool`, not only to the one that opened the scope.
   - A root read from inside a write transaction that SwiftQL opened now

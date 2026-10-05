@@ -328,7 +328,8 @@ Four misuses are rejected, each with a predictable, catchable
 `XLTransactionScopeError` rather than a crash or silent wrong answer. A nested
 transaction and a live query are rejected before they do any work; use from
 another thread, or after the body, is rejected when a statement would run.
-The thread rule notes the one gap in this:
+One kind of other-queue use on the body's own thread is not caught and still
+stops the process; the thread rule below describes it.
 
 - **Nested transactions and savepoints are not supported.** Calling
   `withTransaction(_:)` again from inside an active body — on the scope it was
@@ -369,11 +370,14 @@ The thread rule notes the one gap in this:
   The check is by thread, but GRDB confines the connection to its writer
   dispatch queue. A block that another queue runs on the body's thread
   passes the check, and GRDB stops the process with "Database was not used
-  on the correct thread". A `sync` call from inside the body onto any queue
-  but the main queue, even a global one, runs its block on the body's thread
-  this way. So does main-queue work, including a main-actor task, that a run
-  loop the body spins runs. Use the scope directly in the body, not from
-  inside another queue's block, and do not spin a run loop in the body.
+  on the correct thread". A `sync` call from inside the body onto a queue
+  that runs its blocks on the caller's thread, such as a global queue or a
+  serial queue that does not target the main queue, does this. So, when the
+  body runs on the main thread, does main-queue work, including a main-actor
+  task, that a run loop the body spins runs. Use the scope directly in the
+  body, not from inside another queue's block, and do not spin a run loop in
+  a main-thread body. Closing this gap is
+  [#816](https://github.com/lukevanin/swiftql/issues/816).
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a
