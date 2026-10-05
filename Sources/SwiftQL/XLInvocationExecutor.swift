@@ -284,22 +284,24 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         defer {
             connection.finalizePhysical(statement)
         }
-        statement = try bind(packet: packet, to: statement, in: &connection)
+        // Bound in place, so that a binding failure partway finalizes the
+        // statement with the values already bound to it.
+        try bind(packet: packet, to: &statement, in: &connection)
         return try run(&connection, statement)
     }
 
     /// Binds every value of `packet` to a statement prepared from this
     /// executor's logical statement, then lets the connection check the
-    /// arguments.
+    /// arguments. When a value fails to bind, `statement` keeps the values
+    /// bound before it.
     ///
     /// Internal rather than private so that `GRDBRequestPhaseConnection` can
     /// time this exact binding step on its own (issue #670).
     func bind(
         packet: XLValidatedSQLitePacket,
-        to preparedStatement: Driver.Connection.PhysicalStatement,
+        to statement: inout Driver.Connection.PhysicalStatement,
         in connection: inout Driver.Connection
-    ) throws -> Driver.Connection.PhysicalStatement {
-        var statement = preparedStatement
+    ) throws {
         for binding in packet.bindings {
             do {
                 statement = try connection.bindValidated(
@@ -326,7 +328,6 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
                 message: String(describing: error)
             )
         }
-        return statement
     }
 }
 

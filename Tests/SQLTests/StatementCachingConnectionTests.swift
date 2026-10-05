@@ -137,6 +137,23 @@ final class StatementCachingConnectionTests: XCTestCase {
         XCTAssertEqual(try driver.itemCount(), 2)
     }
 
+    func testAStatementNobodyFinalizedIsFreedWhenItsAccessEnds() throws {
+        let driver = try makeDriver()
+        let select = driver.logicalStatement("SELECT 1")
+        _ = try driver.withBlockingReadConnection { connection in
+            try connection.prepare(select)
+        }
+
+        _ = try XLInvocationExecutor(driver: driver, logicalStatement: select)
+            .fetchAll(bindings: noBindings)
+
+        XCTAssertEqual(
+            driver.statistics,
+            XLStatementCacheStatistics(hits: 1, misses: 1, cachedStatementCount: 1),
+            "The driver frees the unfinalized statement when its access ends, so the next run hits."
+        )
+    }
+
     // MARK: - Schema invalidation
 
     func testASchemaChangeInvalidatesTheCacheAndTheNextRunPreparesAgain() throws {
@@ -287,6 +304,16 @@ final class SQLiteStatementCache: @unchecked Sendable {
         touch(sql)
         evictIfFull()
         return (statement, true)
+    }
+
+    /// Frees every statement still in use. The driver calls this when an
+    /// access ends, for a statement whose preparer never finalized it.
+    func endAccess() {
+        for (sql, var entry) in entries where entry.isInUse {
+            entry.isInUse = false
+            entries[sql] = entry
+        }
+        evictIfFull()
     }
 
     func checkIn(sql: String, generation lentGeneration: Int) {
@@ -478,6 +505,7 @@ struct CachingSQLiteDriver: XLBlockingDatabaseDriver {
         _ operation: (inout CachingSQLiteConnection) throws -> Result
     ) throws -> Result {
         try queue.inDatabase { database in
+            defer { cache.endAccess() }
             var connection = makeConnection(database)
             return try operation(&connection)
         }
@@ -487,6 +515,7 @@ struct CachingSQLiteDriver: XLBlockingDatabaseDriver {
         _ operation: (inout CachingSQLiteConnection) throws -> Result
     ) throws -> Result {
         try queue.inDatabase { database in
+            defer { cache.endAccess() }
             var connection = makeConnection(database)
             return try operation(&connection)
         }
@@ -496,6 +525,7 @@ struct CachingSQLiteDriver: XLBlockingDatabaseDriver {
         _ operation: (inout CachingSQLiteConnection) throws -> Result
     ) throws -> Result {
         try queue.inDatabase { database in
+            defer { cache.endAccess() }
             var result: Result?
             try database.inTransaction(.immediate) {
                 var connection = makeConnection(database)

@@ -113,7 +113,9 @@ public protocol XLDatabaseDriverConnection {
     ///
     /// Code outside SwiftQL that calls ``prepare(_:)`` may never call this,
     /// so a connection must still release a statement that is never
-    /// finalized, at the latest when the access that prepared it ends.
+    /// finalized, at the latest when the access that prepared it ends. The
+    /// driver lends each access, so it knows when one ends, and can release
+    /// or return to its cache every statement still unfinalized then.
     ///
     /// The default implementation does nothing, which is correct for a
     /// connection that releases a statement when its last reference goes.

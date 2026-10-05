@@ -58,14 +58,23 @@ final class StatementLifecycleTests: XCTestCase {
     func testAStatementIsFinalizedWhenItsRunThrows() throws {
         driver.store.failing = .run
 
-        XCTAssertThrowsError(try database.makeRequest(with: selectPeople()).fetchAll())
+        let request = database.makeRequest(with: selectPeople())
+        XCTAssertThrowsError(try request.fetchAll())
         XCTAssertThrowsError(
             try database.makeRequest(with: sqlInsert(DriverPerson(id: "dee", age: 19))).execute()
+        )
+        XCTAssertThrowsError(try request.withResultSet { rows in try rows.next() })
+        XCTAssertThrowsError(
+            try database.prepareInvocation(with: selectPeople()).forEachValueRow(
+                bindings: XLInvocationBindings<XLSQLiteValue>(layout: .empty)
+            ) { _ in .advance }
         )
 
         XCTAssertEqual(driver.store.lifecycle, [
             .prepared(1), .ran(1), .finalized(1),
             .prepared(2), .ran(2), .finalized(2),
+            .prepared(3), .ran(3), .finalized(3),
+            .prepared(4), .ran(4), .finalized(4),
         ])
     }
 

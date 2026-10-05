@@ -222,6 +222,10 @@ private struct BulkWarmingConnection: XLStatementCachingDriverConnection {
         try recording.resetPhysical(statement)
     }
 
+    mutating func finalizePhysical(_ statement: String) {
+        recording.finalizePhysical(statement)
+    }
+
     mutating func invalidatePreparedStatements() throws {
         try recording.invalidatePreparedStatements()
     }

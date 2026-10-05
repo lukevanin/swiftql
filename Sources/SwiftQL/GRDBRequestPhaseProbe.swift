@@ -157,12 +157,8 @@ package final class GRDBRequestPhaseConnection {
         // lives across the phases of one sample. The GRDB connection
         // finalizes nothing, so the probe does not call `finalizePhysical(_:)`
         // (issue #677).
-        let preparedStatement = try connection.prepare(executor.logicalStatement)
-        let statement = try executor.bind(
-            packet: packet,
-            to: preparedStatement,
-            in: &connection
-        )
+        var statement = try connection.prepare(executor.logicalStatement)
+        try executor.bind(packet: packet, to: &statement, in: &connection)
         return GRDBRequestPhaseStatement(
             physicalStatement: statement,
             bindingCount: packet.bindings.count

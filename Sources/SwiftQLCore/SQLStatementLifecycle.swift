@@ -52,7 +52,9 @@ extension XLDatabaseDriverConnection {
 /// - ``XLDatabaseDriverConnection/finalizePhysical(_:)`` returns the
 ///   statement to the cache, reset and with no values bound, unless the
 ///   cache was invalidated while the statement was in use or the statement
-///   cannot be reset, in which case it is discarded.
+///   cannot be reset, in which case it is discarded. A caching connection
+///   must implement it: the default of `XLDatabaseDriverConnection` does
+///   nothing, so a statement would never come back to the cache.
 ///
 /// A cached statement belongs to the physical connection that prepared it.
 /// It is never lent to another connection, and it never leaves the
@@ -94,7 +96,8 @@ public protocol XLStatementCachingDriverConnection: XLDatabaseDriverConnection {
     mutating func invalidatePreparedStatements() throws
 
     /// Prepares every statement in `manifest` without running it, so that
-    /// the first run of each on this connection is a cache hit.
+    /// the first run of each on this connection is a cache hit, unless the
+    /// cache evicts it first.
     ///
     /// The default implementation prepares each statement with
     /// ``XLDatabaseDriverConnection/prepare(_:)``, as a request does, and
@@ -111,6 +114,10 @@ extension XLStatementCachingDriverConnection {
 
     /// Prepares every statement in `manifest` without running it, so that
     /// the first run of each on this connection is a cache hit (issue #677).
+    ///
+    /// A cache smaller than the manifest, or later work on the connection,
+    /// can evict a warmed statement before it runs, and its first run is
+    /// then a miss.
     ///
     /// Each statement is prepared as a request prepares it, with
     /// ``XLDatabaseDriverConnection/prepare(_:)``: it is checked against the
@@ -143,7 +150,10 @@ extension XLStatementCachingDriverConnection {
 /// What a connection's statement cache has done since the physical
 /// connection opened (issue #677).
 ///
-/// The counters only grow. Subtract two readings to measure a span of work.
+/// The counters, every member but ``cachedStatementCount``, only grow.
+/// Subtract two readings of a counter to measure a span of work.
+/// ``cachedStatementCount`` is how many statements the cache holds when it is
+/// read.
 public struct XLStatementCacheStatistics: Hashable, Sendable {
 
     /// Preparations the cache served with a statement it already held.
