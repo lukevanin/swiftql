@@ -82,7 +82,7 @@ extension XLCustomFunctionRegistration {
 /// Reads a custom function's arguments positionally, as its
 /// ``XLCustomFunction/execute(reader:)`` sees them.
 ///
-/// Deliberately only an ``XLColumnReader``: it does not forward
+/// Deliberately only an `XLColumnReader`: it does not forward
 /// ``XLStaticColumnReader/dialectValue(at:using:)`` to the
 /// ``XLSQLiteValueReader`` it wraps, so asking it for a raw dialect value
 /// throws `rawDialectValuesUnavailable`. That is not a gap. A custom function

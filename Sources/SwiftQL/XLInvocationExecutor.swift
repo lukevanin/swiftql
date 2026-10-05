@@ -93,25 +93,41 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         )
     }
 
+    /// Visits row handles while the driver's cursor remains inside its owning
+    /// database access (issue #678). A typed decode reads each column from
+    /// the handle, so no row is normalized into an array of values first.
+    func forEachRowHandle(
+        packet: XLValidatedSQLitePacket,
+        in connection: inout Driver.Connection,
+        _ body: (Driver.Connection.RowHandle) throws -> XLRowStreamControl
+    ) throws {
+        try connection.forEachRowHandle(
+            boundStatement(packet: packet, in: &connection),
+            body
+        )
+    }
+
     ///
     /// Prepares and binds one statement for `packet`, then lends a
-    /// value-level row stepper scoped to the connection access that owns it.
+    /// row-handle stepper scoped to the connection access that owns it
+    /// (issue #678).
     ///
     /// `operation` runs synchronously inside the same read (or, when
     /// `requiresWriteConnection` is `true`, write/transaction) connection
     /// access that creates the stepper, so the cursor the stepper
     /// closes over never escapes its owning database access -- the stepper
-    /// closure is only valid for the duration of `operation`. `XLResultSet`
-    /// is built directly on top of this seam.
+    /// closure is only valid for the duration of `operation`, and each handle
+    /// it returns only until it is called again. `XLResultSet` is built
+    /// directly on top of this seam.
     ///
-    func withValuesStepper<Result>(
+    func withRowHandleStepper<Result>(
         packet: XLValidatedSQLitePacket,
         requiresWriteConnection: Bool,
-        _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+        _ operation: (@escaping () throws -> Driver.Connection.RowHandle?) throws -> Result
     ) throws -> Result {
         let accessor: (inout Driver.Connection) throws -> Result = { connection in
             let statement = try self.boundStatement(packet: packet, in: &connection)
-            return try connection.withValuesStepper(statement, operation)
+            return try connection.withRowHandleStepper(statement, operation)
         }
         if requiresWriteConnection {
             return try driver.withBlockingTransaction(accessor)

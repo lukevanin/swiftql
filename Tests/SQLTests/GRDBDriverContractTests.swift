@@ -19,6 +19,13 @@ final class GRDBDriverContractTests: XCTestCase {
         case requested
     }
 
+    /// The GRDB connection lends its own handle over GRDB's row (issue #678).
+    /// With the contract's default handle instead, every request would copy
+    /// each row into values and wrap them, and no decode test would notice.
+    func testConnectionLendsTheGRDBRowHandle() {
+        XCTAssertTrue(GRDBDatabaseDriverConnection.RowHandle.self == GRDBRowHandle.self)
+    }
+
     func testSharedSQLiteStorageCasesRoundTripWithTypeofEvidence() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
@@ -83,11 +90,29 @@ final class GRDBDriverContractTests: XCTestCase {
                     }
                     return rows
                 }
+                // The row handle reads each column from the cursor's own row
+                // (issue #678), and must read what the value path normalizes.
+                let handleRows = try driver.withBlockingReadConnection { connection in
+                    var statement = try connection.prepare(logicalStatement)
+                    statement = try connection.bind(
+                        testCase.value,
+                        to: .named("value"),
+                        in: statement
+                    )
+                    var rows: [[XLSQLiteValue]] = []
+                    try connection.forEachRowHandle(statement) { handle in
+                        XCTAssertEqual(handle.columnCount, 3, testCase.id.rawValue)
+                        rows.append(try handle.copyValues())
+                        return .advance
+                    }
+                    return rows
+                }
                 XCTAssertEqual(
                     streamedRows,
                     [row],
                     testCase.id.rawValue
                 )
+                XCTAssertEqual(handleRows, [row], testCase.id.rawValue)
                 XCTAssertEqual(row[0], testCase.value, testCase.id.rawValue)
                 XCTAssertEqual(
                     row[1],
@@ -371,8 +396,10 @@ final class GRDBDriverContractTests: XCTestCase {
     /// Issue #641: the pull-based stepper behind `withResultSet` has its own
     /// open-cursor mark. On a pinned connection -- the transaction-scope shape
     /// -- an early return from the callback and a thrown callback must both
-    /// remove that mark, so the next same-SQL prepare reuses the cache.
-    func testValuesStepperRemovesItsOpenCursorMarkOnEarlyReturnAndOnThrow() throws {
+    /// remove that mark, so the next same-SQL prepare reuses the cache. The
+    /// row-handle stepper result sets use (issue #678) and the value stepper
+    /// derived from it both keep the mark.
+    func testSteppersRemoveTheirOpenCursorMarkOnEarlyReturnAndOnThrow() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
@@ -420,7 +447,7 @@ final class GRDBDriverContractTests: XCTestCase {
             var connection = driver.makeConnection(database)
             let reference = try connection.prepare(select)
 
-            let firstRow = try executor.withValuesStepper(
+            let firstRow = try executor.withRowHandleStepper(
                 packet: packet,
                 requiresWriteConnection: false
             ) { stepper -> [XLSQLiteValue]? in
@@ -429,7 +456,7 @@ final class GRDBDriverContractTests: XCTestCase {
                     "The stepper's statement must be marked while its callback runs."
                 )
                 // Return early, with rows still left in the cursor.
-                return try stepper()
+                return try stepper()?.copyValues()
             }
             XCTAssertEqual(firstRow, [.integer(1)])
             XCTAssertTrue(
@@ -437,8 +464,24 @@ final class GRDBDriverContractTests: XCTestCase {
                 "An early return must remove the open-cursor mark."
             )
 
+            let firstValueRows = try pinnedDriver.withBlockingReadConnection { pinned in
+                let statement = try pinned.prepare(executor.logicalStatement)
+                return try pinned.withValuesStepper(statement) { stepper -> [[XLSQLiteValue]?] in
+                    XCTAssertFalse(
+                        try connection.prepare(select).sharesGRDBStatement(with: reference),
+                        "The value stepper's statement must be marked while its callback runs."
+                    )
+                    return [try stepper(), try stepper()]
+                }
+            }
+            XCTAssertEqual(firstValueRows, [[.integer(1)], [.integer(2)]])
+            XCTAssertTrue(
+                try connection.prepare(select).sharesGRDBStatement(with: reference),
+                "An early return from the value stepper must remove the open-cursor mark."
+            )
+
             XCTAssertThrowsError(
-                try executor.withValuesStepper(
+                try executor.withRowHandleStepper(
                     packet: packet,
                     requiresWriteConnection: false
                 ) { stepper -> Void in
