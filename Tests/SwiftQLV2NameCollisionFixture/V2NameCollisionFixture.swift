@@ -149,6 +149,7 @@ enum V2NameCollisionFixture {
     typealias Check_LikeEscapeExpression = LikeEscapeExpression
     typealias Check_ListBuilder = ListBuilder
     typealias Check_Literal = Literal
+    typealias Check_LiteralValueDialect = LiteralValueDialect
     typealias Check_LogLevel = LogLevel
     typealias Check_Logger = Logger
     typealias Check_LogicalParameterIndex = LogicalParameterIndex

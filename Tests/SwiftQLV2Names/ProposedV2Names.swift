@@ -163,6 +163,7 @@ public typealias LegacyDynamicValueExpression = SwiftQL.XLLegacyDynamicValueExpr
 public typealias LikeEscapeExpression = SwiftQL.XLLikeEscapeExpression
 public typealias ListBuilder = SwiftQL.XLListBuilder
 public typealias Literal = SwiftQL.XLLiteral
+public typealias LiteralValueDialect = SwiftQL.XLLiteralValueDialect
 public typealias LogLevel = SwiftQL.XLLogLevel
 public typealias Logger = SwiftQL.XLLogger
 public typealias LogicalParameterIndex = SwiftQLCore.XLLogicalParameterIndex
