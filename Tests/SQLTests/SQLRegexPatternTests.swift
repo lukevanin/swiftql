@@ -10,7 +10,7 @@ import GRDB
 import RegexBuilder
 @testable import SwiftQLCore
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 @SQLTable(name: "PatternPhrase")
@@ -85,7 +85,6 @@ final class XLRegexPatternTests: XCTestCase {
     private func makeSeededDatabase() throws -> GRDBDatabase {
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         let database = try builder.build()

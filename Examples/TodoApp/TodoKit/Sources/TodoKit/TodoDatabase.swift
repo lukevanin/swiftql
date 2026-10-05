@@ -63,7 +63,7 @@ public final class TodoDatabase {
         // because SwiftQL has no index DDL to join that scope with (#139).
         // Both steps are `IF NOT EXISTS`, so a crash between them is repaired
         // on the next launch rather than leaving a half-built schema.
-        try TodoIndices.create(in: database.databasePool)
+        try TodoIndices.create(in: database)
     }
 
     /// Opens the demo's durable database in Application Support.

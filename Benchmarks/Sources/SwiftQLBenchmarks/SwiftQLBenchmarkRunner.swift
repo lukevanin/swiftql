@@ -1,6 +1,6 @@
 import Foundation
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 private struct BenchmarkCodecValue: Equatable {
     let rawValue: Int64

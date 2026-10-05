@@ -19,7 +19,7 @@ import OpenCombine
 #endif
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 /// Counts how many times a declared query's statement is built (issue #660).

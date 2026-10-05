@@ -10,7 +10,7 @@ import Foundation
 import GRDB
 import SwiftQLCore
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 @SQLTable(name: "StaticPhrase")
@@ -72,7 +72,6 @@ final class XLRegexpStaticQueryTests: XCTestCase {
     private func makeSeededDatabase() throws -> GRDBDatabase {
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         let database = try builder.build()
@@ -294,7 +293,7 @@ final class XLRegexpStaticQueryTests: XCTestCase {
         }
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: nil
         )
         database = try builder.build()

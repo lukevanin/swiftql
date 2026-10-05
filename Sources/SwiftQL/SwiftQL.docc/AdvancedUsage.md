@@ -94,6 +94,59 @@ Its dialect must be `XLSQLiteDialect`. ``XLDriverDatabase`` conforms to
 ``XLDatabase`` but not yet to ``XLTransactionalDatabase``: a portable way for a
 driver to pin one connection for a transaction scope is issue #808.
 
+## Opening a GRDB database without GRDB
+
+Opening a ``GRDBDatabase``, registering functions and collations on a
+``GRDBDatabaseBuilder``, and running requests need only `import SwiftQL`. No
+GRDB type appears in that API (issue #702). The connection options are a
+``GRDBDatabaseConfiguration``, whose defaults are GRDB's own:
+
+<!-- test: XLDocumentationTests.testDocumentationAdvancedUsage -->
+```swift
+var configuration = GRDBDatabaseConfiguration()
+configuration.busyTimeout = 5
+configuration.maximumReaderCount = 2
+let configuredDatabase = try GRDBDatabase(
+    url: configuredDatabaseURL,
+    configuration: configuration,
+    logger: nil
+)
+```
+
+### The GRDB escape hatch
+
+GRDB's own types are still reachable, for an option
+``GRDBDatabaseConfiguration`` does not cover or for work SwiftQL cannot
+express, such as creating an index. They are SwiftQL's GRDB SPI, so a file
+that uses them says so in its import:
+
+- `GRDBDatabase.databasePool`, the pool a database runs on;
+- `GRDBDatabase.init(databasePool:formatter:logger:liveQueryRetryPolicy:)` and
+  its `codingConfiguration:` form, which wrap a pool you opened;
+- `GRDBDatabaseBuilder.init(url:grdbConfiguration:formatter:logger:liveQueryRetryPolicy:)`
+  and its `codingConfiguration:` form, which extend a GRDB `Configuration`,
+  such as one with a `prepareDatabase` hook.
+
+<!-- test: XLDocumentationTests.testDocumentationAdvancedUsage -->
+```swift
+import GRDB
+@_spi(GRDB) import SwiftQL
+
+let pool = try DatabasePool(path: pooledDatabaseURL.path)
+let pooledDatabase = try GRDBDatabase(
+    databasePool: pool,
+    formatter: XLiteFormatter(),
+    logger: nil
+)
+try pooledDatabase.databasePool.write { db in
+    try db.execute(sql: "CREATE TABLE Note (body TEXT)")
+}
+```
+
+Keep these to the few files that need them. A file that imports both GRDB and
+SwiftQL sees both modules' names, so one that does not need GRDB should not
+import it.
+
 ## Logical and physical preparation
 
 Logical requests and prepared handles are database- or pool-bound. They retain

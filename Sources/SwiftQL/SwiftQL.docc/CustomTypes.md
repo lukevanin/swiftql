@@ -972,7 +972,6 @@ converted when it is used.
 <!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
 ```swift
 import Foundation
-import GRDB
 import SwiftQL
 
 struct SQLDate: XLCustomType, XLComparable, Equatable {
@@ -1001,10 +1000,14 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
 
     public init(reader: XLFieldReader) throws {
         let rawValue = try reader.readReal()
-        guard let wrappedValue = Date(julianDay: rawValue) else {
+        guard rawValue.isFinite else {
             throw ReadError.invalidJulianDay(rawValue)
         }
-        self.wrappedValue = wrappedValue
+        // Julian day 2440587.5 is the Unix epoch. Round to the millisecond,
+        // the precision the text representation keeps.
+        let milliseconds = ((rawValue - 2440587.5) * 86_400_000)
+            .rounded(.toNearestOrAwayFromZero)
+        self.wrappedValue = Date(timeIntervalSince1970: milliseconds / 1000)
     }
 
     public func bind(context: inout XLBindingContext) {

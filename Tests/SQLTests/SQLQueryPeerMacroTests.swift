@@ -13,7 +13,7 @@
 import Foundation
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 extension GRDBDatabase {

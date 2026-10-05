@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 @SQLTable(name: "Phrase")
@@ -71,7 +71,7 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: nil
         )
         let database = try builder.build()
@@ -451,7 +451,7 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: nil
         )
         database = try builder.build()
@@ -488,7 +488,7 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
         let builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: configuration,
+            grdbConfiguration: configuration,
             logger: nil
         )
         database = try builder.build()
@@ -509,7 +509,6 @@ final class XLRegexpOperatorTests: XCTestCase {
     func testAddFunctionRegistrationWinsOverTheBundledOne() throws {
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         builder.addFunction(InvertedRegexpFunction.self)

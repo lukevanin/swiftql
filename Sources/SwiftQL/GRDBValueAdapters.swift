@@ -10,7 +10,7 @@
 //
 
 import Foundation
-import GRDB
+package import GRDB
 #if canImport(Combine)
 import Combine
 #else

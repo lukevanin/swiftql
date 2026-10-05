@@ -7,7 +7,7 @@
 
 import Dispatch
 import Foundation
-import GRDB
+internal import GRDB
 
 
 extension GRDBDatabaseDriver: XLObservingDatabaseDriver {

@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import GRDB
+internal import GRDB
 #if canImport(Combine)
 import Combine
 #else
@@ -41,14 +41,14 @@ public struct GRDBDatabaseBuilder {
     ///
     /// - Parameters:
     ///   - url: The SQLite database file URL.
-    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
     ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
     public init(
         url: URL,
-        configuration: GRDB.Configuration,
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
@@ -56,7 +56,7 @@ public struct GRDBDatabaseBuilder {
         try self.init(
             url: url,
             codingConfiguration: XLValueCodingConfiguration(),
-            configuration: configuration,
+            connectionConfiguration: configuration.grdbConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
@@ -69,20 +69,40 @@ public struct GRDBDatabaseBuilder {
     ///   - url: The SQLite database file URL.
     ///   - codingConfiguration: Contextual codecs and defaults captured by the
     ///     database and requests built from it.
-    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - configuration: The connection options the pool opens with.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
     ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
     public init(
         url: URL,
         codingConfiguration: XLValueCodingConfiguration,
-        configuration: GRDB.Configuration,
+        configuration: GRDBDatabaseConfiguration = GRDBDatabaseConfiguration(),
         formatter: XLiteFormatter = XLiteFormatter(),
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
+        self.init(
+            url: url,
+            codingConfiguration: codingConfiguration,
+            connectionConfiguration: configuration.grdbConfiguration,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// The designated initializer. The public initializers, and the GRDB
+    /// escape hatch's in `GRDBDatabase+GRDBSPI.swift`, arrive here.
+    init(
+        url: URL,
+        codingConfiguration: XLValueCodingConfiguration,
+        connectionConfiguration: GRDB.Configuration,
+        formatter: XLiteFormatter,
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
+    ) {
         self.url = url
-        self.configuration = configuration
+        self.configuration = connectionConfiguration
         self.codingConfiguration = codingConfiguration
         self.formatter = formatter
         self.logger = logger
@@ -140,15 +160,43 @@ public struct GRDBDatabaseBuilder {
     /// A GRDB failure while opening, such as a file that is not a database,
     /// is reported as an `XLDatabaseError` (issue #679), including one raised
     /// by a `prepareDatabase` hook in the configuration.
+    ///
+    /// A `maximumReaderCount` below 1, or a busy timeout that is negative or
+    /// that GRDB cannot convert to whole milliseconds, fails here with an
+    /// `XLDatabaseError` whose code is `.misuse` (issue #702). GRDB would stop
+    /// the process for all but a negative timeout, which SQLite would treat
+    /// as no timeout at all.
     func makeDatabasePool() throws -> DatabasePool {
         try xlMappingDatabaseErrors(driver: .grdb) {
-            try DatabasePool(path: url.path, configuration: configuration)
+            guard configuration.maximumReaderCount > 0 else {
+                throw DatabaseError(
+                    resultCode: .SQLITE_MISUSE,
+                    message: "maximumReaderCount must be at least 1; it is "
+                        + "\(configuration.maximumReaderCount)"
+                )
+            }
+            if case .timeout(let timeout) = configuration.busyMode {
+                // GRDB passes `CInt(timeout * 1000)` to SQLite, which traps
+                // for a value that is not finite or does not fit.
+                let milliseconds = timeout * 1000
+                guard milliseconds.isFinite,
+                      milliseconds >= 0,
+                      milliseconds <= Double(CInt.max)
+                else {
+                    throw DatabaseError(
+                        resultCode: .SQLITE_MISUSE,
+                        message: "busy timeout must be between 0 and "
+                            + "\(Double(CInt.max) / 1000) seconds; it is \(timeout)"
+                    )
+                }
+            }
+            return try DatabasePool(path: url.path, configuration: configuration)
         }
     }
 
-    /// The database configuration this builder was given.
-    var databaseConfiguration: GRDBDatabaseConfiguration {
-        GRDBDatabaseConfiguration(
+    /// The database settings this builder was given.
+    var databaseSettings: GRDBDatabaseSettings {
+        GRDBDatabaseSettings(
             codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
@@ -164,7 +212,7 @@ extension GRDBDatabase {
     init(builder: GRDBDatabaseBuilder) throws {
         self.init(
             databasePool: try builder.makeDatabasePool(),
-            configuration: builder.databaseConfiguration
+            settings: builder.databaseSettings
         )
     }
 }

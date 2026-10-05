@@ -24,17 +24,30 @@ SOURCE_ROOTS = (
     # Issue #682: the driver double that backs `XLDriverDatabase` must reach
     # SwiftQL through the driver contract alone.
     "Tests/SwiftQLDriverDatabaseTests",
+    # Issue #702: a client opens a GRDB-backed database, registers a function,
+    # and runs queries through SwiftQL without importing GRDB.
+    "Tests/SwiftQLGRDBFreeClientTests",
+)
+# Test targets that prove a client needs only SwiftQL: they may depend on the
+# SwiftQL target and nothing else (issues #682 and #702).
+SWIFTQL_ONLY_TEST_TARGETS = (
+    "SwiftQLDriverDatabaseTests",
+    "SwiftQLGRDBFreeClientTests",
 )
 DEPENDENCY_FIELDS = (
     "target_dependencies",
     "product_dependencies",
 )
-FORBIDDEN_MODULE_PATTERN = r"(?:GRDB|CSQLite)"
-IMPORT_FORBIDDEN_PATTERN = re.compile(
+FORBIDDEN_MODULE_PATTERN = r"(?:GRDB|GRDBSQLite|CSQLite)"
+# An import may carry attributes and an access level (`internal import GRDB`,
+# issue #702), and any module whose name starts with GRDB is forbidden.
+IMPORT_PREFIX_PATTERN = (
     r"^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?[ \t]+)*"
+    r"(?:(?:public|package|internal|fileprivate|private)[ \t]+)?"
     r"import[ \t]+(?:(?:class|enum|func|let|protocol|struct|typealias|var)[ \t]+)?"
-    + FORBIDDEN_MODULE_PATTERN
-    + r"(?:\b|\.)"
+)
+IMPORT_FORBIDDEN_PATTERN = re.compile(
+    IMPORT_PREFIX_PATTERN + r"(?:GRDB[A-Za-z0-9_]*|CSQLite)(?:\b|\.)"
 )
 CAN_IMPORT_FORBIDDEN_PATTERN = re.compile(
     r"\bcanImport[ \t]*\([ \t]*" + FORBIDDEN_MODULE_PATTERN + r"[ \t]*\)"
@@ -50,16 +63,38 @@ QUALIFIED_FORBIDDEN_PATTERN = re.compile(
 # matched too.
 OBSERVATION_FRAMEWORK_PATTERN = r"(?:Combine|OpenCombine)[A-Za-z0-9_]*"
 IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
-    r"^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?[ \t]+)*"
-    r"import[ \t]+(?:(?:class|enum|func|let|protocol|struct|typealias|var)[ \t]+)?"
-    + OBSERVATION_FRAMEWORK_PATTERN
-    + r"(?:\b|\.)"
+    IMPORT_PREFIX_PATTERN + OBSERVATION_FRAMEWORK_PATTERN + r"(?:\b|\.)"
 )
 CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
     r"\bcanImport[ \t]*\([ \t]*" + OBSERVATION_FRAMEWORK_PATTERN + r"[ \t]*\)"
 )
+# SwiftQL's GRDB escape hatch (issue #702). A file that declares it reaches
+# GRDB's types through SwiftQL without importing GRDB, and members of those
+# types resolve without the import, so the patterns above would not see it.
+SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
+# Patterns forbidden in one source root only. The GRDB-free client target
+# proves what a client of SwiftQL's public API needs, so it may not reach
+# SwiftQL's internals, whose GRDB-typed values it could then use without an
+# import (issue #702). The driver tests need `@testable` and keep it.
+ROOT_FORBIDDEN_PATTERNS = {
+    "Tests/SwiftQLGRDBFreeClientTests": (
+        (
+            re.compile(r"@testable[ \t]+(?:[A-Za-z_@()]+[ \t]+)*import[ \t]+SwiftQL\b(?!Core)"),
+            "forbidden testable SwiftQL import",
+        ),
+    ),
+}
 DETECTOR_FIXTURES = (
     "import GRDB",
+    "@_spi(GRDB) import SwiftQL",
+    "@_spi(GRDB) @testable import SwiftQL",
+    "internal import GRDB",
+    "public import GRDB",
+    "package import GRDB",
+    "@preconcurrency internal import GRDB",
+    "import GRDBSQLite",
+    "let code = GRDBSQLite.SQLITE_OK",
+    "internal import Combine",
     "import struct GRDB.Row",
     "@preconcurrency import GRDB",
     "@_implementationOnly import GRDB",
@@ -194,6 +229,34 @@ def check_package_dependencies(swift, package_root):
             )
         )
 
+    for name in SWIFTQL_ONLY_TEST_TARGETS:
+        matching = [
+            target
+            for target in targets
+            if isinstance(target, dict) and target.get("name") == name
+        ]
+        if len(matching) != 1:
+            raise BoundaryCheckError(
+                "package description must contain exactly one {} target; found {}".format(
+                    name,
+                    len(matching),
+                )
+            )
+        dependencies = {
+            field: matching[0].get(field, [])
+            for field in DEPENDENCY_FIELDS
+        }
+        if dependencies != {
+            "target_dependencies": ["SwiftQL"],
+            "product_dependencies": [],
+        }:
+            raise BoundaryCheckError(
+                "{} must depend on the SwiftQL target alone; found {}".format(
+                    name,
+                    json.dumps(dependencies, sort_keys=True, separators=(",", ":")),
+                )
+            )
+
     products = description.get("products")
     if not isinstance(products, list):
         raise BoundaryCheckError(
@@ -232,6 +295,8 @@ def forbidden_reference_kinds(line):
         kinds.append("forbidden database-module availability check")
     if QUALIFIED_FORBIDDEN_PATTERN.search(line):
         kinds.append("forbidden database-module qualified symbol")
+    if SPI_FORBIDDEN_PATTERN.search(line):
+        kinds.append("forbidden GRDB SPI import")
     if IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):
         kinds.append("forbidden Combine import")
     if CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN.search(line):
@@ -303,6 +368,11 @@ def check_source_references(package_root):
                     violations.append(
                         (relative_path, line_number, kind)
                     )
+                for pattern, kind in ROOT_FORBIDDEN_PATTERNS.get(source_root_name, ()):
+                    if pattern.search(line):
+                        violations.append(
+                            (relative_path, line_number, kind)
+                        )
 
     if violations:
         formatted = [
@@ -481,7 +551,8 @@ def main():
         check_package_dependencies(swift, package_root)
         print(
             "CHECK package graph: PASS "
-            "(SwiftQLCore product exported; target/product dependencies: none)"
+            "(SwiftQLCore product exported; target/product dependencies: none; "
+            "{} depend on SwiftQL alone)".format(", ".join(SWIFTQL_ONLY_TEST_TARGETS))
         )
 
         scanned_file_count, core_source_files = check_source_references(

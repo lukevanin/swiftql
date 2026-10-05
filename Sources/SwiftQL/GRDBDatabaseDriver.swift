@@ -3,8 +3,8 @@
 //
 
 import Foundation
-import GRDB
-import GRDBSQLite
+internal import GRDB
+internal import GRDBSQLite
 
 
 /// GRDB transport for SQLite dialect values.

@@ -11,7 +11,7 @@
 import Foundation
 import GRDB
 import XCTest
-@testable import SwiftQL
+@_spi(GRDB) @testable import SwiftQL
 
 
 /// Mirrors `HaversineDistance` (see `SQLExampleTests.swift` and the `CustomFunctions.md` guide),
@@ -107,7 +107,6 @@ final class SQLFunctionMacroExecutionTests: XCTestCase {
         )
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
             logger: nil
         )
         builder.addFunction(MacroHaversineDistance.self)

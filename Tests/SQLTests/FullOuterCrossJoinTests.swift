@@ -8,7 +8,7 @@ import Foundation
 import SwiftQLTestSupport
 import XCTest
 import GRDB
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 @SQLResult

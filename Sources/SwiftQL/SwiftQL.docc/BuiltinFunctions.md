@@ -209,7 +209,6 @@ connection and name it with `XLCollation(rawValue:)`.
 ```swift
 var builder = try GRDBDatabaseBuilder(
     url: databaseURL,
-    configuration: Configuration(),
     logger: nil
 )
 builder.addCollation("localized") { lhs, rhs in

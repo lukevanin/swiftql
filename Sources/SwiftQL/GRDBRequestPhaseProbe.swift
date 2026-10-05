@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import GRDB
+package import GRDB
 
 
 /// A request that a ``GRDBRequestPhaseProbe`` cannot inspect.

@@ -10,9 +10,12 @@ import Foundation
 // exposes: it can tell you exactly which index to add, prove the plan
 // improves, and hand you the statement — and the library cannot run it for
 // you.
+//
+// That is also why this file, alone in the demo, declares SwiftQL's GRDB
+// escape hatch (`@_spi(GRDB)`): it reaches the database's pool.
 import GRDB
 
-import SwiftQL
+@_spi(GRDB) import SwiftQL
 
 
 /// The indices SwiftQL's v1.8 index advisor verified against this schema.
@@ -74,16 +77,16 @@ public enum TodoIndices {
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todotag_todoid_tagid" ON "TodoTag" ("todoID", "tagID")"#,
     ]
 
-    /// Creates every index on `databasePool`, which must already hold the
+    /// Creates every index on `database`'s pool, which must already hold the
     /// demo's tables.
     ///
     /// Deliberately not inside a SwiftQL transaction scope: that scope already
     /// owns the pool's writer, and a second write from inside it would be a
     /// nested write on the same connection.
-    public static func create(in databasePool: DatabasePool) throws {
-        try databasePool.write { database in
+    public static func create(in database: GRDBDatabase) throws {
+        try database.databasePool.write { db in
             for statement in statements {
-                try database.execute(sql: statement)
+                try db.execute(sql: statement)
             }
         }
     }
