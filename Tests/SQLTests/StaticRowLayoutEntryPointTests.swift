@@ -9,7 +9,7 @@
 //
 //  The layouts here select plain columns only. The Swift 5.9 and 6.0
 //  compilers crash in SILGen when an opaque operator result such as
-//  `column + "suffix"` converts to the `any XLTypedExpression<String>` parameter
+//  `column + "suffix"` converts to the `any XLExpression<String>` parameter
 //  of the helper below, so the tests avoid that shape.
 //
 
@@ -21,8 +21,8 @@ import XCTest
 
 /// Builds a static row layout for `TestTable` from two column expressions.
 private func testTableLayout(
-    id: any XLSQLiteExpression<String>,
-    value: any XLSQLiteExpression<Int>
+    id: any XLExpression<String>,
+    value: any XLExpression<Int>
 ) throws -> XLStaticRowLayout<TestTable, XLSQLiteDialect> {
     try TestTable.staticRowLayout(
         using: XLSQLiteDialect.self,

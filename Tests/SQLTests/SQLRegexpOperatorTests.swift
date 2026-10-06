@@ -985,9 +985,9 @@ private struct ApplicationRegexpCall: XLCustomFunction {
 
     private let pattern: String
 
-    private let subject: any XLTypedExpression<String>
+    private let subject: any XLExpression<String>
 
-    init(pattern: String, subject: any XLTypedExpression<String>) {
+    init(pattern: String, subject: any XLExpression<String>) {
         self.pattern = pattern
         self.subject = subject
     }

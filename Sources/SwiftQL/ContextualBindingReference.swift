@@ -65,11 +65,8 @@ public enum XLRequestBindingError: Error, Equatable, Sendable, LocalizedError {
 /// For example, a `Date` encoded as SQLite text can use
 /// `XLContextualBindingReference<Date, String, XLSQLiteDialect>` without making
 /// `Date` conform to `XLLiteral`.
-///
-/// The reference encodes its value for `Dialect`, so it is an expression of
-/// that dialect rather than a dialect-free value (issue #789).
 public struct XLContextualBindingReference<Value, Literal, Dialect>:
-    XLExpression,
+    XLBindingReference,
     Sendable
 where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 

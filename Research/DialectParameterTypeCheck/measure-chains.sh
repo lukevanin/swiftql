@@ -18,7 +18,7 @@ timeout_seconds="${TIMEOUT:-60}"
 python3 "$script_directory/chain_scaling.py" "$work"
 
 printf '| shape | 4 | 8 | 12 | 16 |\n| --- | ---: | ---: | ---: | ---: |\n'
-for shape in base generic mixed operands operands-ret concrete; do
+for shape in base generic mixed operands operands-ret concrete dialect dialect-ret dialect-two; do
     directory="$work/$shape"
     swiftc -swift-version 6 -emit-module \
         -emit-module-path "$directory/Lib.swiftmodule" -module-name Lib \

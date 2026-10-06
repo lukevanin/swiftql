@@ -3,11 +3,14 @@
 //  SwiftQL
 //
 //  Issue #789: the dialect is a type parameter of the query surface. A model
-//  is declared for one dialect, its columns carry that dialect, and every
-//  expression composed from them does too. The same query body is written
-//  for SQLite and for a second dialect, and the universal parts render
+//  is declared for one dialect, and its columns are expressions of that
+//  dialect only. Each dialect has its own expression protocol, and its own
+//  copy of every operator and function that composes expressions, generated
+//  from one set of templates by scripts/dialect-surface/generate.py. The same
+//  query body is written for SQLite and for a second dialect, and renders
 //  identically. `FakeSecondDialect` (declared with the #687 tests) stands in
-//  for a PostgreSQL dialect, which SwiftQL does not ship.
+//  for a PostgreSQL dialect, which SwiftQL does not ship; its surface is
+//  generated into Tests/SQLTests/Generated/FakeSecondDialect.
 //
 //  The refusals -- a SQLite-only operation on a second-dialect column or
 //  composed expression, an operator across two dialects, a foreign model in a
@@ -56,12 +59,14 @@ final class DialectTypeParameterTests: XCTestCase {
         try XLDialectEncoder(dialect: FakeSecondDialect()).makeValidatedSQL(statement).sql
     }
 
-    /// Fails to compile, rather than at run time, if `expression` does not
-    /// carry `Dialect`.
-    private func assertDialect<T, Dialect>(
-        _ expression: some XLExpression<T, Dialect>,
-        _ dialect: Dialect.Type
-    ) {
+    /// Fails to compile, rather than at run time, if `expression` is not a
+    /// SQLite expression.
+    private func assertSQLite<T>(_ expression: some XLSQLiteExpression<T>) {
+    }
+
+    /// Fails to compile, rather than at run time, if `expression` is not an
+    /// expression of the second dialect.
+    private func assertSecond<T>(_ expression: some FakeSecondDialectExpression<T>) {
     }
 
     // MARK: - The model names the dialect
@@ -75,35 +80,61 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertTrue(DialectSecondPerson.MetaWritableTable.Dialect.self == FakeSecondDialect.self)
     }
 
-    func testEveryColumnAndComposedExpressionCarriesTheModelDialect() {
+    func testEveryColumnAndComposedExpressionIsOfTheModelDialect() {
         let sqlite = XLSchema().table(DialectSQLitePerson.self)
         let second = XLSchema(dialect: FakeSecondDialect.self).table(DialectSecondPerson.self)
 
-        assertDialect(sqlite.name, XLSQLiteDialect.self)
-        assertDialect(second.name, FakeSecondDialect.self)
-        // An operator and a function pass the dialect on, so a composed
-        // expression carries it as its columns do.
-        assertDialect(second.name + second.name, FakeSecondDialect.self)
-        assertDialect(second.id + 1, FakeSecondDialect.self)
-        assertDialect(second.nickname.coalesce("none"), FakeSecondDialect.self)
-        assertDialect(second.nickname.isNull(), FakeSecondDialect.self)
-        assertDialect((second.id > 1).iif(then: "a", else: "b"), FakeSecondDialect.self)
-        assertDialect(second.name.like("a%"), FakeSecondDialect.self)
+        assertSQLite(sqlite.name)
+        assertSecond(second.name)
+        // A dialect's operators and functions return that dialect's
+        // expressions, so a composed expression is of its columns' dialect.
+        assertSecond(second.name + second.name)
+        assertSecond(second.id + 1)
+        assertSecond(second.nickname.coalesce("none"))
+        assertSecond(second.nickname.isNull())
+        assertSecond((second.id > 1).iif(then: "a", else: "b"))
+        assertSecond(second.name.like("a%"))
+        assertSecond(switchCase(second.id).when(1, then: "one").else("other"))
+        assertSecond(when(second.id > 1, then: "many").else("one"))
     }
 
-    // MARK: - Values are universal
+    // MARK: - Values belong to every dialect
 
-    func testValuesAndBindingsAreUniversal() {
+    func testValuesAndBindingsAreExpressionsOfEveryDialect() {
         let binding = XLNamedBindingReference<Int>(name: "id")
-        assertDialect(1, XLUniversalDialect.self)
-        assertDialect("a", XLUniversalDialect.self)
-        assertDialect(binding, XLUniversalDialect.self)
-        assertDialect(binding + 1, XLUniversalDialect.self)
-        // A universal operand takes the other operand's dialect.
+        assertSQLite(1)
+        assertSecond(1)
+        assertSQLite("a")
+        assertSecond("a")
+        assertSQLite(binding)
+        assertSecond(binding)
+        // A value composes with a column of either dialect, and the result is
+        // of the column's dialect.
+        let sqlite = XLSchema().table(DialectSQLitePerson.self)
         let second = XLSchema(dialect: FakeSecondDialect.self).table(DialectSecondPerson.self)
-        assertDialect(second.id == binding, FakeSecondDialect.self)
-        assertDialect(binding == second.id, FakeSecondDialect.self)
-        assertDialect(second.id == binding + 1, FakeSecondDialect.self)
+        assertSQLite(sqlite.id == binding)
+        assertSecond(second.id == binding)
+        assertSecond(binding == second.id)
+        assertSecond(second.id == binding + 1)
+    }
+
+    // A function of a value alone has nothing to pick a dialect, so where two
+    // dialects' surfaces are visible, as in this module, it takes the one not
+    // marked disfavoured: SQLite's. Next to a column, the column's dialect
+    // decides.
+    func testAFunctionOfAValueTakesItsDialectFromTheOtherOperand() throws {
+        let binding = XLNamedBindingReference<String?>(name: "nickname")
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.table(DialectSecondPerson.self)
+            Select(person.id)
+            From(person)
+            Where(person.name == binding.coalesce("none"))
+        }
+        XCTAssertEqual(
+            try secondSQL(second),
+            #"SELECT "t0"."id" FROM "person" AS "t0" WHERE ("t0"."name" == COALESCE(:nickname, 'none'))"#
+        )
+        assertSQLite(binding.coalesce("none"))
     }
 
     // MARK: - One query body, two dialects
@@ -173,23 +204,49 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertTrue(try sqliteSQL(statement).contains(#"WHERE ((("t0"."name" || 'x') COLLATE NOCASE) == 'ax')"#))
     }
 
-    func testAValueIsLiftedIntoSQLiteForSQLiteOperations() throws {
-        let lifted = "2026-07-19 12:30:45".sqlite.datetime(.months(1))
-        assertDialect(lifted, XLSQLiteDialect.self)
+    // A value is a SQLite expression, so SQLite's own functions take it
+    // directly.
+    func testSQLiteOperationsApplyToValues() throws {
+        let date = "2026-07-19 12:30:45".datetime(.months(1))
+        assertSQLite(date)
         XCTAssertEqual(
-            try sqliteSQL(lifted),
+            try sqliteSQL(date),
             "datetime('2026-07-19 12:30:45', '+1 months')"
         )
-        let explicit = "abc".expression(in: XLSQLiteDialect.self).collate(.nocase)
-        XCTAssertEqual(try sqliteSQL(explicit), "('abc' COLLATE NOCASE)")
+        XCTAssertEqual(try sqliteSQL("abc".collate(.nocase)), "('abc' COLLATE NOCASE)")
     }
 
-    // A value lifted into a dialect renders exactly as the value does.
-    func testLiftingAValueIntoADialectRendersTheValue() throws {
-        let binding = XLNamedBindingReference<Int?>(name: "id")
-        XCTAssertEqual(
-            try secondSQL(binding.expression(in: FakeSecondDialect.self).isNull()),
-            try secondSQL(binding.isNull())
+    // MARK: - Static row layouts
+
+    // A static field's factory takes its expression erased, so the dialect is
+    // checked when the field is built: a column of a model declared for
+    // another dialect throws.
+    func testAStaticFieldRefusesAColumnOfAnotherDialect() throws {
+        let second = XLSchema(dialect: FakeSecondDialect.self).table(DialectSecondPerson.self)
+        let identity = try XLQuerySlotIdentity(path: ["dialect", "name"])
+        XCTAssertThrowsError(
+            try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: second.name,
+                identifiedBy: identity
+            )
+        ) { error in
+            guard case XLStaticRowLayoutError.expressionDialectMismatch(
+                let thrownIdentity,
+                let expectedDialect,
+                _
+            ) = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+            XCTAssertEqual(thrownIdentity, identity)
+            XCTAssertEqual(expectedDialect, String(reflecting: XLSQLiteDialect.self))
+        }
+        let sqlite = XLSchema().table(DialectSQLitePerson.self)
+        let field = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+            selecting: sqlite.name,
+            identifiedBy: identity
         )
+        // The field's expression is of its dialect, so it composes with that
+        // dialect's expressions.
+        assertSQLite(field.expression == "a")
     }
 }

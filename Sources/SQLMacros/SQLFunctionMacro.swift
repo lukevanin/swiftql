@@ -40,12 +40,12 @@ public enum SQLFunctionMacroError: Error, CustomStringConvertible, LocalizedErro
 /// `definition` and `makeSQL(context:)` members from them.
 ///
 /// Every stored property becomes one positional SQL function argument, in declaration order. Each
-/// property must be typed as an expression -- `any XLTypedExpression<...>`, which takes a value or
-/// an expression of any dialect, `any XLExpression<..., Dialect>`, `any XLSQLiteExpression<...>`,
-/// the `some` form of any of these, or a module-qualified equivalent
-/// -- so that its `.makeSQL` method can be referenced directly from the generated code; any other
-/// stored property is reported as a diagnostic instead of silently producing code which fails to
-/// compile.
+/// property must be typed as an `XLExpression` or an `XLSQLiteExpression` (spelled
+/// `any XLExpression<...>`, `some XLExpression<...>`, `any XLSQLiteExpression<...>`, or a
+/// module-qualified equivalent) so that its `.makeSQL` method can be referenced directly from the
+/// generated code; any other stored property is reported as a diagnostic instead of silently
+/// producing code which fails to compile. A custom function runs inside SQLite, and an
+/// `XLSQLiteExpression` argument takes only a SQLite expression (issue #789).
 ///
 internal struct FunctionMetaBuilder {
 
@@ -180,7 +180,7 @@ internal struct FunctionMetaBuilder {
             guard isExpressionType(annotation.type) else {
                 report(
                     annotation.type, id: "unsupported-argument-type",
-                    "Property '\(name)' must be typed as 'any XLTypedExpression<...>' (or 'any XLExpression<..., Dialect>', or the 'some' form of either) to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
+                    "Property '\(name)' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
                 )
                 continue
             }
@@ -191,23 +191,11 @@ internal struct FunctionMetaBuilder {
     }
 
     ///
-    /// The expression protocols a property may name (issue #789): `XLTypedExpression`, which
-    /// takes an expression of any dialect, `XLExpression`, and its SQLite shorthand
-    /// `XLSQLiteExpression`.
-    ///
-    private static let expressionTypeNames: Set<String> = [
-        "XLTypedExpression",
-        "XLExpression",
-        "XLSQLiteExpression",
-    ]
-
-    ///
-    /// Determines whether a type annotation is an expression protocol, spelled as an existential
-    /// (`any XLTypedExpression<...>`), an opaque type (`some XLTypedExpression<...>`), or a
-    /// module-qualified equivalent (`any SwiftQL.XLTypedExpression<...>`). A property whose type
-    /// is a typealias of the user's own for one of them, or a concrete conforming type, is not
-    /// recognised by this syntactic check -- spell the property using `any`/`some` to use it as a
-    /// function argument.
+    /// Determines whether a type annotation is an `XLExpression`, spelled as an existential
+    /// (`any XLExpression<...>`), an opaque type (`some XLExpression<...>`), or a module-qualified
+    /// equivalent (`any SwiftQL.XLExpression<...>`). A property whose type is a typealias for
+    /// `XLExpression`, or a concrete conforming type, is not recognised by this syntactic check —
+    /// spell the property using `any`/`some XLExpression` to use it as a function argument.
     ///
     private static func isExpressionType(_ type: TypeSyntax) -> Bool {
         if let existential = type.as(SomeOrAnyTypeSyntax.self) {
@@ -221,6 +209,16 @@ internal struct FunctionMetaBuilder {
         }
         return false
     }
+
+    ///
+    /// The expression protocols a property may name: `XLExpression`, which takes an expression
+    /// of any dialect, and `XLSQLiteExpression`, which takes only a SQLite expression
+    /// (issue #789).
+    ///
+    private static let expressionTypeNames: Set<String> = [
+        "XLExpression",
+        "XLSQLiteExpression",
+    ]
 
     // MARK: - Generation
 

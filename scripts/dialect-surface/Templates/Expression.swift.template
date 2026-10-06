@@ -1,0 +1,145 @@
+//
+//  Expression.swift.template
+//
+//  The dialect's expression protocol, and the types that conform to it.
+//  scripts/dialect-surface/generate.py renders it once for each dialect in
+//  scripts/dialect-surface/dialects.json (issue #789).
+//
+
+import Foundation
+
+
+///
+/// An expression of a {{DialectName}} query.
+///
+/// The operators and functions of {{DialectName}} take and return
+/// `{{Expression}}`, so they compose a {{DialectName}} query's columns, its
+/// values, and the expressions made from them, and nothing of another
+/// dialect: comparing a column of a model declared for another dialect, or
+/// calling a function {{DialectName}} does not have, is a compile error at the
+/// call site.
+///
+/// These are {{DialectName}} expressions:
+///
+/// - A column of a model declared for {{DialectName}}.
+/// - A Swift value, an optional of one, a named binding, an enum, and a custom
+///   type. A value is written the same way in every dialect, so it is an
+///   expression of every dialect.
+/// - A capture or contextual binding that encodes its value for
+///   {{DialectName}}.
+/// - The result of a {{DialectName}} operator or function, which returns
+///   `some {{Expression}}`.
+///
+/// A helper that builds part of a query takes and returns this protocol:
+///
+/// ```swift
+/// func isAdult(_ age: any {{Expression}}<Int>) -> some {{Expression}}<Bool> {
+///     age >= 18
+/// }
+/// ```
+///
+public protocol {{Expression}}<T>: XLExpression {
+}
+
+
+// MARK: - Columns and dialect-encoded values
+
+
+extension XLColumnReference: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension XLColumnResult: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension XLDialectExpression: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension XLQueryCapture: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension XLContextualBindingReference: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+
+// MARK: - Values
+
+
+extension Bool: {{Expression}} {
+}
+
+extension Int: {{Expression}} {
+}
+
+extension Double: {{Expression}} {
+}
+
+extension String: {{Expression}} {
+}
+
+extension Data: {{Expression}} {
+}
+
+extension Optional: {{Expression}} where Wrapped: {{Expression}} {
+}
+
+extension XLNamedBindingReference: {{Expression}} {
+}
+
+extension XLAllColumns: {{Expression}} {
+}
+
+
+// MARK: - Composed expressions
+
+
+// An operator or a function of the dialect returns `some {{Expression}}`,
+// which hides the type of the node it builds. The node itself conforms for
+// every dialect, and the opaque result is what keeps it in one.
+
+extension XLUnaryOperatorExpression: {{Expression}} {
+}
+
+extension XLPrefixOperatorExpression: {{Expression}} {
+}
+
+extension XLPostfixOperatorExpression: {{Expression}} {
+}
+
+extension XLComparisonExpression: {{Expression}} {
+}
+
+extension XLNullTestExpression: {{Expression}} {
+}
+
+extension XLBinaryOperatorExpression: {{Expression}} {
+}
+
+extension XLConcatenationExpression: {{Expression}} {
+}
+
+extension XLInValueExpression: {{Expression}} {
+}
+
+extension XLInTableExpression: {{Expression}} {
+}
+
+extension XLTypeCastExpression: {{Expression}} {
+}
+
+extension XLTypeAffinityExpression: {{Expression}} {
+}
+
+extension XLNullCoalesceExpression: {{Expression}} {
+}
+
+extension XLIfExpression: {{Expression}} {
+}
+
+extension XLFunction: {{Expression}} {
+}
+
+extension XLLikeEscapeExpression: {{Expression}} {
+}
+
+extension XLBetweenExpression: {{Expression}} {
+}

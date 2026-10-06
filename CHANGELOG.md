@@ -325,6 +325,87 @@
   - `XLStaticRowLayoutError.unsupportedSQLiteStorage` and
     `XLQueryCaptureError.unsupportedLiteralStorage` keep their names, and
     their messages no longer say SQLite.
+- **The dialect is part of a query's types** (issue #789). A model is
+  declared for one dialect, and its columns compose only with that dialect's
+  expressions, so an operation one dialect does not have is a compile error at
+  the call site in another dialect's query. A SQLite model, query, and value
+  are written as before; what changes is code that names SwiftQL's expression
+  types.
+  - Each dialect has its own expression protocol, and SQLite's is
+    `XLSQLiteExpression`. The operators and functions take and return it. A
+    helper that composes part of a query names it instead of `XLExpression`.
+    Before:
+
+    ```swift
+    func isAdult(_ age: any XLExpression<Int>) -> some XLExpression<Bool> {
+        age >= 18
+    }
+    ```
+
+    After:
+
+    ```swift
+    func isAdult(_ age: any XLSQLiteExpression<Int>) -> some XLSQLiteExpression<Bool> {
+        age >= 18
+    }
+    ```
+
+    `XLExpression` still names any expression, and `Where`, `OrderBy`,
+    `Select`, a column assignment, and every other clause that does not
+    compose its expression still take it, so a stored predicate passed to a
+    clause keeps its type. A stored `any XLExpression<T>` that is then
+    compared, added to, or given a function becomes
+    `any XLSQLiteExpression<T>`; without the change the operator reports that
+    no overload applies, often as a requirement on an unrelated protocol such
+    as "requires that 'X' conform to 'BinaryInteger'".
+  - A type of your own that conforms to `XLExpression` and is used as an
+    operand also conforms to `XLSQLiteExpression`. Before:
+    `struct Celsius: XLExpression, XLBindable, XLLiteral`. After:
+    `struct Celsius: XLExpression, XLBindable, XLLiteral, XLSQLiteExpression`.
+    A type that conforms to `XLCustomType` or `XLEnum` needs no change: both
+    include `XLSQLiteExpression`. `XLCustomFunction` refines it, because a
+    custom function runs inside SQLite.
+  - A Swift value, an optional of one, a named binding, an enum, and a custom
+    type are expressions of every dialect, so they need no conversion next to
+    a column. A function of a value alone, such as `"abc".collate(.nocase)`,
+    is SQLite's.
+  - SQLite's own functions are declared only on `XLSQLiteExpression`:
+    `collate(_:)`, `regexp(_:)`, `printf(_:)`, the JSON and JSONB functions
+    and operators, the date functions, and `json_group_array` and
+    `json_group_object`. So are `Insert(_:or:)`, `Replace`, and the
+    `insert(_:or:)` and `replace` statement functions. A DocC link to one of
+    them changes from `XLExpression/minifiedJSON()` to
+    `XLSQLiteExpression/minifiedJSON()`.
+  - `@SQLTable(dialect:)` and `@SQLResult(dialect:)` name the dialect a model
+    belongs to. Without the argument it is `XLSQLiteDialect`. Each column's
+    type carries it: `XLColumnReference<String, XLSQLiteDialect>` and
+    `XLColumnResult<String, XLSQLiteDialect>`, where code that names one wrote
+    `XLColumnReference<String>`. A model two dialects need is declared once
+    for each.
+  - `XLSchema` is generic over its dialect. `XLSchema()` is still a SQLite
+    schema, and `XLSQLiteSchema` names its type: a function that took an
+    `XLSchema` takes an `XLSQLiteSchema`. `XLSchema(dialect:)` and
+    `sql(dialect:_:)` start another dialect's query. `schema.table(_:)` takes
+    only a model declared for the schema's dialect.
+  - `XLResult` and the metadata protocols the macros conform to have a
+    `Dialect` associated type, which they infer from a `_dialect` member the
+    macros generate. A hand-written conformance declares
+    `public static var _dialect: XLSQLiteDialect.Type { XLSQLiteDialect.self }`
+    on the model, and the instance form on its metadata. A model property
+    named `_dialect` is reported, as other generated names are.
+  - Types that carry the dialect gained a generic parameter for it:
+    `ConstantCase`, `ConstantCaseWhenThen`, `ConstantCaseWhenThenElse`,
+    `VariableCaseWhenThen`, `VariableCaseElse`, `XLScalarCommonTable`, and
+    `XLScalarCommonTableReference`.
+  - `XLStaticSelectField.expression` is an `XLDialectExpression<Storage,
+    Dialect>`, an expression of the field's dialect, so it can be compared
+    with a capture. The field factories take their expression erased, so they
+    check its dialect when the field is built: a column of a model declared
+    for another dialect throws the new
+    `XLStaticRowLayoutError.expressionDialectMismatch(identity:expectedDialect:expressionType:)`.
+    A `switch` over `XLStaticRowLayoutError` with no `default` clause must
+    handle it. `staticStorageExpression(as:)` on a column returns the column,
+    retyped, in its dialect.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
   (issue #677), so a connection outside SwiftQL keeps compiling. See "A
   connection's statement cache can be observed and warmed" under "Added".
@@ -386,6 +467,25 @@
     A `@SQLQueries` container supplies its dialect to every specification.
     SwiftQL's requests are SQLite's, so a declared query that names another
     dialect does not compile until a driver for that dialect exists.
+
+- **A query is written for a dialect** (issue #789). See "The dialect is part
+  of a query's types" under "Migration".
+  - `@SQLTable(dialect:)` and `@SQLResult(dialect:)` declare a model for a
+    dialect other than SQLite, and `sql(dialect:_:)` and `XLSchema(dialect:)`
+    start a query in it.
+  - Each dialect's operators and functions are generated from one set of
+    templates by `scripts/dialect-surface/generate.py`, into a directory of
+    the dialect's own: SQLite's is `Sources/SwiftQL/Dialects/SQLite/Generated`.
+    `dialects.json` lists the dialects, and CI fails when the checked-in
+    output differs from what the templates generate. A function only one
+    dialect has is written by hand, on that dialect's expression protocol.
+  - `XLDialectExpression<T, Dialect>` is the expression an API returns when
+    it knows its dialect only as a generic parameter, such as a scalar
+    subquery on an `XLSchema<Dialect>`.
+  - The initializers of `XLBetweenExpression` and `XLLikeEscapeExpression`
+    are public, and `XLInValueExpression` has an `init(lhs:list:negated:)`,
+    so a dialect declared outside SwiftQL can generate its surface from the
+    same templates.
 
 - **A connection's statement cache can be observed and warmed** (issue
   #677). A driver does not have to cache statements; one that does can let

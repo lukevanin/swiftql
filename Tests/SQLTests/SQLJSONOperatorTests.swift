@@ -31,22 +31,16 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     func testElementSelectionRendersTheArrowOperator() {
         assertSQL(
-            sqliteDocument().jsonElement(at: XLJSONPath.root.key("a")),
+            document().jsonElement(at: XLJSONPath.root.key("a")),
             "(:document -> '$.a')"
         )
     }
 
     func testValueSelectionRendersTheDoubleArrowOperator() {
         assertSQL(
-            sqliteDocument().jsonValue(at: XLJSONPath.root.key("a"), as: String.self),
+            document().jsonValue(at: XLJSONPath.root.key("a"), as: String.self),
             "(:document ->> '$.a')"
         )
     }
@@ -56,30 +50,30 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         // Swift result type changes, which is what `->>` promises.
         let path = XLJSONPath.root.key("a")
         assertSQL(
-            sqliteDocument().jsonValue(at: path, as: Int.self),
+            document().jsonValue(at: path, as: Int.self),
             "(:document ->> '$.a')"
         )
         assertSQL(
-            sqliteDocument().jsonValue(at: path, as: Double.self),
+            document().jsonValue(at: path, as: Double.self),
             "(:document ->> '$.a')"
         )
         assertExpressionType(
-            sqliteDocument().jsonValue(at: path, as: Int.self),
+            document().jsonValue(at: path, as: Int.self),
             Int?.self
         )
         assertExpressionType(
-            sqliteDocument().jsonValue(at: path, as: String.self),
+            document().jsonValue(at: path, as: String.self),
             String?.self
         )
         assertExpressionType(
-            sqliteDocument().jsonElement(at: path),
+            document().jsonElement(at: path),
             String?.self
         )
     }
 
     func testSelectionsNest() {
         assertSQL(
-            sqliteDocument()
+            document()
                 .jsonElement(at: XLJSONPath.root.key("a"))
                 .jsonValue(at: XLJSONPath.root.key("b"), as: Int.self),
             "((:document -> '$.a') ->> '$.b')"
@@ -90,20 +84,20 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         // Each selection carries its own parentheses, so it stays one operand
         // when it is nested in a function argument.
         assertSQL(
-            sqliteDocument().jsonElement(at: XLJSONPath.root.key("a")).validJSONOrNull(),
+            document().jsonElement(at: XLJSONPath.root.key("a")).validJSONOrNull(),
             "json_valid((:document -> '$.a'))"
         )
     }
 
     func testAPathSegmentIsEscapedOnTheRightOfTheOperator() {
         assertSQL(
-            sqliteDocument().jsonValue(at: XLJSONPath.root.key("a.b"), as: Int.self),
+            document().jsonValue(at: XLJSONPath.root.key("a.b"), as: Int.self),
             "(:document ->> '$.\"a.b\"')"
         )
     }
 
     private func assertSQL<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -116,7 +110,7 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         )
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }
 
@@ -151,14 +145,8 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     private func evaluate<Value>(
-        _ expression: any XLTypedExpression<Value>,
+        _ expression: any XLExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -173,12 +161,12 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         let json = #"{"name":"Alice"}"#
         let path = XLJSONPath.root.key("name")
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonElement(at: path), document: json),
+            try evaluate(document().jsonElement(at: path), document: json),
             #""Alice""#
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(at: path, as: String.self),
+                document().jsonValue(at: path, as: String.self),
                 document: json
             ),
             "Alice"
@@ -189,12 +177,12 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         let json = #"{"age":41}"#
         let path = XLJSONPath.root.key("age")
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonElement(at: path), document: json),
+            try evaluate(document().jsonElement(at: path), document: json),
             "41"
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(at: path, as: Int.self),
+                document().jsonValue(at: path, as: Int.self),
                 document: json
             ),
             41
@@ -204,7 +192,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
     func testARealNumberSurvivesAsADouble() throws {
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(
+                document().jsonValue(
                     at: XLJSONPath.root.key("ratio"),
                     as: Double.self
                 ),
@@ -218,14 +206,14 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         let json = #"{"a":null}"#
         let path = XLJSONPath.root.key("a")
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonElement(at: path), document: json),
+            try evaluate(document().jsonElement(at: path), document: json),
             "null"
         )
         // The row is present and its single column is SQL NULL. Unwrapping
         // the outer optional separates that from "no row at all", and keeps
         // the assertion off a double optional.
         guard let value = try evaluate(
-            sqliteDocument().jsonValue(at: path, as: String.self),
+            document().jsonValue(at: path, as: String.self),
             document: json
         ) else {
             XCTFail("the statement should return one row")
@@ -239,11 +227,11 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         let path = XLJSONPath.root.key("missing")
         guard
             let element = try evaluate(
-                sqliteDocument().jsonElement(at: path),
+                document().jsonElement(at: path),
                 document: json
             ),
             let value = try evaluate(
-                sqliteDocument().jsonValue(at: path, as: Int.self),
+                document().jsonValue(at: path, as: Int.self),
                 document: json
             )
         else {
@@ -258,12 +246,12 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         let json = #"{"a":{"b":1}}"#
         let path = XLJSONPath.root.key("a")
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonElement(at: path), document: json),
+            try evaluate(document().jsonElement(at: path), document: json),
             #"{"b":1}"#
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(at: path, as: String.self),
+                document().jsonValue(at: path, as: String.self),
                 document: json
             ),
             #"{"b":1}"#
@@ -275,7 +263,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
     func testSelectionsChain() throws {
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument()
+                document()
                     .jsonElement(at: XLJSONPath.root.key("a"))
                     .jsonValue(at: XLJSONPath.root.key("b"), as: Int.self),
                 document: #"{"a":{"b":7}}"#
@@ -287,7 +275,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
     func testAnIndexedPathSelectsAnArrayElement() throws {
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(
+                document().jsonValue(
                     at: XLJSONPath.root.key("items").index(1),
                     as: Int.self
                 ),
@@ -297,7 +285,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(
+                document().jsonValue(
                     at: XLJSONPath.root.key("items").last,
                     as: Int.self
                 ),
@@ -310,7 +298,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
     func testAKeyHoldingADotSelectsThroughTheOperator() throws {
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonValue(
+                document().jsonValue(
                     at: XLJSONPath.root.key("a.b"),
                     as: Int.self
                 ),

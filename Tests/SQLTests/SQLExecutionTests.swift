@@ -264,7 +264,7 @@ final class XLExecutionTests: XCTestCase {
     }
 
     func testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions() throws {
-        let literal: any XLExpression<Int, XLUniversalDialect> = 12
+        let literal: any XLSQLiteExpression<Int> = 12
         let literalStatement = sql { _ in
             Select(~literal)
         }
@@ -374,7 +374,7 @@ final class XLExecutionTests: XCTestCase {
             rhs rhsValue: String
         ) throws -> Bool? {
             let statement = sql { _ in
-                Select(lhs.sqlite.collate(collation) == rhs)
+                Select(lhs.collate(collation) == rhs)
             }
             var request = database.makeRequest(with: statement)
             request.set(lhs, lhsValue)
@@ -401,7 +401,7 @@ final class XLExecutionTests: XCTestCase {
         let rhs = XLNamedBindingReference<String>(name: "rhs")
 
         let collatedOperand = sql { _ in
-            Select((lhs.sqlite.collate(.rtrim) + rhs) == "a")
+            Select((lhs.collate(.rtrim) + rhs) == "a")
         }
         var collatedOperandRequest = database.makeRequest(with: collatedOperand)
         collatedOperandRequest.set(lhs, "a ")
@@ -410,7 +410,7 @@ final class XLExecutionTests: XCTestCase {
 
         let collatedResult = sql { _ in
             Select(
-                (lhs.sqlite.collate(.rtrim) + rhs)
+                (lhs.collate(.rtrim) + rhs)
                     .collate(.nocase) == "a"
             )
         }
@@ -697,14 +697,14 @@ final class XLExecutionTests: XCTestCase {
     /// containing NULL is unknown.
     ///
     /// A NULL *element* cannot be written through this overload at all — the
-    /// list is `[any XLTypedExpression<Int>]` and an optional expression does not
+    /// list is `[any XLExpression<Int>]` and an optional expression does not
     /// conform — so `1 NOT IN (2, NULL)` returning NULL is unreachable from the
     /// typed surface. Nullable IN operands are owned by #68.
     func testNotInValueListAndEmptySetSemantics() throws {
         let probe = XLNamedBindingReference<Int>(name: "probe")
 
         func evaluate(
-            _ build: (any XLExpression<Int, XLUniversalDialect>) -> any XLTypedExpression<Bool>,
+            _ build: (any XLSQLiteExpression<Int>) -> any XLSQLiteExpression<Bool>,
             probeValue: Int
         ) throws -> Bool? {
             let statement = sql { _ in Select(build(probe)) }
@@ -878,7 +878,7 @@ final class XLExecutionTests: XCTestCase {
         let probe = XLNamedBindingReference<Int?>(name: "probe")
 
         func evaluate(
-            _ build: (XLNamedBindingReference<Int?>) -> any XLTypedExpression<Optional<Bool>>,
+            _ build: (XLNamedBindingReference<Int?>) -> any XLSQLiteExpression<Optional<Bool>>,
             probeValue: Int?
         ) throws -> Bool?? {
             let statement = sql { _ in Select(build(probe)) }
@@ -2320,13 +2320,13 @@ final class XLExecutionTests: XCTestCase {
             // fresh `(schema: XLSchema) in` parameter, which opens a new
             // namespace restarting at `t0` and would shadow `driver`'s own
             // alias instead of correlating against it.
-            let sumExpression: any XLTypedExpression<Int?> = subqueryExpression {
+            let sumExpression: any XLExpression<Int?> = subqueryExpression {
                 let t = schema.table(TestTable.self)
                 Select(t.value.sumOrNull())
                 From(t)
                 Where(t.id == driver.id)
             }
-            let firstValueExpression: any XLTypedExpression<Int?> = subqueryExpression {
+            let firstValueExpression: any XLExpression<Int?> = subqueryExpression {
                 let d = schema.table(TestNullablesTable.self)
                 Select(d.value)
                 From(d)
@@ -2336,7 +2336,7 @@ final class XLExecutionTests: XCTestCase {
             // this observably distinguishes "a row containing NULL" (count
             // 1) from "no row" (count 0) even though firstValue decodes to
             // nil in both cases.
-            let detailRowExistsExpression: any XLTypedExpression<Bool?> = subqueryExpression {
+            let detailRowExistsExpression: any XLExpression<Bool?> = subqueryExpression {
                 let d = schema.table(TestNullablesTable.self)
                 Select(d.id.count() > 0)
                 From(d)

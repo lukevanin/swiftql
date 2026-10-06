@@ -437,8 +437,8 @@ enum JobState: String, XLEnum {
 ///
 /// Subtracts two dates and returns the number of seconds difference.
 ///
-func -<D>(lhs: any SwiftQL.XLExpression<Date, D>, rhs: any SwiftQL.XLExpression<Date, D>) -> some SwiftQL.XLExpression<TimeInterval, D> {
-    XLBinaryOperatorExpression<Int, D>(op: "-", lhs: lhs, rhs: rhs).toDouble()
+func -(lhs: any SwiftQL.XLExpression<Date>, rhs: any SwiftQL.XLExpression<Date>) -> some SwiftQL.XLExpression<TimeInterval> {
+    XLBinaryOperatorExpression<Int>(op: "-", lhs: lhs, rhs: rhs).toDouble()
 }
 
 
@@ -521,16 +521,16 @@ public struct HaversineDistance: XLCustomFunction {
     )
     
     // Define parameters which are passed to the function at runtime.
-    private let fromLatitude: any SwiftQL.XLTypedExpression
-    private let fromLongitude: any SwiftQL.XLTypedExpression
-    private let toLatitude: any SwiftQL.XLTypedExpression
-    private let toLongitude: any SwiftQL.XLTypedExpression
+    private let fromLatitude: any SwiftQL.XLExpression
+    private let fromLongitude: any SwiftQL.XLExpression
+    private let toLatitude: any SwiftQL.XLExpression
+    private let toLongitude: any SwiftQL.XLExpression
     
     init(
-        fromLatitude: any SwiftQL.XLTypedExpression<Double>,
-        fromLongitude: any SwiftQL.XLTypedExpression<Double>,
-        toLatitude: any SwiftQL.XLTypedExpression<Double>,
-        toLongitude: any SwiftQL.XLTypedExpression<Double>
+        fromLatitude: any SwiftQL.XLExpression<Double>,
+        fromLongitude: any SwiftQL.XLExpression<Double>,
+        toLatitude: any SwiftQL.XLExpression<Double>,
+        toLongitude: any SwiftQL.XLExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude
@@ -1778,6 +1778,23 @@ extension XLDocumentationTests {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
 
+        // Expressions and dialects (issue #789): a helper that composes part
+        // of a SQLite query takes and returns SQLite expressions.
+        func isAdult(_ age: any XLSQLiteExpression<Int>) -> some XLSQLiteExpression<Bool> {
+            age >= 18
+        }
+
+        let adults = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(isAdult(person.age))
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(adults).sql,
+            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.age >= 18)"
+        )
+
         let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
         let nickname = XLNamedBindingReference<String?>(name: "nickname")
         let expression = preferredName ?? nickname ?? "Anonymous"
@@ -1890,7 +1907,7 @@ extension XLDocumentationTests {
             XLRegexPatternTests.testARegexBuilderPatternSelectsTheSameRowsAsTheEquivalentString
 
         let firstOfNextMonth = sql { _ in
-            Select("2026-07-19 12:30:45".sqlite.datetime(.months(1), .startOfMonth))
+            Select("2026-07-19 12:30:45".datetime(.months(1), .startOfMonth))
         }
         XCTAssertTrue(
             encoder.makeSQL(firstOfNextMonth).sql.contains(

@@ -13,21 +13,21 @@ import Foundation
 /// `document ->> path`.
 ///
 /// The two operators select the same element and differ only in what they
-/// return. See ``XLExpression/jsonElement(at:)`` and
-/// ``XLExpression/jsonValue(at:as:)``.
+/// return. See ``XLSQLiteExpression/jsonElement(at:)`` and
+/// ``XLSQLiteExpression/jsonValue(at:as:)``.
 ///
-struct XLJSONSelectionExpression<T, Dialect>: XLExpression {
+struct XLJSONSelectionExpression<T>: XLSQLiteExpression {
 
     private let symbol: String
 
-    private let document: any XLTypedExpression
+    private let document: any XLSQLiteExpression
 
-    private let path: any XLTypedExpression
+    private let path: any XLSQLiteExpression
 
     init(
         symbol: String,
-        document: any XLTypedExpression,
-        path: any XLTypedExpression
+        document: any XLSQLiteExpression,
+        path: any XLSQLiteExpression
     ) {
         self.symbol = symbol
         self.document = document
@@ -66,9 +66,7 @@ struct XLJSONSelectionExpression<T, Dialect>: XLExpression {
 /// key, and it composes, so the shorthand would be a second way to write what
 /// the path type covers.
 ///
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     ///
     /// Selects the element at `path` and returns it as JSON text, rendering
@@ -81,9 +79,9 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     ///
     /// Use ``jsonValue(at:as:)`` to read an element as a SQL value instead.
     ///
-    public func jsonElement(at path: XLJSONPath) -> some XLExpression<String?, Dialect>
+    public func jsonElement(at path: XLJSONPath) -> some XLSQLiteExpression<String?>
     where T: XLLiteral {
-        XLJSONSelectionExpression<String?, Dialect>(
+        XLJSONSelectionExpression<String?>(
             symbol: "->",
             document: self,
             path: path
@@ -105,8 +103,8 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     public func jsonValue<Value>(
         at path: XLJSONPath,
         as _: Value.Type
-    ) -> some XLExpression<Value?, Dialect> where T: XLLiteral, Value: XLLiteral {
-        XLJSONSelectionExpression<Value?, Dialect>(
+    ) -> some XLSQLiteExpression<Value?> where T: XLLiteral, Value: XLLiteral {
+        XLJSONSelectionExpression<Value?>(
             symbol: "->>",
             document: self,
             path: path

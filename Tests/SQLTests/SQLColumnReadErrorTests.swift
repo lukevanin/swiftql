@@ -34,9 +34,9 @@ struct ColumnReadIntegerFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
-    private let value: any XLTypedExpression<Int?>
+    private let value: any XLExpression<Int?>
 
-    init(_ value: any XLTypedExpression<Int?>) {
+    init(_ value: any XLExpression<Int?>) {
         self.value = value
     }
 

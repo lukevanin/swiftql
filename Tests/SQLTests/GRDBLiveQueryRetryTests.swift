@@ -118,7 +118,7 @@ private struct LiveQueryRetryRecord: Equatable {
 }
 
 
-private struct InjectedBusyExpression: XLExpression {
+private struct InjectedBusyExpression: XLSQLiteExpression {
     typealias T = Int
 
     static let functionName = "swiftql_test_injected_busy"

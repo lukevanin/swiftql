@@ -1,0 +1,98 @@
+//
+//  CaseWhenThen.swift.template
+//
+//  CASE expressions. The builder types are in SQLCaseWhenThen.swift.
+//  scripts/dialect-surface/generate.py renders it once for each dialect in
+//  scripts/dialect-surface/dialects.json (issue #789).
+//
+
+import Foundation
+
+
+// MARK: - Constant Case-When-Then expression
+
+
+extension ConstantCaseWhenThen: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension ConstantCaseWhenThenElse: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+
+///
+/// Starts a `CASE` expression that compares `condition` with the condition of
+/// each `when(_:then:)` arm.
+///
+public func switchCase<T>(_ condition: any {{Expression}}<T>) -> ConstantCase<T, {{Dialect}}> {
+    ConstantCase(_dialectSurfaceCondition: condition)
+}
+
+
+extension ConstantCase where Dialect == {{Dialect}} {
+
+    ///
+    /// Defines a condition that is matches against the term in the case statement.
+    ///
+    /// - Returns: Complete case/when/then expression.
+    ///
+    /// The case statement evaluates to the `then` result when the condition matches the term in the
+    /// case statement.
+    ///
+    public func when<U>(_ condition: any {{Expression}}<T>, then result: any {{Expression}}<U>) -> ConstantCaseWhenThen<T, U, {{Dialect}}> {
+        _when(condition, then: result)
+    }
+}
+
+
+extension ConstantCaseWhenThen where Dialect == {{Dialect}} {
+
+    ///
+    /// Defines a condition that is matches against the term in the case statement.
+    ///
+    /// - Returns: Complete case/when/then expression.
+    ///
+    /// The case statement evaluates to the `then` result when the condition matches the term in the
+    /// case statement.
+    ///
+    public func when(_ condition: any {{Expression}}<Condition>, then result: any {{Expression}}<Result>) -> ConstantCaseWhenThen<Condition, Result, {{Dialect}}> {
+        _when(condition, then: result)
+    }
+
+    ///
+    /// Defines a fallback result that is used when no `when` condition matches the case term.
+    ///
+    public func `else`(_ result: any {{Expression}}<Result>) -> ConstantCaseWhenThenElse<Condition, Result, {{Dialect}}> {
+        _else(result)
+    }
+}
+
+
+// MARK: Variable Case-When-Then expression
+
+
+extension VariableCaseWhenThen: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+extension VariableCaseElse: {{Expression}} where Dialect == {{Dialect}} {
+}
+
+
+///
+/// Starts a `CASE` expression whose first arm gives `result` when `condition`
+/// is true.
+///
+public func when<Condition, Result>(_ condition: any {{Expression}}<Condition>, then result: any {{Expression}}<Result>) -> VariableCaseWhenThen<Result, {{Dialect}}> where Condition: XLBoolean {
+    VariableCaseWhenThen(_dialectSurfaceCondition: condition, then: result)
+}
+
+
+extension VariableCaseWhenThen where Dialect == {{Dialect}} {
+
+    public func when<Condition>(_ condition: any {{Expression}}<Condition>, then result: any {{Expression}}<Result>) -> VariableCaseWhenThen<Result, {{Dialect}}> where Condition: XLBoolean {
+        _when(condition, then: result)
+    }
+
+    public func `else`(_ result: any {{Expression}}<Result>) -> some {{Expression}}<Result> {
+        _else(result)
+    }
+}

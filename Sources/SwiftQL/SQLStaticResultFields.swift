@@ -128,16 +128,23 @@ where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
     /// Creates a codec-free field for an intrinsic v1 literal whose storage in
     /// `dialect` is statically known. This never calls `sqlDefault()`.
     ///
-    /// `expression` is an expression of `dialect`, such as a column of a model
-    /// declared for it (issue #789).
+    /// `expression` must be an expression of `dialect`, such as a column of a
+    /// model declared for it. A column of another dialect's model throws
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
+    /// (issue #789).
     public static func intrinsic(
-        selecting expression: any XLExpression<Value, Dialect>,
+        selecting expression: any XLExpression<Value>,
         identifiedBy identity: XLQuerySlotIdentity,
         using dialect: Dialect,
         context: XLValueCodingContext? = nil
     ) throws -> Self {
         let storage = try _xlStaticLiteralStorage(
             Value.self,
+            in: Dialect.self,
+            identity: identity
+        )
+        let expression = try _xlDialectExpression(
+            expression,
             in: Dialect.self,
             identity: identity
         )
@@ -182,7 +189,7 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
     /// The same as ``intrinsic(selecting:identifiedBy:using:context:)`` with
     /// a default `XLSQLiteDialect`.
     public static func intrinsic(
-        selecting expression: any XLExpression<Value, Dialect>,
+        selecting expression: any XLExpression<Value>,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil
     ) throws -> Self {
@@ -205,7 +212,7 @@ where Dialect: XLValueCodingDialect {
     }
 
     func column<Value>(
-        _ expression: any XLTypedExpression<Value>,
+        _ expression: any XLExpression<Value>,
         alias: XLName
     ) throws -> Value where Value: XLLiteral {
         throw XLStaticRowReadError.staticLayoutRequired(
@@ -259,38 +266,58 @@ func _xlStaticLiteralStorage<Dialect>(
 /// dialect.
 ///
 /// The configuration's field factories take the expression erased, so the
-/// dialect is checked here, at run time, rather than by the compiler: a
-/// column of a model declared for another dialect throws
-/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
-/// (issue #789). A retyped column keeps its own dialect, so the check reads
-/// the retyped expression.
+/// dialect is checked here, at run time, rather than by the compiler: see
+/// ``_xlDialectExpression(_:in:identity:)``.
 ///
 func _xlStaticStorageExpression<Storage, Dialect>(
     _ expression: any XLEncodable,
     as storageType: Storage.Type,
-    in _: Dialect.Type,
+    in dialect: Dialect.Type,
     identity: XLQuerySlotIdentity
-) throws -> any XLExpression<Storage, Dialect> {
-    let retyped: any XLEncodable
+) throws -> XLDialectExpression<Storage, Dialect> {
+    let typed: any XLExpression<Storage>
     if let retypable = expression as? any XLStaticStorageRetypableExpression {
-        retyped = retypable.staticStorageExpression(as: storageType)
+        typed = retypable.staticStorageExpression(as: storageType)
+    }
+    else if let expression = expression as? any XLExpression<Storage> {
+        typed = expression
     }
     else {
-        retyped = expression
-    }
-    if let typed = retyped as? any XLExpression<Storage, Dialect> {
-        return typed
-    }
-    guard retyped is any XLTypedExpression<Storage> else {
         throw XLStaticRowLayoutError.expressionStorageTypeMismatch(
             identity: identity,
             expectedStorageType: String(reflecting: Storage.self),
             expressionType: String(reflecting: type(of: expression))
         )
     }
-    throw XLStaticRowLayoutError.expressionDialectMismatch(
-        identity: identity,
-        expectedDialect: String(reflecting: Dialect.self),
-        expressionType: String(reflecting: type(of: expression))
-    )
+    return try _xlDialectExpression(typed, in: dialect, identity: identity)
+}
+
+
+///
+/// The selected expression as an expression of the field's dialect.
+///
+/// An expression that records its dialect, such as a column of a model or a
+/// capture, must record `Dialect`: a column of a model declared for another
+/// dialect throws
+/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
+/// (issue #789). Any other expression, such as a value, belongs to every
+/// dialect.
+///
+func _xlDialectExpression<Storage, Dialect>(
+    _ expression: any XLExpression<Storage>,
+    in _: Dialect.Type,
+    identity: XLQuerySlotIdentity
+) throws -> XLDialectExpression<Storage, Dialect> {
+    if let tagged = expression as? any XLDialectTaggedExpression,
+       tagged.expressionDialect != Dialect.self {
+        throw XLStaticRowLayoutError.expressionDialectMismatch(
+            identity: identity,
+            expectedDialect: String(reflecting: Dialect.self),
+            expressionType: String(reflecting: type(of: expression))
+        )
+    }
+    if let expression = expression as? XLDialectExpression<Storage, Dialect> {
+        return expression
+    }
+    return XLDialectExpression(expression)
 }

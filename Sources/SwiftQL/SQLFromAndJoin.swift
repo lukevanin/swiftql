@@ -81,7 +81,7 @@ public struct Join: XLTableStatement {
 
     private let table: XLEncodable
 
-    private let constraint: (any XLTypedExpression)?
+    private let constraint: (any XLExpression)?
 
     /// Column names shared by both tables for a `USING (...)` join constraint.
     /// Mutually exclusive with `constraint`; `NATURAL` joins use neither.
@@ -90,11 +90,11 @@ public struct Join: XLTableStatement {
     ///
     /// `Join` is a synonym for `Join.Inner`.
     ///
-    public init<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) where T: XLMetaNamedResult, U: XLBoolean {
+    public init<T, U>(_ table: T, on constraint: any XLExpression<U>) where T: XLMetaNamedResult, U: XLBoolean {
         self.init(kind: .innerJoin, table: table, constraint: constraint)
     }
 
-    internal init(kind: Kind, table: XLEncodable, constraint: (any XLTypedExpression)?) {
+    internal init(kind: Kind, table: XLEncodable, constraint: (any XLExpression)?) {
         self.kind = kind
         self.table = table
         self.constraint = constraint

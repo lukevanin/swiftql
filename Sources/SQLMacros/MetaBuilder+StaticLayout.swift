@@ -18,7 +18,7 @@ extension MetaBuilder {
         var context = CodeWriter()
         var columnParameters: [String] = []
         for property in properties {
-            columnParameters.append("\(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
+            columnParameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
         }
         context.block("public static func columns(\(columnParameters.joined(separator: ", "))) -> MetaResult") { context in
             context.block("return Self.makeSQLAnonymousResult", opening: "(", closing: ")") { context in

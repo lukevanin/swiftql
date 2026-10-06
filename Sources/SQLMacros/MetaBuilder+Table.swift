@@ -115,14 +115,13 @@ extension MetaBuilder {
             context.line("public typealias Row = \(structName)")
             
             for property in properties {
-                context.line("private let \(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
+                context.line("private let \(property.name): any XLExpression<\(property.qualifiedType)>")
             }
-
-            // Discrete parameters. A value fills one as well as an
-            // expression does, so they take the dialect-free protocol.
+            
+            // Discrete parameters.
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): any XLExpression<\(property.qualifiedType)>")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {
@@ -191,7 +190,7 @@ extension MetaBuilder {
 
             context.line("public var _xlColumns: Columns")
 
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLTypedExpression<Wrapped>>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
                 context.block("get") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression")
                 }
@@ -203,7 +202,7 @@ extension MetaBuilder {
             // For a nullable column, `nil` assigned through this overload
             // means SQL NULL. Leaving the column out of the statement is what
             // never assigning it does.
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLTypedExpression<Wrapped>>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
                 context.block("get") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression")
                 }
@@ -217,7 +216,7 @@ extension MetaBuilder {
             // overload instead of being ambiguous. An expression whose type
             // is `Wrapped?` only matches this overload, so it still applies.
             context.line("@_disfavoredOverload")
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLTypedExpression<Optional<Wrapped>>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>") { context in
                 context.block("get") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>()")
                 }
@@ -233,7 +232,7 @@ extension MetaBuilder {
             if !properties.isEmpty {
                 var parameters: [String] = []
                 for property in properties {
-                    parameters.append("\(property.name): Optional<any SwiftQL.XLTypedExpression<\(property.qualifiedType)>> = nil")
+                    parameters.append("\(property.name): Optional<any XLExpression<\(property.qualifiedType)>> = nil")
                 }
                 // A `nil` argument here means "leave this column out of the
                 // statement", matching every other column and this

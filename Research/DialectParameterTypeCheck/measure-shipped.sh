@@ -54,7 +54,7 @@ compile() {
 printf '== type-check time of one query body (median of %s) ==\n' "$repetitions"
 : >"$work/raw.txt"
 for _ in $(seq 1 "$repetitions"); do
-    for body in clauses-30 clauses-120 clauses-450 chain-2 chain-4 chain-6 chain-8; do
+    for body in clauses-30 clauses-120 clauses-450 chain-2 chain-4 chain-6 chain-8 chain-12 chain-16; do
         for index in "${!labels[@]}"; do
             if ! diagnostics="$(
                 compile "${roots[$index]}" -Xfrontend -debug-time-function-bodies \
@@ -100,7 +100,7 @@ EOF
 
 printf '\n== a mistake in the last term of one && chain (wall time, first error) ==\n'
 for kind in misspelled wrong-type; do
-    for count in 2 3 4 5 6; do
+    for count in 2 4 6 8 12 16; do
         body="chain-$kind-$count"
         for index in "${!labels[@]}"; do
             start="$(python3 -c 'import time; print(time.time())')"

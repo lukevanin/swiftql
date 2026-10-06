@@ -239,7 +239,7 @@ final class XLSyntaxLiteralTests: XLSyntaxTestCase {
     
     func test_Function() {
         let parameter = XLNamedBindingReference<Int>(name: "value")
-        let function = XLFunction<Int, XLSQLiteDialect>(
+        let function = XLFunction<Int>(
             name: "CUSTOM",
             distinct: true,
             parameters: [parameter, 1]

@@ -87,14 +87,14 @@ private final class DispatchRecordingRowReader: XLRowReader {
     private(set) var unconstrainedReads: [XLName] = []
 
     func column<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         alias: XLName
     ) -> T where T: XLLiteral {
         T.sqlDefault()
     }
 
     func staticColumn<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
         literalReads.append(alias)
@@ -102,7 +102,7 @@ private final class DispatchRecordingRowReader: XLRowReader {
     }
 
     func staticColumn<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         alias: XLName
     ) throws -> T {
         unconstrainedReads.append(alias)

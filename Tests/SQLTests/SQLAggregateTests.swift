@@ -147,12 +147,12 @@ final class XLAggregateTests: XCTestCase {
         let integer = XLNamedBindingReference<Int>(name: "integer")
         let real = XLNamedBindingReference<Double>(name: "real")
         let text = XLNamedBindingReference<String>(name: "text")
-        let minimum: any XLTypedExpression<Int> = integer.min()
-        let maximum: any XLTypedExpression<Int> = integer.max()
-        let sum: any XLTypedExpression<Int> = integer.sum()
-        let average: any XLTypedExpression<Double> = real.average()
-        let concatenated: any XLTypedExpression<String> = text.groupConcat()
-        let pipeConcatenated: any XLTypedExpression<String> = text.groupConcat(separator: "|")
+        let minimum: any XLExpression<Int> = integer.min()
+        let maximum: any XLExpression<Int> = integer.max()
+        let sum: any XLExpression<Int> = integer.sum()
+        let average: any XLExpression<Double> = real.average()
+        let concatenated: any XLExpression<String> = text.groupConcat()
+        let pipeConcatenated: any XLExpression<String> = text.groupConcat(separator: "|")
 
         XCTAssertEqual(encoder.makeSQL(minimum).sql, "MIN(:integer)")
         XCTAssertEqual(encoder.makeSQL(maximum).sql, "MAX(:integer)")
@@ -299,6 +299,6 @@ final class XLAggregateTests: XCTestCase {
         return try XCTUnwrap(results.first)
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }

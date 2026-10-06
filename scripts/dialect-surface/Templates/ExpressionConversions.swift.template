@@ -1,0 +1,37 @@
+//
+//  ExpressionConversions.swift.template
+//
+//  An enum's raw value, and a non-null expression as a nullable one. Moved
+//  from SQLExpression.swift.
+//  scripts/dialect-surface/generate.py renders it once for each dialect in
+//  scripts/dialect-surface/dialects.json (issue #789).
+//
+
+import Foundation
+
+
+extension {{Expression}} {
+
+    public func toRawValue() -> some {{Expression}}<Int> where T: XLEnum, T.RawValue == Int {
+        XLTypeAffinityExpression(expression: self)
+    }
+
+    public func toRawValue() -> some {{Expression}}<Double> where T: XLEnum, T.RawValue == Double {
+        XLTypeAffinityExpression(expression: self)
+    }
+
+    public func toRawValue() -> some {{Expression}}<String> where T: XLEnum, T.RawValue == String {
+        XLTypeAffinityExpression(expression: self)
+    }
+}
+
+
+extension {{Expression}} {
+
+    ///
+    /// Cast a non-null expression to an optional value expression.
+    ///
+    public func toNullable() -> some {{Expression}}<Optional<T>> {
+        XLTypeAffinityExpression(expression: self)
+    }
+}

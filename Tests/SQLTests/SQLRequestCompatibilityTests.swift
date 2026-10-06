@@ -438,7 +438,7 @@ private final class LegacyManualRowReader: XLRowReader {
     private(set) var readCount = 0
 
     func column<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         alias: XLName
     ) -> T where T: XLLiteral {
         readCount += 1

@@ -43,13 +43,13 @@ final class XLJSONAggregateRenderingTests: XCTestCase {
 
     func testGroupArrayRendersItsSQLiteName() {
         let value = XLNamedBindingReference<Int>(name: "value")
-        assertSQL(value.sqlite.jsonGroupArray(), "json_group_array(:value)")
+        assertSQL(value.jsonGroupArray(), "json_group_array(:value)")
     }
 
     func testGroupArrayRendersDISTINCT() {
         let value = XLNamedBindingReference<Int>(name: "value")
         assertSQL(
-            value.sqlite.jsonGroupArray(distinct: true),
+            value.jsonGroupArray(distinct: true),
             "json_group_array(DISTINCT :value)"
         )
     }
@@ -66,7 +66,7 @@ final class XLJSONAggregateRenderingTests: XCTestCase {
     func testBothAggregatesReturnNonOptionalJSONText() {
         let name = XLNamedBindingReference<String>(name: "name")
         let value = XLNamedBindingReference<Int>(name: "value")
-        assertExpressionType(value.sqlite.jsonGroupArray(), String.self)
+        assertExpressionType(value.jsonGroupArray(), String.self)
         assertExpressionType(
             jsonGroupObject(name: name, value: value),
             String.self
@@ -74,7 +74,7 @@ final class XLJSONAggregateRenderingTests: XCTestCase {
     }
 
     private func assertSQL<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -87,7 +87,7 @@ final class XLJSONAggregateRenderingTests: XCTestCase {
         )
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }
 

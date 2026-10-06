@@ -309,13 +309,14 @@ enum DialectGaugeCodecs {
 
 /// Builds the model's layout for any dialect, from columns of that dialect.
 /// Its body is the call site a caller writes for SQLite, with the dialect
-/// generic: the generated members absorb the parameter.
+/// generic: the generated members absorb the parameter. A field checks that
+/// its column is of `Dialect` when it is built (issue #789).
 private func dialectGaugeLayout<Dialect>(
     using dialect: Dialect,
-    id: any XLExpression<Int, Dialect>,
-    label: any XLExpression<String?, Dialect>,
-    code: any XLExpression<String, Dialect>,
-    alias: any XLExpression<String?, Dialect>,
+    id: any XLExpression<Int>,
+    label: any XLExpression<String?>,
+    code: any XLExpression<String>,
+    alias: any XLExpression<String?>,
     configuration: XLValueCodingConfiguration
 ) throws -> XLStaticRowLayout<DialectGauge, Dialect>
 where Dialect: XLLiteralValueDialect {

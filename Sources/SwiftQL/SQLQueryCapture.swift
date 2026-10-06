@@ -117,12 +117,8 @@ where Dialect: XLValueCodingDialect {
 /// The capture stores declaration metadata and, for intrinsic values, a
 /// stateless conversion function. It never retains an invocation value,
 /// database, registry, mutable argument table, or prepared statement.
-///
-/// A capture encodes its values for `Dialect`, so it is an expression of that
-/// dialect rather than a dialect-free value: it composes with the dialect's
-/// columns, and with other captures of it (issue #789).
 public struct XLQueryCapture<Input, Literal, Dialect>:
-    XLExpression,
+    XLBindingReference,
     Sendable
 where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 
@@ -429,7 +425,7 @@ extension XLValueCodingConfiguration {
     /// when no representative expression is available.
     public func queryCapture<Input, Literal, Dialect>(
         _ inputType: Input.Type,
-        matching _: any XLTypedExpression<Literal>,
+        matching _: any XLExpression<Literal>,
         identifiedBy identity: XLQuerySlotIdentity,
         using dialect: Dialect,
         context: XLValueCodingContext? = nil,
@@ -475,7 +471,7 @@ extension GRDBDatabase {
     /// source of literal type, nullability, and SQLite storage metadata.
     public func queryCapture<Input, Literal>(
         _ inputType: Input.Type,
-        matching expression: any XLTypedExpression<Literal>,
+        matching expression: any XLExpression<Literal>,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred

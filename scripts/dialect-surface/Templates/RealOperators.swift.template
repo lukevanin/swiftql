@@ -1,0 +1,84 @@
+//
+//  RealOperators.swift
+//  
+//
+//  Created by Luke Van In on 2023/08/07.
+//
+
+import Foundation
+
+
+// MARK: - Addition
+
+public func +<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<T> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "+", lhs: lhs, rhs: rhs)
+}
+
+public func +<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<T>> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "+", lhs: lhs, rhs: rhs)
+}
+
+public func +<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "+", lhs: lhs, rhs: rhs)
+}
+
+public func +<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "+", lhs: lhs, rhs: rhs)
+}
+
+
+// MARK: - Subtraction
+
+public func -<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<T> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "-", lhs: lhs, rhs: rhs)
+}
+
+public func -<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<T>> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "-", lhs: lhs, rhs: rhs)
+}
+
+public func -<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "-", lhs: lhs, rhs: rhs)
+}
+
+public func -<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "-", lhs: lhs, rhs: rhs)
+}
+
+
+// MARK: - Multiplication
+
+public func *<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<T> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "*", lhs: lhs, rhs: rhs)
+}
+
+public func *<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<T>> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "*", lhs: lhs, rhs: rhs)
+}
+
+public func *<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "*", lhs: lhs, rhs: rhs)
+}
+
+public func *<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "*", lhs: lhs, rhs: rhs)
+}
+
+
+// MARK: - Division
+
+public func /<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<T> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "/", lhs: lhs, rhs: rhs)
+}
+
+public func /<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<T>> where T: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "/", lhs: lhs, rhs: rhs)
+}
+
+public func /<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "/", lhs: lhs, rhs: rhs)
+}
+
+public func /<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Wrapped>> where Wrapped: BinaryFloatingPoint {
+    XLBinaryOperatorExpression(op: "/", lhs: lhs, rhs: rhs)
+}

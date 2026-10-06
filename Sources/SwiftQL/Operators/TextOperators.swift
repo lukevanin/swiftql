@@ -9,66 +9,6 @@ import Foundation
 
 
 
-// MARK: - Concatenation
-
-
-public func +<D>(lhs: any XLExpression<String, D>, rhs: any XLExpression<String, D>) -> some XLExpression<String, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<String, D>, rhs: any XLExpression<String, XLUniversalDialect>) -> some XLExpression<String, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<String, XLUniversalDialect>, rhs: any XLExpression<String, D>) -> some XLExpression<String, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-public func +<D>(lhs: any XLExpression<String, D>, rhs: any XLExpression<Optional<String>, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<String, D>, rhs: any XLExpression<Optional<String>, XLUniversalDialect>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<String, XLUniversalDialect>, rhs: any XLExpression<Optional<String>, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-public func +<D>(lhs: any XLExpression<Optional<String>, D>, rhs: any XLExpression<String, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<Optional<String>, D>, rhs: any XLExpression<String, XLUniversalDialect>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<Optional<String>, XLUniversalDialect>, rhs: any XLExpression<String, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-public func +<D>(lhs: any XLExpression<Optional<String>, D>, rhs: any XLExpression<Optional<String>, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<Optional<String>, D>, rhs: any XLExpression<Optional<String>, XLUniversalDialect>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-@_disfavoredOverload
-public func +<D>(lhs: any XLExpression<Optional<String>, XLUniversalDialect>, rhs: any XLExpression<Optional<String>, D>) -> some XLExpression<Optional<String>, D> {
-    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
-}
-
-
 // MARK: - LIKE
 
 
@@ -90,18 +30,18 @@ public func +<D>(lhs: any XLExpression<Optional<String>, XLUniversalDialect>, rh
 /// `ESCAPE` binds to its `LIKE`, so the three operands render as one grammar
 /// production rather than a nested binary expression.
 ///
-public struct XLLikeEscapeExpression<T, Dialect>: XLExpression {
+public struct XLLikeEscapeExpression<T>: XLExpression {
 
-    private let term: any XLTypedExpression
+    private let term: any XLExpression
 
-    private let pattern: any XLTypedExpression
+    private let pattern: any XLExpression
 
-    private let escape: any XLTypedExpression
+    private let escape: any XLExpression
 
-    init(
-        term: any XLTypedExpression,
-        pattern: any XLTypedExpression,
-        escape: any XLTypedExpression
+    public init(
+        term: any XLExpression,
+        pattern: any XLExpression,
+        escape: any XLExpression
     ) {
         self.term = term
         self.pattern = pattern
@@ -126,75 +66,6 @@ public struct XLLikeEscapeExpression<T, Dialect>: XLExpression {
 }
 
 
-extension XLExpression {
-
-    public func like(_ other: any XLTypedExpression<String>) -> some XLExpression<Bool, Dialect> where T == String {
-        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
-    }
-
-    public func like(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == String {
-        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
-    }
-
-    public func like(_ other: any XLTypedExpression<String>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
-    }
-
-    public func like(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
-    }
-
-    ///
-    /// Matches `other` as a `LIKE` pattern in which `escape` marks the next
-    /// character as a literal, so `%` and `_` can be matched exactly.
-    ///
-    /// SQLite requires `escape` to evaluate to a single character. A longer or
-    /// empty value prepares successfully and then fails when the statement is
-    /// stepped, with `ESCAPE expression must be a single character`. That is a
-    /// constraint on the value, not something the Swift type can express.
-    ///
-    public func like(
-        _ other: any XLTypedExpression<String>,
-        escape: any XLTypedExpression<String>
-    ) -> some XLExpression<Bool, Dialect> where T == String {
-        XLLikeEscapeExpression<Bool, Dialect>(term: self, pattern: other, escape: escape)
-    }
-
-    public func like(
-        _ other: any XLTypedExpression<Optional<String>>,
-        escape: any XLTypedExpression<String>
-    ) -> some XLExpression<Optional<Bool>, Dialect> where T == String {
-        XLLikeEscapeExpression<Optional<Bool>, Dialect>(
-            term: self,
-            pattern: other,
-            escape: escape
-        )
-    }
-
-    public func like(
-        _ other: any XLTypedExpression<String>,
-        escape: any XLTypedExpression<String>
-    ) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLLikeEscapeExpression<Optional<Bool>, Dialect>(
-            term: self,
-            pattern: other,
-            escape: escape
-        )
-    }
-
-    public func like(
-        _ other: any XLTypedExpression<Optional<String>>,
-        escape: any XLTypedExpression<String>
-    ) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLLikeEscapeExpression<Optional<Bool>, Dialect>(
-            term: self,
-            pattern: other,
-            escape: escape
-        )
-    }
-}
-
-
 // MARK: - REGEXP
 
 
@@ -215,22 +86,22 @@ extension XLExpression {
 /// soon as the statement was built, and the statement then failed at
 /// execution with `unregisteredPattern` (issue #646).
 ///
-struct XLRegexpExpression<T, Dialect>: XLExpression {
+struct XLRegexpExpression<T>: XLSQLiteExpression {
 
-    let lhs: any XLTypedExpression
+    let lhs: any XLSQLiteExpression
 
-    let rhs: any XLTypedExpression
+    let rhs: any XLSQLiteExpression
 
     /// The pattern whose key `rhs` renders, or `nil` for a pattern string.
     let pattern: XLRegexPattern?
 
-    init(lhs: any XLTypedExpression, rhs: any XLTypedExpression) {
+    init(lhs: any XLSQLiteExpression, rhs: any XLSQLiteExpression) {
         self.lhs = lhs
         self.rhs = rhs
         self.pattern = nil
     }
 
-    init(lhs: any XLTypedExpression, pattern: XLRegexPattern) {
+    init(lhs: any XLSQLiteExpression, pattern: XLRegexPattern) {
         self.lhs = lhs
         self.rhs = pattern.key
         self.pattern = pattern
@@ -249,9 +120,7 @@ struct XLRegexpExpression<T, Dialect>: XLExpression {
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     ///
     /// Matches `other` as a regular expression.
@@ -269,20 +138,20 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// An application that registers its own two-argument `regexp` keeps it;
     /// the bundled function never replaces one already on the connection.
     ///
-    public func regexp(_ other: any XLTypedExpression<String>) -> some XLExpression<Bool, Dialect> where T == String {
-        XLRegexpExpression<Bool, Dialect>(lhs: self, rhs: other)
+    public func regexp(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Bool> where T == String {
+        XLRegexpExpression<Bool>(lhs: self, rhs: other)
     }
 
-    public func regexp(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == String {
-        XLRegexpExpression<Optional<Bool>, Dialect>(lhs: self, rhs: other)
+    public func regexp(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == String {
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
 
-    public func regexp(_ other: any XLTypedExpression<String>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLRegexpExpression<Optional<Bool>, Dialect>(lhs: self, rhs: other)
+    public func regexp(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
 
-    public func regexp(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLRegexpExpression<Optional<Bool>, Dialect>(lhs: self, rhs: other)
+    public func regexp(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
 
     ///
@@ -306,34 +175,11 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// a static query descriptor from such a statement. Both rules are
     /// described on `XLRegexPattern`.
     ///
-    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Bool, Dialect> where T == String {
-        XLRegexpExpression<Bool, Dialect>(lhs: self, pattern: pattern)
+    public func regexp(_ pattern: XLRegexPattern) -> some XLSQLiteExpression<Bool> where T == String {
+        XLRegexpExpression<Bool>(lhs: self, pattern: pattern)
     }
 
-    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLRegexpExpression<Optional<Bool>, Dialect>(lhs: self, pattern: pattern)
-    }
-}
-
-
-// MARK: - GLOB
-
-
-extension XLExpression {
-    
-    public func glob(_ other: any XLTypedExpression<String>) -> some XLExpression<Bool, Dialect> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLTypedExpression<String>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLTypedExpression<Optional<String>>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    public func regexp(_ pattern: XLRegexPattern) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
+        XLRegexpExpression<Optional<Bool>>(lhs: self, pattern: pattern)
     }
 }

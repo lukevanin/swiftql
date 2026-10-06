@@ -13,10 +13,7 @@ import Foundation
 /// Supply ``definition`` for the SQL signature, emit a call to that signature from your
 /// `makeSQL(context:)` implementation, and implement ``execute(reader:)`` to calculate a result
 /// from the SQLite arguments.
-///
-/// The function runs inside SQLite, so it is a SQLite expression: its `Dialect` is
-/// `XLSQLiteDialect`, and a conformer does not declare it (issue #789).
-public protocol XLCustomFunction<T>: XLExpression where Dialect == XLSQLiteDialect {
+public protocol XLCustomFunction<T>: XLSQLiteExpression {
     /// The name and argument count used to register the function.
     static var definition: XLCustomFunctionDefinition { get }
 

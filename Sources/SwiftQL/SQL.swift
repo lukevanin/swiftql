@@ -202,9 +202,8 @@ public macro SQLBindings<Dialect: XLLiteralValueDialect>(dialect: Dialect.Type) 
 /// Defines the `@SQLFunction` macro.
 ///
 /// Attach to a struct which conforms to `XLCustomFunction` and declares one stored property per
-/// SQL argument, each typed as `any XLTypedExpression<...>` (or `some XLTypedExpression<...>`), so
-/// it takes a column or a Swift value. `XLExpression` and `XLSQLiteExpression`
-/// are accepted too. The macro
+/// SQL argument, each typed as `any XLExpression<...>` (or `some XLExpression<...>`, or
+/// `any XLSQLiteExpression<...>` to take only a SQLite expression). The macro
 /// generates the `XLCustomFunctionDefinition` and `makeSQL(context:)` boilerplate from those
 /// properties, in declaration order. Conformance to `XLCustomFunction` and `execute(reader:)` are
 /// still written by hand.

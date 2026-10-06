@@ -510,10 +510,10 @@ private struct TestScalarReference<Value>: XLMetaNamedResult where Value: XLLite
 private struct TestAliasedExpression<Value>: XLExpression where Value: XLLiteral {
     typealias T = Value
 
-    let expression: any XLTypedExpression<Value>
+    let expression: any XLExpression<Value>
     let alias: XLName
 
-    init(expression: any XLTypedExpression<Value>, alias: XLName) {
+    init(expression: any XLExpression<Value>, alias: XLName) {
         self.expression = expression
         self.alias = alias
     }

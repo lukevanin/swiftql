@@ -17,7 +17,7 @@ import Foundation
 ///
 @resultBuilder public struct XLScalarExpressionBuilder {
     
-    public static func buildBlock<T>(_ component: some XLTypedExpression<T>) -> some XLTypedExpression<T> {
+    public static func buildBlock<T>(_ component: some XLExpression<T>) -> some XLExpression<T> {
         component
     }
 }
@@ -266,16 +266,16 @@ extension XLSchema {
     /// Constructs a scalar subquery in this schema using the query expression
     /// builder.
     ///
-    public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>, Dialect> where T: XLLiteral {
-        XLSubquery<T, Dialect>(statement: statement(XLSchema(parent: self)))
+    public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> XLDialectExpression<Optional<T>, Dialect> where T: XLLiteral {
+        XLDialectExpression(XLSubquery<T>(statement: statement(XLSchema(parent: self))))
     }
 
     ///
     /// Constructs a scalar subquery in this schema whose inner statement is
     /// already nullable.
     ///
-    public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
-        XLSubquery<Wrapped, Dialect>(statement: statement(XLSchema(parent: self)))
+    public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> XLDialectExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
+        XLDialectExpression(XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self))))
     }
 }
 
@@ -322,7 +322,7 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 ///
 public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<T, XLSQLiteDialect>(statement: statement(schema))
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement(schema)))
 }
 
 
@@ -330,7 +330,7 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLite
 /// Constructs a subquery that returns a scalar value.
 ///
 public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
-    return XLSubquery<T, XLSQLiteDialect>(statement: statement())
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement()))
 }
 
 
@@ -343,12 +343,12 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any
 ///
 public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement(schema))
+    return XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement(schema)))
 }
 
 
 public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-    XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement())
+    XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement()))
 }
 
 

@@ -35,8 +35,10 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
     /// with the resulting capture.
     ///
     /// The expression is in the field's dialect: a field selects only an
-    /// expression of the dialect its layout is built for (issue #789).
-    public let expression: any XLExpression<Storage, Dialect>
+    /// expression of the dialect its layout is built for, so this is an
+    /// expression of that dialect, such as an ``XLSQLiteExpression`` for a
+    /// SQLite layout (issue #789).
+    public let expression: XLDialectExpression<Storage, Dialect>
 
     /// The durable storage contract shared by result and parameter metadata.
     public let storageIdentifier: XLValueStorageIdentifier
@@ -58,7 +60,7 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
     let field: XLStaticRowField?
 
     init(
-        expression: any XLExpression<Storage, Dialect>,
+        expression: XLDialectExpression<Storage, Dialect>,
         identity: XLQuerySlotIdentity,
         valueTypeIdentifier: XLValueTypeIdentifier,
         valueTypeName: String,
@@ -125,7 +127,7 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
             )
         }
         return XLAnyStaticSelectField(
-            expression: expression,
+            expression: expression.wrapped,
             metadata: field,
             validate: { value in
                 try validate(value, field: field)

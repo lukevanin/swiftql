@@ -116,6 +116,7 @@ enum V2NameCollisionFixture {
     typealias Check_DialectCapabilities = DialectCapabilities
     typealias Check_DialectDescriptor = DialectDescriptor
     typealias Check_DialectEncoder = DialectEncoder
+    typealias Check_DialectExpression = DialectExpression
     typealias Check_DialectIdentifier = DialectIdentifier
     typealias Check_DialectRequirement = DialectRequirement
     typealias Check_DialectValue = DialectValue
@@ -323,12 +324,10 @@ enum V2NameCollisionFixture {
     typealias Check_TransactionalDatabase = TransactionalDatabase
     typealias Check_TypeAffinityExpression = TypeAffinityExpression
     typealias Check_TypeCastExpression = TypeCastExpression
-    typealias Check_TypedExpression = TypedExpression
     typealias Check_TypedStaticQueryDescriptor = TypedStaticQueryDescriptor
     typealias Check_UUIDValueCodec = UUIDValueCodec
     typealias Check_UUIDValueCodecError = UUIDValueCodecError
     typealias Check_UnaryOperatorExpression = UnaryOperatorExpression
-    typealias Check_UniversalDialect = UniversalDialect
     typealias Check_UpdateExpressionBuilder = UpdateExpressionBuilder
     typealias Check_UpdateFromStatement = UpdateFromStatement
     typealias Check_UpdateFromTableDependency = UpdateFromTableDependency

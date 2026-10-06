@@ -67,16 +67,16 @@ final class XLScalarFunctionTests: XCTestCase {
             unixepoch(date: "1970-01-01T00:00:00Z", modifiers: [.subseconds]),
             "unixepoch('1970-01-01T00:00:00Z', 'subsec')"
         )
-        assertSQL(date.sqlite.toUnixTimestamp(), "unixepoch(:date)")
-        assertSQL(optionalDate.sqlite.toUnixTimestamp(), "unixepoch(:optionalDate)")
-        assertSQL(json.sqlite.jsonArrayLength(), "json_array_length(:json)")
-        assertSQL(json.sqlite.jsonArrayLength(path: "$.items"), "json_array_length(:json, '$.items')")
-        assertSQL(json.sqlite.validJSONOrNull(), "json_valid(:json)")
+        assertSQL(date.toUnixTimestamp(), "unixepoch(:date)")
+        assertSQL(optionalDate.toUnixTimestamp(), "unixepoch(:optionalDate)")
+        assertSQL(json.jsonArrayLength(), "json_array_length(:json)")
+        assertSQL(json.jsonArrayLength(path: "$.items"), "json_array_length(:json, '$.items')")
+        assertSQL(json.validJSONOrNull(), "json_valid(:json)")
 
-        assertExpressionType(date.sqlite.toUnixTimestamp(), Int.self)
-        assertExpressionType(optionalDate.sqlite.toUnixTimestamp(), Int?.self)
-        assertExpressionType(json.sqlite.jsonArrayLength(), Int?.self)
-        assertExpressionType(json.sqlite.validJSONOrNull(), Bool?.self)
+        assertExpressionType(date.toUnixTimestamp(), Int.self)
+        assertExpressionType(optionalDate.toUnixTimestamp(), Int?.self)
+        assertExpressionType(json.jsonArrayLength(), Int?.self)
+        assertExpressionType(json.validJSONOrNull(), Bool?.self)
     }
 
     func testDateConstructorsModifiersAndComponents() {
@@ -84,76 +84,76 @@ final class XLScalarFunctionTests: XCTestCase {
         let optionalDate = XLNamedBindingReference<String?>(name: "optionalDate")
 
         // Constructors with ordered modifiers.
-        assertSQL(date.sqlite.date(), "date(:date)")
-        assertSQL(date.sqlite.date(.startOfMonth), "date(:date, 'start of month')")
-        assertSQL(date.sqlite.time(.subsecond), "time(:date, 'subsec')")
+        assertSQL(date.date(), "date(:date)")
+        assertSQL(date.date(.startOfMonth), "date(:date, 'start of month')")
+        assertSQL(date.time(.subsecond), "time(:date, 'subsec')")
         assertSQL(
-            date.sqlite.datetime(.months(1)),
+            date.datetime(.months(1)),
             "datetime(:date, '+1 months')"
         )
         assertSQL(
-            date.sqlite.datetime(.months(1), .startOfMonth),
+            date.datetime(.months(1), .startOfMonth),
             "datetime(:date, '+1 months', 'start of month')"
         )
-        assertSQL(date.sqlite.julianDay(), "julianday(:date)")
-        assertSQL(date.sqlite.julianDay(.days(-3)), "julianday(:date, '-3 days')")
-        assertSQL(date.sqlite.unixEpoch(.utc), "unixepoch(:date, 'utc')")
-        assertSQL(date.sqlite.strftime("%Y-%m-%d"), "strftime('%Y-%m-%d', :date)")
+        assertSQL(date.julianDay(), "julianday(:date)")
+        assertSQL(date.julianDay(.days(-3)), "julianday(:date, '-3 days')")
+        assertSQL(date.unixEpoch(.utc), "unixepoch(:date, 'utc')")
+        assertSQL(date.strftime("%Y-%m-%d"), "strftime('%Y-%m-%d', :date)")
         assertSQL(
-            date.sqlite.strftime("%Y", .years(1)),
+            date.strftime("%Y", .years(1)),
             "strftime('%Y', :date, '+1 years')"
         )
 
         // A representative sweep of the modifier surface.
-        assertSQL(date.sqlite.datetime(.hours(6)), "datetime(:date, '+6 hours')")
-        assertSQL(date.sqlite.datetime(.minutes(-30)), "datetime(:date, '-30 minutes')")
-        assertSQL(date.sqlite.datetime(.seconds(90)), "datetime(:date, '+90 seconds')")
-        assertSQL(date.sqlite.datetime(.years(-2)), "datetime(:date, '-2 years')")
-        assertSQL(date.sqlite.date(.startOfYear), "date(:date, 'start of year')")
-        assertSQL(date.sqlite.date(.startOfDay), "date(:date, 'start of day')")
-        assertSQL(date.sqlite.date(.weekday(1)), "date(:date, 'weekday 1')")
-        assertSQL(date.sqlite.datetime(.months(1), .ceiling), "datetime(:date, '+1 months', 'ceiling')")
-        assertSQL(date.sqlite.datetime(.months(1), .floor), "datetime(:date, '+1 months', 'floor')")
-        assertSQL(date.sqlite.datetime(.localTime), "datetime(:date, 'localtime')")
-        assertSQL(date.sqlite.date(XLDateModifier("unixepoch")), "date(:date, 'unixepoch')")
+        assertSQL(date.datetime(.hours(6)), "datetime(:date, '+6 hours')")
+        assertSQL(date.datetime(.minutes(-30)), "datetime(:date, '-30 minutes')")
+        assertSQL(date.datetime(.seconds(90)), "datetime(:date, '+90 seconds')")
+        assertSQL(date.datetime(.years(-2)), "datetime(:date, '-2 years')")
+        assertSQL(date.date(.startOfYear), "date(:date, 'start of year')")
+        assertSQL(date.date(.startOfDay), "date(:date, 'start of day')")
+        assertSQL(date.date(.weekday(1)), "date(:date, 'weekday 1')")
+        assertSQL(date.datetime(.months(1), .ceiling), "datetime(:date, '+1 months', 'ceiling')")
+        assertSQL(date.datetime(.months(1), .floor), "datetime(:date, '+1 months', 'floor')")
+        assertSQL(date.datetime(.localTime), "datetime(:date, 'localtime')")
+        assertSQL(date.date(XLDateModifier("unixepoch")), "date(:date, 'unixepoch')")
 
         // Components render as an integer reinterpretation of strftime.
-        assertSQL(date.sqlite.year(), "CAST(strftime('%Y', :date) AS INTEGER)")
-        assertSQL(date.sqlite.month(), "CAST(strftime('%m', :date) AS INTEGER)")
-        assertSQL(date.sqlite.day(), "CAST(strftime('%d', :date) AS INTEGER)")
-        assertSQL(date.sqlite.hour(), "CAST(strftime('%H', :date) AS INTEGER)")
-        assertSQL(date.sqlite.minute(), "CAST(strftime('%M', :date) AS INTEGER)")
-        assertSQL(date.sqlite.second(), "CAST(strftime('%S', :date) AS INTEGER)")
-        assertSQL(date.sqlite.dayOfYear(), "CAST(strftime('%j', :date) AS INTEGER)")
-        assertSQL(date.sqlite.dayOfWeek(), "CAST(strftime('%w', :date) AS INTEGER)")
-        assertSQL(date.sqlite.weekOfYear(), "CAST(strftime('%W', :date) AS INTEGER)")
+        assertSQL(date.year(), "CAST(strftime('%Y', :date) AS INTEGER)")
+        assertSQL(date.month(), "CAST(strftime('%m', :date) AS INTEGER)")
+        assertSQL(date.day(), "CAST(strftime('%d', :date) AS INTEGER)")
+        assertSQL(date.hour(), "CAST(strftime('%H', :date) AS INTEGER)")
+        assertSQL(date.minute(), "CAST(strftime('%M', :date) AS INTEGER)")
+        assertSQL(date.second(), "CAST(strftime('%S', :date) AS INTEGER)")
+        assertSQL(date.dayOfYear(), "CAST(strftime('%j', :date) AS INTEGER)")
+        assertSQL(date.dayOfWeek(), "CAST(strftime('%w', :date) AS INTEGER)")
+        assertSQL(date.weekOfYear(), "CAST(strftime('%W', :date) AS INTEGER)")
 
         // Optional receivers preserve optionality.
-        assertSQL(optionalDate.sqlite.datetime(.days(1)), "datetime(:optionalDate, '+1 days')")
-        assertSQL(optionalDate.sqlite.julianDay(), "julianday(:optionalDate)")
-        assertSQL(optionalDate.sqlite.unixEpoch(), "unixepoch(:optionalDate)")
-        assertSQL(optionalDate.sqlite.strftime("%Y"), "strftime('%Y', :optionalDate)")
-        assertSQL(optionalDate.sqlite.year(), "CAST(strftime('%Y', :optionalDate) AS INTEGER)")
+        assertSQL(optionalDate.datetime(.days(1)), "datetime(:optionalDate, '+1 days')")
+        assertSQL(optionalDate.julianDay(), "julianday(:optionalDate)")
+        assertSQL(optionalDate.unixEpoch(), "unixepoch(:optionalDate)")
+        assertSQL(optionalDate.strftime("%Y"), "strftime('%Y', :optionalDate)")
+        assertSQL(optionalDate.year(), "CAST(strftime('%Y', :optionalDate) AS INTEGER)")
 
         // Date operators (issue #63) compose over date-function results.
         assertSQL(
-            date.sqlite.julianDay() - date.sqlite.julianDay(.days(-1)),
+            date.julianDay() - date.julianDay(.days(-1)),
             "(julianday(:date) - julianday(:date, '-1 days'))"
         )
-        assertSQL(date.sqlite.date() < "2026-01-01", "(date(:date) < '2026-01-01')")
-        assertSQL(date.sqlite.date() >= "2026-01-01", "(date(:date) >= '2026-01-01')")
-        assertSQL(date.sqlite.year() != 2026, "(CAST(strftime('%Y', :date) AS INTEGER) != 2026)")
+        assertSQL(date.date() < "2026-01-01", "(date(:date) < '2026-01-01')")
+        assertSQL(date.date() >= "2026-01-01", "(date(:date) >= '2026-01-01')")
+        assertSQL(date.year() != 2026, "(CAST(strftime('%Y', :date) AS INTEGER) != 2026)")
 
-        assertExpressionType(date.sqlite.date(), String.self)
-        assertExpressionType(date.sqlite.datetime(.months(1)), String.self)
-        assertExpressionType(date.sqlite.julianDay(), Double.self)
-        assertExpressionType(date.sqlite.unixEpoch(), TimeInterval.self)
-        assertExpressionType(date.sqlite.strftime("%Y"), String.self)
-        assertExpressionType(date.sqlite.year(), Int.self)
-        assertExpressionType(optionalDate.sqlite.datetime(.days(1)), String?.self)
-        assertExpressionType(optionalDate.sqlite.julianDay(), Double?.self)
-        assertExpressionType(optionalDate.sqlite.unixEpoch(), TimeInterval?.self)
-        assertExpressionType(optionalDate.sqlite.year(), Int?.self)
+        assertExpressionType(date.date(), String.self)
+        assertExpressionType(date.datetime(.months(1)), String.self)
+        assertExpressionType(date.julianDay(), Double.self)
+        assertExpressionType(date.unixEpoch(), TimeInterval.self)
+        assertExpressionType(date.strftime("%Y"), String.self)
+        assertExpressionType(date.year(), Int.self)
+        assertExpressionType(optionalDate.datetime(.days(1)), String?.self)
+        assertExpressionType(optionalDate.julianDay(), Double?.self)
+        assertExpressionType(optionalDate.unixEpoch(), TimeInterval?.self)
+        assertExpressionType(optionalDate.year(), Int?.self)
     }
 
     func testStringFunctionsAndOrderingTerms() {
@@ -162,15 +162,15 @@ final class XLScalarFunctionTests: XCTestCase {
         let canonicalEncoder = XLiteEncoder(formatter: XLiteFormatter())
 
         XCTAssertEqual(
-            canonicalEncoder.makeSQL(text.sqlite.collate(.binary)).sql,
+            canonicalEncoder.makeSQL(text.collate(.binary)).sql,
             "(:text COLLATE BINARY)"
         )
         XCTAssertEqual(
-            canonicalEncoder.makeSQL(text.sqlite.collate(.nocase)).sql,
+            canonicalEncoder.makeSQL(text.collate(.nocase)).sql,
             "(:text COLLATE NOCASE)"
         )
         XCTAssertEqual(
-            canonicalEncoder.makeSQL(optionalText.sqlite.collate(.rtrim)).sql,
+            canonicalEncoder.makeSQL(optionalText.collate(.rtrim)).sql,
             "(:optionalText COLLATE RTRIM)"
         )
         assertSQL("%s:%d".printf(text, 7), "printf('%s:%d', :text, 7)")
@@ -181,8 +181,8 @@ final class XLScalarFunctionTests: XCTestCase {
 
         XCTAssertEqual(encoder.makeSQL(text.ascending()).sql, ":text ASC")
         XCTAssertEqual(encoder.makeSQL(text.descending()).sql, ":text DESC")
-        assertExpressionType(text.sqlite.collate(.binary), String.self)
-        assertExpressionType(optionalText.sqlite.collate(.binary), String?.self)
+        assertExpressionType(text.collate(.binary), String.self)
+        assertExpressionType(optionalText.collate(.binary), String?.self)
     }
 
     func testTypeCastOverloadsAndRendering() {
@@ -255,7 +255,7 @@ final class XLScalarFunctionTests: XCTestCase {
     }
 
     private func assertSQL<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -263,6 +263,6 @@ final class XLScalarFunctionTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, expected, file: file, line: line)
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }

@@ -242,24 +242,6 @@ extension With {
 }
 
 
-extension XLExpression {
-
-    ///
-    /// Tests whether the expression appears in a scalar common table.
-    ///
-    public func `in`<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> some XLExpression<Bool, Dialect> where Value: XLLiteral {
-        XLInTableExpression(lhs: self, rhs: scalarCommonTable.definition.alias)
-    }
-
-    ///
-    /// Tests whether the expression does not appear in a scalar common table.
-    ///
-    public func notIn<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> some XLExpression<Bool, Dialect> where Value: XLLiteral {
-        XLInTableExpression(lhs: self, rhs: scalarCommonTable.definition.alias, negated: true)
-    }
-}
-
-
 extension QueryBuilder {
 
     ///

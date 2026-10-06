@@ -1534,10 +1534,7 @@ public enum SQLiteTypedCombinatorialCases {
     public static func adoptedExpressionCases() -> [SQLiteCombinatorialCaseDraft] {
         let namedInteger = XLNamedBindingReference<Int>(name: "integer_value")
         let namedReal = XLNamedBindingReference<Double>(name: "real_value")
-        // SQLite's own functions are declared on SQLite expressions, so the
-        // universal binding is lifted into SQLite once, here (issue #789).
         let namedText = XLNamedBindingReference<String>(name: "text_value")
-            .sqlite
         let indexedInteger = C191IndexedIntegerBindingReference(index: 0)
 
         let issue191Cases = [
@@ -1860,10 +1857,7 @@ public enum SQLiteTypedCombinatorialCases {
         let namedOptionalReal = XLNamedBindingReference<Double?>(
             name: "optional_real_value"
         )
-        // SQLite's own functions are declared on SQLite expressions, so the
-        // universal binding is lifted into SQLite once, here (issue #789).
         let namedText = XLNamedBindingReference<String>(name: "text_value")
-            .sqlite
         let namedOptionalText = XLNamedBindingReference<String?>(
             name: "optional_text_value"
         )
@@ -2148,7 +2142,7 @@ public enum SQLiteTypedCombinatorialCases {
         schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String,
-        predicate: (any XLTypedExpression<Bool>)?,
+        predicate: (any XLExpression<Bool>)?,
         groupingID: String,
         havingID: String,
         ordering: (any XLOrderingTerm)?,
@@ -2322,7 +2316,7 @@ public enum SQLiteTypedCombinatorialCases {
     private static func predicate(
         orders: C191Order.MetaNamedResult,
         predicateID: String
-    ) -> ((any XLTypedExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
+    ) -> ((any XLExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
         switch predicateID {
         case "none":
             return (nil, [])
@@ -2341,7 +2335,7 @@ public enum SQLiteTypedCombinatorialCases {
                 [.init(key: .named("repeated_employee_id"), value: .integer(5))]
             )
         case "empty-in":
-            let values: [any XLTypedExpression<Int>] = []
+            let values: [any XLSQLiteExpression<Int>] = []
             return (orders.orderID.in(values), [])
         case "in-list":
             return (orders.orderID.in([10_248, 10_249, 10_250]), [])

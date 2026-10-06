@@ -41,7 +41,7 @@ private struct AsyncStreamRetryRecord: Equatable, Identifiable {
 }
 
 
-private struct AsyncStreamInjectedBusyExpression: XLExpression {
+private struct AsyncStreamInjectedBusyExpression: XLSQLiteExpression {
     typealias T = Int
 
     static let functionName = "swiftql_test_async_stream_injected_busy"

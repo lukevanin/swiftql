@@ -15,8 +15,8 @@ struct DialectFixtureBindings {
 
 func dialectFixtureLayout<Dialect: XLLiteralValueDialect>(
     using dialect: Dialect,
-    id: any XLExpression<Int, Dialect>,
-    code: any XLExpression<String, Dialect>,
+    id: any XLExpression<Int>,
+    code: any XLExpression<String>,
     configuration: XLValueCodingConfiguration
 ) throws -> XLStaticRowLayout<DialectFixtureGauge, Dialect> {
     try DialectFixtureGauge.staticRowLayout(

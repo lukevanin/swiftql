@@ -22,16 +22,16 @@ struct MacroHaversineDistance: XLCustomFunction {
 
     typealias T = Double
 
-    private let fromLatitude: any XLTypedExpression<Double>
-    private let fromLongitude: any XLTypedExpression<Double>
-    private let toLatitude: any XLTypedExpression<Double>
-    private let toLongitude: any XLTypedExpression<Double>
+    private let fromLatitude: any XLExpression<Double>
+    private let fromLongitude: any XLExpression<Double>
+    private let toLatitude: any XLExpression<Double>
+    private let toLongitude: any XLExpression<Double>
 
     init(
-        fromLatitude: any XLTypedExpression<Double>,
-        fromLongitude: any XLTypedExpression<Double>,
-        toLatitude: any XLTypedExpression<Double>,
-        toLongitude: any XLTypedExpression<Double>
+        fromLatitude: any XLExpression<Double>,
+        fromLongitude: any XLExpression<Double>,
+        toLatitude: any XLExpression<Double>,
+        toLongitude: any XLExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude
@@ -64,9 +64,9 @@ struct MacroDoubleValueFunction: XLCustomFunction {
 
     typealias T = Int
 
-    private let value: any XLTypedExpression<Int>
+    private let value: any XLExpression<Int>
 
-    init(_ value: any XLTypedExpression<Int>) {
+    init(_ value: any XLExpression<Int>) {
         self.value = value
     }
 

@@ -806,7 +806,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
             Int,
             XLSQLiteDialect
         >.intrinsic(
-            selecting: XLFunction<Int, XLSQLiteDialect>(
+            selecting: XLFunction<Int>(
                 name: StaticRowLayoutStepProbe.functionName,
                 parameters: [table.id]
             ),

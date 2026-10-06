@@ -37,8 +37,8 @@ public enum XLDateFunctionModifiers {
 /// New code should prefer `unixEpoch(_:)`, which takes ordered
 /// ``XLDateModifier`` values.
 ///
-public func unixepoch(date: String, modifiers: Set<XLDateFunctionModifiers>) -> some XLExpression<TimeInterval, XLSQLiteDialect> {
-    var parameters: [any XLTypedExpression] = []
+public func unixepoch(date: String, modifiers: Set<XLDateFunctionModifiers>) -> some XLSQLiteExpression<TimeInterval> {
+    var parameters: [any XLSQLiteExpression] = []
     parameters.append(date)
     // Sorted by the SQLite spelling, which is the order this constructor has
     // always produced for an unordered set.
@@ -52,21 +52,17 @@ public func unixepoch(date: String, modifiers: Set<XLDateFunctionModifiers>) -> 
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
-    public func toUnixTimestamp() -> some XLExpression<Int, Dialect> where T == String {
+    public func toUnixTimestamp() -> some XLSQLiteExpression<Int> where T == String {
         return XLFunction(name: "unixepoch", parameters: [self])
     }
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
-    public func toUnixTimestamp() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func toUnixTimestamp() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         return XLFunction(name: "unixepoch", parameters: [self])
     }
 }
@@ -75,15 +71,13 @@ extension XLExpression where Dialect == XLSQLiteDialect {
 // MARK: - Date and time constructors
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     ///
     /// Renders the `date(...)` function over this text time value, applying the
     /// modifiers in order. The result is a `YYYY-MM-DD` text expression.
     ///
-    public func date(_ modifiers: XLDateModifier...) -> some XLExpression<String, Dialect> where T == String {
+    public func date(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<String> where T == String {
         XLFunction(name: "date", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -91,7 +85,7 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// Renders the `time(...)` function over this text time value, applying the
     /// modifiers in order. The result is an `HH:MM:SS` text expression.
     ///
-    public func time(_ modifiers: XLDateModifier...) -> some XLExpression<String, Dialect> where T == String {
+    public func time(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<String> where T == String {
         XLFunction(name: "time", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -100,7 +94,7 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// the modifiers in order. The result is a `YYYY-MM-DD HH:MM:SS` text
     /// expression, so `.months(1)` or `.startOfMonth` compute relative dates.
     ///
-    public func datetime(_ modifiers: XLDateModifier...) -> some XLExpression<String, Dialect> where T == String {
+    public func datetime(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<String> where T == String {
         XLFunction(name: "datetime", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -110,7 +104,7 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// days since noon in Greenwich on November 24, 4714 B.C., so subtracting
     /// two `julianDay` expressions yields the number of days between them.
     ///
-    public func julianDay(_ modifiers: XLDateModifier...) -> some XLExpression<Double, Dialect> where T == String {
+    public func julianDay(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Double> where T == String {
         XLFunction(name: "julianday", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -121,7 +115,7 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// `Int` because the `.subsecond` modifier makes SQLite return fractional
     /// seconds, which an integer result could not represent.
     ///
-    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<TimeInterval, Dialect> where T == String {
+    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<TimeInterval> where T == String {
         XLFunction(name: "unixepoch", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -130,43 +124,41 @@ extension XLExpression where Dialect == XLSQLiteDialect {
     /// applying the modifiers in order. The `format` string uses SQLite's
     /// substitution tokens such as `%Y`, `%m`, and `%d`.
     ///
-    public func strftime(_ format: String, _ modifiers: XLDateModifier...) -> some XLExpression<String, Dialect> where T == String {
+    public func strftime(_ format: String, _ modifiers: XLDateModifier...) -> some XLSQLiteExpression<String> where T == String {
         XLFunction(name: "strftime", parameters: strftimeParameters(format: format, value: self, modifiers: modifiers))
     }
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     /// The optional-preserving overload of `date(_:)`.
-    public func date(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
+    public func date(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "date", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
     /// The optional-preserving overload of `time(_:)`.
-    public func time(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
+    public func time(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "time", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
     /// The optional-preserving overload of `datetime(_:)`.
-    public func datetime(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
+    public func datetime(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "datetime", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
     /// The optional-preserving overload of `julianDay(_:)`.
-    public func julianDay(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<Double>, Dialect> where T == Optional<String> {
+    public func julianDay(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<Double>> where T == Optional<String> {
         XLFunction(name: "julianday", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
     /// The optional-preserving overload of `unixEpoch(_:)`.
-    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<TimeInterval>, Dialect> where T == Optional<String> {
+    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<TimeInterval>> where T == Optional<String> {
         XLFunction(name: "unixepoch", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
     /// The optional-preserving overload of `strftime(_:_:)`.
-    public func strftime(_ format: String, _ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
+    public func strftime(_ format: String, _ modifiers: XLDateModifier...) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "strftime", parameters: strftimeParameters(format: format, value: self, modifiers: modifiers))
     }
 }
@@ -175,103 +167,99 @@ extension XLExpression where Dialect == XLSQLiteDialect {
 // MARK: - Date components
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     /// The four-digit year (`%Y`) of this text time value.
-    public func year() -> some XLExpression<Int, Dialect> where T == String {
+    public func year() -> some XLSQLiteExpression<Int> where T == String {
         component("%Y")
     }
 
     /// The month (`%m`, 1-12) of this text time value.
-    public func month() -> some XLExpression<Int, Dialect> where T == String {
+    public func month() -> some XLSQLiteExpression<Int> where T == String {
         component("%m")
     }
 
     /// The day of the month (`%d`, 1-31) of this text time value.
-    public func day() -> some XLExpression<Int, Dialect> where T == String {
+    public func day() -> some XLSQLiteExpression<Int> where T == String {
         component("%d")
     }
 
     /// The hour (`%H`, 0-23) of this text time value.
-    public func hour() -> some XLExpression<Int, Dialect> where T == String {
+    public func hour() -> some XLSQLiteExpression<Int> where T == String {
         component("%H")
     }
 
     /// The minute (`%M`, 0-59) of this text time value.
-    public func minute() -> some XLExpression<Int, Dialect> where T == String {
+    public func minute() -> some XLSQLiteExpression<Int> where T == String {
         component("%M")
     }
 
     /// The whole second (`%S`, 0-59) of this text time value.
-    public func second() -> some XLExpression<Int, Dialect> where T == String {
+    public func second() -> some XLSQLiteExpression<Int> where T == String {
         component("%S")
     }
 
     /// The day of the year (`%j`, 1-366) of this text time value.
-    public func dayOfYear() -> some XLExpression<Int, Dialect> where T == String {
+    public func dayOfYear() -> some XLSQLiteExpression<Int> where T == String {
         component("%j")
     }
 
     /// The day of the week (`%w`, 0 = Sunday ... 6 = Saturday).
-    public func dayOfWeek() -> some XLExpression<Int, Dialect> where T == String {
+    public func dayOfWeek() -> some XLSQLiteExpression<Int> where T == String {
         component("%w")
     }
 
     /// The week of the year (`%W`, 00-53) of this text time value.
-    public func weekOfYear() -> some XLExpression<Int, Dialect> where T == String {
+    public func weekOfYear() -> some XLSQLiteExpression<Int> where T == String {
         component("%W")
     }
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
 
     /// The optional-preserving overload of `year()`.
-    public func year() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func year() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%Y")
     }
 
     /// The optional-preserving overload of `month()`.
-    public func month() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func month() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%m")
     }
 
     /// The optional-preserving overload of `day()`.
-    public func day() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func day() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%d")
     }
 
     /// The optional-preserving overload of `hour()`.
-    public func hour() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func hour() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%H")
     }
 
     /// The optional-preserving overload of `minute()`.
-    public func minute() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func minute() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%M")
     }
 
     /// The optional-preserving overload of `second()`.
-    public func second() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func second() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%S")
     }
 
     /// The optional-preserving overload of `dayOfYear()`.
-    public func dayOfYear() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func dayOfYear() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%j")
     }
 
     /// The optional-preserving overload of `dayOfWeek()`.
-    public func dayOfWeek() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func dayOfWeek() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%w")
     }
 
     /// The optional-preserving overload of `weekOfYear()`.
-    public func weekOfYear() -> some XLExpression<Optional<Int>, Dialect> where T == Optional<String> {
+    public func weekOfYear() -> some XLSQLiteExpression<Optional<Int>> where T == Optional<String> {
         component("%W")
     }
 }
@@ -291,7 +279,7 @@ extension XLExpression where Dialect == XLSQLiteDialect {
 /// appended as this node, so the dialect that renders the statement decides
 /// the spelling.
 ///
-private struct XLDateModifierExpression: XLTypedExpression {
+private struct XLDateModifierExpression: XLSQLiteExpression {
 
     typealias T = String
 
@@ -303,8 +291,8 @@ private struct XLDateModifierExpression: XLTypedExpression {
 }
 
 
-private func dateParameters(value: any XLTypedExpression, modifiers: [XLDateModifier]) -> [any XLTypedExpression] {
-    var parameters: [any XLTypedExpression] = [value]
+private func dateParameters(value: any XLSQLiteExpression, modifiers: [XLDateModifier]) -> [any XLSQLiteExpression] {
+    var parameters: [any XLSQLiteExpression] = [value]
     for modifier in modifiers {
         parameters.append(XLDateModifierExpression(modifier: modifier))
     }
@@ -316,8 +304,8 @@ private func dateParameters(value: any XLTypedExpression, modifiers: [XLDateModi
 /// Builds the argument list for `strftime`: the format string, the time value,
 /// then each modifier's rendered text, in order.
 ///
-private func strftimeParameters(format: String, value: any XLTypedExpression, modifiers: [XLDateModifier]) -> [any XLTypedExpression] {
-    var parameters: [any XLTypedExpression] = [format, value]
+private func strftimeParameters(format: String, value: any XLSQLiteExpression, modifiers: [XLDateModifier]) -> [any XLSQLiteExpression] {
+    var parameters: [any XLSQLiteExpression] = [format, value]
     for modifier in modifiers {
         parameters.append(XLDateModifierExpression(modifier: modifier))
     }
@@ -325,33 +313,29 @@ private func strftimeParameters(format: String, value: any XLTypedExpression, mo
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where T == String, Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression where T == String {
 
     ///
     /// Extracts one integer date component with `strftime` and reinterprets the
     /// text result as an integer, so `column.year()` reads as an `Int`.
     ///
-    fileprivate func component(_ format: String) -> some XLExpression<Int, Dialect> {
+    fileprivate func component(_ format: String) -> some XLSQLiteExpression<Int> {
         XLTypeCastExpression(
             type: "INTEGER",
-            expression: XLFunction<String, Dialect>(name: "strftime", parameters: [format, self])
+            expression: XLFunction<String>(name: "strftime", parameters: [format, self])
         )
     }
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where T == Optional<String>, Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression where T == Optional<String> {
 
     /// The optional-preserving component extractor. `strftime` returns NULL for
     /// a NULL time value, and `CAST(NULL AS INTEGER)` preserves it.
-    fileprivate func component(_ format: String) -> some XLExpression<Optional<Int>, Dialect> {
+    fileprivate func component(_ format: String) -> some XLSQLiteExpression<Optional<Int>> {
         XLTypeCastExpression(
             type: "INTEGER",
-            expression: XLFunction<Optional<String>, Dialect>(name: "strftime", parameters: [format, self])
+            expression: XLFunction<Optional<String>>(name: "strftime", parameters: [format, self])
         )
     }
 }

@@ -157,7 +157,7 @@ public enum XLConflictResolution<Row> {
     /// optionally constrained by a `WHERE` predicate that must hold for the
     /// update to apply.
     ///
-    case update(Setting<Row>, filter: (any XLTypedExpression)?)
+    case update(Setting<Row>, filter: (any XLExpression)?)
 }
 
 
@@ -229,7 +229,7 @@ public struct OnConflict<Row>: XLEncodable {
         on firstTarget: XLName,
         _ otherTargets: XLName...,
         set values: @escaping (inout Row.MetaUpdate) -> Void,
-        where filter: any XLTypedExpression<B>
+        where filter: any XLExpression<B>
     ) -> OnConflict where Row: XLTable, B: XLBoolean {
         OnConflict(
             targets: [firstTarget] + otherTargets,

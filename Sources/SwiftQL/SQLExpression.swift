@@ -12,87 +12,35 @@ import Foundation
 /// A custom scalar type: a Swift value that binds to, reads from, and renders
 /// into SQL.
 ///
-/// A custom type is a value, so it is written the same way in every dialect:
-/// its ``XLExpression/Dialect`` is ``XLUniversalDialect`` unless it declares
-/// another, and it can be compared with a column of any dialect.
+/// A custom type is a value, so it is an operand in a SQLite query, as an
+/// ``XLSQLiteExpression``, like `String` or `Int` (issue #789). A type that
+/// conforms to `XLExpression`, `XLBindable`, and `XLLiteral` separately,
+/// rather than to this alias, conforms to `XLSQLiteExpression` itself.
 ///
-public typealias XLCustomType = XLExpression & XLBindable & XLLiteral
+public typealias XLCustomType = XLExpression & XLBindable & XLLiteral & XLSQLiteExpression
 
 
 // MARK: - Expressions
 
 
 ///
-/// An SQL expression whose value has the Swift type `T`, in any dialect.
+/// An SQL expression.
 ///
-/// Every ``XLExpression`` conforms, whatever its dialect. A clause that
-/// consumes an expression without composing it, such as `Where`, `Limit`, or a
-/// column assignment, accepts this protocol, and so does an argument of a
-/// function on an expression, whose result takes its dialect from the
-/// receiver. Operators and functions, which compose expressions, take
-/// ``XLExpression`` instead, so an operation one dialect does not have is
-/// absent from another dialect's query (issue #789).
+/// An expression evaluates to a value of a known type defined by the associated type `T`.
 ///
-public protocol XLTypedExpression<T>: XLEncodable {
+/// `XLExpression` does not say which dialect the expression belongs to. A
+/// clause that takes an expression without composing it, such as `Where`,
+/// `OrderBy`, or a column assignment, accepts any `XLExpression`. Operators and
+/// functions compose expressions, so they take and return a dialect's own
+/// expression protocol, such as ``XLSQLiteExpression``: a column of a model
+/// declared for one dialect does not compose with another dialect's
+/// expressions (issue #789).
+///
+public protocol XLExpression<T>: XLEncodable {
     associatedtype T
 }
 
-
-///
-/// An SQL expression.
-///
-/// An expression evaluates to a value of a known type defined by the
-/// associated type `T`. `Dialect` is the dialect of the query the expression
-/// belongs to (issue #789). A column takes it from its model, which names it
-/// with `@SQLTable(dialect:)` or `@SQLResult(dialect:)`, and an operator or a
-/// function passes it on to its result. An operation a dialect does not have
-/// is declared only where `Dialect` is a dialect that has it, so calling it on
-/// another dialect's expression is a compile error at the call site, whether
-/// the receiver is a column or a composed expression.
-///
-/// A Swift value such as `"abc"` or `42`, an optional of one, a custom type,
-/// an enum case, and a named binding are written the same way in every
-/// dialect. Their dialect is ``XLUniversalDialect``, which is also the default
-/// for a conformer that does not declare one. A binary operator takes two
-/// operands of one dialect, or one operand of any dialect and one universal
-/// operand, and its result has the operands' dialect.
-///
-/// SQLite code can write ``XLSQLiteExpression`` for
-/// `XLExpression<T, XLSQLiteDialect>`.
-///
-public protocol XLExpression<T, Dialect>: XLTypedExpression {
-    associatedtype Dialect = XLUniversalDialect
-}
-
-
-///
-/// The dialect of an expression that is written the same way in every
-/// dialect: a Swift value, an optional of one, a custom type, an enum case, a
-/// named binding, or a function of only these.
-///
-/// A universal expression is an operand next to an expression of any dialect,
-/// and the result takes that dialect. It has the functions every dialect
-/// shares, such as `lower()` or `isNull()`, but not a dialect's own: to apply
-/// a SQLite-only function to a value, lift it with ``XLExpression/sqlite`` or
-/// ``XLExpression/expression(in:)`` first.
-///
-/// It is a marker, not a dialect a query is written in: no schema or model
-/// can be declared for it.
-///
-public enum XLUniversalDialect {
-}
-
-
-///
-/// An expression of a SQLite query.
-///
-/// Shorthand for `XLExpression<T, XLSQLiteDialect>`, so SQLite code can write
-/// `any XLSQLiteExpression<Bool>` for a stored predicate or a helper's
-/// result, as v1 code wrote `any XLExpression<Bool>`.
-///
-public typealias XLSQLiteExpression<T> = XLExpression<T, XLSQLiteDialect>
-
-extension XLTypedExpression {
+extension XLExpression {
     
     ///
     /// Helper method used to encode an expression.
@@ -242,8 +190,10 @@ public protocol XLComparable: XLEquatable {
 ///
 /// Expression that refers to a table column.
 ///
-/// `Dialect` is the dialect of the model that declares the column, so every
-/// expression composed from it carries that dialect (issue #789).
+/// `Dialect` is the dialect of the model that declares the column, which names
+/// it with `@SQLTable(dialect:)` or `@SQLResult(dialect:)`. The column is an
+/// expression of that dialect only, such as an ``XLSQLiteExpression`` for a
+/// SQLite model (issue #789).
 ///
 public struct XLColumnReference<T, Dialect>: XLExpression {
     
@@ -296,29 +246,47 @@ public struct XLColumnResult<T, Dialect>: XLExpression {
 /// Column references opt in so a contextual `Date -> String`, for example,
 /// renders the bare SQL column as `String` storage even if another module has
 /// supplied a retroactive legacy `Date: XLLiteral` wrapper.
-///
-/// The retyped expression keeps the column's dialect, so it can be compared
-/// with a capture in the same query (issue #789).
-public protocol XLStaticStorageRetypableExpression: XLExpression {
+public protocol XLStaticStorageRetypableExpression {
     func staticStorageExpression<Storage>(
         as storageType: Storage.Type
-    ) -> any XLExpression<Storage, Dialect>
+    ) -> any XLExpression<Storage>
 }
 
 
+// Each column also has a concrete overload, which keeps the column's dialect,
+// so the retyped column composes with that dialect's expressions, such as a
+// capture (issue #789). The protocol's erased witness is disfavoured, so a
+// call that either overload satisfies takes the concrete one.
+
 extension XLColumnReference: XLStaticStorageRetypableExpression {
+    @_disfavoredOverload
+    public func staticStorageExpression<Storage>(
+        as storageType: Storage.Type
+    ) -> any XLExpression<Storage> {
+        staticStorageExpression(as: storageType) as XLColumnReference<Storage, Dialect>
+    }
+
+    /// This column, typed as `Storage`, in the column's dialect.
     public func staticStorageExpression<Storage>(
         as _: Storage.Type
-    ) -> any XLExpression<Storage, Dialect> {
+    ) -> XLColumnReference<Storage, Dialect> {
         XLColumnReference<Storage, Dialect>(dependency: dependency, as: alias)
     }
 }
 
 
 extension XLColumnResult: XLStaticStorageRetypableExpression {
+    @_disfavoredOverload
+    public func staticStorageExpression<Storage>(
+        as storageType: Storage.Type
+    ) -> any XLExpression<Storage> {
+        staticStorageExpression(as: storageType) as XLColumnResult<Storage, Dialect>
+    }
+
+    /// This column, typed as `Storage`, in the column's dialect.
     public func staticStorageExpression<Storage>(
         as _: Storage.Type
-    ) -> any XLExpression<Storage, Dialect> {
+    ) -> XLColumnResult<Storage, Dialect> {
         XLColumnResult<Storage, Dialect>(dependency: dependency, as: alias)
     }
 }
@@ -370,10 +338,6 @@ public func _xlLegacyValueExpression<Value>(
 
 ///
 /// Reference to a variable used in an expression.
-///
-/// A named binding is a placeholder for a value, so like a value it is
-/// universal. A query capture or a contextual binding encodes its value for
-/// one dialect, so it is an expression of that dialect instead.
 ///
 public protocol XLBindingReference<T>: XLExpression {
     
@@ -464,25 +428,21 @@ protocol XLBindingOriginRecording {
 ///
 /// A function that is called in an expression.
 ///
-/// `Dialect` is the dialect of the query the call belongs to. A function that
-/// one dialect does not have is declared where `Dialect` is a dialect that has
-/// it.
-///
-public struct XLFunction<T, Dialect>: XLExpression where T: XLLiteral {
+public struct XLFunction<T>: XLExpression where T: XLLiteral {
     
     private let name: String
     
     private let distinct: Bool
     
-    private let parameters: [any XLTypedExpression]
+    private let parameters: [any XLExpression]
     
-    public init(name: String, distinct: Bool = false, parameters: any XLTypedExpression...) {
+    public init(name: String, distinct: Bool = false, parameters: any XLExpression...) {
         self.name = name
         self.distinct = distinct
         self.parameters = parameters
     }
 
-    public init(name: String, distinct: Bool = false, parameters: [any XLTypedExpression]) {
+    public init(name: String, distinct: Bool = false, parameters: [any XLExpression]) {
         self.name = name
         self.distinct = distinct
         self.parameters = parameters
@@ -538,7 +498,10 @@ extension XLFunction: XLNamedFunction {
 /// The `XLEnum` protocol provides default implementations for most of the required methods which can
 /// be overridden as required. Reading an unknown stored raw value throws `XLColumnReadError`.
 ///
-public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
+/// An enum is a value, so it is an operand in a SQLite query, as an
+/// ``XLSQLiteExpression`` (issue #789).
+///
+public protocol XLEnum: XLLiteral, XLExpression, XLSQLiteExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     
 }
 
@@ -568,22 +531,6 @@ extension XLEnum {
 }
 
 
-extension XLExpression {
-    
-    public func toRawValue() -> some XLExpression<Int, Dialect> where T: XLEnum, T.RawValue == Int {
-        XLTypeAffinityExpression<Int, Dialect>(expression: self)
-    }
-    
-    public func toRawValue() -> some XLExpression<Double, Dialect> where T: XLEnum, T.RawValue == Double {
-        XLTypeAffinityExpression<Double, Dialect>(expression: self)
-    }
-    
-    public func toRawValue() -> some XLExpression<String, Dialect> where T: XLEnum, T.RawValue == String {
-        XLTypeAffinityExpression<String, Dialect>(expression: self)
-    }
-}
-
-
 extension Optional {
     
     public typealias T = Optional<Wrapped>
@@ -605,16 +552,8 @@ extension Optional: XLEncodable where Wrapped: XLEncodable {
     }
 }
 
-// An optional of a universal value is itself a universal value. Stated
-// separately from the `XLExpression` conformance below, because a conditional
-// conformance does not imply the protocols it inherits.
-extension Optional: XLTypedExpression where Wrapped: XLExpression, Wrapped.Dialect == XLUniversalDialect {
-
-}
-
-extension Optional: XLExpression where Wrapped: XLExpression, Wrapped.Dialect == XLUniversalDialect {
-
-    public typealias Dialect = XLUniversalDialect
+extension Optional: XLExpression where Wrapped: XLExpression {
+    
 }
 
 extension Optional: XLBindable where Wrapped: XLBindable {
@@ -646,47 +585,6 @@ extension Optional: XLLiteral where Wrapped: XLLiteral {
     
     public static func wrapSQL(context: inout XLBuilder, builder: (inout XLBuilder) -> Void) {
         Wrapped.wrapSQL(context: &context, builder: builder)
-    }
-}
-
-
-extension XLExpression {
-    
-    ///
-    /// Cast a non-null expression to an optional value expression. 
-    ///
-    public func toNullable() -> some XLExpression<Optional<T>, Dialect> {
-        XLTypeAffinityExpression<Optional<T>, Dialect>(expression: self)
-    }
-}
-
-
-extension XLExpression where Dialect == XLUniversalDialect {
-
-    ///
-    /// This universal expression as an expression of `dialect`.
-    ///
-    /// A universal expression -- a value, a named binding, or a function of
-    /// only these -- has the functions every dialect shares. A function only
-    /// one dialect has is declared on that dialect's expressions, so applying
-    /// it to a value takes this first:
-    /// `date.expression(in: XLSQLiteDialect.self).julianDay()`. SQLite code
-    /// can write ``sqlite`` instead.
-    ///
-    public func expression<Dialect>(
-        in dialect: Dialect.Type
-    ) -> some XLExpression<T, Dialect> where Dialect: XLSQLDialect {
-        XLTypeAffinityExpression<T, Dialect>(expression: self)
-    }
-
-    ///
-    /// This universal expression as a SQLite expression, so SQLite's own
-    /// functions take it: `"2026-07-19".sqlite.datetime(.months(1))`.
-    ///
-    /// The same as `expression(in: XLSQLiteDialect.self)`.
-    ///
-    public var sqlite: some XLSQLiteExpression<T> {
-        XLTypeAffinityExpression<T, XLSQLiteDialect>(expression: self)
     }
 }
 
@@ -858,13 +756,13 @@ public enum XLSeparator: String, Sendable {
 ///
 /// An expression composed of multiple sub-expressions.
 ///
-struct XLCompoundExpression<T>: XLTypedExpression {
+struct XLCompoundExpression<T>: XLExpression {
     
     private var separator: XLSeparator
     
-    private var expressions: [any XLTypedExpression]
+    private var expressions: [any XLExpression]
     
-    public init(separator: XLSeparator, expressions: [any XLTypedExpression]) {
+    public init(separator: XLSeparator, expressions: [any XLExpression]) {
         self.separator = separator
         self.expressions = expressions
     }
@@ -884,7 +782,7 @@ struct XLCompoundExpression<T>: XLTypedExpression {
 ///
 /// An expression enclosing a sub-expression with parenthesis.
 ///
-struct XLParenthesis<T>: XLTypedExpression {
+struct XLParenthesis<T>: XLExpression {
     
     private let expression: any XLEncodable
     
@@ -901,7 +799,7 @@ struct XLParenthesis<T>: XLTypedExpression {
 ///
 /// An expression representing an SQL subquery.
 ///
-struct XLSubquery<Wrapped, Dialect>: XLExpression where Wrapped: XLLiteral {
+struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
     
     typealias T = Optional<Wrapped>
     

@@ -32,25 +32,19 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     func testConstructorsRenderTheirSQLiteNames() {
         assertSQL(jsonbArray(1, "two"), "jsonb_array(1, 'two')")
         assertSQL(jsonbObject(("a", 1)), "jsonb_object('a', 1)")
-        assertSQL(sqliteDocument().minifiedJSONB(), "jsonb(:document)")
+        assertSQL(document().minifiedJSONB(), "jsonb(:document)")
     }
 
     func testExtractionRendersBothForms() {
         assertSQL(
-            sqliteDocument().jsonbExtract(at: XLJSONPath.root.key("a"), as: Int.self),
+            document().jsonbExtract(at: XLJSONPath.root.key("a"), as: Int.self),
             "jsonb_extract(:document, '$.a')"
         )
         assertSQL(
-            sqliteDocument().jsonbExtract(
+            document().jsonbExtract(
                 at: XLJSONPath.root.key("a"),
                 XLJSONPath.root.key("b")
             ),
@@ -62,23 +56,23 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         let a = XLJSONPath.root.key("a")
         let b = XLJSONPath.root.key("b")
         assertSQL(
-            sqliteDocument().jsonbInserting((a, 1)),
+            document().jsonbInserting((a, 1)),
             "jsonb_insert(:document, '$.a', 1)"
         )
         assertSQL(
-            sqliteDocument().jsonbReplacing((a, 1)),
+            document().jsonbReplacing((a, 1)),
             "jsonb_replace(:document, '$.a', 1)"
         )
         assertSQL(
-            sqliteDocument().jsonbSetting((a, 1), (b, 2)),
+            document().jsonbSetting((a, 1), (b, 2)),
             "jsonb_set(:document, '$.a', 1, '$.b', 2)"
         )
         assertSQL(
-            sqliteDocument().jsonbRemoving(at: a, b),
+            document().jsonbRemoving(at: a, b),
             "jsonb_remove(:document, '$.a', '$.b')"
         )
         assertSQL(
-            sqliteDocument().jsonbPatched(with: "{}"),
+            document().jsonbPatched(with: "{}"),
             "jsonb_patch(:document, '{}')"
         )
     }
@@ -86,9 +80,9 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
     func testAggregatesRenderTheirSQLiteNames() {
         let name = XLNamedBindingReference<String>(name: "name")
         let value = XLNamedBindingReference<Int>(name: "value")
-        assertSQL(value.sqlite.jsonbGroupArray(), "jsonb_group_array(:value)")
+        assertSQL(value.jsonbGroupArray(), "jsonb_group_array(:value)")
         assertSQL(
-            value.sqlite.jsonbGroupArray(distinct: true),
+            value.jsonbGroupArray(distinct: true),
             "jsonb_group_array(DISTINCT :value)"
         )
         assertSQL(
@@ -102,14 +96,14 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         let value = XLNamedBindingReference<Int>(name: "value")
         assertExpressionType(jsonbArray(1), Data.self)
         assertExpressionType(jsonbObject(("a", 1)), Data.self)
-        assertExpressionType(sqliteDocument().minifiedJSONB(), Data?.self)
-        assertExpressionType(sqliteDocument().jsonbSetting((a, 1)), Data?.self)
-        assertExpressionType(sqliteDocument().jsonbExtract(at: a, a), Data?.self)
-        assertExpressionType(value.sqlite.jsonbGroupArray(), Data.self)
+        assertExpressionType(document().minifiedJSONB(), Data?.self)
+        assertExpressionType(document().jsonbSetting((a, 1)), Data?.self)
+        assertExpressionType(document().jsonbExtract(at: a, a), Data?.self)
+        assertExpressionType(value.jsonbGroupArray(), Data.self)
         // The single-path form still follows the selected element, so a
         // scalar comes back as a scalar and not as a BLOB.
         assertExpressionType(
-            sqliteDocument().jsonbExtract(at: a, as: Int.self),
+            document().jsonbExtract(at: a, as: Int.self),
             Int?.self
         )
     }
@@ -120,11 +114,11 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         // through the optional form, as `testResultTypesAreBinary` shows.
         let a = XLJSONPath.root.key("a")
         let blob = XLNamedBindingReference<Data>(name: "blob")
-        let inserted = blob.sqlite.jsonbInserting((a, 1))
-        let replaced = blob.sqlite.jsonbReplacing((a, 1))
-        let set = blob.sqlite.jsonbSetting((a, 1))
-        let removed = blob.sqlite.jsonbRemoving(at: a)
-        let patched = blob.sqlite.jsonbPatched(with: "{}")
+        let inserted = blob.jsonbInserting((a, 1))
+        let replaced = blob.jsonbReplacing((a, 1))
+        let set = blob.jsonbSetting((a, 1))
+        let removed = blob.jsonbRemoving(at: a)
+        let patched = blob.jsonbPatched(with: "{}")
         assertExpressionType(inserted, Data.self)
         assertExpressionType(replaced, Data.self)
         assertExpressionType(set, Data.self)
@@ -134,20 +128,20 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         assertSQL(removed, "jsonb_remove(:blob, '$.a')")
 
         let nullable = XLNamedBindingReference<Data?>(name: "blob")
-        assertExpressionType(nullable.sqlite.jsonbSetting((a, 1)), Data?.self)
-        assertExpressionType(nullable.sqlite.jsonbRemoving(at: a), Data?.self)
+        assertExpressionType(nullable.jsonbSetting((a, 1)), Data?.self)
+        assertExpressionType(nullable.jsonbRemoving(at: a), Data?.self)
 
         XCTAssertEqual(
-            encoder.makeSQL(blob.sqlite.jsonbRemoving(at: .root)).valueEncodingError,
+            encoder.makeSQL(blob.jsonbRemoving(at: .root)).valueEncodingError,
             .jsonRootRemoval(function: "jsonb_remove")
         )
         XCTAssertNil(
-            encoder.makeSQL(nullable.sqlite.jsonbRemoving(at: .root)).valueEncodingError
+            encoder.makeSQL(nullable.jsonbRemoving(at: .root)).valueEncodingError
         )
     }
 
     private func assertSQL<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -160,7 +154,7 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         )
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }
 
@@ -206,14 +200,8 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     private func evaluate<Value>(
-        _ expression: any XLTypedExpression<Value>,
+        _ expression: any XLExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -223,7 +211,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLTypedExpression<Value>
+        _ expression: any XLExpression<Value>
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         return try database.makeRequest(with: statement).fetchOne()
@@ -234,7 +222,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     private func text(of blob: Data) throws -> String? {
         // `evaluate` returns the row, and the column is itself optional, so
         // the two optionals are flattened here rather than at every call.
-        try evaluate(blob.sqlite.minifiedJSON()) ?? nil
+        try evaluate(blob.minifiedJSON()) ?? nil
     }
 
     // MARK: - Round trip
@@ -243,7 +231,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         try requireJSONB()
         guard
             let row = try evaluate(
-                sqliteDocument().minifiedJSONB(),
+                document().minifiedJSONB(),
                 document: #" { "a" : 1 } "#
             ),
             let blob = row
@@ -261,7 +249,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         // there is no `jsonb_type` or `jsonb_valid` to add here.
         guard
             let row = try evaluate(
-                sqliteDocument().minifiedJSONB(),
+                document().minifiedJSONB(),
                 document: #"{"a":[1,2,3]}"#
             ),
             let blob = row
@@ -269,16 +257,16 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
             XCTFail("the statement should return one document")
             return
         }
-        XCTAssertEqual(try evaluate(blob.sqlite.jsonType()), "object")
+        XCTAssertEqual(try evaluate(blob.jsonType()), "object")
         XCTAssertEqual(
             try evaluate(
-                blob.sqlite.jsonExtract(at: XLJSONPath.root.key("a"), as: String.self)
+                blob.jsonExtract(at: XLJSONPath.root.key("a"), as: String.self)
             ),
             "[1,2,3]"
         )
         XCTAssertEqual(
             try evaluate(
-                blob.sqlite.jsonArrayLength(path: XLJSONPath.root.key("a"))
+                blob.jsonArrayLength(path: XLJSONPath.root.key("a"))
             ),
             3
         )
@@ -308,7 +296,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         let json = #"{"n":5,"o":{"b":1}}"#
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonbExtract(
+                document().jsonbExtract(
                     at: XLJSONPath.root.key("n"),
                     as: Int.self
                 ),
@@ -320,7 +308,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         // as the JSON text `json_extract` would return.
         guard
             let row = try evaluate(
-                sqliteDocument().jsonbExtract(
+                document().jsonbExtract(
                     at: XLJSONPath.root.key("o"),
                     as: Data.self
                 ),
@@ -338,7 +326,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         try requireJSONB()
         guard
             let row = try evaluate(
-                sqliteDocument().jsonbExtract(
+                document().jsonbExtract(
                     at: XLJSONPath.root.key("a"),
                     XLJSONPath.root.key("b")
                 ),
@@ -357,16 +345,16 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     func testMutationsWriteBackAndReadAsJSON() throws {
         try requireJSONB()
         let json = #"{"a":1,"b":2}"#
-        let cases: [(any XLTypedExpression<Data?>, String)] = [
-            (sqliteDocument().jsonbInserting((XLJSONPath.root.key("c"), 3)),
+        let cases: [(any XLExpression<Data?>, String)] = [
+            (document().jsonbInserting((XLJSONPath.root.key("c"), 3)),
              #"{"a":1,"b":2,"c":3}"#),
-            (sqliteDocument().jsonbReplacing((XLJSONPath.root.key("a"), 9)),
+            (document().jsonbReplacing((XLJSONPath.root.key("a"), 9)),
              #"{"a":9,"b":2}"#),
-            (sqliteDocument().jsonbSetting((XLJSONPath.root.key("a"), 9)),
+            (document().jsonbSetting((XLJSONPath.root.key("a"), 9)),
              #"{"a":9,"b":2}"#),
-            (sqliteDocument().jsonbRemoving(at: XLJSONPath.root.key("a")),
+            (document().jsonbRemoving(at: XLJSONPath.root.key("a")),
              #"{"b":2}"#),
-            (sqliteDocument().jsonbPatched(with: #"{"b":null,"c":3}"#),
+            (document().jsonbPatched(with: #"{"b":null,"c":3}"#),
              #"{"a":1,"c":3}"#),
         ]
         for (expression, expected) in cases {
@@ -385,7 +373,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         try requireJSONB()
         guard
             let row = try evaluate(
-                sqliteDocument().minifiedJSONB(),
+                document().minifiedJSONB(),
                 document: #"{"a":1,"b":2}"#
             ),
             let blob = row
@@ -394,8 +382,8 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
             return
         }
         guard
-            let set = try evaluate(blob.sqlite.jsonbSetting((XLJSONPath.root.key("a"), 9))),
-            let removed = try evaluate(blob.sqlite.jsonbRemoving(at: XLJSONPath.root.key("b")))
+            let set = try evaluate(blob.jsonbSetting((XLJSONPath.root.key("a"), 9))),
+            let removed = try evaluate(blob.jsonbRemoving(at: XLJSONPath.root.key("b")))
         else {
             XCTFail("the statements should return one document each")
             return
@@ -408,7 +396,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
         try requireJSONB()
         let reference = XLNamedBindingReference<String?>(name: "nullDocument")
         let statement = sql { _ in
-            Select(reference.sqlite.jsonbSetting((XLJSONPath.root.key("a"), 1)))
+            Select(reference.jsonbSetting((XLJSONPath.root.key("a"), 1)))
         }
         var request = database.makeRequest(with: statement)
         request.set(reference, String?.none)

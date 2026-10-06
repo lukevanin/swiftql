@@ -1,0 +1,124 @@
+//
+//  TextOperators.swift.template
+//
+//  Text concatenation, LIKE, and GLOB.
+//  scripts/dialect-surface/generate.py renders it once for each dialect in
+//  scripts/dialect-surface/dialects.json (issue #789).
+//
+
+import Foundation
+
+
+// MARK: - Concatenation
+
+
+public func +(lhs: any {{Expression}}<String>, rhs: any {{Expression}}<String>) -> some {{Expression}}<String> {
+    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
+}
+
+public func +(lhs: any {{Expression}}<String>, rhs: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<String>> {
+    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
+}
+
+public func +(lhs: any {{Expression}}<Optional<String>>, rhs: any {{Expression}}<String>) -> some {{Expression}}<Optional<String>>{
+    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
+}
+
+public func +(lhs: any {{Expression}}<Optional<String>>, rhs: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<String>> {
+    XLConcatenationExpression(op: "||", lhs: lhs, rhs: rhs)
+}
+
+
+// MARK: - LIKE
+
+
+extension {{Expression}} {
+
+    public func like(_ other: any {{Expression}}<String>) -> some {{Expression}}<Bool> where T == String {
+        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
+    }
+
+    public func like(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == String {
+        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
+    }
+
+    public func like(_ other: any {{Expression}}<String>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
+    }
+
+    public func like(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "LIKE", lhs: self, rhs: other)
+    }
+
+    ///
+    /// Matches `other` as a `LIKE` pattern in which `escape` marks the next
+    /// character as a literal, so `%` and `_` can be matched exactly.
+    ///
+    /// SQLite requires `escape` to evaluate to a single character. A longer or
+    /// empty value prepares successfully and then fails when the statement is
+    /// stepped, with `ESCAPE expression must be a single character`. That is a
+    /// constraint on the value, not something the Swift type can express.
+    ///
+    public func like(
+        _ other: any {{Expression}}<String>,
+        escape: any {{Expression}}<String>
+    ) -> some {{Expression}}<Bool> where T == String {
+        XLLikeEscapeExpression<Bool>(term: self, pattern: other, escape: escape)
+    }
+
+    public func like(
+        _ other: any {{Expression}}<Optional<String>>,
+        escape: any {{Expression}}<String>
+    ) -> some {{Expression}}<Optional<Bool>> where T == String {
+        XLLikeEscapeExpression<Optional<Bool>>(
+            term: self,
+            pattern: other,
+            escape: escape
+        )
+    }
+
+    public func like(
+        _ other: any {{Expression}}<String>,
+        escape: any {{Expression}}<String>
+    ) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLLikeEscapeExpression<Optional<Bool>>(
+            term: self,
+            pattern: other,
+            escape: escape
+        )
+    }
+
+    public func like(
+        _ other: any {{Expression}}<Optional<String>>,
+        escape: any {{Expression}}<String>
+    ) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLLikeEscapeExpression<Optional<Bool>>(
+            term: self,
+            pattern: other,
+            escape: escape
+        )
+    }
+}
+
+
+// MARK: - GLOB
+
+
+extension {{Expression}} {
+    
+    public func glob(_ other: any {{Expression}}<String>) -> some {{Expression}}<Bool> where T == String {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == String {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any {{Expression}}<String>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+}

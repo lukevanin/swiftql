@@ -28,47 +28,47 @@
 ///
 @freestanding(expression)
 public macro row<C0>(
-    _ c0: any XLTypedExpression<C0>
+    _ c0: any XLExpression<C0>
 ) -> SQLScalarResult<C0>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression
 
 #if compiler(>=6.1)
 @freestanding(expression)
 public macro row<C0, C1>(
-    _ c0: any XLTypedExpression<C0>,
-    _ c1: any XLTypedExpression<C1>
+    _ c0: any XLExpression<C0>,
+    _ c1: any XLExpression<C1>
 ) -> SQLRow2<C0, C1>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression
 
 @freestanding(expression)
 public macro row<C0, C1, C2>(
-    _ c0: any XLTypedExpression<C0>,
-    _ c1: any XLTypedExpression<C1>,
-    _ c2: any XLTypedExpression<C2>
+    _ c0: any XLExpression<C0>,
+    _ c1: any XLExpression<C1>,
+    _ c2: any XLExpression<C2>
 ) -> SQLRow3<C0, C1, C2>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression, C2: XLLiteral & XLExpression
 
 @freestanding(expression)
 public macro row<C0, C1, C2, C3>(
-    _ c0: any XLTypedExpression<C0>,
-    _ c1: any XLTypedExpression<C1>,
-    _ c2: any XLTypedExpression<C2>,
-    _ c3: any XLTypedExpression<C3>
+    _ c0: any XLExpression<C0>,
+    _ c1: any XLExpression<C1>,
+    _ c2: any XLExpression<C2>,
+    _ c3: any XLExpression<C3>
 ) -> SQLRow4<C0, C1, C2, C3>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression, C2: XLLiteral & XLExpression, C3: XLLiteral & XLExpression
 
 @freestanding(expression)
 public macro row<C0, C1, C2, C3, C4>(
-    _ c0: any XLTypedExpression<C0>,
-    _ c1: any XLTypedExpression<C1>,
-    _ c2: any XLTypedExpression<C2>,
-    _ c3: any XLTypedExpression<C3>,
-    _ c4: any XLTypedExpression<C4>
+    _ c0: any XLExpression<C0>,
+    _ c1: any XLExpression<C1>,
+    _ c2: any XLExpression<C2>,
+    _ c3: any XLExpression<C3>,
+    _ c4: any XLExpression<C4>
 ) -> SQLRow5<C0, C1, C2, C3, C4>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression, C2: XLLiteral & XLExpression, C3: XLLiteral & XLExpression, C4: XLLiteral & XLExpression
 
 @freestanding(expression)
 public macro row<C0, C1, C2, C3, C4, C5>(
-    _ c0: any XLTypedExpression<C0>,
-    _ c1: any XLTypedExpression<C1>,
-    _ c2: any XLTypedExpression<C2>,
-    _ c3: any XLTypedExpression<C3>,
-    _ c4: any XLTypedExpression<C4>,
-    _ c5: any XLTypedExpression<C5>
+    _ c0: any XLExpression<C0>,
+    _ c1: any XLExpression<C1>,
+    _ c2: any XLExpression<C2>,
+    _ c3: any XLExpression<C3>,
+    _ c4: any XLExpression<C4>,
+    _ c5: any XLExpression<C5>
 ) -> SQLRow6<C0, C1, C2, C3, C4, C5>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression, C2: XLLiteral & XLExpression, C3: XLLiteral & XLExpression, C4: XLLiteral & XLExpression, C5: XLLiteral & XLExpression
 #endif

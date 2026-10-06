@@ -58,14 +58,14 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func test_TextConcatenation_CollatesCompleteResult() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
-        let expression = (x.sqlite + y).collate(.nocase)
+        let expression = (x + y).collate(.nocase)
         assertRenders(expression, as: "((:x || :y) COLLATE NOCASE)")
     }
 
     func test_TextConcatenation_PreservesCollatedLeftOperandGrouping() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
-        let expression = x.sqlite.collate(.nocase) + y
+        let expression = x.collate(.nocase) + y
         assertRenders(expression, as: "((:x COLLATE NOCASE) || :y)")
     }
 
@@ -77,11 +77,11 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func test_CustomCollation_RendersThroughTheIdentifierPath() {
         let x = XLNamedBindingReference<String>(name: "x")
         assertRenders(
-            x.sqlite.collate(.nocase),
+            x.collate(.nocase),
             as: "(:x COLLATE NOCASE)"
         )
         assertRenders(
-            x.sqlite.collate(XLCollation(rawValue: "myCollation")),
+            x.collate(XLCollation(rawValue: "myCollation")),
             as: "(:x COLLATE myCollation)"
         )
     }
@@ -95,12 +95,12 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         )
         let x = XLNamedBindingReference<String>(name: "x")
         XCTAssertEqual(
-            escaping.makeSQL(x.sqlite.collate(XLCollation(rawValue: "myCollation"))).sql,
+            escaping.makeSQL(x.collate(XLCollation(rawValue: "myCollation"))).sql,
             "(:x COLLATE \"myCollation\")"
         )
         XCTAssertEqual(
             escaping.makeSQL(
-                x.sqlite.collate(XLCollation(rawValue: "evil\" OR 1=1 --"))
+                x.collate(XLCollation(rawValue: "evil\" OR 1=1 --"))
             ).sql,
             "(:x COLLATE \"evil\"\" OR 1=1 --\")"
         )
@@ -109,7 +109,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func test_TextConcatenation_PreservesCollatedOperandGrouping() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
-        let expression = x + y.sqlite.collate(.nocase)
+        let expression = x + y.collate(.nocase)
         assertRenders(expression, as: "(:x || (:y COLLATE NOCASE))")
     }
     
@@ -120,7 +120,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func testBetweenOperatorSupportsLiteralBounds() {
         let value = XLNamedBindingReference<Int>(name: "value")
         let expression = value.isBetween(7, 12)
-        let _: any XLTypedExpression<Bool> = expression
+        let _: any XLExpression<Bool> = expression
 
         assertRenders(
             expression,
@@ -134,7 +134,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         let minimum = XLNamedBindingReference<Int>(name: "minimum")
         let maximum = XLNamedBindingReference<Int>(name: "maximum")
         let expression = value.isNotBetween(minimum, maximum)
-        let _: any XLTypedExpression<Bool> = expression
+        let _: any XLExpression<Bool> = expression
 
         assertRenders(
             expression,
@@ -162,7 +162,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func testBetweenOperatorPreservesNullableResultType() {
         let value = XLNamedBindingReference<Optional<Int>>(name: "value")
         let expression = value.isBetween(7, 12)
-        let _: any XLTypedExpression<Optional<Bool>> = expression
+        let _: any XLExpression<Optional<Bool>> = expression
 
         assertRenders(
             expression,
@@ -177,7 +177,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func test_SimpleCaseWhenThen_StringResult() {
         let value = XLNamedBindingReference<Int>(name: "value")
         let expression = switchCase(value).when(1, then: "one")
-        let _: any XLTypedExpression<String?> = expression
+        let _: any XLExpression<String?> = expression
         assertRenders(
             expression,
             as: "(CASE :value WHEN 1 THEN 'one' END)"
@@ -191,7 +191,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
             .when(1, then: "one")
             .when(2, then: "two")
             .else("other")
-        let _: any XLTypedExpression<String> = expression
+        let _: any XLExpression<String> = expression
         assertRenders(
             expression,
             as: "(CASE :value WHEN 1 THEN 'one' WHEN 2 THEN 'two' ELSE 'other' END)"
@@ -224,8 +224,8 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         let expression = when(x == 12, then: 42)
         // A searched CASE without an ELSE evaluates to NULL when no condition
         // matches, so the expression type is the optional of the result type.
-        let _: any XLTypedExpression<Int?> = expression
-        XCTAssertTrue(VariableCaseWhenThen<Int, XLUniversalDialect>.T.self == Int?.self)
+        let _: any XLExpression<Int?> = expression
+        XCTAssertTrue(VariableCaseWhenThen<Int, XLSQLiteDialect>.T.self == Int?.self)
         assertRenders(expression, as: "(CASE WHEN (:x == 12) THEN 42 END)")
     }
 
@@ -233,7 +233,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
     func test_SearchedCaseWhenThenElse_IntegerResult() {
         let x = XLNamedBindingReference<Int>(name: "x")
         let expression = when(x == 12, then: 42).else(7)
-        let _: any XLTypedExpression<Int> = expression
+        let _: any XLExpression<Int> = expression
         assertRenders(expression, as: "(CASE WHEN (:x == 12) THEN 42 ELSE 7 END)")
     }
 

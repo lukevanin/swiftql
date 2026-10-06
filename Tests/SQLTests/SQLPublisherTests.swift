@@ -188,7 +188,7 @@ private final class ManualDemandSubscriber<Input>: Subscriber, @unchecked Sendab
 }
 
 
-private struct BlockingObservationExpression: XLExpression {
+private struct BlockingObservationExpression: XLSQLiteExpression {
 
     typealias T = Int
 

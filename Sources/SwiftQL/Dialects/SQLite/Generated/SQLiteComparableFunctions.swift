@@ -1,8 +1,10 @@
 //
-//  ComparableFunctions.swift
-//  
+//  SQLiteComparableFunctions.swift
 //
-//  Created by Luke Van In on 2023/08/14.
+//  Generated for SQLite by scripts/dialect-surface/generate.py
+//  from scripts/dialect-surface/Templates/ComparableFunctions.swift.template.
+//  Do not edit: edit the template, then run
+//  `python3 scripts/dialect-surface/generate.py`.
 //
 
 import Foundation
@@ -16,13 +18,13 @@ import Foundation
 /// comparison) rather than fixing it, since fixing it would itself be a
 /// source-breaking change; use `a.min(b, ...)` for the scalar comparison.
 @available(*, deprecated, message: "This single-argument call is the aggregate MIN(expr); use minOrNull() instead. min(_:) will be removed in SwiftQL 2.")
-public func min<T, Dialect>(_ first: any XLExpression<T, Dialect>) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
+public func min<T>(_ first: any XLSQLiteExpression<T>) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MIN", parameters: [first])
 }
 
 /// Returns the minimum value from a list of expressions.
 @available(*, deprecated, message: "Use a.min(b, ...) instead. min(_:) will be removed in SwiftQL 2.")
-public func min<T, Dialect>(_ first: any XLExpression<T, Dialect>, _ second: any XLTypedExpression<T>, _ rest: any XLTypedExpression<T>...) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
+public func min<T>(_ first: any XLSQLiteExpression<T>, _ second: any XLSQLiteExpression<T>, _ rest: any XLSQLiteExpression<T>...) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MIN", parameters: [first, second] + rest)
 }
 
@@ -34,25 +36,25 @@ public func min<T, Dialect>(_ first: any XLExpression<T, Dialect>, _ second: any
 /// comparison) rather than fixing it, since fixing it would itself be a
 /// source-breaking change; use `a.max(b, ...)` for the scalar comparison.
 @available(*, deprecated, message: "This single-argument call is the aggregate MAX(expr); use maxOrNull() instead. max(_:) will be removed in SwiftQL 2.")
-public func max<T, Dialect>(_ first: any XLExpression<T, Dialect>) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
+public func max<T>(_ first: any XLSQLiteExpression<T>) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MAX", parameters: [first])
 }
 
 /// Returns the maximum value from a list of expressions.
 @available(*, deprecated, message: "Use a.max(b, ...) instead. max(_:) will be removed in SwiftQL 2.")
-public func max<T, Dialect>(_ first: any XLExpression<T, Dialect>, _ second: any XLTypedExpression<T>, _ rest: any XLTypedExpression<T>...) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
+public func max<T>(_ first: any XLSQLiteExpression<T>, _ second: any XLSQLiteExpression<T>, _ rest: any XLSQLiteExpression<T>...) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MAX", parameters: [first, second] + rest)
 }
 
 
-extension XLExpression where T: XLComparable & XLLiteral {
+extension XLSQLiteExpression where T: XLComparable & XLLiteral {
 
     /// Returns the minimum value among `self` and `others`.
     ///
     /// Takes at least one further expression, both to match SQLite's scalar
     /// `MIN` (meaningless with a single argument) and to stay unambiguous
     /// against the deprecated zero-argument aggregate `min(distinct:)`.
-    public func min(_ first: any XLTypedExpression<T>, _ rest: any XLTypedExpression<T>...) -> some XLExpression<T, Dialect> {
+    public func min(_ first: any XLSQLiteExpression<T>, _ rest: any XLSQLiteExpression<T>...) -> some XLSQLiteExpression<T> {
         XLFunction(name: "MIN", parameters: [self, first] + rest)
     }
 
@@ -61,7 +63,7 @@ extension XLExpression where T: XLComparable & XLLiteral {
     /// Takes at least one further expression, both to match SQLite's scalar
     /// `MAX` (meaningless with a single argument) and to stay unambiguous
     /// against the deprecated zero-argument aggregate `max(distinct:)`.
-    public func max(_ first: any XLTypedExpression<T>, _ rest: any XLTypedExpression<T>...) -> some XLExpression<T, Dialect> {
+    public func max(_ first: any XLSQLiteExpression<T>, _ rest: any XLSQLiteExpression<T>...) -> some XLSQLiteExpression<T> {
         XLFunction(name: "MAX", parameters: [self, first] + rest)
     }
 }

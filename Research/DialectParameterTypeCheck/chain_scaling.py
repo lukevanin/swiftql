@@ -17,9 +17,24 @@ Shapes:
                let a universal value stand on either side.
   operands     Generic operand types, `<L: E, R: E>` with `L.D == R.D`, and a
                concrete node returned.
-  operands-ret `operands`, with the chain returned as `any E<Bool, SQLite>`.
+  operands-ret `operands`, with the chain returned as
+               `any E<Optional<Bool>, SQLite>`.
   concrete     A concrete `X<T, D>` struct for every operand and result, the
                `concrete` surface of `generate.py`.
+  dialect      The shipped design: one expression protocol per dialect,
+               `SQLiteE<T>`, and non-generic operators over it, one copy per
+               dialect, returning `some SQLiteE<R>`. A column conforms where
+               its dialect is SQLite; a value and a node conform outright.
+  dialect-ret  `dialect`, with the chain returned as
+               `any SQLiteE<Optional<Bool>>`.
+  dialect-two  `dialect` with a second dialect's copy of every operator
+               visible as well, disfavoured, as in a module that uses two
+               dialects.
+
+The chains contain optional columns, so from four terms on their type is
+`Optional<Bool>`, and the `-ret` shapes return that type. (An earlier version
+of this file returned `Bool`, so its `-ret` rows timed the type checker's
+error path, not the chain.)
 
 Usage: chain_scaling.py <output-directory>
 """
@@ -126,6 +141,40 @@ public typealias Col<T, D> = X<T, D>
     return text
 
 
+def dialect_library(names):
+    text = PRELUDE + """
+public protocol E<T>: Enc { associatedtype T }
+public struct Col<T, D>: E { public init() {}; public func make(_ b: inout B) {} }
+public struct Node<T>: E { public init() {}; public func make(_ b: inout B) {} }
+extension Optional: Enc where Wrapped: Enc { public func make(_ b: inout B) {} }
+extension Optional: E where Wrapped: E { public typealias T = Optional<Wrapped> }
+extension Int: E { public typealias T = Int; public func make(_ b: inout B) {} }
+extension String: E { public typealias T = String; public func make(_ b: inout B) {} }
+extension Double: E { public typealias T = Double; public func make(_ b: inout B) {} }
+extension Bool: E { public typealias T = Bool; public func make(_ b: inout B) {} }
+"""
+    for index, dialect in enumerate(names):
+        disfavored = "@_disfavoredOverload " if index > 0 else ""
+        if dialect != "SQLite":
+            text += f"public enum {dialect} {{}}\n"
+        text += (
+            f"public protocol {dialect}E<T>: E {{}}\n"
+            f"extension Col: {dialect}E where D == {dialect} {{}}\n"
+            f"extension Node: {dialect}E {{}}\n"
+            f"extension Int: {dialect}E {{}}\n"
+            f"extension String: {dialect}E {{}}\n"
+            f"extension Double: {dialect}E {{}}\n"
+            f"extension Bool: {dialect}E {{}}\n"
+            f"extension Optional: {dialect}E where Wrapped: {dialect}E {{}}\n"
+        )
+        families = [(COMPARISONS, VARIANTS, "<T: Lit>"), (CONNECTIVES, BOOLEAN_VARIANTS, "")]
+        for operators, variants, generic in families:
+            for name in operators:
+                for lhs, rhs, result in variants:
+                    text += f"{disfavored}public func {name}{generic}(lhs: any {dialect}E<{lhs}>, rhs: any {dialect}E<{rhs}>) -> some {dialect}E<{result}> {{ Node<{result}>() }}\n"
+    return text
+
+
 def query(dialect, count, result="any Enc"):
     suffix = ", SQLite" if dialect else ""
     columns = "".join(
@@ -152,8 +201,11 @@ def main():
         "generic": (generic_library(False), True, "any Enc"),
         "mixed": (generic_library(True), True, "any Enc"),
         "operands": (operands_library(), True, "any Enc"),
-        "operands-ret": (operands_library(), True, "any E<Bool, SQLite>"),
-        "concrete": (concrete_library(), True, "X<Bool, SQLite>"),
+        "operands-ret": (operands_library(), True, "any E<Optional<Bool>, SQLite>"),
+        "concrete": (concrete_library(), True, "X<Optional<Bool>, SQLite>"),
+        "dialect": (dialect_library(["SQLite"]), True, "any Enc"),
+        "dialect-ret": (dialect_library(["SQLite"]), True, "any SQLiteE<Optional<Bool>>"),
+        "dialect-two": (dialect_library(["SQLite", "Second"]), True, "any Enc"),
     }
     for name, (library, dialect, result) in shapes.items():
         directory = os.path.join(output, name)

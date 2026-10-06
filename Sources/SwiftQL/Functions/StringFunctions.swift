@@ -91,9 +91,9 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
 }
 
 
-private struct XLCollationExpression<T, Dialect>: XLExpression {
+private struct XLCollationExpression<T>: XLSQLiteExpression {
 
-    let operand: any XLTypedExpression
+    let operand: any XLSQLiteExpression
 
     let collation: XLCollation
 
@@ -114,16 +114,14 @@ private struct XLCollationExpression<T, Dialect>: XLExpression {
 }
 
 
-// SQLite's own surface: declared only on a SQLite expression, so it is
-// absent from another dialect's query (issue #789).
-extension XLExpression where Dialect == XLSQLiteDialect {
+extension XLSQLiteExpression {
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<String, Dialect> where T == String {
-        XLCollationExpression<String, Dialect>(operand: self, collation: collation)
+    public func collate(_ collation: XLCollation) -> some XLSQLiteExpression<String> where T == String {
+        XLCollationExpression<String>(operand: self, collation: collation)
     }
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
-        XLCollationExpression<Optional<String>, Dialect>(
+    public func collate(_ collation: XLCollation) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
+        XLCollationExpression<Optional<String>>(
             operand: self,
             collation: collation
         )
@@ -132,26 +130,26 @@ extension XLExpression where Dialect == XLSQLiteDialect {
 
 
 @available(*, deprecated, message: "Use format.printf(...) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: any XLTypedExpression ...) -> some XLExpression<String, XLSQLiteDialect> {
+public func printf(format: String, _ parameters: any XLSQLiteExpression ...) -> some XLSQLiteExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
 @available(*, deprecated, message: "Use format.printf(_:) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: [any XLTypedExpression]) -> some XLExpression<String, XLSQLiteDialect> {
+public func printf(format: String, _ parameters: [any XLSQLiteExpression]) -> some XLSQLiteExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
-extension XLExpression where T == String {
+extension XLSQLiteExpression where T == String {
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: any XLTypedExpression...) -> some XLExpression<String, Dialect> {
+    public func printf(_ parameters: any XLSQLiteExpression...) -> some XLSQLiteExpression<String> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: [any XLTypedExpression]) -> some XLExpression<String, Dialect> {
+    public func printf(_ parameters: [any XLSQLiteExpression]) -> some XLSQLiteExpression<String> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 }

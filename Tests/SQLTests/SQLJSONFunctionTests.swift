@@ -31,12 +31,6 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     // MARK: - Constructors
 
     func testArrayConstructorRendersItsElementsInOrder() {
@@ -63,33 +57,33 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
     // MARK: - Scalar functions
 
     func testScalarFunctionsRenderTheirSQLiteNames() {
-        assertSQL(sqliteDocument().minifiedJSON(), "json(:document)")
-        assertSQL(sqliteDocument().prettyJSON(), "json_pretty(:document)")
-        assertSQL(sqliteDocument().jsonQuoted(), "json_quote(:document)")
-        assertSQL(sqliteDocument().jsonType(), "json_type(:document)")
+        assertSQL(document().minifiedJSON(), "json(:document)")
+        assertSQL(document().prettyJSON(), "json_pretty(:document)")
+        assertSQL(document().jsonQuoted(), "json_quote(:document)")
+        assertSQL(document().jsonType(), "json_type(:document)")
         assertSQL(
-            sqliteDocument().jsonType(at: XLJSONPath.root.key("a")),
+            document().jsonType(at: XLJSONPath.root.key("a")),
             "json_type(:document, '$.a')"
         )
-        assertSQL(sqliteDocument().jsonErrorPosition(), "json_error_position(:document)")
-        assertSQL(sqliteDocument().validJSONOrNull(), "json_valid(:document)")
+        assertSQL(document().jsonErrorPosition(), "json_error_position(:document)")
+        assertSQL(document().validJSONOrNull(), "json_valid(:document)")
     }
 
     func testValidationFlagsRenderAsTheirCombinedBitmask() {
         assertSQL(
-            sqliteDocument().validJSONOrNull(flags: .json),
+            document().validJSONOrNull(flags: .json),
             "json_valid(:document, 1)"
         )
         assertSQL(
-            sqliteDocument().validJSONOrNull(flags: .json5),
+            document().validJSONOrNull(flags: .json5),
             "json_valid(:document, 2)"
         )
         assertSQL(
-            sqliteDocument().validJSONOrNull(flags: [.json, .json5]),
+            document().validJSONOrNull(flags: [.json, .json5]),
             "json_valid(:document, 3)"
         )
         assertSQL(
-            sqliteDocument().validJSONOrNull(flags: [.jsonbShallow, .jsonbStrict]),
+            document().validJSONOrNull(flags: [.jsonbShallow, .jsonbStrict]),
             "json_valid(:document, 12)"
         )
     }
@@ -98,17 +92,17 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
         // SQLite rejects a zero mask. An empty set means "no choice made",
         // and SQLite's own choice when the argument is absent is 1.
         assertSQL(
-            sqliteDocument().validJSONOrNull(flags: []),
+            document().validJSONOrNull(flags: []),
             "json_valid(:document, 1)"
         )
     }
 
     func testTheJSONBAwareValidityCheckRendersTextAndStrictJSONBFlags() {
         assertSQL(
-            sqliteDocument().validJSONOrJSONBOrNull(),
+            document().validJSONOrJSONBOrNull(),
             "json_valid(:document, 9)"
         )
-        assertExpressionType(sqliteDocument().validJSONOrJSONBOrNull(), Bool?.self)
+        assertExpressionType(document().validJSONOrJSONBOrNull(), Bool?.self)
     }
 
     // MARK: - JSON values (issue #671)
@@ -120,7 +114,7 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
         )
         assertSQL(jsonObject(("a", true)), "json_object('a', json('true'))")
         assertSQL(
-            sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), false)),
+            document().jsonSetting((XLJSONPath.root.key("a"), false)),
             "json_set(:document, '$.a', json('false'))"
         )
     }
@@ -146,14 +140,14 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
         let blob = XLNamedBindingReference<Data?>(name: "blob")
         XCTAssertEqual(
             encoder.makeSQL(
-                sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), blob))
+                document().jsonSetting((XLJSONPath.root.key("a"), blob))
             ).valueEncodingError,
             .blobInJSONValue(valueType: "Optional<Data>", function: "json_set")
         )
         XCTAssertNil(encoder.makeSQL(jsonArray(jsonbArray(1))).valueEncodingError)
         XCTAssertNil(
             encoder.makeSQL(
-                jsonObject(("a", sqliteDocument().minifiedJSONB()))
+                jsonObject(("a", document().minifiedJSONB()))
             ).valueEncodingError
         )
     }
@@ -163,12 +157,12 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
     func testResultTypesFollowWhatSQLiteCanReturn() {
         assertExpressionType(jsonArray(1), String.self)
         assertExpressionType(jsonObject(("a", 1)), String.self)
-        assertExpressionType(sqliteDocument().jsonQuoted(), String.self)
-        assertExpressionType(sqliteDocument().minifiedJSON(), String?.self)
-        assertExpressionType(sqliteDocument().prettyJSON(), String?.self)
-        assertExpressionType(sqliteDocument().jsonType(), String?.self)
-        assertExpressionType(sqliteDocument().jsonErrorPosition(), Int?.self)
-        assertExpressionType(sqliteDocument().validJSONOrNull(), Bool?.self)
+        assertExpressionType(document().jsonQuoted(), String.self)
+        assertExpressionType(document().minifiedJSON(), String?.self)
+        assertExpressionType(document().prettyJSON(), String?.self)
+        assertExpressionType(document().jsonType(), String?.self)
+        assertExpressionType(document().jsonErrorPosition(), Int?.self)
+        assertExpressionType(document().validJSONOrNull(), Bool?.self)
     }
 
     // Compile-only, and deliberately never called: naming a deprecated method
@@ -180,12 +174,12 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
     @available(*, deprecated, message: "Exercises the source-compatible SwiftQL 1.x JSON surface.")
     private func assertLegacyJSONSignaturesRemainSourceCompatible() {
         let json = XLNamedBindingReference<String>(name: "document")
-        let valid: any XLTypedExpression<Bool> = json.sqlite.validJSON()
+        let valid: any XLExpression<Bool> = json.validJSON()
         XCTAssertEqual(encoder.makeSQL(valid).sql, "json_valid(:document)")
     }
 
     private func assertSQL<T>(
-        _ expression: any XLTypedExpression<T>,
+        _ expression: any XLExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -198,7 +192,7 @@ final class XLJSONFunctionRenderingTests: XCTestCase {
         )
     }
 
-    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
     }
 }
 
@@ -233,15 +227,9 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
-    /// The document binding, lifted into SQLite so SQLite's own JSON
-    /// functions take it (issue #789).
-    private func sqliteDocument() -> some XLSQLiteExpression<String> {
-        document().sqlite
-    }
-
     /// Evaluates an expression that reads the `document` binding.
     private func evaluate<Value>(
-        _ expression: any XLTypedExpression<Value>,
+        _ expression: any XLExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -253,7 +241,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
     /// Evaluates an expression that binds nothing. Setting a parameter the
     /// statement does not declare is rejected, so these need their own path.
     private func evaluate<Value>(
-        _ expression: any XLTypedExpression<Value>
+        _ expression: any XLExpression<Value>
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         return try database.makeRequest(with: statement).fetchOne()
@@ -284,7 +272,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
             #"["[1,2]"]"#
         )
         XCTAssertEqual(
-            try evaluate(jsonArray(sqliteDocument().minifiedJSON()), document: "[1,2]"),
+            try evaluate(jsonArray(document().minifiedJSON()), document: "[1,2]"),
             "[[1,2]]"
         )
     }
@@ -293,7 +281,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testMinifiedJSONRemovesWhitespace() throws {
         XCTAssertEqual(
-            try evaluate(sqliteDocument().minifiedJSON(), document: #" { "a" : 1 } "#),
+            try evaluate(document().minifiedJSON(), document: #" { "a" : 1 } "#),
             #"{"a":1}"#
         )
     }
@@ -306,29 +294,29 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
             in: databasePool
         )
         XCTAssertEqual(
-            try evaluate(sqliteDocument().prettyJSON(), document: #"{"a":1}"#),
+            try evaluate(document().prettyJSON(), document: #"{"a":1}"#),
             "{\n    \"a\": 1\n}"
         )
     }
 
     func testQuotingConvertsASQLValueToItsJSONForm() throws {
-        XCTAssertEqual(try evaluate("x".sqlite.jsonQuoted()), #""x""#)
-        XCTAssertEqual(try evaluate(5.sqlite.jsonQuoted()), "5")
+        XCTAssertEqual(try evaluate("x".jsonQuoted()), #""x""#)
+        XCTAssertEqual(try evaluate(5.jsonQuoted()), "5")
     }
 
     func testTypeReportsTheJSONTypeAtTheRootAndAtAPath() throws {
         let json = #"{"a":[1],"b":"text","c":null}"#
-        XCTAssertEqual(try evaluate(sqliteDocument().jsonType(), document: json), "object")
+        XCTAssertEqual(try evaluate(document().jsonType(), document: json), "object")
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonType(at: XLJSONPath.root.key("a")),
+                document().jsonType(at: XLJSONPath.root.key("a")),
                 document: json
             ),
             "array"
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonType(at: XLJSONPath.root.key("b")),
+                document().jsonType(at: XLJSONPath.root.key("b")),
                 document: json
             ),
             "text"
@@ -336,7 +324,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         // A JSON null has a type. It is not the absence of a value.
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonType(at: XLJSONPath.root.key("c")),
+                document().jsonType(at: XLJSONPath.root.key("c")),
                 document: json
             ),
             "null"
@@ -345,7 +333,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testTypeAtAMissingPathIsSQLNull() throws {
         guard let type = try evaluate(
-            sqliteDocument().jsonType(at: XLJSONPath.root.key("missing")),
+            document().jsonType(at: XLJSONPath.root.key("missing")),
             document: #"{"a":1}"#
         ) else {
             XCTFail("the statement should return one row")
@@ -356,22 +344,22 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testErrorPositionIsZeroForValidInputAndTheFaultPositionOtherwise() throws {
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonErrorPosition(), document: #"{"a":1}"#),
+            try evaluate(document().jsonErrorPosition(), document: #"{"a":1}"#),
             0
         )
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonErrorPosition(), document: #"{"a":"#),
+            try evaluate(document().jsonErrorPosition(), document: #"{"a":"#),
             6
         )
     }
 
     func testValidityIsReportedForWellFormedAndMalformedInput() throws {
         XCTAssertEqual(
-            try evaluate(sqliteDocument().validJSONOrNull(), document: #"{"a":1}"#),
+            try evaluate(document().validJSONOrNull(), document: #"{"a":1}"#),
             true
         )
         XCTAssertEqual(
-            try evaluate(sqliteDocument().validJSONOrNull(), document: "{a:1}"),
+            try evaluate(document().validJSONOrNull(), document: "{a:1}"),
             false
         )
     }
@@ -388,14 +376,14 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         let json5 = "{a:1}"
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().validJSONOrNull(flags: .json),
+                document().validJSONOrNull(flags: .json),
                 document: json5
             ),
             false
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().validJSONOrNull(flags: .json5),
+                document().validJSONOrNull(flags: .json5),
                 document: json5
             ),
             true
@@ -410,20 +398,20 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testABoolWrittenIntoADocumentReadsBackAsAJSONBoolean() throws {
         let setting = try evaluate(
-            sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), true)),
+            document().jsonSetting((XLJSONPath.root.key("a"), true)),
             document: "{}"
         )
         XCTAssertEqual(setting, #"{"a":true}"#)
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonInserting((XLJSONPath.root.key("a"), false)),
+                document().jsonInserting((XLJSONPath.root.key("a"), false)),
                 document: "{}"
             ),
             #"{"a":false}"#
         )
         XCTAssertEqual(try evaluate(jsonObject(("a", true))), #"{"a":true}"#)
         XCTAssertEqual(try evaluate(jsonArray(true, false)), "[true,false]")
-        XCTAssertEqual(try evaluate(true.sqlite.jsonGroupArray()), "[true]")
+        XCTAssertEqual(try evaluate(true.jsonGroupArray()), "[true]")
         // A `Codable` reader of a `Bool` field is the reader the integer
         // form broke.
         guard let written = setting else {
@@ -472,7 +460,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
             in: databasePool
         )
         guard
-            let row = try evaluate(sqliteDocument().minifiedJSONB(), document: "[1]"),
+            let row = try evaluate(document().minifiedJSONB(), document: "[1]"),
             let bytes = row
         else {
             XCTFail("the statement should return one document")
@@ -480,7 +468,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         }
         let blob = XLNamedBindingReference<Data>(name: "blob")
         let rejected = sql { _ in
-            Select(sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), blob)))
+            Select(document().jsonSetting((XLJSONPath.root.key("a"), blob)))
         }
         var rejectedRequest = database.makeRequest(with: rejected)
         rejectedRequest.set(document(), "{}")
@@ -494,8 +482,8 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
         let nested = sql { _ in
             Select(
-                sqliteDocument().jsonSetting(
-                    (XLJSONPath.root.key("a"), blob.sqlite.minifiedJSONB())
+                document().jsonSetting(
+                    (XLJSONPath.root.key("a"), blob.minifiedJSONB())
                 )
             )
         }
@@ -514,7 +502,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         )
         guard
             let row = try evaluate(
-                sqliteDocument().minifiedJSONB(),
+                document().minifiedJSONB(),
                 document: #"{"a":1}"#
             ),
             let blob = row
@@ -522,24 +510,24 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
             XCTFail("the statement should return one document")
             return
         }
-        XCTAssertEqual(try evaluate(blob.sqlite.validJSONOrNull()), false)
-        XCTAssertEqual(try evaluate(blob.sqlite.validJSONOrJSONBOrNull()), true)
+        XCTAssertEqual(try evaluate(blob.validJSONOrNull()), false)
+        XCTAssertEqual(try evaluate(blob.validJSONOrJSONBOrNull()), true)
         XCTAssertEqual(
-            try evaluate(sqliteDocument().validJSONOrJSONBOrNull(), document: #"{"a":1}"#),
+            try evaluate(document().validJSONOrJSONBOrNull(), document: #"{"a":1}"#),
             true
         )
         XCTAssertEqual(
-            try evaluate(sqliteDocument().validJSONOrJSONBOrNull(), document: "{a:1}"),
+            try evaluate(document().validJSONOrJSONBOrNull(), document: "{a:1}"),
             false
         )
         XCTAssertEqual(
-            try evaluate(Data([0x01, 0x02]).sqlite.validJSONOrJSONBOrNull()),
+            try evaluate(Data([0x01, 0x02]).validJSONOrJSONBOrNull()),
             false
         )
         // Flag 9 includes the text bit, so a blob that holds JSON text also
         // passes. The check is not a strict JSONB-only check.
         XCTAssertEqual(
-            try evaluate(Data(#"{"a":1}"#.utf8).sqlite.validJSONOrJSONBOrNull()),
+            try evaluate(Data(#"{"a":1}"#.utf8).validJSONOrJSONBOrNull()),
             true
         )
         XCTAssertNil(try evaluateOnNull { $0.validJSONOrJSONBOrNull() })
@@ -547,25 +535,25 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testArrayLengthIsZeroForANonArrayAndNullOnlyForAMissingPath() throws {
         XCTAssertEqual(
-            try evaluate(sqliteDocument().jsonArrayLength(), document: #"{"a":1}"#),
+            try evaluate(document().jsonArrayLength(), document: #"{"a":1}"#),
             0
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("a")),
+                document().jsonArrayLength(path: XLJSONPath.root.key("a")),
                 document: #"{"a":1}"#
             ),
             0
         )
         XCTAssertEqual(
             try evaluate(
-                sqliteDocument().jsonArrayLength(path: "$.a"),
+                document().jsonArrayLength(path: "$.a"),
                 document: #"{"a":"x"}"#
             ),
             0
         )
         guard let missing = try evaluate(
-            sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("z")),
+            document().jsonArrayLength(path: XLJSONPath.root.key("z")),
             document: #"{"a":1}"#
         ) else {
             XCTFail("the statement should return one row")
@@ -598,7 +586,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
 
     func testQuotingANullGivesJSONNullRatherThanSQLNull() throws {
         let reference = XLNamedBindingReference<String?>(name: "nullDocument")
-        let statement = sql { _ in Select(reference.sqlite.jsonQuoted()) }
+        let statement = sql { _ in Select(reference.jsonQuoted()) }
         var request = database.makeRequest(with: statement)
         request.set(reference, String?.none)
         XCTAssertEqual(try request.fetchOne(), "null")
@@ -607,13 +595,10 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
     /// Binds SQL NULL and returns the single column, with the outer optional
     /// unwrapped so the assertion reads the column rather than the row.
     private func evaluateOnNull<Value>(
-        _ makeExpression: (any XLSQLiteExpression<String?>) -> any XLSQLiteExpression<Value?>
+        _ makeExpression: (XLNamedBindingReference<String?>) -> any XLExpression<Value?>
     ) throws -> Value? where Value: XLLiteral & Sendable, Value?: XLLiteral {
         let reference = XLNamedBindingReference<String?>(name: "nullDocument")
-        // Lifted into SQLite, so SQLite's own JSON functions take it (#789).
-        let statement = sql { _ in
-            Select(makeExpression(reference.sqlite))
-        }
+        let statement = sql { _ in Select(makeExpression(reference)) }
         var request = database.makeRequest(with: statement)
         request.set(reference, String?.none)
         guard let column = try request.fetchOne() else {

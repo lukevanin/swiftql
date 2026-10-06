@@ -102,7 +102,7 @@ extension MetaBuilder {
     /// The expression is a pure value over `dependency` and a constant alias,
     /// so building it once per factory call is equivalent.
     ///
-    /// The binding is declared as the erased `any XLTypedExpression` the read takes,
+    /// The binding is declared as the erased `any XLExpression` the read takes,
     /// not as the concrete column type. A concrete binding is boxed into that
     /// existential again at every read, which allocates once per column per
     /// row. Erasing at the binding pays for the box once per factory call.
@@ -128,7 +128,7 @@ extension MetaBuilder {
         context.block(signature) { context in
             for (property, binding) in zip(shape.properties, columnBindings) {
                 context.line(
-                    "let \(binding): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>"
+                    "let \(binding): any SwiftQL.XLExpression<\(property.qualifiedType)>"
                         + " = \(property.makeInstance(kind: shape.rowColumnKind, dialect: dialectType, dependency: "dependency"))"
                 )
             }

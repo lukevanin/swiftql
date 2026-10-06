@@ -116,12 +116,12 @@ extension MetaBuilder {
             context.line("public typealias Row = \(structName)")
 
             for property in properties {
-                context.line("private let \(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
+                context.line("private let \(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
             }
 
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {

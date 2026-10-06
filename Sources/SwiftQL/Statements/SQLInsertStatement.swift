@@ -141,7 +141,7 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
     
     // MARK: Inner Join
     
-    public func innerJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaResult, U: XLBoolean {
+    public func innerJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaResult, U: XLBoolean {
         XLInsertSelectTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, constraint: condition)))
     }
     
@@ -155,13 +155,13 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
 
     // MARK: Left Join
     
-    public func leftJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaNullableResult, U: XLBoolean {
+    public func leftJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaNullableResult, U: XLBoolean {
         XLInsertSelectTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
     }
 
     // MARK: Where
     
-    public func `where`<T>(_ condition: any XLTypedExpression<T>) -> XLInsertSelectWhereStatement<Row> where T: XLBoolean {
+    public func `where`<T>(_ condition: any XLExpression<T>) -> XLInsertSelectWhereStatement<Row> where T: XLBoolean {
         `where`(Where(condition))
     }
 
@@ -171,7 +171,7 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
     
     // MARK: Group
 
-    public func groupBy(_ expressions: any XLTypedExpression...) -> XLInsertSelectGroupByStatement<Row> {
+    public func groupBy(_ expressions: any XLExpression...) -> XLInsertSelectGroupByStatement<Row> {
         groupBy(GroupBy(expressions))
     }
 
@@ -191,7 +191,7 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
     
     // MARK: Limit
     
-    public func limit(_ count: any XLTypedExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
+    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -210,7 +210,7 @@ public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
 
     // MARK: Group
     
-    public func groupBy(_ expressions: any XLTypedExpression...) -> XLInsertSelectGroupByStatement<Row> {
+    public func groupBy(_ expressions: any XLExpression...) -> XLInsertSelectGroupByStatement<Row> {
         groupBy(GroupBy(expressions))
     }
 
@@ -230,7 +230,7 @@ public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
     
     // MARK: Limit
     
-    public func limit(_ count: any XLTypedExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
+    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
         limit(Limit(count))
     }
     
@@ -249,7 +249,7 @@ public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
 
     // MARK: Having
     
-    public func having<T>(_ condition: any XLTypedExpression<T>) -> XLInsertSelectHavingStatement<Row> where T: XLBoolean {
+    public func having<T>(_ condition: any XLExpression<T>) -> XLInsertSelectHavingStatement<Row> where T: XLBoolean {
         having(Having(condition))
     }
 
@@ -269,7 +269,7 @@ public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
     
     // MARK: Limit
 
-    public func limit(_ count: any XLTypedExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
+    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -298,7 +298,7 @@ public struct XLInsertSelectHavingStatement<Row>: XLInsertStatement {
     
     // MARK: Limit
 
-    public func limit(_ count: any XLTypedExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
+    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -316,7 +316,7 @@ public struct XLInsertSelectOrderByStatement<Row>: XLInsertStatement {
 
     // MARK: Limit
     
-    public func limit(_ count: any XLTypedExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
+    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -333,7 +333,7 @@ public struct XLInsertSelectLimitStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
     
-    public func offset(_ count: any XLTypedExpression<Int>) -> XLInsertSelectOffsetStatement<Row> {
+    public func offset(_ count: any XLExpression<Int>) -> XLInsertSelectOffsetStatement<Row> {
         offset(Offset(count))
     }
 

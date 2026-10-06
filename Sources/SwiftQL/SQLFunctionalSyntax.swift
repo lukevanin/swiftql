@@ -318,16 +318,16 @@ public struct XLSchema<Dialect> where Dialect: XLSQLDialect {
     /// nested in this one, so its aliases and bindings do not collide with the
     /// enclosing statement.
     ///
-    public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>, Dialect> where T: XLLiteral {
-        XLSubquery<T, Dialect>(statement: statement(XLSchema(parent: self)))
+    public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> XLDialectExpression<Optional<T>, Dialect> where T: XLLiteral {
+        XLDialectExpression(XLSubquery<T>(statement: statement(XLSchema(parent: self))))
     }
 
     ///
     /// Constructs a scalar subquery in this schema whose inner statement is
     /// already nullable, so the two sources of NULL collapse into one.
     ///
-    public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
-        XLSubquery<Wrapped, Dialect>(statement: statement(XLSchema(parent: self)))
+    public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> XLDialectExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
+        XLDialectExpression(XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self))))
     }
 
     ///
@@ -465,7 +465,7 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> a
 ///
 public func subquery<T>(_ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<T, XLSQLiteDialect>(statement: statement(schema))
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement(schema)))
 }
 
 
@@ -473,7 +473,7 @@ public func subquery<T>(_ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>
 /// Constructs a subquery with a select query statement that returns a scalar value.
 ///
 public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
-    return XLSubquery<T, XLSQLiteDialect>(statement: statement())
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement()))
 }
 
 
@@ -491,12 +491,12 @@ public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLSQ
 ///
 public func subquery<Wrapped>(_ statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement(schema))
+    return XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement(schema)))
 }
 
 
 public func subquery<Wrapped>(_ statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-    XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement())
+    XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement()))
 }
 
 
@@ -530,7 +530,7 @@ public func select<T>(_ result: T) -> XLQuerySelectStatement<T.Row> where T: XLR
 /// result codec metadata.
 ///
 public func select<T>(
-    _ expression: any XLTypedExpression<T>
+    _ expression: any XLExpression<T>
 ) -> XLQuerySelectStatement<T> {
     makeQuery(select: Select(expression))
 }

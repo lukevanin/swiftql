@@ -1,18 +1,22 @@
 //
-//  InOperator.swift
-//  
+//  CompileFailSecondDialectInOperator.swift
 //
-//  Created by Luke Van In on 2023/08/14.
+//  Generated for the compile-fail second dialect by scripts/dialect-surface/generate.py
+//  from scripts/dialect-surface/Templates/InOperator.swift.template.
+//  Do not edit: edit the template, then run
+//  `python3 scripts/dialect-surface/generate.py`.
 //
 
 import Foundation
+import SwiftQL
 
 
 // MARK: - IN
 
-extension XLExpression {
+extension CompileFailSecondDialectExpression {
 
-    public func `in`(expression: () -> any XLQueryStatement<T>) -> some XLExpression<Bool, Dialect> {
+    @_disfavoredOverload
+    func `in`(expression: () -> any XLQueryStatement<T>) -> some CompileFailSecondDialectExpression<Bool> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
@@ -29,8 +33,9 @@ extension XLExpression {
     ///   build the inner tables from the enclosing schema, or from
     ///   `XLSchema(parent:)`.
     ///
-    public func `in`(@XLQueryExpressionBuilder expression: (XLSchema<Dialect>) -> any XLQueryStatement<T>) -> some XLExpression<Bool, Dialect> where Dialect: XLSQLDialect {
-        let schema = XLSchema(dialect: Dialect.self)
+    @_disfavoredOverload
+    func `in`(@XLQueryExpressionBuilder expression: (XLSchema<CompileFailSecondDialect>) -> any XLQueryStatement<T>) -> some CompileFailSecondDialectExpression<Bool> {
+        let schema = XLSchema(dialect: CompileFailSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
 
@@ -41,28 +46,32 @@ extension XLExpression {
     /// left-hand value is NULL, or when no row matches and the candidate set
     /// contains NULL.
     ///
-    public func `in`<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    @_disfavoredOverload
+    func `in`<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as in the non-optional overload. Use the closure form without
     ///   a schema for a correlated query.
-    public func `in`<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<Dialect>) -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped>, Dialect: XLSQLDialect {
-        let schema = XLSchema(dialect: Dialect.self)
+    @_disfavoredOverload
+    func `in`<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<CompileFailSecondDialect>) -> any XLQueryStatement<Wrapped>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+        let schema = XLSchema(dialect: CompileFailSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
-    public func `in`(_ expressions: [any XLTypedExpression<T>]) -> some XLExpression<Bool, Dialect> {
+    @_disfavoredOverload
+    func `in`(_ expressions: [any CompileFailSecondDialectExpression<T>]) -> some CompileFailSecondDialectExpression<Bool> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions)
+            list: expressions
         )
     }
 
-    public func `in`<Wrapped>(_ expressions: [any XLTypedExpression<Wrapped>]) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    @_disfavoredOverload
+    func `in`<Wrapped>(_ expressions: [any CompileFailSecondDialectExpression<Wrapped>]) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions)
+            list: expressions
         )
     }
 
@@ -82,14 +91,15 @@ extension XLExpression {
     /// compiling if the attribute is removed.
     ///
     @_disfavoredOverload
-    public func `in`<Wrapped>(_ expressions: [any XLTypedExpression<Optional<Wrapped>>]) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    func `in`<Wrapped>(_ expressions: [any CompileFailSecondDialectExpression<Optional<Wrapped>>]) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions)
+            list: expressions
         )
     }
 
-    public func `in`<T>(_ table: T) -> some XLExpression<Bool, Dialect> where T: XLMetaCommonTable {
+    @_disfavoredOverload
+    func `in`<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == CompileFailSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias
@@ -101,7 +111,7 @@ extension XLExpression {
 // MARK: - NOT IN
 
 
-extension XLExpression {
+extension CompileFailSecondDialectExpression {
 
     ///
     /// Matches rows whose value is absent from the results of `expression`.
@@ -111,15 +121,17 @@ extension XLExpression {
     /// one exception is an empty set, where `NOT IN` is true even for a NULL
     /// operand.
     ///
-    public func notIn(expression: () -> any XLQueryStatement<T>) -> some XLExpression<Bool, Dialect> {
+    @_disfavoredOverload
+    func notIn(expression: () -> any XLQueryStatement<T>) -> some CompileFailSecondDialectExpression<Bool> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
-    public func notIn(@XLQueryExpressionBuilder expression: (XLSchema<Dialect>) -> any XLQueryStatement<T>) -> some XLExpression<Bool, Dialect> where Dialect: XLSQLDialect {
-        let schema = XLSchema(dialect: Dialect.self)
+    @_disfavoredOverload
+    func notIn(@XLQueryExpressionBuilder expression: (XLSchema<CompileFailSecondDialect>) -> any XLQueryStatement<T>) -> some CompileFailSecondDialectExpression<Bool> {
+        let schema = XLSchema(dialect: CompileFailSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }
 
@@ -128,22 +140,25 @@ extension XLExpression {
     /// overloads. As with `in`, the result is `Optional<Bool>` because a NULL
     /// operand or a NULL in the candidate set makes the answer unknown.
     ///
-    public func notIn<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    @_disfavoredOverload
+    func notIn<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
-    public func notIn<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<Dialect>) -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped>, Dialect: XLSQLDialect {
-        let schema = XLSchema(dialect: Dialect.self)
+    @_disfavoredOverload
+    func notIn<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<CompileFailSecondDialect>) -> any XLQueryStatement<Wrapped>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+        let schema = XLSchema(dialect: CompileFailSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }
 
-    public func notIn(_ expressions: [any XLTypedExpression<T>]) -> some XLExpression<Bool, Dialect> {
+    @_disfavoredOverload
+    func notIn(_ expressions: [any CompileFailSecondDialectExpression<T>]) -> some CompileFailSecondDialectExpression<Bool> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions),
+            list: expressions,
             negated: true
         )
     }
@@ -153,10 +168,11 @@ extension XLExpression {
     /// left-hand value makes the result NULL rather than true, so a `Where`
     /// clause filters that row.
     ///
-    public func notIn<Wrapped>(_ expressions: [any XLTypedExpression<Wrapped>]) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    @_disfavoredOverload
+    func notIn<Wrapped>(_ expressions: [any CompileFailSecondDialectExpression<Wrapped>]) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions),
+            list: expressions,
             negated: true
         )
     }
@@ -168,19 +184,43 @@ extension XLExpression {
     /// Disfavoured for the same empty-array-literal reason as `in(_:)` above.
     ///
     @_disfavoredOverload
-    public func notIn<Wrapped>(_ expressions: [any XLTypedExpression<Optional<Wrapped>>]) -> some XLExpression<Optional<Bool>, Dialect> where T == Optional<Wrapped> {
+    func notIn<Wrapped>(_ expressions: [any CompileFailSecondDialectExpression<Optional<Wrapped>>]) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions),
+            list: expressions,
             negated: true
         )
     }
 
-    public func notIn<T>(_ table: T) -> some XLExpression<Bool, Dialect> where T: XLMetaCommonTable {
+    @_disfavoredOverload
+    func notIn<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == CompileFailSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias,
             negated: true
         )
+    }
+}
+
+
+// MARK: - Scalar common tables
+
+
+extension CompileFailSecondDialectExpression {
+
+    ///
+    /// Tests whether the expression appears in a scalar common table.
+    ///
+    @_disfavoredOverload
+    func `in`<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, CompileFailSecondDialect>) -> some CompileFailSecondDialectExpression<Bool> where Value: XLLiteral {
+        XLInTableExpression(lhs: self, rhs: scalarCommonTable.definition.alias)
+    }
+
+    ///
+    /// Tests whether the expression does not appear in a scalar common table.
+    ///
+    @_disfavoredOverload
+    func notIn<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, CompileFailSecondDialect>) -> some CompileFailSecondDialectExpression<Bool> where Value: XLLiteral {
+        XLInTableExpression(lhs: self, rhs: scalarCommonTable.definition.alias, negated: true)
     }
 }

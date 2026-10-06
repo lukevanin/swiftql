@@ -8,30 +8,6 @@
 import Foundation
 
 
-// MARK: - Unary plus
-
-
-public prefix func +<T, D>(operand: any XLExpression<T, D>) -> some XLExpression<T, D> where T: Numeric {
-    XLUnaryOperatorExpression(op: "+", operand: operand)
-}
-
-public prefix func +<Wrapped, D>(operand: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Wrapped>, D> where Wrapped: Numeric {
-    XLUnaryOperatorExpression(op: "+", operand: operand)
-}
-
-
-// MARK: - Negate
-
-
-public prefix func -<T, D>(operand: any XLExpression<T, D>) -> some XLExpression<T, D> where T: Numeric {
-    XLUnaryOperatorExpression(op: "-", operand: operand)
-}
-
-public prefix func -<Wrapped, D>(operand: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Wrapped>, D> where Wrapped: Numeric {
-    XLUnaryOperatorExpression(op: "-", operand: operand)
-}
-
-
 // MARK: - Standard library numeric operands
 
 
@@ -56,4 +32,11 @@ public prefix func -(operand: Int) -> Int {
 
 public prefix func +(operand: Double) -> Double {
     operand
+}
+
+// Keeps `~someInt` typed as `Int` on Swift 6.3. The comment above explains
+// why the exact-match overload is needed (issue #771).
+
+public prefix func ~(operand: Int) -> Int {
+    operand ^ -1
 }

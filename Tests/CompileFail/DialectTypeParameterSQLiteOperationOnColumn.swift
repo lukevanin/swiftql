@@ -5,6 +5,7 @@ import SwiftQL
 // error is at the call site and names both dialects.
 // Compiled with Support/DialectParameterisedSupport.swift and
 // Support/DialectTypeParameterSupport.swift.
+// expected-names: CompileFailSecondDialect XLSQLite
 
 func refusal(name: String) -> any XLQueryStatement<SecondDialectPerson> {
     sql(dialect: CompileFailSecondDialect.self) { schema in

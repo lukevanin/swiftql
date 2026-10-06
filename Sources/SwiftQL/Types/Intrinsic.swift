@@ -14,7 +14,7 @@ import Foundation
 /// The boolean type is emulated in SQLite using an `Int` storage. A literal zero represents a `false`
 /// value, and any other value represents `true`.
 ///
-extension Bool: XLExpression,  XLLiteral, XLEquatable, XLComparable {
+extension Bool: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
@@ -39,7 +39,7 @@ extension Bool: XLExpression,  XLLiteral, XLEquatable, XLComparable {
 ///
 /// Adds support for `Int` types to be used as SwiftQL columns.
 ///
-extension Int: XLExpression,  XLLiteral, XLEquatable, XLComparable {
+extension Int: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
@@ -64,7 +64,7 @@ extension Int: XLExpression,  XLLiteral, XLEquatable, XLComparable {
 ///
 /// Adds support for `Double` types to be used as SwiftQL columns.
 ///
-extension Double: XLExpression,  XLLiteral, XLEquatable, XLComparable {
+extension Double: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
@@ -102,7 +102,7 @@ extension Double: XLExpression,  XLLiteral, XLEquatable, XLComparable {
 ///
 /// Adds support for `String` types to be used as SwiftQL columns.
 ///
-extension String: XLExpression,  XLLiteral, XLEquatable, XLComparable {
+extension String: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
@@ -127,7 +127,7 @@ extension String: XLExpression,  XLLiteral, XLEquatable, XLComparable {
 ///
 /// Adds support for `Data` types to be used as SwiftQL columns.
 ///
-extension Data: XLExpression,  XLLiteral, XLEquatable {
+extension Data: XLExpression, XLLiteral, XLEquatable {
     
     public typealias T = Self
     

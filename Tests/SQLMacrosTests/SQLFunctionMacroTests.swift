@@ -208,21 +208,21 @@ final class SQLFunctionMacroTests: XCTestCase {
         )
     }
 
-    // Issue #789: an argument that takes a Swift value as well as a column is
-    // typed as the dialect-free `XLTypedExpression`; a SQLite-only argument
-    // can name the SQLite shorthand. Both are accepted.
-    func test_typedAndSQLiteExpressionTypes_areAccepted() {
+    // Issue #789: an argument that takes an expression of any dialect is typed
+    // as `XLExpression`; one that takes only a SQLite expression names
+    // `XLSQLiteExpression`. Both are accepted.
+    func test_dialectFreeAndSQLiteExpressionTypes_areAccepted() {
         assertMacroExpansion(
             """
             @SQLFunction(name: "pair")
             struct PairFunction {
-                let first: any XLTypedExpression<Int>
+                let first: any XLExpression<Int>
                 let second: any SwiftQL.XLSQLiteExpression<String>
             }
             """,
             expandedSource: """
             struct PairFunction {
-                let first: any XLTypedExpression<Int>
+                let first: any XLExpression<Int>
                 let second: any SwiftQL.XLSQLiteExpression<String>
 
                 public static let definition = XLCustomFunctionDefinition(name: "pair", numberOfArguments: 2)
@@ -303,7 +303,7 @@ final class SQLFunctionMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Property 'value' must be typed as 'any XLTypedExpression<...>' (or 'any XLExpression<..., Dialect>', or the 'some' form of either) to be used as a function argument. Found 'Int'.",
+                    message: "Property 'value' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'Int'.",
                     line: 3,
                     column: 16
                 )
@@ -479,12 +479,12 @@ final class SQLFunctionMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Property 'a' must be typed as 'any XLTypedExpression<...>' (or 'any XLExpression<..., Dialect>', or the 'some' form of either) to be used as a function argument. Found 'Int'.",
+                    message: "Property 'a' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'Int'.",
                     line: 3,
                     column: 12
                 ),
                 DiagnosticSpec(
-                    message: "Property 'c' must be typed as 'any XLTypedExpression<...>' (or 'any XLExpression<..., Dialect>', or the 'some' form of either) to be used as a function argument. Found 'String'.",
+                    message: "Property 'c' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'String'.",
                     line: 5,
                     column: 12
                 ),

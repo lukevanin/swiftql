@@ -6,7 +6,7 @@
 //  imports SwiftQL.
 //
 //  `Int` and `Double` conform to `XLExpression`, so SwiftQL's generic prefix
-//  operators over `any XLExpression<T, D>` also match such an operand. Swift 6.3
+//  operators over `any XLExpression<T>` also match such an operand. Swift 6.3
 //  preferred those operators, and ordinary code such as `let x = -someInt` or
 //  `let y = +someDouble` stopped compiling for every client of the library
 //  (issue #771). Each test below binds the result without a type annotation and
@@ -135,7 +135,7 @@ final class XLNumericPrefixOperatorTests: XLSyntaxTestCase {
 
 
     func testPrefixOperators_IntegerLiteralExpression_StillRenderSQL() {
-        let operand: any XLExpression<Int, XLUniversalDialect> = 12
+        let operand: any XLSQLiteExpression<Int> = 12
         assertRenders(-operand, as: "-(12)")
         assertRenders(+operand, as: "+(12)")
         assertRenders(~operand, as: "~(12)")

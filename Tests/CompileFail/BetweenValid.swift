@@ -6,9 +6,9 @@ func typeCheckBetweenExpressions() {
     let minimum = XLNamedBindingReference<Int>(name: "minimum")
     let maximum = XLNamedBindingReference<Int>(name: "maximum")
 
-    let literalBounds: any XLTypedExpression<Bool> = value.isBetween(5, 10)
-    let bindingBounds: any XLTypedExpression<Bool> = value.isNotBetween(minimum, maximum)
-    let nullableResult: any XLTypedExpression<Optional<Bool>> = optionalValue.isBetween(5, 10)
+    let literalBounds: any XLExpression<Bool> = value.isBetween(5, 10)
+    let bindingBounds: any XLExpression<Bool> = value.isNotBetween(minimum, maximum)
+    let nullableResult: any XLExpression<Optional<Bool>> = optionalValue.isBetween(5, 10)
 
     _ = literalBounds
     _ = bindingBounds
