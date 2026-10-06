@@ -683,7 +683,7 @@
         {
           "layer": "diagnostics",
           "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
-          "test_case": "SQLMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsError / test_dialectWitnessPropertyName_emitsError"
+          "test_case": "SQLMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsError / test_dialectWitnessPropertyName_emitsError / test_nestedModelDialectType_emitsError / test_modelDialectPropertyName_emitsError"
         },
         {
           "layer": "second-dialect-execution",
@@ -691,7 +691,7 @@
           "test_case": "DialectTypeParameterTests.testTheSameQueryBodyRendersForBothDialects / testEveryColumnAndComposedExpressionIsOfTheModelDialect / testAStaticFieldRefusesAColumnOfAnotherDialect"
         },
         {
-          "layer": "real-sqlite-execution",
+          "layer": "compile-and-render",
           "source_path": "Tests/SQLTests/DialectNameCaptureTests.swift",
           "test_case": "DialectNameCaptureTests.testAPropertyOfTheUsersOwnDialectTypeKeepsItsType / testANestedTypeNamedDialectIsTheModelsOwn"
         },

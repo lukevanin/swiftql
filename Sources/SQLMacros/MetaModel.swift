@@ -153,8 +153,10 @@ internal struct MetaModel {
         "Nullable",
         "_swiftQLPropertyCodecKeys",
         "staticResultField",
-        // Issue #789: every metadata type names its dialect as `_dialect`.
+        // Issue #789: every metadata type names its dialect as `_dialect`,
+        // and Swift gives the model the member type `XLModelDialect`.
         "_dialect",
+        "XLModelDialect",
     ]
 
     /// Name of the struct defined in the Swift source file.

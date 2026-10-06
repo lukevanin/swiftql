@@ -434,7 +434,8 @@
     A hand-written conformance declares
     `public static var _dialect: XLSQLiteDialect.Type { XLSQLiteDialect.self }`
     on the model, and the instance form on its metadata. A model property
-    named `_dialect` is reported, as other generated names are.
+    named `_dialect` or `XLModelDialect`, or a nested type named
+    `XLModelDialect`, is reported, as other generated names are.
   - Types that carry the dialect gained a generic parameter for it:
     `ConstantCase`, `ConstantCaseWhenThen`, `ConstantCaseWhenThenElse`,
     `VariableCaseWhenThen`, `VariableCaseElse`, `XLScalarCommonTable`, and

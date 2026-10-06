@@ -82,6 +82,7 @@ internal enum MetaModelParser {
     ) -> [MetaProperty] {
         var properties: [MetaProperty] = []
         for member in declaration.memberBlock.members {
+            reportNestedModelDialectType(member.decl, diagnostics: &diagnostics)
             // Members which are not variable declarations (methods, initializers, nested types,
             // subscripts) are never columns.
             guard let variable = member.decl.as(VariableDeclSyntax.self) else {
@@ -90,6 +91,40 @@ internal enum MetaModelParser {
             properties.append(contentsOf: collectProperties(variable: variable, diagnostics: &diagnostics))
         }
         return properties
+    }
+
+    ///
+    /// Reports a nested type named `XLModelDialect` (issue #789).
+    ///
+    /// `XLResult` and the metadata protocols have an associated type
+    /// `XLModelDialect`, which the generated `_dialect` member names. A nested
+    /// type of that name is taken as the associated type instead, and the
+    /// conformance fails with an error that does not point here.
+    ///
+    private static func reportNestedModelDialectType(
+        _ declaration: DeclSyntax,
+        diagnostics: inout MacroDiagnosticCollector
+    ) {
+        // A declaration inside `#if` is a member in some configuration.
+        if let conditional = declaration.as(IfConfigDeclSyntax.self) {
+            for clause in conditional.clauses {
+                guard case .decls(let members)? = clause.elements else {
+                    continue
+                }
+                for member in members {
+                    reportNestedModelDialectType(member.decl, diagnostics: &diagnostics)
+                }
+            }
+            return
+        }
+        // Every named declaration here but a function declares a type, such
+        // as a nested structure, enumeration, or type alias.
+        guard !declaration.is(FunctionDeclSyntax.self),
+              let name = declaration.asProtocol(NamedDeclSyntax.self)?.name,
+              name.text == "XLModelDialect" else {
+            return
+        }
+        diagnostics.report(name, id: "nested-model-dialect-type", "A nested type named 'XLModelDialect' conflicts with the dialect the macro gives the model. Rename the type.")
     }
 
     ///
