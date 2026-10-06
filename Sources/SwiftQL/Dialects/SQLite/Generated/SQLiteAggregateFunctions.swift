@@ -27,7 +27,7 @@ extension XLSQLiteExpression where T == XLAllColumns {
 }
 
 
-/// See: https://www.sqlite.org/lang_aggfunc.html
+/// SQLite's aggregates: https://www.sqlite.org/lang_aggfunc.html
 ///
 extension XLSQLiteExpression {
     
@@ -42,7 +42,7 @@ extension XLSQLiteExpression {
     }
 
 
-    @available(*, deprecated, message: "SQLite MIN can return NULL. Use minOrNull(distinct:) instead. min() will return an optional expression in SwiftQL 2.")
+    @available(*, deprecated, message: "MIN can return NULL. Use minOrNull(distinct:) instead. min() will return an optional expression in SwiftQL 2.")
     public func min(distinct: Bool = false) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
         XLFunction(name: "MIN", distinct: distinct, parameters: [self])
     }
@@ -54,7 +54,7 @@ extension XLSQLiteExpression {
     }
 
 
-    @available(*, deprecated, message: "SQLite MAX can return NULL. Use maxOrNull(distinct:) instead. max() will return an optional expression in SwiftQL 2.")
+    @available(*, deprecated, message: "MAX can return NULL. Use maxOrNull(distinct:) instead. max() will return an optional expression in SwiftQL 2.")
     public func max(distinct: Bool = false) -> some XLSQLiteExpression<T> where T: XLComparable & XLLiteral {
         XLFunction(name: "MAX", distinct: distinct, parameters: [self])
     }
@@ -62,7 +62,7 @@ extension XLSQLiteExpression {
 
     /// Returns the average of the non-NULL numeric values, or NULL when the input is empty or contains no non-NULL values.
     ///
-    /// SQLite computes `AVG` as a floating-point value for both integer and real inputs.
+    /// The result is floating-point for integer and real inputs, as SQLite computes `AVG`.
     public func averageOrNull(distinct: Bool = false) -> some XLSQLiteExpression<Double?> where T: Numeric & XLLiteral {
         XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
     }
@@ -70,13 +70,13 @@ extension XLSQLiteExpression {
 
     /// Returns the average of the non-NULL numeric values, ignoring NULL inputs.
     ///
-    /// The result remains optional because SQLite returns NULL for an empty input or an all-NULL group.
+    /// The result remains optional because `AVG` returns NULL for an empty input or an all-NULL group.
     public func averageOrNull<Wrapped>(distinct: Bool = false) -> some XLSQLiteExpression<Double?> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
         XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
     }
 
 
-    @available(*, deprecated, message: "SQLite AVG can return NULL. Use averageOrNull(distinct:) instead. average() will return an optional expression in SwiftQL 2.")
+    @available(*, deprecated, message: "AVG can return NULL. Use averageOrNull(distinct:) instead. average() will return an optional expression in SwiftQL 2.")
     public func average(distinct: Bool = false) -> some XLSQLiteExpression<T> where T == Double, T: XLLiteral {
         XLFunction(name: "AVG", distinct: distinct, parameters: [self])
     }
@@ -88,7 +88,7 @@ extension XLSQLiteExpression {
     }
 
 
-    @available(*, deprecated, message: "SQLite SUM can return NULL. Use sumOrNull(distinct:) instead. sum() will return an optional expression in SwiftQL 2.")
+    @available(*, deprecated, message: "SUM can return NULL. Use sumOrNull(distinct:) instead. sum() will return an optional expression in SwiftQL 2.")
     public func sum(distinct: Bool = false) -> some XLSQLiteExpression<T> where T: Numeric & XLLiteral {
         XLFunction(name: "SUM", distinct: distinct, parameters: [self])
     }

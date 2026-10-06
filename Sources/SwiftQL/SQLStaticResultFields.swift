@@ -341,6 +341,11 @@ func _xlForeignDialect(
     if let tagged = value as? any XLDialectTaggedExpression {
         return tagged.expressionDialect == expected ? nil : tagged.expressionDialect
     }
+    // A literal value, such as a string, a number, or `Data`, belongs to
+    // every dialect, and walking it would only visit its contents.
+    if value is any XLLiteral {
+        return nil
+    }
     // A value tree cannot be cyclic; only a reference can lead back to a part
     // already walked, so each object is walked once.
     if type(of: value) is AnyClass {

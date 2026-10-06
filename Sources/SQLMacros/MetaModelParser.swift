@@ -140,10 +140,12 @@ internal enum MetaModelParser {
         )
     }
 
-    /// A dialect's spelling without SwiftQL's module prefix, so `XLSQLiteDialect`
-    /// and `SwiftQL.XLSQLiteDialect` compare equal.
+    /// A dialect's spelling without its qualification, so `XLSQLiteDialect`
+    /// and `SwiftQL.XLSQLiteDialect` compare equal. Two types of the same name
+    /// in different modules compare equal too; the compiler reports that one,
+    /// at the conformance.
     private static func unqualified(_ type: String) -> String {
-        type.hasPrefix("SwiftQL.") ? String(type.dropFirst("SwiftQL.".count)) : type
+        String(type.split(separator: ".").last ?? Substring(type))
     }
 
     ///

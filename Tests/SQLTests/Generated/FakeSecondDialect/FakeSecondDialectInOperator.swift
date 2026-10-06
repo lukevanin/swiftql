@@ -42,7 +42,7 @@ extension FakeSecondDialectExpression {
     ///
     /// Membership of an optional value in the results of `expression`.
     ///
-    /// The result is `Optional<Bool>` because SQLite yields NULL when the
+    /// The result is `Optional<Bool>` because SQL yields NULL when the
     /// left-hand value is NULL, or when no row matches and the candidate set
     /// contains NULL.
     ///
@@ -78,7 +78,7 @@ extension FakeSecondDialectExpression {
     ///
     /// Membership in a candidate set that may itself contain NULL.
     ///
-    /// SQLite compares against each element in turn: a match yields true even
+    /// SQL compares against each element in turn: a match yields true even
     /// when another element is NULL, but an exhausted search yields NULL rather
     /// than false if any element was NULL.
     ///
@@ -116,10 +116,10 @@ extension FakeSecondDialectExpression {
     ///
     /// Matches rows whose value is absent from the results of `expression`.
     ///
-    /// SQLite evaluates `NOT IN` as the negation of `IN`, so an unmatched value
-    /// compared against a set containing NULL is NULL rather than true. The
-    /// one exception is an empty set, where `NOT IN` is true even for a NULL
-    /// operand.
+    /// SQL evaluates `NOT IN` as the negation of `IN`, so an unmatched value
+    /// compared against a set containing NULL is NULL rather than true. In
+    /// SQLite the one exception is an empty set, where `NOT IN` is true even
+    /// for a NULL operand.
     ///
     @_disfavoredOverload
     func notIn(expression: () -> any XLQueryStatement<T>) -> some FakeSecondDialectExpression<Bool> {

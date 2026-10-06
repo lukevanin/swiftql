@@ -182,6 +182,13 @@ def load_dialects() -> List[Dict[str, str]]:
             raise SystemExit(f"{relative(SPECIFICATION)}: {name}'s disfavored must be true or false")
         if not isinstance(dialect.get("imports", []), list):
             raise SystemExit(f"{relative(SPECIFICATION)}: {name}'s imports must be a list")
+    # Each dialect's output directory holds its files and nothing else, so it
+    # can move to its own target.
+    outputs = [Path(dialect["output"]) for dialect in dialects]
+    for index, output in enumerate(outputs):
+        for other in outputs[index + 1:]:
+            if output == other or output in other.parents or other in output.parents:
+                raise SystemExit(f"{relative(SPECIFICATION)}: two dialects share the output {output} or {other}")
     return dialects
 
 

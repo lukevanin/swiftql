@@ -55,7 +55,7 @@ extension XLSQLiteExpression {
     /// Matches `other` as a `LIKE` pattern in which `escape` marks the next
     /// character as a literal, so `%` and `_` can be matched exactly.
     ///
-    /// SQLite requires `escape` to evaluate to a single character. A longer or
+    /// `escape` must evaluate to a single character. In SQLite a longer or
     /// empty value prepares successfully and then fails when the statement is
     /// stepped, with `ESCAPE expression must be a single character`. That is a
     /// constraint on the value, not something the Swift type can express.
