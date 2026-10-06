@@ -155,7 +155,7 @@ final class XLJSONPathRenderingTests: XCTestCase {
         let json = XLNamedBindingReference<String>(name: "json")
         XCTAssertEqual(
             encoder.makeSQL(
-                json.jsonArrayLength(path: XLJSONPath.root.key("items"))
+                json.sqlite.jsonArrayLength(path: XLJSONPath.root.key("items"))
             ).sql,
             "json_array_length(:json, '$.items')"
         )
@@ -169,7 +169,7 @@ final class XLJSONPathRenderingTests: XCTestCase {
         let json = XLNamedBindingReference<String>(name: "json")
         XCTAssertEqual(
             encoder.makeSQL(
-                json.jsonArrayLength(path: XLJSONPath.root.key("a\"b'c"))
+                json.sqlite.jsonArrayLength(path: XLJSONPath.root.key("a\"b'c"))
             ).sql,
             "json_array_length(:json, '$.a\"b''c')"
         )
@@ -179,7 +179,7 @@ final class XLJSONPathRenderingTests: XCTestCase {
         // v1 source compatibility: the original spelling keeps working.
         let json = XLNamedBindingReference<String>(name: "json")
         XCTAssertEqual(
-            encoder.makeSQL(json.jsonArrayLength(path: "$.items")).sql,
+            encoder.makeSQL(json.sqlite.jsonArrayLength(path: "$.items")).sql,
             "json_array_length(:json, '$.items')"
         )
     }
@@ -216,8 +216,14 @@ final class XLJSONPathExecutionTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
+    /// The document binding, lifted into SQLite so SQLite's own JSON
+    /// functions take it (issue #789).
+    private func sqliteDocument() -> some XLSQLiteExpression<String> {
+        document().sqlite
+    }
+
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLTypedExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -229,11 +235,11 @@ final class XLJSONPathExecutionTests: XCTestCase {
     func testABuiltPathSelectsWhatAHandWrittenPathSelects() throws {
         let json = #"{"items":[1,2,3],"other":[1]}"#
         let built = try evaluate(
-            document().jsonArrayLength(path: XLJSONPath.root.key("items")),
+            sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("items")),
             document: json
         )
         let handWritten = try evaluate(
-            document().jsonArrayLength(path: "$.items"),
+            sqliteDocument().jsonArrayLength(path: "$.items"),
             document: json
         )
         XCTAssertEqual(built, 3)
@@ -243,7 +249,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
     func testARootPathSelectsTheWholeDocument() throws {
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root),
                 document: "[1,2,3,4]"
             ),
             4
@@ -257,14 +263,14 @@ final class XLJSONPathExecutionTests: XCTestCase {
         let json = #"{"a.b":[1,2,3],"a":{"b":[1]}}"#
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key("a.b")),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("a.b")),
                 document: json
             ),
             3
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: "$.a.b"),
+                sqliteDocument().jsonArrayLength(path: "$.a.b"),
                 document: json
             ),
             1
@@ -276,7 +282,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         // this resolves on every supported SQLite.
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key("a[0]")),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("a[0]")),
                 document: #"{"a[0]":[1]}"#
             ),
             1
@@ -288,14 +294,14 @@ final class XLJSONPathExecutionTests: XCTestCase {
         try requireRuntimeResolves(document: json, path: #"$.a"b"#)
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key(#"a"b"#)),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key(#"a"b"#)),
                 document: json
             ),
             2
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key(#"a\b"#)),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key(#"a\b"#)),
                 document: json
             ),
             3
@@ -307,7 +313,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         try requireRuntimeResolves(document: json, path: #"$."a\nb""#)
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key("a\nb")),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("a\nb")),
                 document: json
             ),
             2
@@ -322,7 +328,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         try requireRuntimeResolves(document: json, path: #"$."\"ab""#)
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key(#""ab"#)),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key(#""ab"#)),
                 document: json
             ),
             2
@@ -333,7 +339,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         let json = #"{"rows":[[1],[1,2],[1,2,3]]}"#
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(
+                sqliteDocument().jsonArrayLength(
                     path: XLJSONPath.root.key("rows").index(1)
                 ),
                 document: json
@@ -342,7 +348,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(
+                sqliteDocument().jsonArrayLength(
                     path: XLJSONPath.root.key("rows").last
                 ),
                 document: json
@@ -351,7 +357,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(
+                sqliteDocument().jsonArrayLength(
                     path: XLJSONPath.root.key("rows").index(fromEnd: 3)
                 ),
                 document: json
@@ -373,7 +379,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonArrayLength(path: XLJSONPath.root.key(#"a.b"c"#)),
+                sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key(#"a.b"c"#)),
                 document: #"{"a.b\"c":[1,2]}"#
             ),
             2
@@ -422,7 +428,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         let json = #"{"items":[1,2]}"#
         let appendPosition = XLJSONPath.root.key("items").appended
         guard let read = try evaluate(
-            document().jsonArrayLength(path: appendPosition),
+            sqliteDocument().jsonArrayLength(path: appendPosition),
             document: json
         ) else {
             XCTFail("the statement should return one row")
@@ -447,7 +453,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
         // the assertion off a double optional, which XCTAssertNil and
         // XCTAssertNotNil both warn about.
         guard let result = try evaluate(
-            document().jsonArrayLength(path: XLJSONPath.root.key("missing")),
+            sqliteDocument().jsonArrayLength(path: XLJSONPath.root.key("missing")),
             document: #"{"items":[1]}"#
         ) else {
             XCTFail("the statement should return one row")

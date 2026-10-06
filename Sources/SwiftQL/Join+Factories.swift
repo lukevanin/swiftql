@@ -29,7 +29,7 @@ extension Join {
     ///
     /// Creates an inner join with a column constraint.
     ///
-    public static func Inner<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+    public static func Inner<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         Join(kind: .innerJoin, table: table, constraint: constraint)
     }
 
@@ -47,7 +47,7 @@ extension Join {
     ///
     /// Creates a left join with a column constraint.
     ///
-    public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
+    public static func Left<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
     }
 
@@ -62,7 +62,7 @@ extension Join {
     ///
     /// > Important: `RIGHT JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
     ///
-    public static func Right<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+    public static func Right<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         Join(kind: .rightJoin, table: table, constraint: constraint)
     }
 
@@ -102,7 +102,7 @@ extension Join {
     ///
     /// > Important: `FULL OUTER JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
     ///
-    public static func FullOuter<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
+    public static func FullOuter<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .fullOuterJoin, table: table, constraint: constraint)
     }
 
@@ -111,7 +111,7 @@ extension Join {
     /// so no query using it could ever execute. Use ``Left(_:on:)`` with a nullable table instead.
     ///
     @available(*, unavailable, message: "Join.Outer emitted a bare 'OUTER JOIN', which SQLite rejects, so it could never execute. Use Join.Left with a nullable table instead.")
-    public static func Outer<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+    public static func Outer<T, U>(_ table: T, on constraint: any XLTypedExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         fatalError("Join.Outer is unavailable")
     }
 }

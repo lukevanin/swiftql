@@ -1,0 +1,231 @@
+#!/bin/bash
+
+# Issue #789: proves that the dialect is a type parameter of the query
+# surface. The same query body type-checks against SQLite and against a second
+# dialect. A SQLite-only operation is a compile error on a second-dialect
+# query, on a composed expression as well as on a column; an operator does not
+# compose two dialects; a schema refuses another dialect's model; and each of
+# those errors names both dialects. The errors for three ordinary mistakes are
+# pinned to their exact text: a misspelled column, which must be byte-identical
+# to the error before the dialect parameter, and a wrong value type and two
+# columns of different types, whose only change is the dialect argument in the
+# printed column type. The fixtures use macros, so the standalone compiler
+# loads SwiftQL's macro plugin.
+
+set -euo pipefail
+
+script_directory="$(cd "$(dirname "$0")" && pwd -P)"
+source_root="$(cd "$script_directory/../.." && pwd -P)"
+# Declare the second dialect and the models every fixture uses. Each fixture
+# is compiled with them, and an error inside them fails the positive compile.
+support_files=(
+    "$source_root/Tests/CompileFail/Support/DialectParameterisedSupport.swift"
+    "$source_root/Tests/CompileFail/Support/DialectTypeParameterSupport.swift"
+)
+positive_fixture="$source_root/Tests/CompileFail/DialectTypeParameterValid.swift"
+# A refusal: the error must name both dialects.
+refusal_fixtures=(
+    "$source_root/Tests/CompileFail/DialectTypeParameterSQLiteOperationOnColumn.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterSQLiteOperationOnComposed.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterMixedComparison.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterForeignModel.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterInsertOr.swift"
+)
+expected_dialects=(
+    "XLSQLiteDialect"
+    "CompileFailSecondDialect"
+)
+# An ordinary mistake: the error text must be exactly the fixture's
+# `expected-message`, which pins the message the issue says must not change.
+pinned_fixtures=(
+    "$source_root/Tests/CompileFail/DialectTypeParameterMisspelledColumn.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterWrongValueType.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterMismatchedColumns.swift"
+)
+diagnostic_log="$(
+    mktemp "${TMPDIR:-/tmp}/swiftql-dialect-type-parameter.XXXXXX"
+)"
+scratch_path="${SWIFTQL_SCRATCH_PATH:-$source_root/.build}"
+
+trap 'rm -f "$diagnostic_log"' EXIT
+
+if [[ "$scratch_path" != /* ]]; then
+    scratch_path="$source_root/$scratch_path"
+fi
+
+build_arguments=(
+    --package-path "$source_root"
+    --scratch-path "$scratch_path"
+)
+
+# Make the gate independently runnable while remaining an incremental no-op
+# immediately after the compatibility matrix's warning-clean build.
+swift build "${build_arguments[@]}" --target SwiftQL
+bin_path="$(swift build "${build_arguments[@]}" --show-bin-path)"
+grdbsqlite_module_map="$scratch_path/checkouts/GRDB.swift/Sources/GRDBSQLite/module.modulemap"
+
+module_search_paths=()
+swiftql_module=""
+
+# SwiftPM 5.9 writes target modules directly into the configuration's binary
+# directory, while newer toolchains collect them under `Modules`. Discover every
+# emitted module parent so this invocation works with either artifact layout.
+while IFS= read -r module; do
+    module_search_paths+=("$(dirname "$module")")
+    if [[ "$(basename "$module")" == "SwiftQL.swiftmodule" ]]; then
+        swiftql_module="$module"
+    fi
+done < <(find "$bin_path" -name '*.swiftmodule' -prune -print)
+
+# SwiftPM 5.9 names the macro executable `SQLMacros-tool`; newer toolchains
+# name it after the target.
+macro_plugin="$(
+    find "$bin_path" -maxdepth 1 -type f \
+        \( -name 'SQLMacros-tool' -o -name 'SQLMacros' \) -perm -u+x -print |
+        head -n 1
+)"
+
+if [[ -z "$swiftql_module" ]]; then
+    printf 'error: could not find SwiftQL.swiftmodule below %s\n' \
+        "$bin_path" >&2
+    exit 1
+fi
+if [[ -z "$macro_plugin" ]]; then
+    printf 'error: could not find the SQLMacros plugin executable in %s\n' \
+        "$bin_path" >&2
+    exit 1
+fi
+if [[ ! -f "$grdbsqlite_module_map" ]]; then
+    printf 'error: expected GRDBSQLite module map at %s\n' \
+        "$grdbsqlite_module_map" >&2
+    exit 1
+fi
+
+compiler=(
+    swiftc
+    -typecheck
+    -swift-version 5
+    -Xcc "-fmodule-map-file=$grdbsqlite_module_map"
+    -load-plugin-executable "$macro_plugin#SQLMacros"
+)
+for module_search_path in "${module_search_paths[@]}"; do
+    compiler+=(
+        -I "$module_search_path"
+    )
+done
+
+# Swift 6 on Linux loads every module SwiftQL depends on, including
+# OpenCombine's C helper target, COpenCombineHelpers. That target has no
+# checked-in module map; SwiftPM generates one in the target's build
+# directory. Swift 5.9 tolerated its absence, but Swift 6.3 fails with
+# "missing required module". Pass each generated C-target module map. Host
+# tool copies (`*-tool.build`) would redefine the same modules, and Swift
+# targets' generated maps (`-Swift.h`) are not C modules, so both are skipped.
+# Apple builds link no OpenCombine (#669), so the macOS invocation is left
+# unchanged.
+if [[ "$(uname -s)" == Linux ]]; then
+    while IFS= read -r generated_module_map; do
+        if grep -Fq -- '-Swift.h' "$generated_module_map"; then
+            continue
+        fi
+        compiler+=(-Xcc "-fmodule-map-file=$generated_module_map")
+    done < <(
+        find "$bin_path" -name '*-tool.build' -prune -o \
+            -path '*.build/module.modulemap' -print | sort
+    )
+fi
+
+# Prove that the standalone compiler invocation expands the macros and accepts
+# both dialects' queries before interpreting failures from the negative
+# fixtures as API evidence.
+"${compiler[@]}" "${support_files[@]}" "$positive_fixture"
+
+# Compiles one negative fixture and prints its error lines, after checking that
+# it failed exactly at its one `expected-error` line.
+compile_negative_fixture() {
+    local fixture="$1"
+    local marker_count
+    local expected_line
+    local error_lines
+
+    marker_count="$(awk '/expected-error/ { count += 1 } END { print count + 0 }' "$fixture")"
+    expected_line="$(awk '/expected-error/ { print NR; exit }' "$fixture")"
+    if [[ "$marker_count" -ne 1 ]] || [[ -z "$expected_line" ]]; then
+        printf 'error: expected exactly one expected-error marker in %s\n' \
+            "$fixture" >&2
+        exit 1
+    fi
+
+    if "${compiler[@]}" "${support_files[@]}" "$fixture" >"$diagnostic_log" 2>&1; then
+        printf 'error: a fixture that must not type-check did: %s\n' \
+            "$fixture" >&2
+        exit 1
+    fi
+
+    error_lines="$(
+        awk -v fixture="$fixture" '
+            index($0, fixture ":") == 1 && /: error:/ {
+                location = substr($0, length(fixture) + 2)
+                split(location, parts, ":")
+                print parts[1]
+            }
+        ' "$diagnostic_log" | sort -u
+    )"
+    if [[ "$error_lines" != "$expected_line" ]]; then
+        printf 'error: fixture did not fail exactly at its expected-error line: %s\n' \
+            "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+}
+
+for fixture in "${refusal_fixtures[@]}"; do
+    compile_negative_fixture "$fixture"
+
+    # The error itself, not a note under it, must name both dialects, so a
+    # reader can see which two met without opening the generated code.
+    error_text="$(
+        awk -v fixture="$fixture" '
+            index($0, fixture ":") == 1 && /: error:/ { print }
+        ' "$diagnostic_log"
+    )"
+    for dialect in "${expected_dialects[@]}"; do
+        if [[ "$error_text" != *"$dialect"* ]]; then
+            printf 'error: refusal does not name %s: %s\n' "$dialect" "$fixture" >&2
+            cat "$diagnostic_log" >&2
+            exit 1
+        fi
+    done
+    printf '%s\n' "$error_text"
+done
+
+for fixture in "${pinned_fixtures[@]}"; do
+    compile_negative_fixture "$fixture"
+
+    expected_message="$(
+        awk -F'// expected-message: ' '/\/\/ expected-message: / { print $2; exit }' "$fixture"
+    )"
+    if [[ -z "$expected_message" ]]; then
+        printf 'error: expected an expected-message comment in %s\n' "$fixture" >&2
+        exit 1
+    fi
+    # Only the first error is the diagnosis; the solver can add follow-on
+    # errors on the same line.
+    actual_message="$(
+        awk -v fixture="$fixture" '
+            index($0, fixture ":") == 1 && /: error: / {
+                print substr($0, index($0, ": error: ") + 9)
+                exit
+            }
+        ' "$diagnostic_log"
+    )"
+    if [[ "$actual_message" != "$expected_message" ]]; then
+        printf 'error: the error text changed: %s\n  expected: %s\n  actual:   %s\n' \
+            "$fixture" "$expected_message" "$actual_message" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+    printf '%s: %s\n' "$(basename "$fixture")" "$actual_message"
+done
+
+printf 'SWIFTQL_DIALECT_TYPE_PARAMETER_TYPE_SAFETY PASS\n'

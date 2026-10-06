@@ -79,6 +79,7 @@ extension GRDBDatabase {
     where
         Rows: Sequence,
         Rows.Element: XLTable,
+        Rows.Element.Dialect == XLSQLiteDialect,
         Rows.Element.MetaNamedResult.Row == Rows.Element,
         Rows.Element.MetaInsert.Row == Rows.Element
     {
@@ -128,6 +129,7 @@ extension GRDBDatabase {
 struct GRDBInsertBatch<Row>
 where
     Row: XLTable,
+    Row.Dialect == XLSQLiteDialect,
     Row.MetaNamedResult.Row == Row,
     Row.MetaInsert.Row == Row
 {

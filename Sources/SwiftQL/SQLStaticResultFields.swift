@@ -17,6 +17,10 @@ extension XLValueCodingConfiguration {
     /// Creates a required contextual result field for `dialect`. `Storage` is
     /// a type witness for the selected SQL expression's intrinsic storage
     /// carrier; no value or `sqlDefault()` call is required.
+    ///
+    /// `expression` must be an expression of `dialect`, such as a column of a
+    /// model declared for it. Any other expression throws
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``.
     public func staticResultField<Value, Storage, Dialect>(
         _ valueType: Value.Type,
         selecting expression: any XLEncodable,
@@ -46,6 +50,7 @@ extension XLValueCodingConfiguration {
         let storageExpression = try _xlStaticStorageExpression(
             expression,
             as: storageType,
+            in: Dialect.self,
             identity: identity
         )
         return XLStaticSelectField(
@@ -96,6 +101,7 @@ extension XLValueCodingConfiguration {
         let storageExpression = try _xlStaticStorageExpression(
             expression,
             as: storageType,
+            in: Dialect.self,
             identity: identity
         )
         return XLStaticSelectField(
@@ -121,8 +127,11 @@ where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
 
     /// Creates a codec-free field for an intrinsic v1 literal whose storage in
     /// `dialect` is statically known. This never calls `sqlDefault()`.
+    ///
+    /// `expression` is an expression of `dialect`, such as a column of a model
+    /// declared for it (issue #789).
     public static func intrinsic(
-        selecting expression: any XLExpression<Value>,
+        selecting expression: any XLExpression<Value, Dialect>,
         identifiedBy identity: XLQuerySlotIdentity,
         using dialect: Dialect,
         context: XLValueCodingContext? = nil
@@ -173,7 +182,7 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
     /// The same as ``intrinsic(selecting:identifiedBy:using:context:)`` with
     /// a default `XLSQLiteDialect`.
     public static func intrinsic(
-        selecting expression: any XLExpression<Value>,
+        selecting expression: any XLExpression<Value, Dialect>,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil
     ) throws -> Self {
@@ -196,7 +205,7 @@ where Dialect: XLValueCodingDialect {
     }
 
     func column<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLTypedExpression<Value>,
         alias: XLName
     ) throws -> Value where Value: XLLiteral {
         throw XLStaticRowReadError.staticLayoutRequired(
@@ -245,20 +254,43 @@ func _xlStaticLiteralStorage<Dialect>(
 }
 
 
-func _xlStaticStorageExpression<Storage>(
+///
+/// Retypes a selected expression to its storage carrier, in the field's
+/// dialect.
+///
+/// The configuration's field factories take the expression erased, so the
+/// dialect is checked here, at run time, rather than by the compiler: a
+/// column of a model declared for another dialect throws
+/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
+/// (issue #789). A retyped column keeps its own dialect, so the check reads
+/// the retyped expression.
+///
+func _xlStaticStorageExpression<Storage, Dialect>(
     _ expression: any XLEncodable,
     as storageType: Storage.Type,
+    in _: Dialect.Type,
     identity: XLQuerySlotIdentity
-) throws -> any XLExpression<Storage> {
+) throws -> any XLExpression<Storage, Dialect> {
+    let retyped: any XLEncodable
     if let retypable = expression as? any XLStaticStorageRetypableExpression {
-        return retypable.staticStorageExpression(as: storageType)
+        retyped = retypable.staticStorageExpression(as: storageType)
     }
-    guard let typed = expression as? any XLExpression<Storage> else {
+    else {
+        retyped = expression
+    }
+    if let typed = retyped as? any XLExpression<Storage, Dialect> {
+        return typed
+    }
+    guard retyped is any XLTypedExpression<Storage> else {
         throw XLStaticRowLayoutError.expressionStorageTypeMismatch(
             identity: identity,
             expectedStorageType: String(reflecting: Storage.self),
             expressionType: String(reflecting: type(of: expression))
         )
     }
-    return typed
+    throw XLStaticRowLayoutError.expressionDialectMismatch(
+        identity: identity,
+        expectedDialect: String(reflecting: Dialect.self),
+        expressionType: String(reflecting: type(of: expression))
+    )
 }

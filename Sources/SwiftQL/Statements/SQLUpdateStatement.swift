@@ -93,7 +93,7 @@ public struct XLUpdateSetStatement<Row>: XLUpdateStatement {
         XLUpdateFromStatement(components: components.appending(From(statement)))
     }
     
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
+    public func `where`<U>(_ expression: any XLTypedExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
         XLUpdateWhereStatement(components: components.appending(Where(expression)))
     }
 }
@@ -106,7 +106,7 @@ public struct XLUpdateFromStatement<Row>: XLUpdateStatement {
     
     public let components: XLUpdateStatementComponents<Row>
 
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
+    public func `where`<U>(_ expression: any XLTypedExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
         XLUpdateWhereStatement(components: components.appending(Where(expression)))
     }
 }

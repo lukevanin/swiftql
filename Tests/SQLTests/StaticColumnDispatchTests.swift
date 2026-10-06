@@ -74,8 +74,8 @@ final class StaticColumnDispatchTests: XCTestCase {
         XCTAssertEqual(reader.unconstrainedReads, [])
     }
 
-    private func column<T>(_ alias: XLName) -> XLColumnResult<T> where T: XLLiteral {
-        XLColumnResult<T>(dependency: XLSelectResultDependency(), as: alias)
+    private func column<T>(_ alias: XLName) -> XLColumnResult<T, XLSQLiteDialect> where T: XLLiteral {
+        XLColumnResult<T, XLSQLiteDialect>(dependency: XLSelectResultDependency(), as: alias)
     }
 }
 
@@ -87,14 +87,14 @@ private final class DispatchRecordingRowReader: XLRowReader {
     private(set) var unconstrainedReads: [XLName] = []
 
     func column<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) -> T where T: XLLiteral {
         T.sqlDefault()
     }
 
     func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
         literalReads.append(alias)
@@ -102,7 +102,7 @@ private final class DispatchRecordingRowReader: XLRowReader {
     }
 
     func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T {
         unconstrainedReads.append(alias)

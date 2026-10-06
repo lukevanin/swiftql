@@ -12,7 +12,7 @@ import SwiftQL
 
 final class XLFunctionalQueryTests: XCTestCase {
     
-    var schema: XLSchema!
+    var schema: XLSQLiteSchema!
     
     var encoder: XLiteEncoder!
     

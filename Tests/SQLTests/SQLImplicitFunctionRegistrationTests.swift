@@ -34,9 +34,9 @@ private struct ImplicitSquareFunction: XLCustomFunction {
     /// invocations are executing at once. `nil` unless a test explicitly installs one.
     static let rendezvous = LockedValue<ConcurrencyRendezvous?>(nil)
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 
@@ -66,9 +66,9 @@ private struct ExplicitOnlyIdentityFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 
@@ -94,9 +94,9 @@ private struct UpfrontAndImplicitDoubleFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 
@@ -123,9 +123,9 @@ private struct BuiltInCollidingLowerFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
-    private let value: any XLExpression<String>
+    private let value: any XLTypedExpression<String>
 
-    init(_ value: any XLExpression<String>) {
+    init(_ value: any XLTypedExpression<String>) {
         self.value = value
     }
 
@@ -153,9 +153,9 @@ private struct SharedSignatureFirstFunction: XLCustomFunction {
 
     static let definition = sharedSignatureDefinition
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 
@@ -175,9 +175,9 @@ private struct SharedSignatureSecondFunction: XLCustomFunction {
 
     static let definition = sharedSignatureDefinition
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 

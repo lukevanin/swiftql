@@ -102,7 +102,10 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
     /// Renders `INSERT OR <action> INTO`. The algorithm applies to every
     /// uniqueness constraint violated while the statement runs.
     ///
-    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row {
+    /// `INSERT OR` is SQLite's own, so the table must be a SQLite table
+    /// (issue #789).
+    ///
+    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row, T.Dialect == XLSQLiteDialect {
         self.init(table: meta._dependency, target: .insertOr(action))
     }
 
@@ -117,13 +120,14 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 ///
 /// `REPLACE INTO` is the SQLite shorthand for `INSERT OR REPLACE INTO`. A row
 /// that would violate a uniqueness constraint is deleted before the new row is
-/// inserted.
+/// inserted. It is SQLite's own, so the table must be a SQLite table (issue
+/// #789).
 ///
 public struct Replace<Row>: XLEncodable, XLRowWritable {
 
     internal let insert: Insert<Row>
 
-    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.Dialect == XLSQLiteDialect {
         self.insert = Insert(table: meta._dependency, target: .replace)
     }
 
@@ -153,7 +157,7 @@ public enum XLConflictResolution<Row> {
     /// optionally constrained by a `WHERE` predicate that must hold for the
     /// update to apply.
     ///
-    case update(Setting<Row>, filter: (any XLExpression)?)
+    case update(Setting<Row>, filter: (any XLTypedExpression)?)
 }
 
 
@@ -225,7 +229,7 @@ public struct OnConflict<Row>: XLEncodable {
         on firstTarget: XLName,
         _ otherTargets: XLName...,
         set values: @escaping (inout Row.MetaUpdate) -> Void,
-        where filter: any XLExpression<B>
+        where filter: any XLTypedExpression<B>
     ) -> OnConflict where Row: XLTable, B: XLBoolean {
         OnConflict(
             targets: [firstTarget] + otherTargets,
@@ -317,8 +321,24 @@ public struct As<Table> {
     
     internal let queryStatement: any XLEncodable
     
-    public init(@XLQueryExpressionBuilder builder: (XLSchema) -> some XLQueryStatement<Table>) where Table: XLTable {
+    ///
+    /// Populates a SQLite table from a query.
+    ///
+    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLQueryStatement<Table>) where Table: XLTable, Table.Dialect == XLSQLiteDialect {
         let schema = XLSchema()
+        self.queryStatement = builder(schema)
+    }
+
+    ///
+    /// Populates a table of `dialect` from a query in that dialect.
+    ///
+    /// The SQLite form infers the table from the query. Naming the dialect
+    /// gives the builder's schema its type before the query is read, which
+    /// the table's own dialect cannot do inside a result builder (issue
+    /// #789).
+    ///
+    public init<Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> some XLQueryStatement<Table>) where Table: XLTable, Table.Dialect == Dialect {
+        let schema = XLSchema(dialect: dialect)
         self.queryStatement = builder(schema)
     }
 }

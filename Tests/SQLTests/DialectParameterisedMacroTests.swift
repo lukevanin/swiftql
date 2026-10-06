@@ -3,10 +3,14 @@
 //  SwiftQL
 //
 //  Issue #687: the code the macros generate carries the dialect as a
-//  parameter instead of naming SQLite. One `@SQLTable` model, declared once,
-//  builds and round-trips its static layout against SQLite and against a fake
-//  second dialect whose values are not SQLite's, through the generated
+//  parameter instead of naming SQLite. One `@SQLTable` model builds and
+//  round-trips its static layout against SQLite and against a fake second
+//  dialect whose values are not SQLite's, through the generated
 //  `staticRowLayout(using:...)` and the generated `@SQLCodec` field factory.
+//
+//  Issue #789: a model is queried in the one dialect it is declared for, so
+//  the second dialect's query selects the columns of a second declaration.
+//  The layout, the codecs, and the decoded row are still the one model's.
 //  `@SQLBindings(dialect:)` encodes its packet for the fake dialect, and
 //  `@SQLQuery(dialect:)` naming SQLite runs exactly as `@SQLQuery` does.
 //
@@ -239,6 +243,17 @@ struct DialectGauge: Equatable {
 }
 
 
+/// The same table, declared for the second dialect (issue #789). Its columns
+/// are what a second-dialect query selects.
+@SQLTable(name: "dialect_gauge", dialect: FakeSecondDialect.self)
+struct FakeDialectGauge: Equatable {
+    var id: Int
+    var label: String?
+    var code: String
+    var alias: String?
+}
+
+
 /// The same codec key registered once per dialect: a text value stored
 /// reversed. Each dialect's configuration registers its own.
 enum DialectGaugeCodecs {
@@ -292,42 +307,78 @@ enum DialectGaugeCodecs {
 }
 
 
-/// Builds the model's layout for any dialect. Its body is the call site a
-/// caller writes for SQLite, with the dialect generic: the generated members
-/// absorb the parameter.
+/// Builds the model's layout for any dialect, from columns of that dialect.
+/// Its body is the call site a caller writes for SQLite, with the dialect
+/// generic: the generated members absorb the parameter.
 private func dialectGaugeLayout<Dialect>(
     using dialect: Dialect,
+    id: any XLExpression<Int, Dialect>,
+    label: any XLExpression<String?, Dialect>,
+    code: any XLExpression<String, Dialect>,
+    alias: any XLExpression<String?, Dialect>,
     configuration: XLValueCodingConfiguration
 ) throws -> XLStaticRowLayout<DialectGauge, Dialect>
 where Dialect: XLLiteralValueDialect {
-    let schema = XLSchema()
-    let gauge = schema.table(DialectGauge.self)
-    return try DialectGauge.staticRowLayout(
+    try DialectGauge.staticRowLayout(
         using: Dialect.self,
         id: XLStaticSelectField<Int, Int, Dialect>.intrinsic(
-            selecting: gauge.id,
+            selecting: id,
             identifiedBy: XLQuerySlotIdentity(path: ["dialect-gauge", "id"]),
             using: dialect
         ),
         label: XLStaticSelectField<String?, String?, Dialect>.intrinsic(
-            selecting: gauge.label,
+            selecting: label,
             identifiedBy: XLQuerySlotIdentity(path: ["dialect-gauge", "label"]),
             using: dialect
         ),
         code: DialectGauge.staticResultField(
-            code: gauge.code,
+            code: code,
             storedAs: String.self,
             identifiedBy: XLQuerySlotIdentity(path: ["dialect-gauge", "code"]),
             using: dialect,
             configuration: configuration
         ),
         alias: DialectGauge.staticResultField(
-            alias: gauge.alias,
+            alias: alias,
             storedAs: String?.self,
             identifiedBy: XLQuerySlotIdentity(path: ["dialect-gauge", "alias"]),
             using: dialect,
             configuration: configuration
         )
+    )
+}
+
+
+/// The SQLite layout, selecting the SQLite model's columns.
+private func dialectGaugeLayout(
+    using dialect: XLSQLiteDialect,
+    configuration: XLValueCodingConfiguration
+) throws -> XLStaticRowLayout<DialectGauge, XLSQLiteDialect> {
+    let gauge = XLSchema().table(DialectGauge.self)
+    return try dialectGaugeLayout(
+        using: dialect,
+        id: gauge.id,
+        label: gauge.label,
+        code: gauge.code,
+        alias: gauge.alias,
+        configuration: configuration
+    )
+}
+
+
+/// The second dialect's layout, selecting the second declaration's columns.
+private func dialectGaugeLayout(
+    using dialect: FakeSecondDialect,
+    configuration: XLValueCodingConfiguration
+) throws -> XLStaticRowLayout<DialectGauge, FakeSecondDialect> {
+    let gauge = XLSchema(dialect: FakeSecondDialect.self).table(FakeDialectGauge.self)
+    return try dialectGaugeLayout(
+        using: dialect,
+        id: gauge.id,
+        label: gauge.label,
+        code: gauge.code,
+        alias: gauge.alias,
+        configuration: configuration
     )
 }
 

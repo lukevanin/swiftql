@@ -91,9 +91,9 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
 }
 
 
-private struct XLCollationExpression<T>: XLExpression {
+private struct XLCollationExpression<T, Dialect>: XLExpression {
 
-    let operand: any XLExpression
+    let operand: any XLTypedExpression
 
     let collation: XLCollation
 
@@ -114,14 +114,16 @@ private struct XLCollationExpression<T>: XLExpression {
 }
 
 
-extension XLExpression {
+// SQLite's own surface: declared only on a SQLite expression, so it is
+// absent from another dialect's query (issue #789).
+extension XLExpression where Dialect == XLSQLiteDialect {
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<String> where T == String {
-        XLCollationExpression<String>(operand: self, collation: collation)
+    public func collate(_ collation: XLCollation) -> some XLExpression<String, Dialect> where T == String {
+        XLCollationExpression<String, Dialect>(operand: self, collation: collation)
     }
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<Optional<String>> where T == Optional<String> {
-        XLCollationExpression<Optional<String>>(
+    public func collate(_ collation: XLCollation) -> some XLExpression<Optional<String>, Dialect> where T == Optional<String> {
+        XLCollationExpression<Optional<String>, Dialect>(
             operand: self,
             collation: collation
         )
@@ -130,13 +132,13 @@ extension XLExpression {
 
 
 @available(*, deprecated, message: "Use format.printf(...) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: any XLExpression ...) -> some XLExpression<String> {
+public func printf(format: String, _ parameters: any XLTypedExpression ...) -> some XLExpression<String, XLSQLiteDialect> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
 @available(*, deprecated, message: "Use format.printf(_:) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: [any XLExpression]) -> some XLExpression<String> {
+public func printf(format: String, _ parameters: [any XLTypedExpression]) -> some XLExpression<String, XLSQLiteDialect> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
@@ -144,12 +146,12 @@ public func printf(format: String, _ parameters: [any XLExpression]) -> some XLE
 extension XLExpression where T == String {
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: any XLExpression...) -> some XLExpression<String> {
+    public func printf(_ parameters: any XLTypedExpression...) -> some XLExpression<String, Dialect> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: [any XLExpression]) -> some XLExpression<String> {
+    public func printf(_ parameters: [any XLTypedExpression]) -> some XLExpression<String, Dialect> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 }

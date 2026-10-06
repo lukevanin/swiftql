@@ -47,9 +47,20 @@ import Foundation
 
 
 ///
-/// Constructs a delete expression.
+/// Constructs a SQLite delete expression.
 ///
-public func sql(@XLDeleteExpressionBuilder builder: (XLSchema) -> any XLDeleteStatement) -> any XLDeleteStatement {
+public func sql(@XLDeleteExpressionBuilder builder: (XLSQLiteSchema) -> any XLDeleteStatement) -> any XLDeleteStatement {
     let schema = XLSchema()
+    return builder(schema)
+}
+
+///
+/// Constructs a delete expression in `dialect`.
+///
+/// The builder receives a schema of `dialect`, which accepts only models
+/// declared for it (issue #789).
+///
+public func sql<Dialect>(dialect: Dialect.Type, @XLDeleteExpressionBuilder builder: (XLSchema<Dialect>) -> any XLDeleteStatement) -> any XLDeleteStatement {
+    let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

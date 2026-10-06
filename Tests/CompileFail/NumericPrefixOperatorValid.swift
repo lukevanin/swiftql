@@ -30,12 +30,12 @@ func typeCheckExpressionPrefixOperators() {
         name: "optionalInteger"
     )
 
-    let _: any XLExpression<Int> = -integerReference
-    let _: any XLExpression<Int> = +integerReference
-    let _: any XLExpression<Int> = ~integerReference
-    let _: any XLExpression<Int> = -(-integerReference)
-    let _: any XLExpression<Double> = -realReference
-    let _: any XLExpression<Double> = +realReference
-    let _: any XLExpression<Optional<Int>> = -optionalReference
-    let _: any XLExpression<Optional<Int>> = ~optionalReference
+    let _: any XLTypedExpression<Int> = -integerReference
+    let _: any XLTypedExpression<Int> = +integerReference
+    let _: any XLTypedExpression<Int> = ~integerReference
+    let _: any XLTypedExpression<Int> = -(-integerReference)
+    let _: any XLTypedExpression<Double> = -realReference
+    let _: any XLTypedExpression<Double> = +realReference
+    let _: any XLTypedExpression<Optional<Int>> = -optionalReference
+    let _: any XLTypedExpression<Optional<Int>> = ~optionalReference
 }

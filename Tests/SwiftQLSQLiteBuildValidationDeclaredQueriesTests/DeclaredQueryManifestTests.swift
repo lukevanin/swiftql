@@ -156,8 +156,8 @@ let declaredManifestCoding: XLValueCodingConfiguration = {
 
 
 func declaredManifestEventLayout(
-    id: any XLExpression<String>,
-    happenedAt: any XLExpression<Date>
+    id: any XLSQLiteExpression<String>,
+    happenedAt: any XLSQLiteExpression<Date>
 ) -> XLStaticRowLayout<DeclaredManifestEvent, XLSQLiteDialect> {
     try! DeclaredManifestEvent.staticRowLayout(
         using: XLSQLiteDialect.self,

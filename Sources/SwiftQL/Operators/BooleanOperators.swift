@@ -19,7 +19,7 @@ import Foundation
 ///
 /// - Returns: `false` if the `operand` is `true`, or `true` if the `operand` is `false`.
 ///
-public prefix func !(operand: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public prefix func !<D>(operand: any XLExpression<Bool, D>) -> some XLExpression<Bool, D> {
     XLPrefixOperatorExpression(op: "NOT", operand: operand)
 }
 
@@ -31,7 +31,7 @@ public prefix func !(operand: any XLExpression<Bool>) -> some XLExpression<Bool>
 ///
 /// - Returns: `nil` if the `operand` is `nil`, or `false` if the `operand` is `true`, or `true` if the `operand` is `false`.
 ///
-public prefix func !(operand: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public prefix func !<D>(operand: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
     XLPrefixOperatorExpression(op: "NOT", operand: operand)
 }
 
@@ -42,28 +42,68 @@ public prefix func !(operand: any XLExpression<Optional<Bool>>) -> some XLExpres
 ///
 /// Performs a boolean AND operation on two boolean expressions.
 ///
-public func &&(lhs: any XLExpression<Bool>, rhs: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public func &&<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Bool, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Bool, XLUniversalDialect>) -> some XLExpression<Bool, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Bool, XLUniversalDialect>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Bool, D> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on a boolean expression and an optional boolean expression.
 ///
-public func &&(lhs: any XLExpression<Bool>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func &&<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Optional<Bool>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Bool, XLUniversalDialect>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on an optional boolean expression and a boolean expression.
 ///
-public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Bool>) -> some XLExpression<Optional<Bool>> {
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Bool, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, XLUniversalDialect>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Optional<Bool>, D> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on two optional boolean expressions.
 ///
-public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Optional<Bool>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func &&<D>(lhs: any XLExpression<Optional<Bool>, XLUniversalDialect>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
@@ -71,18 +111,58 @@ public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Opti
 // MARK: - OR
 
 
-public func ||(lhs: any XLExpression<Bool>, rhs: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public func ||<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Bool, D> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public func ||(lhs: any XLExpression<Bool>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Bool, XLUniversalDialect>) -> some XLExpression<Bool, D> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public func ||(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Bool>) -> some XLExpression<Optional<Bool>> {
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Bool, XLUniversalDialect>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Bool, D> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public  func ||(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func ||<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Bool, D>, rhs: any XLExpression<Optional<Bool>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Bool, XLUniversalDialect>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Bool, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, XLUniversalDialect>, rhs: any XLExpression<Bool, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, D>, rhs: any XLExpression<Optional<Bool>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> {
+    XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ||<D>(lhs: any XLExpression<Optional<Bool>, XLUniversalDialect>, rhs: any XLExpression<Optional<Bool>, D>) -> some XLExpression<Optional<Bool>, D> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }

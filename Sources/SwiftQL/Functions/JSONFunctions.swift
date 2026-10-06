@@ -67,29 +67,29 @@ public struct XLJSONValidationFlags: OptionSet, Hashable, Sendable {
 ///
 /// Every other value renders exactly as it did before.
 ///
-struct XLJSONValueArgument: XLExpression {
+struct XLJSONValueArgument: XLTypedExpression {
 
     typealias T = String?
 
-    private let value: any XLExpression
+    private let value: any XLTypedExpression
 
     private let function: String
 
-    init(_ value: any XLExpression, function: String) {
+    init(_ value: any XLTypedExpression, function: String) {
         self.value = value
         self.function = function
     }
 
     static func wrapping(
-        _ values: [any XLExpression],
+        _ values: [any XLTypedExpression],
         function: String
-    ) -> [any XLExpression] {
+    ) -> [any XLTypedExpression] {
         values.map { XLJSONValueArgument($0, function: function) }
     }
 
     func makeSQL(context: inout XLBuilder) {
         if let literal = value as? Bool {
-            XLFunction<String?>(
+            XLFunction<String?, XLSQLiteDialect>(
                 name: "json",
                 parameters: [literal ? "true" : "false"]
             )
@@ -142,7 +142,7 @@ struct XLJSONValueArgument: XLExpression {
 
     private static func valueType<Value>(
         of value: Value
-    ) -> Any.Type where Value: XLExpression {
+    ) -> Any.Type where Value: XLTypedExpression {
         Value.T.self
     }
 }
@@ -164,7 +164,7 @@ struct XLJSONValueArgument: XLExpression {
 ///
 /// See: https://www.sqlite.org/json1.html#jarray
 ///
-public func jsonArray(_ elements: any XLExpression...) -> some XLExpression<String> {
+public func jsonArray(_ elements: any XLTypedExpression...) -> some XLExpression<String, XLSQLiteDialect> {
     jsonArray(elements)
 }
 
@@ -172,8 +172,8 @@ public func jsonArray(_ elements: any XLExpression...) -> some XLExpression<Stri
 ///
 /// Builds a JSON array from `elements`, rendering SQLite's `json_array(...)`.
 ///
-public func jsonArray(_ elements: [any XLExpression]) -> some XLExpression<String> {
-    XLFunction<String>(
+public func jsonArray(_ elements: [any XLTypedExpression]) -> some XLExpression<String, XLSQLiteDialect> {
+    XLFunction<String, XLSQLiteDialect>(
         name: "json_array",
         parameters: XLJSONValueArgument.wrapping(elements, function: "json_array")
     )
@@ -201,8 +201,8 @@ public func jsonArray(_ elements: [any XLExpression]) -> some XLExpression<Strin
 /// See: https://www.sqlite.org/json1.html#jobj
 ///
 public func jsonObject(
-    _ members: (any XLExpression<String>, any XLExpression)...
-) -> some XLExpression<String> {
+    _ members: (any XLTypedExpression<String>, any XLTypedExpression)...
+) -> some XLExpression<String, XLSQLiteDialect> {
     jsonObject(members)
 }
 
@@ -212,15 +212,15 @@ public func jsonObject(
 /// `json_object(...)`.
 ///
 public func jsonObject(
-    _ members: [(any XLExpression<String>, any XLExpression)]
-) -> some XLExpression<String> {
-    var parameters: [any XLExpression] = []
+    _ members: [(any XLTypedExpression<String>, any XLTypedExpression)]
+) -> some XLExpression<String, XLSQLiteDialect> {
+    var parameters: [any XLTypedExpression] = []
     parameters.reserveCapacity(members.count * 2)
     for member in members {
         parameters.append(member.0)
         parameters.append(XLJSONValueArgument(member.1, function: "json_object"))
     }
-    return XLFunction<String>(name: "json_object", parameters: parameters)
+    return XLFunction<String, XLSQLiteDialect>(name: "json_object", parameters: parameters)
 }
 
 
@@ -229,7 +229,9 @@ public func jsonObject(
 
 /// See: https://www.sqlite.org/json1.html
 ///
-extension XLExpression {
+// SQLite's own surface: declared only on a SQLite expression, so it is
+// absent from another dialect's query (issue #789).
+extension XLExpression where Dialect == XLSQLiteDialect {
 
     ///
     /// Validates the input and returns it minified, rendering SQLite's
@@ -245,7 +247,7 @@ extension XLExpression {
     /// each has a variadic and an array overload, and DocC rejects a link
     /// that matches both.
     ///
-    public func minifiedJSON() -> some XLExpression<String?> where T: XLLiteral {
+    public func minifiedJSON() -> some XLExpression<String?, Dialect> where T: XLLiteral {
         XLFunction(name: "json", parameters: [self])
     }
 
@@ -255,7 +257,7 @@ extension XLExpression {
     ///
     /// Needs SQLite 3.46.0 or later. A `NULL` input gives `NULL`.
     ///
-    public func prettyJSON() -> some XLExpression<String?> where T: XLLiteral {
+    public func prettyJSON() -> some XLExpression<String?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_pretty", parameters: [self])
     }
 
@@ -266,7 +268,7 @@ extension XLExpression {
     /// A string is quoted and escaped, a number is left as it is, and SQL
     /// `NULL` becomes JSON `null`. The result is therefore never `NULL`.
     ///
-    public func jsonQuoted() -> some XLExpression<String> where T: XLLiteral {
+    public func jsonQuoted() -> some XLExpression<String, Dialect> where T: XLLiteral {
         XLFunction(name: "json_quote", parameters: [self])
     }
 
@@ -277,7 +279,7 @@ extension XLExpression {
     /// The result is one of `object`, `array`, `integer`, `real`, `true`,
     /// `false`, `text`, or `null`. A `NULL` input gives `NULL`.
     ///
-    public func jsonType() -> some XLExpression<String?> where T: XLLiteral {
+    public func jsonType() -> some XLExpression<String?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_type", parameters: [self])
     }
 
@@ -289,7 +291,7 @@ extension XLExpression {
     /// optional. Note that a path selecting a JSON `null` gives the string
     /// `null`, not SQL `NULL`.
     ///
-    public func jsonType(at path: XLJSONPath) -> some XLExpression<String?> where T: XLLiteral {
+    public func jsonType(at path: XLJSONPath) -> some XLExpression<String?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_type", parameters: [self, path])
     }
 
@@ -303,7 +305,7 @@ extension XLExpression {
     ///
     /// Needs SQLite 3.42.0 or later.
     ///
-    public func jsonErrorPosition() -> some XLExpression<Int?> where T: XLLiteral {
+    public func jsonErrorPosition() -> some XLExpression<Int?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_error_position", parameters: [self])
     }
 
@@ -318,7 +320,7 @@ extension XLExpression {
     /// well-formed one. Use ``validJSONOrJSONBOrNull()`` for a value that can
     /// be JSONB.
     ///
-    public func validJSONOrNull() -> some XLExpression<Bool?> where T: XLLiteral {
+    public func validJSONOrNull() -> some XLExpression<Bool?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_valid", parameters: [self])
     }
 
@@ -335,7 +337,7 @@ extension XLExpression {
     ///
     /// Needs SQLite 3.45.0 or later.
     ///
-    public func validJSONOrJSONBOrNull() -> some XLExpression<Bool?> where T: XLLiteral {
+    public func validJSONOrJSONBOrNull() -> some XLExpression<Bool?, Dialect> where T: XLLiteral {
         validJSONOrNull(flags: [.json, .jsonbStrict])
     }
 
@@ -351,9 +353,9 @@ extension XLExpression {
     ///
     public func validJSONOrNull(
         flags: XLJSONValidationFlags
-    ) -> some XLExpression<Bool?> where T: XLLiteral {
+    ) -> some XLExpression<Bool?, Dialect> where T: XLLiteral {
         let resolved = flags.isEmpty ? XLJSONValidationFlags.json : flags
-        return XLFunction<Bool?>(
+        return XLFunction<Bool?, Dialect>(
             name: "json_valid",
             parameters: [self, resolved.rawValue]
         )
@@ -366,7 +368,7 @@ extension XLExpression {
     /// A root that is not an array gives `0`, not `NULL`. A `NULL` input
     /// gives `NULL`.
     ///
-    public func jsonArrayLength() -> some XLExpression<Int?> where T: XLLiteral {
+    public func jsonArrayLength() -> some XLExpression<Int?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_array_length", parameters: [self])
     }
 
@@ -377,7 +379,7 @@ extension XLExpression {
     /// A path that selects a value that is not an array gives `0`. Only a
     /// path that selects nothing, or a `NULL` input, gives `NULL`.
     ///
-    public func jsonArrayLength(path: String) -> some XLExpression<Int?> where T: XLLiteral {
+    public func jsonArrayLength(path: String) -> some XLExpression<Int?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_array_length", parameters: [self, path])
     }
 
@@ -388,12 +390,12 @@ extension XLExpression {
     /// A path that selects a value that is not an array gives `0`. Only a
     /// path that selects nothing, or a `NULL` input, gives `NULL`.
     ///
-    public func jsonArrayLength(path: XLJSONPath) -> some XLExpression<Int?> where T: XLLiteral {
+    public func jsonArrayLength(path: XLJSONPath) -> some XLExpression<Int?, Dialect> where T: XLLiteral {
         XLFunction(name: "json_array_length", parameters: [self, path])
     }
 
     @available(*, deprecated, message: "SQLite json_valid returns NULL for a NULL input. Use validJSONOrNull() instead. validJSON() will return an optional expression in SwiftQL 2.")
-    public func validJSON() -> some XLExpression<Bool> where T: XLLiteral {
+    public func validJSON() -> some XLExpression<Bool, Dialect> where T: XLLiteral {
         XLFunction(name: "json_valid", parameters: [self])
     }
 

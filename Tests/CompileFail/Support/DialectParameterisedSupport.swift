@@ -46,9 +46,18 @@ enum DialectFixtureCodecs {
     static let reversed = XLValueCodecKey(id: "compile-fail.reversed", version: 1)
 }
 
-/// One model, declared once. Nothing here names a dialect.
+/// The SQLite model. Nothing here names a dialect.
 @SQLTable struct DialectFixtureGauge {
     var id: Int
     @SQLCodec(DialectFixtureCodecs.reversed)
+    var code: String
+}
+
+/// The same table declared for the second dialect (issue #789). A model is
+/// queried in the one dialect it is declared for, so a second-dialect query
+/// selects these columns.
+@SQLTable(name: "DialectFixtureGauge", dialect: CompileFailSecondDialect.self)
+struct SecondDialectFixtureGauge {
+    var id: Int
     var code: String
 }

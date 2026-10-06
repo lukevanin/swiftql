@@ -278,7 +278,7 @@ extension XLDriverDatabase {
     /// source of literal type, nullability, and SQLite storage metadata.
     public func queryCapture<Input, Literal>(
         _ inputType: Input.Type,
-        matching expression: any XLExpression<Literal>,
+        matching expression: any XLTypedExpression<Literal>,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred

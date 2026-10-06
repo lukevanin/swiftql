@@ -52,11 +52,14 @@ private struct ConstantCaseComponents {
 /// expression returns the value of the `then` expression for the first condition that matches the case
 /// statement.
 ///
-public struct ConstantCase<T> {
-    
-    private let condition: any XLExpression<T>
-    
-    fileprivate init(condition: any XLExpression<T>) {
+/// `Dialect` is the dialect of the case term, which the whole expression
+/// carries (issue #789).
+///
+public struct ConstantCase<T, Dialect> {
+
+    private let condition: any XLExpression<T, Dialect>
+
+    fileprivate init(condition: any XLExpression<T, Dialect>) {
         self.condition = condition
     }
     
@@ -68,7 +71,7 @@ public struct ConstantCase<T> {
     /// The case statement evaluates to the `then` result when the condition matches the term in the
     /// case statement.
     ///
-    public func when<U>(_ condition: any XLExpression<T>, then result: any XLExpression<U>) -> ConstantCaseWhenThen<T, U> {
+    public func when<U>(_ condition: any XLTypedExpression<T>, then result: any XLTypedExpression<U>) -> ConstantCaseWhenThen<T, U, Dialect> {
         ConstantCaseWhenThen(
             components: ConstantCaseComponents(condition: self.condition),
             condition: condition,
@@ -88,13 +91,13 @@ public struct ConstantCase<T> {
 /// expression evaluates to the result defined in the `else` expression. If an `else` expression is not
 /// defined and no `when` conditions match the case term then the case expression evaluates to `nil`.
 ///
-public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
+public struct ConstantCaseWhenThen<Condition, Result, Dialect>: XLExpression {
     
     public typealias T = Optional<Result>
     
     private let components: ConstantCaseComponents
 
-    fileprivate init(components: ConstantCaseComponents, condition: any XLExpression<Condition>, result: any XLExpression<Result>) {
+    fileprivate init(components: ConstantCaseComponents, condition: any XLTypedExpression<Condition>, result: any XLTypedExpression<Result>) {
         self.components = components.appending { context in
             context.unaryPrefix("WHEN", expression: condition.makeSQL)
             context.unaryPrefix("THEN", expression: result.makeSQL)
@@ -109,14 +112,14 @@ public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
     /// The case statement evaluates to the `then` result when the condition matches the term in the
     /// case statement.
     ///
-    public func when(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> ConstantCaseWhenThen<Condition, Result> {
+    public func when(_ condition: any XLTypedExpression<Condition>, then result: any XLTypedExpression<Result>) -> ConstantCaseWhenThen<Condition, Result, Dialect> {
         ConstantCaseWhenThen(components: components, condition: condition, result: result)
     }
     
     ///
     /// Defines a fallback result that is used when no `when` condition matches the case term.
     ///
-    public func `else`(_ result: any XLExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result> {
+    public func `else`(_ result: any XLTypedExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result, Dialect> {
         ConstantCaseWhenThenElse(components: components, result: result)
     }
     
@@ -126,13 +129,13 @@ public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
 }
 
 
-public struct ConstantCaseWhenThenElse<Condition, Result>: XLExpression {
+public struct ConstantCaseWhenThenElse<Condition, Result, Dialect>: XLExpression {
     
     public typealias T = Result
 
     private let components: ConstantCaseComponents
     
-    fileprivate init(components: ConstantCaseComponents, result: any XLExpression<Result>) {
+    fileprivate init(components: ConstantCaseComponents, result: any XLTypedExpression<Result>) {
         self.components = components.appending { context in
             context.unaryPrefix("ELSE", expression: result.makeSQL)
         }
@@ -144,7 +147,11 @@ public struct ConstantCaseWhenThenElse<Condition, Result>: XLExpression {
 }
 
 
-public func switchCase<T>(_ condition: any XLExpression<T>) -> ConstantCase<T> {
+///
+/// Starts a `CASE` expression over `condition`. The expression takes the
+/// dialect of `condition`.
+///
+public func switchCase<T, Dialect>(_ condition: any XLExpression<T, Dialect>) -> ConstantCase<T, Dialect> {
     ConstantCase(condition: condition)
 }
 
@@ -176,20 +183,20 @@ private struct VariableCaseComponents {
 }
 
 
-public struct VariableCaseWhenThen<Result>: XLExpression {
+public struct VariableCaseWhenThen<Result, Dialect>: XLExpression {
 
     public typealias T = Optional<Result>
 
     private let components: VariableCaseComponents
     
-    fileprivate init(components: VariableCaseComponents, condition: any XLExpression, result: any XLExpression) {
+    fileprivate init(components: VariableCaseComponents, condition: any XLTypedExpression, result: any XLTypedExpression) {
         self.components = components.appending { context in
             context.unaryPrefix("WHEN", expression: condition.makeSQL)
             context.unaryPrefix("THEN", expression: result.makeSQL)
         }
     }
     
-    public func when<Condition>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> where Condition: XLBoolean {
+    public func when<Condition>(_ condition: any XLTypedExpression<Condition>, then result: any XLTypedExpression<Result>) -> VariableCaseWhenThen<Result, Dialect> where Condition: XLBoolean {
         VariableCaseWhenThen(
             components: components,
             condition: condition,
@@ -197,8 +204,8 @@ public struct VariableCaseWhenThen<Result>: XLExpression {
         )
     }
     
-    public func `else`(_ result: any XLExpression<Result>) -> some XLExpression<Result> {
-        VariableCaseElse(components: components, result: result)
+    public func `else`(_ result: any XLTypedExpression<Result>) -> some XLExpression<Result, Dialect> {
+        VariableCaseElse<Result, Dialect>(components: components, result: result)
     }
     
     public func makeSQL(context: inout XLBuilder) {
@@ -207,13 +214,13 @@ public struct VariableCaseWhenThen<Result>: XLExpression {
 }
 
 
-public struct VariableCaseElse<Result>: XLExpression {
+public struct VariableCaseElse<Result, Dialect>: XLExpression {
     
     public typealias T = Result
 
     private let components: VariableCaseComponents
     
-    fileprivate init(components: VariableCaseComponents, result: any XLExpression<Result>) {
+    fileprivate init(components: VariableCaseComponents, result: any XLTypedExpression<Result>) {
         self.components = components.appending { context in
             context.unaryPrefix("ELSE", expression: result.makeSQL)
         }
@@ -225,7 +232,11 @@ public struct VariableCaseElse<Result>: XLExpression {
 }
 
 
-public func when<Condition, Result>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> where Condition: XLBoolean {
+///
+/// Starts a `CASE WHEN` expression. The expression takes the dialect of the
+/// first condition.
+///
+public func when<Condition, Result, Dialect>(_ condition: any XLExpression<Condition, Dialect>, then result: any XLTypedExpression<Result>) -> VariableCaseWhenThen<Result, Dialect> where Condition: XLBoolean {
     VariableCaseWhenThen(
         components: VariableCaseComponents(),
         condition: condition,

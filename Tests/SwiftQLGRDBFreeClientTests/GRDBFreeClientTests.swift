@@ -26,9 +26,9 @@ struct GRDBFreeDouble: XLCustomFunction {
 
     typealias T = Int
 
-    private let value: any XLExpression<Int>
+    private let value: any XLTypedExpression<Int>
 
-    init(_ value: any XLExpression<Int>) {
+    init(_ value: any XLTypedExpression<Int>) {
         self.value = value
     }
 

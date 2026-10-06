@@ -35,9 +35,20 @@ import Foundation
 
 
 ///
-/// Constructs a Create expression.
+/// Constructs a SQLite Create expression.
 ///
-public func sql<Table>(@XLCreateExpressionBuilder<Table> builder: (XLSchema) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> {
+public func sql<Table>(@XLCreateExpressionBuilder<Table> builder: (XLSQLiteSchema) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> {
     let schema = XLSchema()
+    return builder(schema)
+}
+
+///
+/// Constructs a Create expression in `dialect`.
+///
+/// The builder receives a schema of `dialect`, which accepts only models
+/// declared for it (issue #789).
+///
+public func sql<Table, Dialect>(dialect: Dialect.Type, @XLCreateExpressionBuilder<Table> builder: (XLSchema<Dialect>) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> {
+    let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

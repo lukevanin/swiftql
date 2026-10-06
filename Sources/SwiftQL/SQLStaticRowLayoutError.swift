@@ -28,6 +28,13 @@ public enum XLStaticRowLayoutError:
         expectedStorageType: String,
         expressionType: String
     )
+    /// A field selects an expression of a dialect other than its own, such as
+    /// a column of a model declared for another dialect (issue #789).
+    case expressionDialectMismatch(
+        identity: XLQuerySlotIdentity,
+        expectedDialect: String,
+        expressionType: String
+    )
     case valueCountMismatch(expected: Int, actual: Int)
     case nullForRequiredField(field: XLStaticRowField)
     case storageMismatch(
@@ -51,6 +58,12 @@ public enum XLStaticRowLayoutError:
             let expressionType
         ):
             return "Static result slot \(identity) requires an expression typed as storage carrier \(expectedStorageType), but received \(expressionType)."
+        case .expressionDialectMismatch(
+            let identity,
+            let expectedDialect,
+            let expressionType
+        ):
+            return "Static result slot \(identity) is built for dialect \(expectedDialect), but selects \(expressionType), which is not an expression of that dialect. A model is queried in the dialect it is declared for."
         case .valueCountMismatch(let expected, let actual):
             return "Static row layout expected \(expected) values, but received \(actual)."
         case .nullForRequiredField(let field):

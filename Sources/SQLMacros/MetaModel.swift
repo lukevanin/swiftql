@@ -60,12 +60,16 @@ internal struct MetaProperty {
         }
     }
     
-    func columnType(kind: ColumnKind) -> String {
+    /// The column's generated type. `dialect` is the model's dialect, as
+    /// source text (issue #789). It is written into the type itself rather
+    /// than through the metadata's `Dialect` typealias, so a diagnostic prints
+    /// `XLColumnReference<String, XLSQLiteDialect>` and not the alias.
+    func columnType(kind: ColumnKind, dialect: String) -> String {
         switch kind {
         case .reference:
-            "XLColumnReference<\(qualifiedType)>"
+            "XLColumnReference<\(qualifiedType), \(dialect)>"
         case .result:
-            "XLColumnResult<\(qualifiedType)>"
+            "XLColumnResult<\(qualifiedType), \(dialect)>"
         }
     }
 
@@ -73,12 +77,12 @@ internal struct MetaProperty {
         "public let \(name): \(qualifiedType)"
     }
 
-    func makeColumnPropertyDecl(kind: ColumnKind) -> String {
-        "public let \(name): \(columnType(kind: kind))"
+    func makeColumnPropertyDecl(kind: ColumnKind, dialect: String) -> String {
+        "public let \(name): \(columnType(kind: kind, dialect: dialect))"
     }
-    
-    func makeInstance(kind: ColumnKind, dependency: String) -> String {
-        "\(columnType(kind: kind))(dependency: \(dependency), as: \"\(alias)\")"
+
+    func makeInstance(kind: ColumnKind, dialect: String, dependency: String) -> String {
+        "\(columnType(kind: kind, dialect: dialect))(dependency: \(dependency), as: \"\(alias)\")"
     }
 }
 
@@ -149,6 +153,8 @@ internal struct MetaModel {
         "Nullable",
         "_swiftQLPropertyCodecKeys",
         "staticResultField",
+        // Issue #789: every metadata type names its dialect as `_dialect`.
+        "_dialect",
     ]
 
     /// Name of the struct defined in the Swift source file.
@@ -158,6 +164,10 @@ internal struct MetaModel {
     /// struct name for the table name unless the `name:` parameter is specified
     /// in the macro. Only applies to `SQLTable` macros.
     let tableName: String
+
+    /// The dialect the model is declared for, as source text: the type the
+    /// `dialect:` argument names, or SwiftQL's SQLite dialect (issue #789).
+    let dialectType: String
 
     /// Generic parameter names declared on the struct, if any. Kept because a
     /// generated generic or local must not shadow one of them.
@@ -185,11 +195,13 @@ internal struct MetaModel {
     init(
         structName: String,
         tableName: String,
+        dialectType: String = MacroDialectArgument.defaultModelDialectType,
         genericParameterNames: [String] = [],
         properties: [MetaProperty]
     ) {
         self.structName = structName
         self.tableName = tableName
+        self.dialectType = dialectType
         self.genericParameterNames = genericParameterNames
         self.properties = properties
         self.optionalProperties = properties.map {

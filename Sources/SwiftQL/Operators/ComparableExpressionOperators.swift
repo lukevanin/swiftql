@@ -11,19 +11,59 @@ import Foundation
 // MARK: - >
 
 
-public func ><T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLComparable {
+public func ><T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
 }
 
-public func ><T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLComparable {
+@_disfavoredOverload
+public func ><T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
 }
 
-public func ><Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+@_disfavoredOverload
+public func ><T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
 }
 
-public func ><Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+public func ><T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ><Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
     XLBinaryOperatorExpression(op: ">", lhs: lhs, rhs: rhs)
 }
 
@@ -31,38 +71,118 @@ public func ><Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpr
 // MARK: - <
 
 
-public func <<T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLComparable {
+public func <<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
 }
 
-public func <<T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLComparable {
+@_disfavoredOverload
+public func <<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
 }
 
-public func <<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+@_disfavoredOverload
+public func <<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
 }
 
-public func <<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+public func <<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
     XLBinaryOperatorExpression(op: "<", lhs: lhs, rhs: rhs)
 }
 
 
 // MARK: - >=
 
-public func >=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLComparable {
+public func >=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
 }
 
-public func >=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLComparable {
+@_disfavoredOverload
+public func >=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
 }
 
-public func >=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+@_disfavoredOverload
+public func >=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
 }
 
-public func >=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+public func >=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func >=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
     XLBinaryOperatorExpression(op: ">=", lhs: lhs, rhs: rhs)
 }
 
@@ -70,18 +190,58 @@ public func >=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExp
 // MARK: - <=
 
 
-public func <=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLComparable {
+public func <=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
 }
 
-public func <=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLComparable {
+@_disfavoredOverload
+public func <=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
 }
 
-public func <=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+@_disfavoredOverload
+public func <=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLComparable {
     XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
 }
 
-public func <=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLComparable {
+public func <=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
+    XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func <=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLComparable {
     XLBinaryOperatorExpression(op: "<=", lhs: lhs, rhs: rhs)
 }

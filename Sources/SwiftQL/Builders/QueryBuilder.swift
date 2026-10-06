@@ -37,9 +37,9 @@ public struct QueryBuilder<Row> {
     
     /// The where terms in call order, each with the operator that joins it to
     /// the terms before it. The first term's operator is not used.
-    private var whereTerms: [(op: String, condition: any XLExpression)] = []
+    private var whereTerms: [(op: String, condition: any XLTypedExpression)] = []
     
-    private var groupBy: [any XLExpression] = []
+    private var groupBy: [any XLTypedExpression] = []
     
     private var orderBy: [any XLOrderingTerm] = []
     
@@ -71,7 +71,7 @@ public struct QueryBuilder<Row> {
     /// The logical result type is unconstrained. Contextual-only values still
     /// require a static row layout to supply result codec metadata.
     ///
-    public init(select expression: any XLExpression<Row>) {
+    public init(select expression: any XLTypedExpression<Row>) {
         self.init(select: Select(expression))
     }
     
@@ -124,7 +124,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds an inner join clause to the query.
     ///
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
+    public func innerJoin<T>(_ table: T, on constraint: any XLTypedExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
         copy {
             $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
         }
@@ -133,7 +133,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds an inner join clause to the query, using an optional field.
     ///
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaResult {
+    public func innerJoin<T>(_ table: T, on constraint: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaResult {
         copy {
             $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
         }
@@ -142,7 +142,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a left join to the query.
     ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableResult {
+    public func leftJoin<T>(_ table: T, on constraint: any XLTypedExpression<Bool>) -> QueryBuilder where T: XLMetaNullableResult {
         copy {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
@@ -151,7 +151,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a left join to the query.
     ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableResult {
+    public func leftJoin<T>(_ table: T, on constraint: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableResult {
         copy {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
@@ -160,7 +160,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a left join to the query.
     ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func leftJoin<T>(_ table: T, on constraint: any XLTypedExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
@@ -169,7 +169,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a left join to the query.
     ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func leftJoin<T>(_ table: T, on constraint: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
@@ -180,7 +180,7 @@ public struct QueryBuilder<Row> {
     /// declare the from table with `from(_:)`'s nullable overload so its columns
     /// decode as optionals. Requires SQLite 3.39.0 or later.
     ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNamedResult {
+    public func rightJoin<T>(_ table: T, on constraint: any XLTypedExpression<Bool>) -> QueryBuilder where T: XLMetaNamedResult {
         copy {
             $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
         }
@@ -189,7 +189,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a right join to the query, using an optional constraint.
     ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNamedResult {
+    public func rightJoin<T>(_ table: T, on constraint: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNamedResult {
         copy {
             $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
         }
@@ -245,7 +245,7 @@ public struct QueryBuilder<Row> {
     /// table is nullable, and the from table must be declared with `from(_:)`'s
     /// nullable overload. Requires SQLite 3.39.0 or later.
     ///
-    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLTypedExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
             $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
         }
@@ -254,7 +254,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a full outer join to the query, using an optional constraint.
     ///
-    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
             $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
         }
@@ -267,7 +267,7 @@ public struct QueryBuilder<Row> {
     /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. Build
     /// a grouped expression and pass it as one term for another grouping.
     ///
-    public func and(_ condition: any XLExpression<Bool>) -> QueryBuilder {
+    public func and(_ condition: any XLTypedExpression<Bool>) -> QueryBuilder {
         copy {
             $0.whereTerms.append((op: "AND", condition: condition))
         }
@@ -278,7 +278,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Terms fold in call order, as for the non-optional overload.
     ///
-    public func and(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
+    public func and(_ condition: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder {
         copy {
             $0.whereTerms.append((op: "AND", condition: condition))
         }
@@ -292,7 +292,7 @@ public struct QueryBuilder<Row> {
     /// operator of the first term is not used, so `or(a).and(b)` renders
     /// `(a AND b)`.
     ///
-    public func or(_ condition: any XLExpression<Bool>) -> QueryBuilder {
+    public func or(_ condition: any XLTypedExpression<Bool>) -> QueryBuilder {
         copy {
             $0.whereTerms.append((op: "OR", condition: condition))
         }
@@ -303,7 +303,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Terms fold in call order, as for the non-optional overload.
     ///
-    public func or(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
+    public func or(_ condition: any XLTypedExpression<Optional<Bool>>) -> QueryBuilder {
         copy {
             $0.whereTerms.append((op: "OR", condition: condition))
         }
@@ -312,7 +312,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a group by expression to the where clause.
     ///
-    public func groupBy(_ expression: any XLExpression) -> QueryBuilder {
+    public func groupBy(_ expression: any XLTypedExpression) -> QueryBuilder {
         copy {
             $0.groupBy.append(expression)
         }
@@ -330,7 +330,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a limit clause.
     ///
-    public func limit(_ expression: any XLExpression) -> QueryBuilder {
+    public func limit(_ expression: any XLTypedExpression) -> QueryBuilder {
         copy {
             $0.limit = Limit(unchecked: expression)
         }
@@ -342,7 +342,7 @@ public struct QueryBuilder<Row> {
     /// SQLite requires an explicit limit before an offset. `build()` throws if an offset is set without a
     /// limit. Use `limit(-1).offset(n)` to apply an offset without an upper bound.
     ///
-    public func offset(_ expression: any XLExpression) -> QueryBuilder {
+    public func offset(_ expression: any XLTypedExpression) -> QueryBuilder {
         copy {
             $0.offset = Offset(unchecked: expression)
         }
@@ -374,10 +374,10 @@ public struct QueryBuilder<Row> {
         // Fold the terms in call order (issue #657). Before v1.8.1 every `and`
         // term folded first and every `or` term folded after them, so
         // `and(a).or(b).and(c)` rendered `((a AND c) OR b)`.
-        var condition: (any XLExpression)?
+        var condition: (any XLTypedExpression)?
         for term in whereTerms {
             if let current = condition {
-                condition = XLBinaryOperatorExpression<Bool>(op: term.op, lhs: current, rhs: term.condition)
+                condition = XLQueryBuilderTermJunction(op: term.op, lhs: current, rhs: term.condition)
             }
             else {
                 condition = term.condition
@@ -402,5 +402,30 @@ public struct QueryBuilder<Row> {
             statement.components.append(offset)
         }
         return AbstractXLQueryStatement(components: statement)
+    }
+}
+
+
+///
+/// Joins two terms of a ``QueryBuilder`` where clause.
+///
+/// The builder erases its terms, so they share no dialect type, and the
+/// junction carries none either. It renders what an
+/// ``XLBinaryOperatorExpression`` renders.
+///
+private struct XLQueryBuilderTermJunction: XLTypedExpression {
+
+    typealias T = Bool
+
+    let op: String
+
+    let lhs: any XLEncodable
+
+    let rhs: any XLEncodable
+
+    func makeSQL(context: inout XLBuilder) {
+        context.parenthesis { context in
+            context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL)
+        }
     }
 }

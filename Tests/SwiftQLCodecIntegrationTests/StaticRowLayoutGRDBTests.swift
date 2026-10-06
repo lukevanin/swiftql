@@ -237,7 +237,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
                 using: XLSQLiteDialect.self,
                 direct: configuration.staticResultField(
                     _SwiftQLStaticDialect.self,
-                    selecting: XLColumnResult<_SwiftQLStaticDialect>(
+                    selecting: XLColumnResult<_SwiftQLStaticDialect, XLSQLiteDialect>(
                         dependency: dependency,
                         as: "direct"
                     ),
@@ -252,7 +252,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
                     StaticIdentifierBox<_SwiftQLStaticDialect>.self,
                     selecting: XLColumnResult<
                         StaticIdentifierBox<_SwiftQLStaticDialect>
-                    >(
+                    , XLSQLiteDialect>(
                         dependency: dependency,
                         as: "nested"
                     ),
@@ -286,7 +286,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedLegacyReaderReservesNominalTypeIdentifier() throws {
-        let expression = XLColumnResult<String>(
+        let expression = XLColumnResult<String, XLSQLiteDialect>(
             dependency: XLSelectResultDependency(),
             as: "value"
         )
@@ -806,7 +806,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
             Int,
             XLSQLiteDialect
         >.intrinsic(
-            selecting: XLFunction<Int>(
+            selecting: XLFunction<Int, XLSQLiteDialect>(
                 name: StaticRowLayoutStepProbe.functionName,
                 parameters: [table.id]
             ),
@@ -895,7 +895,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
             registry: try XLValueCodecRegistry().registering(codec)
         )
         let dependency = XLSelectResultDependency()
-        let expression = XLColumnResult<TrappingDefaultLiteral>(
+        let expression = XLColumnResult<TrappingDefaultLiteral, XLSQLiteDialect>(
             dependency: dependency,
             as: "value"
         )
@@ -962,7 +962,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
             String,
             XLSQLiteDialect
         >.intrinsic(
-            selecting: XLColumnResult<String>(
+            selecting: XLColumnResult<String, XLSQLiteDialect>(
                 dependency: XLSelectResultDependency(),
                 as: "value"
             ),

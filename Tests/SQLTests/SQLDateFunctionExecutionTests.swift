@@ -49,7 +49,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>
+        _ expression: any XLTypedExpression<Value>
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         var request = database.makeRequest(with: statement)
@@ -60,7 +60,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     // MARK: - Constructors
 
     func testConstructorsMatchPinnedSQLiteResults() throws {
-        let d = moment()
+        let d = moment().sqlite
         XCTAssertEqual(try evaluate(d.date()), "2026-07-19")
         XCTAssertEqual(try evaluate(d.time()), "12:30:45")
         XCTAssertEqual(try evaluate(d.datetime()), "2026-07-19 12:30:45")
@@ -70,7 +70,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     // MARK: - Relative offsets and anchoring (issue #60)
 
     func testModifiersComputeRelativeMoments() throws {
-        let d = moment()
+        let d = moment().sqlite
         XCTAssertEqual(try evaluate(d.datetime(.months(1))), "2026-08-19 12:30:45")
         XCTAssertEqual(try evaluate(d.datetime(.days(5))), "2026-07-24 12:30:45")
         XCTAssertEqual(try evaluate(d.datetime(.hours(-12))), "2026-07-19 00:30:45")
@@ -88,7 +88,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     // MARK: - Components (issue #64)
 
     func testComponentsMatchPinnedSQLiteResults() throws {
-        let d = moment()
+        let d = moment().sqlite
         XCTAssertEqual(try evaluate(d.year()), 2026)
         XCTAssertEqual(try evaluate(d.month()), 7)
         XCTAssertEqual(try evaluate(d.day()), 19)
@@ -102,7 +102,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     // MARK: - Operators (issue #63)
 
     func testDateOperatorsAndJulianDayDifference() throws {
-        let d = moment()
+        let d = moment().sqlite
 
         // One julian day between a moment and the same moment plus a day.
         let difference = try XCTUnwrap(

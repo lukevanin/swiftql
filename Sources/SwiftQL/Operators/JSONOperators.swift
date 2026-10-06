@@ -16,18 +16,18 @@ import Foundation
 /// return. See ``XLExpression/jsonElement(at:)`` and
 /// ``XLExpression/jsonValue(at:as:)``.
 ///
-struct XLJSONSelectionExpression<T>: XLExpression {
+struct XLJSONSelectionExpression<T, Dialect>: XLExpression {
 
     private let symbol: String
 
-    private let document: any XLExpression
+    private let document: any XLTypedExpression
 
-    private let path: any XLExpression
+    private let path: any XLTypedExpression
 
     init(
         symbol: String,
-        document: any XLExpression,
-        path: any XLExpression
+        document: any XLTypedExpression,
+        path: any XLTypedExpression
     ) {
         self.symbol = symbol
         self.document = document
@@ -66,7 +66,9 @@ struct XLJSONSelectionExpression<T>: XLExpression {
 /// key, and it composes, so the shorthand would be a second way to write what
 /// the path type covers.
 ///
-extension XLExpression {
+// SQLite's own surface: declared only on a SQLite expression, so it is
+// absent from another dialect's query (issue #789).
+extension XLExpression where Dialect == XLSQLiteDialect {
 
     ///
     /// Selects the element at `path` and returns it as JSON text, rendering
@@ -79,9 +81,9 @@ extension XLExpression {
     ///
     /// Use ``jsonValue(at:as:)`` to read an element as a SQL value instead.
     ///
-    public func jsonElement(at path: XLJSONPath) -> some XLExpression<String?>
+    public func jsonElement(at path: XLJSONPath) -> some XLExpression<String?, Dialect>
     where T: XLLiteral {
-        XLJSONSelectionExpression<String?>(
+        XLJSONSelectionExpression<String?, Dialect>(
             symbol: "->",
             document: self,
             path: path
@@ -103,8 +105,8 @@ extension XLExpression {
     public func jsonValue<Value>(
         at path: XLJSONPath,
         as _: Value.Type
-    ) -> some XLExpression<Value?> where T: XLLiteral, Value: XLLiteral {
-        XLJSONSelectionExpression<Value?>(
+    ) -> some XLExpression<Value?, Dialect> where T: XLLiteral, Value: XLLiteral {
+        XLJSONSelectionExpression<Value?, Dialect>(
             symbol: "->>",
             document: self,
             path: path

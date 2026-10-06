@@ -11,11 +11,11 @@ import Foundation
 // MARK: - Unary plus
 
 
-public prefix func +<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: Numeric {
+public prefix func +<T, D>(operand: any XLExpression<T, D>) -> some XLExpression<T, D> where T: Numeric {
     XLUnaryOperatorExpression(op: "+", operand: operand)
 }
 
-public prefix func +<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
+public prefix func +<Wrapped, D>(operand: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Wrapped>, D> where Wrapped: Numeric {
     XLUnaryOperatorExpression(op: "+", operand: operand)
 }
 
@@ -23,11 +23,11 @@ public prefix func +<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> s
 // MARK: - Negate
 
 
-public prefix func -<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: Numeric {
+public prefix func -<T, D>(operand: any XLExpression<T, D>) -> some XLExpression<T, D> where T: Numeric {
     XLUnaryOperatorExpression(op: "-", operand: operand)
 }
 
-public prefix func -<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
+public prefix func -<Wrapped, D>(operand: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Wrapped>, D> where Wrapped: Numeric {
     XLUnaryOperatorExpression(op: "-", operand: operand)
 }
 

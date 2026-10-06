@@ -1534,7 +1534,10 @@ public enum SQLiteTypedCombinatorialCases {
     public static func adoptedExpressionCases() -> [SQLiteCombinatorialCaseDraft] {
         let namedInteger = XLNamedBindingReference<Int>(name: "integer_value")
         let namedReal = XLNamedBindingReference<Double>(name: "real_value")
+        // SQLite's own functions are declared on SQLite expressions, so the
+        // universal binding is lifted into SQLite once, here (issue #789).
         let namedText = XLNamedBindingReference<String>(name: "text_value")
+            .sqlite
         let indexedInteger = C191IndexedIntegerBindingReference(index: 0)
 
         let issue191Cases = [
@@ -1857,7 +1860,10 @@ public enum SQLiteTypedCombinatorialCases {
         let namedOptionalReal = XLNamedBindingReference<Double?>(
             name: "optional_real_value"
         )
+        // SQLite's own functions are declared on SQLite expressions, so the
+        // universal binding is lifted into SQLite once, here (issue #789).
         let namedText = XLNamedBindingReference<String>(name: "text_value")
+            .sqlite
         let namedOptionalText = XLNamedBindingReference<String?>(
             name: "optional_text_value"
         )
@@ -2119,7 +2125,7 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func orderSource(
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         sourceID: String
     ) -> C191Order.MetaNamedResult {
         switch sourceID {
@@ -2139,10 +2145,10 @@ public enum SQLiteTypedCombinatorialCases {
 
     private static func completeSelect<Row>(
         select: XLQuerySelectStatement<Row>,
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String,
-        predicate: (any XLExpression<Bool>)?,
+        predicate: (any XLTypedExpression<Bool>)?,
         groupingID: String,
         havingID: String,
         ordering: (any XLOrderingTerm)?,
@@ -2286,7 +2292,7 @@ public enum SQLiteTypedCombinatorialCases {
 
     private static func joined<Row>(
         _ table: XLQueryTableStatement<Row>,
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String
     ) -> XLQueryTableStatement<Row> {
@@ -2316,7 +2322,7 @@ public enum SQLiteTypedCombinatorialCases {
     private static func predicate(
         orders: C191Order.MetaNamedResult,
         predicateID: String
-    ) -> ((any XLExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
+    ) -> ((any XLTypedExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
         switch predicateID {
         case "none":
             return (nil, [])
@@ -2335,7 +2341,7 @@ public enum SQLiteTypedCombinatorialCases {
                 [.init(key: .named("repeated_employee_id"), value: .integer(5))]
             )
         case "empty-in":
-            let values: [any XLExpression<Int>] = []
+            let values: [any XLTypedExpression<Int>] = []
             return (orders.orderID.in(values), [])
         case "in-list":
             return (orders.orderID.in([10_248, 10_249, 10_250]), [])
@@ -2555,7 +2561,7 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func integerSequence(
-        in schema: XLSchema
+        in schema: XLSQLiteSchema
     ) -> C191IntegerRow.MetaCommonTable {
         schema.recursiveCommonTableExpression(
             C191IntegerRow.self,

@@ -11,19 +11,59 @@ import Foundation
 // MARK: - Equality
 
 
-public func ==<T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLEquatable {
+public func ==<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLEquatable {
     XLComparisonExpression(.equal, lhs: lhs, rhs: rhs)
 }
 
-public func ==<T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLEquatable {
+@_disfavoredOverload
+public func ==<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLEquatable {
+    XLComparisonExpression(.equal, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ==<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLEquatable {
+    XLComparisonExpression(.equal, lhs: lhs, rhs: rhs)
+}
+
+public func ==<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
     XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
 }
 
-public func ==<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLEquatable {
+@_disfavoredOverload
+public func ==<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
     XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
 }
 
-public func ==<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLEquatable {
+@_disfavoredOverload
+public func ==<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func ==<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
     XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
 }
 
@@ -31,18 +71,58 @@ public func ==<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExp
 // MARK: - Inequality
 
 
-public func !=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<T>) -> some XLExpression<Bool> where T: XLEquatable {
+public func !=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLEquatable {
     XLComparisonExpression(.notEqual, lhs: lhs, rhs: rhs)
 }
 
-public func !=<T>(lhs: any XLExpression<T>, rhs: any XLExpression<Optional<T>>) -> some XLExpression<Optional<Bool>> where T: XLEquatable {
+@_disfavoredOverload
+public func !=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<T, XLUniversalDialect>) -> some XLExpression<Bool, D> where T: XLEquatable {
+    XLComparisonExpression(.notEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func !=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<T, D>) -> some XLExpression<Bool, D> where T: XLEquatable {
+    XLComparisonExpression(.notEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
     XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
 }
 
-public func !=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Wrapped>) -> some XLExpression<Optional<Bool>> where Wrapped: XLEquatable {
+@_disfavoredOverload
+public func !=<T, D>(lhs: any XLExpression<T, D>, rhs: any XLExpression<Optional<T>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
     XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
 }
 
-public func !=<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Bool>> where Wrapped: XLEquatable{
+@_disfavoredOverload
+public func !=<T, D>(lhs: any XLExpression<T, XLUniversalDialect>, rhs: any XLExpression<Optional<T>, D>) -> some XLExpression<Optional<Bool>, D> where T: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Wrapped, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Wrapped, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, D>, rhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+@_disfavoredOverload
+public func !=<Wrapped, D>(lhs: any XLExpression<Optional<Wrapped>, XLUniversalDialect>, rhs: any XLExpression<Optional<Wrapped>, D>) -> some XLExpression<Optional<Bool>, D> where Wrapped: XLEquatable {
     XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
 }

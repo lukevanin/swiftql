@@ -73,7 +73,7 @@ public struct XLDeleteTableStatement<Table>: XLDeleteStatement {
     ///
     /// Adds a where clause to the delete statement.
     ///
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLDeleteWhereStatement<Table> where U: XLBoolean {
+    public func `where`<U>(_ expression: any XLTypedExpression<U>) -> XLDeleteWhereStatement<Table> where U: XLBoolean {
         XLDeleteWhereStatement(components: components.appending(Where(expression)))
     }
 }

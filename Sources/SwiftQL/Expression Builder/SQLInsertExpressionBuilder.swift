@@ -205,9 +205,20 @@ import Foundation
 
 
 ///
-/// Constructs an Insert statement.
+/// Constructs a SQLite Insert statement.
 ///
-public func sql(@XLInsertExpressionBuilder builder: (XLSchema) -> any XLInsertStatement) -> any XLInsertStatement {
+public func sql(@XLInsertExpressionBuilder builder: (XLSQLiteSchema) -> any XLInsertStatement) -> any XLInsertStatement {
     let schema = XLSchema()
+    return builder(schema)
+}
+
+///
+/// Constructs an Insert statement in `dialect`.
+///
+/// The builder receives a schema of `dialect`, which accepts only models
+/// declared for it (issue #789).
+///
+public func sql<Dialect>(dialect: Dialect.Type, @XLInsertExpressionBuilder builder: (XLSchema<Dialect>) -> any XLInsertStatement) -> any XLInsertStatement {
+    let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

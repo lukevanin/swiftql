@@ -40,6 +40,16 @@ internal enum MetaModelParser {
             diagnostics: &diagnostics
         )
 
+        // Issue #789: the dialect the model's columns carry.
+        let dialect = MacroDialectArgument.resolve(
+            of: node,
+            macroName: "@" + node.attributeName.trimmedDescription,
+            defaultingTo: MacroDialectArgument.defaultModelDialectType
+        )
+        if let diagnostic = dialect.diagnostic {
+            diagnostics.report(diagnostic)
+        }
+
         // Collect the properties from the struct definition.
         let properties = collectProperties(
             declaration: declaration,
@@ -51,6 +61,7 @@ internal enum MetaModelParser {
         return MetaModel(
             structName: structName,
             tableName: tableName,
+            dialectType: dialect.dialectType,
             genericParameterNames: declaration.genericParameterClause?
                 .parameters.map { $0.name.text } ?? [],
             properties: properties

@@ -13,7 +13,8 @@ import Foundation
 ///
 /// Assigning `nil` to a nullable column inside a `Setting` closure stores this
 /// expression, so the column appears in the `SET` clause with an explicit
-/// `NULL` rather than being left out of the statement.
+/// `NULL` rather than being left out of the statement. `NULL` is written the
+/// same way in every dialect, so the expression is universal.
 ///
 public struct XLNullExpression<Wrapped>: XLExpression {
 
@@ -41,7 +42,7 @@ public struct XLColumnUpdate<Wrapped> {
 
     /// The expression assigned to the column, or `nil` when the column is
     /// left out of the `SET` clause.
-    public var expression: (any XLExpression<Wrapped>)?
+    public var expression: (any XLTypedExpression<Wrapped>)?
 
     /// Creates a slot that leaves the column out of the `SET` clause.
     public init() {
@@ -77,9 +78,9 @@ public struct XLColumnUpdate<Wrapped> {
 ///
 public struct XLNullableColumnUpdate<Wrapped> {
 
-    private var wrappedExpression: (any XLExpression<Wrapped>)?
+    private var wrappedExpression: (any XLTypedExpression<Wrapped>)?
 
-    private var storedExpression: (any XLExpression<Optional<Wrapped>>)?
+    private var storedExpression: (any XLTypedExpression<Optional<Wrapped>>)?
 
     private var isAssigned: Bool
 
@@ -97,7 +98,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// column from the statement. Reading returns `nil` both for a column
     /// that was never assigned and for one assigned an optional-typed
     /// expression through ``optionalExpression``.
-    public var expression: (any XLExpression<Wrapped>)? {
+    public var expression: (any XLTypedExpression<Wrapped>)? {
         get {
             wrappedExpression
         }
@@ -107,12 +108,13 @@ public struct XLNullableColumnUpdate<Wrapped> {
                 // Built directly rather than through the generic
                 // `toNullable()` helper: calling a method with an opaque
                 // return type on a constrained existential
-                // (`any XLExpression<Wrapped>`) type-checks under Swift 6.0+
+                // (`any XLTypedExpression<Wrapped>`) type-checks under Swift 6.0+
                 // but is ambiguous under the pinned Swift 5.9.2 compiler.
-                // `XLTypeAffinityExpression`'s own initializer takes an
-                // unconstrained `any XLExpression`, so widening to that
-                // sidesteps the limitation entirely.
-                storedExpression = XLTypeAffinityExpression<Optional<Wrapped>>(
+                // The affinity node's initializer takes an unconstrained
+                // `any XLTypedExpression`, so widening to that sidesteps the
+                // limitation entirely. The slot holds expressions of any
+                // dialect, so the node is universal.
+                storedExpression = XLTypeAffinityExpression<Optional<Wrapped>, XLUniversalDialect>(
                     expression: newValue
                 )
             }
@@ -128,7 +130,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
     ///
     /// Assigning `nil` here sets the column to SQL `NULL`, the same as
     /// assigning `nil` to ``expression``.
-    public var optionalExpression: (any XLExpression<Optional<Wrapped>>)? {
+    public var optionalExpression: (any XLTypedExpression<Optional<Wrapped>>)? {
         get {
             storedExpression
         }
@@ -146,7 +148,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// Generated `makeSQL` implementations read this. It is not part of the
     /// API a caller writes against.
     ///
-    public var _xlAssignedExpression: (any XLExpression<Optional<Wrapped>>)? {
+    public var _xlAssignedExpression: (any XLTypedExpression<Optional<Wrapped>>)? {
         guard isAssigned else {
             return nil
         }

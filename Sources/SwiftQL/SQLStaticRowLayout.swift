@@ -17,7 +17,7 @@ struct _XLStaticOffsetRowReader: XLRowReader {
     let offset: Int
 
     func column<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLTypedExpression<Value>,
         alias: XLName
     ) throws -> Value where Value: XLLiteral {
         try base.column(expression, alias: alias)

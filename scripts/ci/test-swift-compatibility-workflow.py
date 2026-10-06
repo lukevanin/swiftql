@@ -190,6 +190,11 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
             compatibility,
         )
+        self.assertIn("Check dialect type parameter type safety", compatibility)
+        self.assertIn(
+            "scripts/ci/check-dialect-type-parameter-type-safety.sh",
+            compatibility,
+        )
         self.assertIn("Verify declared-query discovery end to end", compatibility)
         self.assertIn(
             "IntegrationTests/DeclaredQueryRegistryFixture/verify.sh", compatibility

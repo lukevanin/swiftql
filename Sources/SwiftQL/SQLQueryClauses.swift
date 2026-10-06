@@ -51,17 +51,17 @@ public struct Where: XLKeywordPrefixedClause {
 
     var clauseExpression: any XLEncodable { condition }
 
-    private let condition: any XLExpression
+    private let condition: any XLTypedExpression
     
-    init(_ condition: any XLExpression) {
+    init(_ condition: any XLTypedExpression) {
         self.condition = condition
     }
     
-    public init(_ condition: any XLExpression<Bool>) {
+    public init(_ condition: any XLTypedExpression<Bool>) {
         self.condition = condition
     }
     
-    public init(_ condition: any XLExpression<Optional<Bool>>) {
+    public init(_ condition: any XLTypedExpression<Optional<Bool>>) {
         self.condition = condition
     }
 
@@ -84,13 +84,13 @@ public protocol XLOrderingTerm: XLEncodable {
 ///
 public struct Ascending: XLOrderingTerm {
     
-    private let expression: any XLExpression
+    private let expression: any XLTypedExpression
     
-    public init(@XLScalarExpressionBuilder expression: () -> any XLExpression) {
+    public init(@XLScalarExpressionBuilder expression: () -> any XLTypedExpression) {
         self.expression = expression()
     }
     
-    public init(expression: any XLExpression) {
+    public init(expression: any XLTypedExpression) {
         self.expression = expression
     }
 
@@ -105,13 +105,13 @@ public struct Ascending: XLOrderingTerm {
 ///
 public struct Descending: XLOrderingTerm {
     
-    private let expression: any XLExpression
+    private let expression: any XLTypedExpression
     
-    public init(@XLScalarExpressionBuilder expression: () -> any XLExpression) {
+    public init(@XLScalarExpressionBuilder expression: () -> any XLTypedExpression) {
         self.expression = expression()
     }
     
-    public init(expression: any XLExpression) {
+    public init(expression: any XLTypedExpression) {
         self.expression = expression
     }
     
@@ -165,19 +165,19 @@ public struct Limit: XLKeywordPrefixedClause {
 
     var clauseExpression: any XLEncodable { count }
 
-    private let count: any XLExpression
+    private let count: any XLTypedExpression
     
-    public init(_ count: any XLExpression<Int>) {
+    public init(_ count: any XLTypedExpression<Int>) {
         self.count = count
     }
 
     /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
     /// evaluates to an integer or a value that can be losslessly converted to one.
-    init(unchecked count: any XLExpression) {
+    init(unchecked count: any XLTypedExpression) {
         self.count = count
     }
     
-    public init(@XLScalarExpressionBuilder _ count: () -> any XLExpression<Int>) {
+    public init(@XLScalarExpressionBuilder _ count: () -> any XLTypedExpression<Int>) {
         self.count = count()
     }
     
@@ -196,19 +196,19 @@ public struct Offset: XLKeywordPrefixedClause {
 
     var clauseExpression: any XLEncodable { count }
 
-    private let count: any XLExpression
+    private let count: any XLTypedExpression
     
-    public init(_ count: any XLExpression<Int>) {
+    public init(_ count: any XLTypedExpression<Int>) {
         self.count = count
     }
 
     /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
     /// evaluates to an integer or a value that can be losslessly converted to one.
-    init(unchecked count: any XLExpression) {
+    init(unchecked count: any XLTypedExpression) {
         self.count = count
     }
     
-    public init(@XLScalarExpressionBuilder _ count: () -> any XLExpression<Int>) {
+    public init(@XLScalarExpressionBuilder _ count: () -> any XLTypedExpression<Int>) {
         self.count = count()
     }
     
@@ -229,11 +229,11 @@ public struct GroupBy: XLKeywordPrefixedClause {
 
     private let columns: any XLEncodable
     
-    public init(_ columns: any XLExpression...) {
+    public init(_ columns: any XLTypedExpression...) {
         self.columns = XLEncodableList(separator: .list, expressions: columns)
     }
 
-    public init(_ columns: [any XLExpression]) {
+    public init(_ columns: [any XLTypedExpression]) {
         self.columns = XLEncodableList(separator: .list, expressions: columns)
     }
 
@@ -254,17 +254,17 @@ public struct Having: XLKeywordPrefixedClause {
 
     var clauseExpression: any XLEncodable { condition }
 
-    private let condition: any XLExpression
+    private let condition: any XLTypedExpression
     
-    init(_ condition: any XLExpression) {
+    init(_ condition: any XLTypedExpression) {
         self.condition = condition
     }
     
-    public init(_ condition: any XLExpression<Bool>) {
+    public init(_ condition: any XLTypedExpression<Bool>) {
         self.condition = condition
     }
     
-    public init(_ condition: any XLExpression<Optional<Bool>>) {
+    public init(_ condition: any XLTypedExpression<Optional<Bool>>) {
         self.condition = condition
     }
 

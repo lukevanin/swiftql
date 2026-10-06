@@ -12,7 +12,8 @@ func prepare(
     configuration: XLValueCodingConfiguration,
     on database: GRDBDatabase
 ) throws {
-    let gauge = XLSchema().table(DialectFixtureGauge.self)
+    let gauge = XLSchema(dialect: CompileFailSecondDialect.self)
+        .table(SecondDialectFixtureGauge.self)
     let layout = try DialectFixtureGauge.staticRowLayout(
         using: CompileFailSecondDialect.self,
         id: XLStaticSelectField<Int, Int, CompileFailSecondDialect>.intrinsic(

@@ -100,7 +100,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// metadata. The legacy path reports ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
     /// instead of fabricating a value.
     public init(
-        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>
+        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLTypedExpression<Row>
     ) {
         self.fields = expression()
         self.row = { reader in
@@ -112,7 +112,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     ///
     /// Bare contextual values still require an ``XLStaticRowLayout`` to carry
     /// the codec metadata needed during row decoding.
-    public init(_ expression: any XLExpression<Row>) {
+    public init(_ expression: any XLTypedExpression<Row>) {
         self.fields = expression
         self.row = { reader in
             try reader.staticColumn(expression, alias: "c0")

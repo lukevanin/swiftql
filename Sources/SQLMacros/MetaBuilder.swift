@@ -57,6 +57,23 @@ internal struct MetaBuilder {
 
     var tableName: String { model.tableName }
 
+    var dialectType: String { model.dialectType }
+
+    ///
+    /// The member every generated metadata type names its dialect with (issue
+    /// #789).
+    ///
+    /// Swift infers the protocols' `Dialect` associated type from it. The
+    /// generated code never declares a member named `Dialect`: one declared in
+    /// an extension of the model would also be visible in the model's own
+    /// body, and would capture a property whose type is the user's own
+    /// `Dialect`.
+    ///
+    func makeDialectWitness(isStatic: Bool) -> String {
+        let modifier = isStatic ? "public static var" : "public var"
+        return "\(modifier) _dialect: \(dialectType).Type { \(dialectType).self }"
+    }
+
     var properties: [MetaProperty] { model.properties }
 
     var optionalProperties: [MetaProperty] { model.optionalProperties }

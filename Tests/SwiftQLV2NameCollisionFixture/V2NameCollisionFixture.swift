@@ -277,9 +277,11 @@ enum V2NameCollisionFixture {
     typealias Check_SQLValueEncodingError = SQLValueEncodingError
     typealias Check_SQLVocabulary = SQLVocabulary
     typealias Check_SQLiteDialect = SQLiteDialect
+    typealias Check_SQLiteExpression = SQLiteExpression
     typealias Check_SQLiteIdentifierFormattingOptions = SQLiteIdentifierFormattingOptions
     typealias Check_SQLiteNumericDateCodec = SQLiteNumericDateCodec
     typealias Check_SQLiteNumericDateCodecError = SQLiteNumericDateCodecError
+    typealias Check_SQLiteSchema = SQLiteSchema
     typealias Check_SQLiteStorageClass = SQLiteStorageClass
     typealias Check_SQLiteValue = SQLiteValue
     typealias Check_SQLiteValueReader = SQLiteValueReader
@@ -321,10 +323,12 @@ enum V2NameCollisionFixture {
     typealias Check_TransactionalDatabase = TransactionalDatabase
     typealias Check_TypeAffinityExpression = TypeAffinityExpression
     typealias Check_TypeCastExpression = TypeCastExpression
+    typealias Check_TypedExpression = TypedExpression
     typealias Check_TypedStaticQueryDescriptor = TypedStaticQueryDescriptor
     typealias Check_UUIDValueCodec = UUIDValueCodec
     typealias Check_UUIDValueCodecError = UUIDValueCodecError
     typealias Check_UnaryOperatorExpression = UnaryOperatorExpression
+    typealias Check_UniversalDialect = UniversalDialect
     typealias Check_UpdateExpressionBuilder = UpdateExpressionBuilder
     typealias Check_UpdateFromStatement = UpdateFromStatement
     typealias Check_UpdateFromTableDependency = UpdateFromTableDependency

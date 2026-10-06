@@ -90,7 +90,7 @@ final class XLCustomCollationTests: XCTestCase {
         let lhs = XLNamedBindingReference<String>(name: "lhs")
         let rhs = XLNamedBindingReference<String>(name: "rhs")
         let statement = sql { _ in
-            Select(lhs.collate(XLCollation(rawValue: Self.byLength)) == rhs)
+            Select(lhs.sqlite.collate(XLCollation(rawValue: Self.byLength)) == rhs)
         }
 
         // The discriminating case: different text, same length. Equal under

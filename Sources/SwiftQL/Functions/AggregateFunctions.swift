@@ -10,8 +10,9 @@ import Foundation
 
 /// The unqualified all-columns expression rendered as `*`.
 ///
-/// Use all() with count(_:) to count every input row.
-public struct XLAllColumns: XLExpression {
+/// Use all() with count(_:) to count every input row. `Dialect` is the
+/// dialect of the query that counts.
+public struct XLAllColumns<Dialect>: XLExpression {
 
     public typealias T = XLAllColumns
 
@@ -29,25 +30,33 @@ public struct XLAllColumns: XLExpression {
 }
 
 
-/// Returns the unqualified all-columns expression rendered as `*`.
-public func all() -> XLAllColumns {
+/// Returns the unqualified all-columns expression rendered as `*`, for a
+/// SQLite query.
+public func all() -> XLAllColumns<XLSQLiteDialect> {
+    XLAllColumns()
+}
+
+
+/// Returns the unqualified all-columns expression rendered as `*`, for a
+/// query in `dialect`.
+public func all<Dialect>(_ dialect: Dialect.Type) -> XLAllColumns<Dialect> {
     XLAllColumns()
 }
 
 
 @available(*, deprecated, message: "Use all().count() instead. count(_:) will be removed in SwiftQL 2.")
-public func count(
-    _ expression: any XLExpression<XLAllColumns>
-) -> some XLExpression<Int> {
-    XLFunction<Int>(name: "COUNT", parameters: [expression])
+public func count<Dialect>(
+    _ expression: XLAllColumns<Dialect>
+) -> some XLExpression<Int, Dialect> {
+    XLFunction<Int, Dialect>(name: "COUNT", parameters: [expression])
 }
 
 
-extension XLExpression where T == XLAllColumns {
+extension XLAllColumns {
 
     /// Counts every input row by rendering `COUNT(*)`.
-    public func count() -> some XLExpression<Int> {
-        XLFunction<Int>(name: "COUNT", parameters: [self])
+    public func count() -> some XLExpression<Int, Dialect> {
+        XLFunction<Int, Dialect>(name: "COUNT", parameters: [self])
     }
 }
 
@@ -56,31 +65,31 @@ extension XLExpression where T == XLAllColumns {
 ///
 extension XLExpression {
     
-    public func count(distinct: Bool = false) -> some XLExpression<Int> where T: XLLiteral {
+    public func count(distinct: Bool = false) -> some XLExpression<Int, Dialect> where T: XLLiteral {
         XLFunction(name: "COUNT", distinct: distinct, parameters: [self])
     }
 
 
     /// Returns the minimum non-NULL value, or NULL when the input is empty or contains no non-NULL values.
-    public func minOrNull(distinct: Bool = false) -> some XLExpression<T?> where T: XLComparable & XLLiteral {
-        XLFunction<T?>(name: "MIN", distinct: distinct, parameters: [self])
+    public func minOrNull(distinct: Bool = false) -> some XLExpression<T?, Dialect> where T: XLComparable & XLLiteral {
+        XLFunction<T?, Dialect>(name: "MIN", distinct: distinct, parameters: [self])
     }
 
 
     @available(*, deprecated, message: "SQLite MIN can return NULL. Use minOrNull(distinct:) instead. min() will return an optional expression in SwiftQL 2.")
-    public func min(distinct: Bool = false) -> some XLExpression<T> where T: XLComparable & XLLiteral {
+    public func min(distinct: Bool = false) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
         XLFunction(name: "MIN", distinct: distinct, parameters: [self])
     }
 
 
     /// Returns the maximum non-NULL value, or NULL when the input is empty or contains no non-NULL values.
-    public func maxOrNull(distinct: Bool = false) -> some XLExpression<T?> where T: XLComparable & XLLiteral {
-        XLFunction<T?>(name: "MAX", distinct: distinct, parameters: [self])
+    public func maxOrNull(distinct: Bool = false) -> some XLExpression<T?, Dialect> where T: XLComparable & XLLiteral {
+        XLFunction<T?, Dialect>(name: "MAX", distinct: distinct, parameters: [self])
     }
 
 
     @available(*, deprecated, message: "SQLite MAX can return NULL. Use maxOrNull(distinct:) instead. max() will return an optional expression in SwiftQL 2.")
-    public func max(distinct: Bool = false) -> some XLExpression<T> where T: XLComparable & XLLiteral {
+    public func max(distinct: Bool = false) -> some XLExpression<T, Dialect> where T: XLComparable & XLLiteral {
         XLFunction(name: "MAX", distinct: distinct, parameters: [self])
     }
 
@@ -88,33 +97,33 @@ extension XLExpression {
     /// Returns the average of the non-NULL numeric values, or NULL when the input is empty or contains no non-NULL values.
     ///
     /// SQLite computes `AVG` as a floating-point value for both integer and real inputs.
-    public func averageOrNull(distinct: Bool = false) -> some XLExpression<Double?> where T: Numeric & XLLiteral {
-        XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
+    public func averageOrNull(distinct: Bool = false) -> some XLExpression<Double?, Dialect> where T: Numeric & XLLiteral {
+        XLFunction<Double?, Dialect>(name: "AVG", distinct: distinct, parameters: [self])
     }
 
 
     /// Returns the average of the non-NULL numeric values, ignoring NULL inputs.
     ///
     /// The result remains optional because SQLite returns NULL for an empty input or an all-NULL group.
-    public func averageOrNull<Wrapped>(distinct: Bool = false) -> some XLExpression<Double?> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
-        XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
+    public func averageOrNull<Wrapped>(distinct: Bool = false) -> some XLExpression<Double?, Dialect> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
+        XLFunction<Double?, Dialect>(name: "AVG", distinct: distinct, parameters: [self])
     }
 
 
     @available(*, deprecated, message: "SQLite AVG can return NULL. Use averageOrNull(distinct:) instead. average() will return an optional expression in SwiftQL 2.")
-    public func average(distinct: Bool = false) -> some XLExpression<T> where T == Double, T: XLLiteral {
+    public func average(distinct: Bool = false) -> some XLExpression<T, Dialect> where T == Double, T: XLLiteral {
         XLFunction(name: "AVG", distinct: distinct, parameters: [self])
     }
 
 
     /// Returns the sum of the non-NULL values, or NULL when the input is empty or contains no non-NULL values.
-    public func sumOrNull(distinct: Bool = false) -> some XLExpression<T?> where T: Numeric & XLLiteral {
-        XLFunction<T?>(name: "SUM", distinct: distinct, parameters: [self])
+    public func sumOrNull(distinct: Bool = false) -> some XLExpression<T?, Dialect> where T: Numeric & XLLiteral {
+        XLFunction<T?, Dialect>(name: "SUM", distinct: distinct, parameters: [self])
     }
 
 
     @available(*, deprecated, message: "SQLite SUM can return NULL. Use sumOrNull(distinct:) instead. sum() will return an optional expression in SwiftQL 2.")
-    public func sum(distinct: Bool = false) -> some XLExpression<T> where T: Numeric & XLLiteral {
+    public func sum(distinct: Bool = false) -> some XLExpression<T, Dialect> where T: Numeric & XLLiteral {
         XLFunction(name: "SUM", distinct: distinct, parameters: [self])
     }
 
@@ -122,39 +131,39 @@ extension XLExpression {
     /// Returns the floating-point total of the non-NULL numeric values.
     ///
     /// Unlike `SUM`, SQLite `TOTAL` returns `0.0` for an empty input or an all-NULL group.
-    public func total(distinct: Bool = false) -> some XLExpression<Double> where T: Numeric & XLLiteral {
-        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
+    public func total(distinct: Bool = false) -> some XLExpression<Double, Dialect> where T: Numeric & XLLiteral {
+        XLFunction<Double, Dialect>(name: "TOTAL", distinct: distinct, parameters: [self])
     }
 
 
     /// Returns the floating-point total of the non-NULL numeric values, ignoring NULL inputs.
     ///
     /// SQLite returns `0.0` when no non-NULL input remains.
-    public func total<Wrapped>(distinct: Bool = false) -> some XLExpression<Double> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
-        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
+    public func total<Wrapped>(distinct: Bool = false) -> some XLExpression<Double, Dialect> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
+        XLFunction<Double, Dialect>(name: "TOTAL", distinct: distinct, parameters: [self])
     }
 
 
     /// Concatenates the non-NULL values, or returns NULL when the input is empty or contains no non-NULL values.
-    public func groupConcatOrNull(distinct: Bool = false) -> some XLExpression<String?> where T == String, T: XLLiteral {
-        XLFunction<String?>(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])
+    public func groupConcatOrNull(distinct: Bool = false) -> some XLExpression<String?, Dialect> where T == String, T: XLLiteral {
+        XLFunction<String?, Dialect>(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])
     }
 
 
     @available(*, deprecated, message: "SQLite GROUP_CONCAT can return NULL. Use groupConcatOrNull(distinct:) instead. groupConcat() will return an optional expression in SwiftQL 2.")
-    public func groupConcat(distinct: Bool = false) -> some XLExpression<T> where T == String, T: XLLiteral {
+    public func groupConcat(distinct: Bool = false) -> some XLExpression<T, Dialect> where T == String, T: XLLiteral {
         XLFunction(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])
     }
 
 
     /// Concatenates the non-NULL values using a separator, or returns NULL when no non-NULL values exist.
-    public func groupConcatOrNull(separator: String) -> some XLExpression<String?> where T == String, T: XLLiteral {
-        XLFunction<String?>(name: "GROUP_CONCAT", parameters: [self, separator])
+    public func groupConcatOrNull(separator: String) -> some XLExpression<String?, Dialect> where T == String, T: XLLiteral {
+        XLFunction<String?, Dialect>(name: "GROUP_CONCAT", parameters: [self, separator])
     }
 
 
     @available(*, deprecated, message: "SQLite GROUP_CONCAT can return NULL. Use groupConcatOrNull(separator:) instead. groupConcat(separator:) will return an optional expression in SwiftQL 2.")
-    public func groupConcat(separator: String) -> some XLExpression<T> where T == String, T: XLLiteral {
+    public func groupConcat(separator: String) -> some XLExpression<T, Dialect> where T == String, T: XLLiteral {
         XLFunction(name: "GROUP_CONCAT", parameters: [self, separator])
     }
 }
@@ -167,7 +176,9 @@ extension XLExpression {
 ///
 /// See: https://www.sqlite.org/json1.html#jgrouparray
 ///
-extension XLExpression {
+// SQLite's own surface: declared only on a SQLite expression, so it is
+// absent from another dialect's query (issue #789).
+extension XLExpression where Dialect == XLSQLiteDialect {
 
     ///
     /// Collects every input row into a JSON array, rendering SQLite's
@@ -187,8 +198,8 @@ extension XLExpression {
     ///
     public func jsonGroupArray(
         distinct: Bool = false
-    ) -> some XLExpression<String> where T: XLLiteral {
-        XLFunction<String>(
+    ) -> some XLExpression<String, Dialect> where T: XLLiteral {
+        XLFunction<String, Dialect>(
             name: "json_group_array",
             distinct: distinct,
             parameters: [XLJSONValueArgument(self, function: "json_group_array")]
@@ -218,10 +229,10 @@ extension XLExpression {
 /// takes two.
 ///
 public func jsonGroupObject(
-    name: any XLExpression<String>,
-    value: any XLExpression
-) -> some XLExpression<String> {
-    XLFunction<String>(
+    name: any XLTypedExpression<String>,
+    value: any XLTypedExpression
+) -> some XLExpression<String, XLSQLiteDialect> {
+    XLFunction<String, XLSQLiteDialect>(
         name: "json_group_object",
         parameters: [
             name,

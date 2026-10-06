@@ -84,7 +84,7 @@ extension MetaBuilder {
         ["_namespace: namespace", "_dependency: \(dependency)"]
             + properties.map { property in
                 property.name + ": "
-                    + property.makeInstance(kind: kind, dependency: dependency)
+                    + property.makeInstance(kind: kind, dialect: dialectType, dependency: dependency)
             }
     }
 
@@ -102,7 +102,7 @@ extension MetaBuilder {
     /// The expression is a pure value over `dependency` and a constant alias,
     /// so building it once per factory call is equivalent.
     ///
-    /// The binding is declared as the erased `any XLExpression` the read takes,
+    /// The binding is declared as the erased `any XLTypedExpression` the read takes,
     /// not as the concrete column type. A concrete binding is boxed into that
     /// existential again at every read, which allocates once per column per
     /// row. Erasing at the binding pays for the box once per factory call.
@@ -128,8 +128,8 @@ extension MetaBuilder {
         context.block(signature) { context in
             for (property, binding) in zip(shape.properties, columnBindings) {
                 context.line(
-                    "let \(binding): any SwiftQL.XLExpression<\(property.qualifiedType)>"
-                        + " = \(property.makeInstance(kind: shape.rowColumnKind, dependency: "dependency"))"
+                    "let \(binding): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>"
+                        + " = \(property.makeInstance(kind: shape.rowColumnKind, dialect: dialectType, dependency: "dependency"))"
                 )
             }
             let arguments = metaFactoryArguments(
@@ -200,12 +200,13 @@ extension MetaBuilder {
             .joined(separator: ", ")
         context.block("public struct \(shape.typeName): \(conformances)") { context in
             context.line("public typealias Row = \(shape.rowType)")
+            context.line(makeDialectWitness(isStatic: false))
             context.line("public typealias RowIterator = (XLRowReader) throws -> \(shape.rowType)")
             context.line("public let _namespace: XLNamespace")
             context.line("public let _dependency: \(shape.dependencyType)")
 
             for property in shape.properties {
-                context.line(property.makeColumnPropertyDecl(kind: columnKind))
+                context.line(property.makeColumnPropertyDecl(kind: columnKind, dialect: dialectType))
             }
 
             context.line("public let _iterator: RowIterator")

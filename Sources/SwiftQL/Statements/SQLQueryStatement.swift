@@ -153,7 +153,7 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     
     // MARK: Join
     
-    public func innerJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
+    public func innerJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, constraint: condition)))
     }
 
@@ -165,7 +165,7 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
         XLQueryTableStatement(components: components.appending(Join(kind: .crossJoin, table: t, constraint: nil)))
     }
 
-    public func leftJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
+    public func leftJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
     }
 
@@ -174,7 +174,7 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     /// `FROM` table with `nullableTable(_:)` so its columns decode as optionals.
     /// Requires SQLite 3.39.0 or later.
     ///
-    public func rightJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
+    public func rightJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .rightJoin, table: t, constraint: condition)))
     }
 
@@ -211,13 +211,13 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     /// nullable, and the `FROM` table must be declared with `nullableTable(_:)`.
     /// Requires SQLite 3.39.0 or later.
     ///
-    public func fullOuterJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
+    public func fullOuterJoin<T, U>(_ t: T, on condition: any XLTypedExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .fullOuterJoin, table: t, constraint: condition)))
     }
 
     // MARK: Where
     
-    public func `where`<T>(_ condition: any XLExpression<T>) -> XLQueryWhereStatement<Row> where T: XLBoolean {
+    public func `where`<T>(_ condition: any XLTypedExpression<T>) -> XLQueryWhereStatement<Row> where T: XLBoolean {
         `where`(Where(condition))
     }
 
@@ -227,7 +227,7 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     
     // MARK: Group
 
-    public func groupBy(_ expressions: any XLExpression...) -> XLQueryGroupByStatement<Row> {
+    public func groupBy(_ expressions: any XLTypedExpression...) -> XLQueryGroupByStatement<Row> {
         groupBy(GroupBy(expressions))
     }
 
@@ -247,7 +247,7 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     
     // MARK: Limit
     
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -267,7 +267,7 @@ public struct XLQueryWhereStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 
     // MARK: Group
     
-    public func groupBy(_ expressions: any XLExpression...) -> XLQueryGroupByStatement<Row> {
+    public func groupBy(_ expressions: any XLTypedExpression...) -> XLQueryGroupByStatement<Row> {
         groupBy(GroupBy(expressions))
     }
 
@@ -287,7 +287,7 @@ public struct XLQueryWhereStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     
     // MARK: Limit
     
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
     
@@ -306,7 +306,7 @@ public struct XLQueryGroupByStatement<Row>: XLQueryStatement, XLSimpleSelectQuer
 
     // MARK: Having
     
-    public func having<T>(_ condition: any XLExpression<T>) -> XLQueryHavingStatement<Row> where T: XLBoolean {
+    public func having<T>(_ condition: any XLTypedExpression<T>) -> XLQueryHavingStatement<Row> where T: XLBoolean {
         having(Having(condition))
     }
 
@@ -326,7 +326,7 @@ public struct XLQueryGroupByStatement<Row>: XLQueryStatement, XLSimpleSelectQuer
     
     // MARK: Limit
 
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -355,7 +355,7 @@ public struct XLQueryHavingStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
     
     // MARK: Limit
 
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -395,7 +395,7 @@ public struct XLQueryUnionStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     
     // MARK: Limit
 
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -414,7 +414,7 @@ public struct XLQueryOrderByStatement<Row>: XLQueryStatement {
 
     // MARK: Limit
     
-    public func limit(_ count: any XLExpression<Int>) -> XLQueryLimitStatement<Row> {
+    public func limit(_ count: any XLTypedExpression<Int>) -> XLQueryLimitStatement<Row> {
         limit(Limit(count))
     }
 
@@ -431,7 +431,7 @@ public struct XLQueryLimitStatement<Row>: XLQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
     
-    public func offset(_ count: any XLExpression<Int>) -> XLQueryOffsetStatement<Row> {
+    public func offset(_ count: any XLTypedExpression<Int>) -> XLQueryOffsetStatement<Row> {
         offset(Offset(count))
     }
 

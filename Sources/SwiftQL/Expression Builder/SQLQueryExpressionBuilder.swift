@@ -17,7 +17,7 @@ import Foundation
 ///
 @resultBuilder public struct XLScalarExpressionBuilder {
     
-    public static func buildBlock<T>(_ component: some XLExpression<T>) -> some XLExpression<T> {
+    public static func buildBlock<T>(_ component: some XLTypedExpression<T>) -> some XLTypedExpression<T> {
         component
     }
 }
@@ -233,7 +233,7 @@ extension XLSchema {
     ///
     /// Constructs a common table expression on a schema.
     ///
-    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.Dialect == Dialect {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
@@ -246,7 +246,7 @@ extension XLSchema {
     /// The subquery's alias comes from this schema, and the body receives a
     /// schema nested in this one (see ``XLSchema/init(parent:)``).
     ///
-    public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable {
+    public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousResult(namespace: tableNamespace, dependency: dependency)
@@ -256,7 +256,7 @@ extension XLSchema {
     /// Constructs a subquery in this schema whose columns can evaluate to NULL,
     /// for use on the nullable side of a `LEFT JOIN`.
     ///
-    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.Dialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -266,16 +266,16 @@ extension XLSchema {
     /// Constructs a scalar subquery in this schema using the query expression
     /// builder.
     ///
-    public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
-        XLSubquery(statement: statement(XLSchema(parent: self)))
+    public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>, Dialect> where T: XLLiteral {
+        XLSubquery<T, Dialect>(statement: statement(XLSchema(parent: self)))
     }
 
     ///
     /// Constructs a scalar subquery in this schema whose inner statement is
     /// already nullable.
     ///
-    public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-        XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self)))
+    public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
+        XLSubquery<Wrapped, Dialect>(statement: statement(XLSchema(parent: self)))
     }
 }
 
@@ -289,7 +289,7 @@ extension XLSchema {
 ///   independent scope. Use ``XLSchema/subqueryExpression(alias:statement:)``
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -303,7 +303,7 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 /// - Important: This function opens an independent scope. Give the subquery
 ///   an explicit alias when it is joined to another source.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.Dialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -320,17 +320,17 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 ///   form whose closure takes no schema, to use names from the enclosing
 ///   schema.
 ///
-public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery(statement: statement(schema))
+    return XLSubquery<T, XLSQLiteDialect>(statement: statement(schema))
 }
 
 
 ///
 /// Constructs a subquery that returns a scalar value.
 ///
-public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
-    return XLSubquery(statement: statement())
+public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+    return XLSubquery<T, XLSQLiteDialect>(statement: statement())
 }
 
 
@@ -341,14 +341,14 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any
 /// - Important: The schema passed to `statement` starts an independent scope,
 ///   as for the non-optional scalar form.
 ///
-public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<Wrapped>(statement: statement(schema))
+    return XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement(schema))
 }
 
 
-public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-    XLSubquery<Wrapped>(statement: statement())
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    XLSubquery<Wrapped, XLSQLiteDialect>(statement: statement())
 }
 
 
@@ -360,7 +360,7 @@ public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () 
 ///   method `XLSchema.nullableSubqueryExpression(alias:statement:)` to take the
 ///   alias and the body's names from the enclosing schema.
 ///
-public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.Dialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -371,10 +371,27 @@ public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressi
 // MARK: - SQL
 
 ///
-/// Constructs a select query statement.
+/// Constructs a SQLite select query statement.
 ///
-public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSchema) -> any XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
+/// The builder receives a SQLite schema, which accepts only models declared
+/// for SQLite: a model declared with `@SQLTable` and no `dialect:` argument.
+///
+public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> any XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
     let schema = XLSchema()
+    return builder(schema)
+}
+
+///
+/// Constructs a select query statement in `dialect`.
+///
+/// The dialect is named once, where the query begins. The builder receives a
+/// schema of `dialect`, which accepts only models declared for it, so every
+/// column and every expression in the body carries the dialect, and an
+/// operation the dialect does not have is a compile error at its call site
+/// (issue #789). The body is written exactly as for SQLite.
+///
+public func sql<Row, Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> any XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
+    let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }
 
@@ -426,32 +443,32 @@ public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSchema) -> any XLQuer
 // `XLSchema` subquery methods to take names from the enclosing schema.
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.Dialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+public func sql<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+public func sql<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     subqueryExpression(statement: statement)
 }
 #endif

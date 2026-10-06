@@ -116,9 +116,20 @@ internal enum MacroNameArgument {
 
 ///
 /// Resolves the optional `dialect:` argument shared by `@SQLQuery`,
-/// `@SQLQueries`, and `@SQLBindings` (issue #687).
+/// `@SQLQueries`, and `@SQLBindings` (issue #687), and by `@SQLTable` and
+/// `@SQLResult` (issue #789).
 ///
 internal enum MacroDialectArgument {
+
+    ///
+    /// The dialect a model's metadata names when `@SQLTable` or `@SQLResult`
+    /// names none.
+    ///
+    /// Module-qualified, unlike ``defaultDialectType``, because the model's
+    /// metadata is expanded into the user's file, which may also import a
+    /// module with a type of the same name (issue #789).
+    ///
+    static let defaultModelDialectType = "SwiftQL.XLSQLiteDialect"
 
     ///
     /// The dialect generated code names when the attribute names none.
@@ -152,7 +163,8 @@ internal enum MacroDialectArgument {
     ///
     static func resolve(
         of node: AttributeSyntax,
-        macroName: String
+        macroName: String,
+        defaultingTo defaultDialectType: String = Self.defaultDialectType
     ) -> (dialectType: String, diagnostic: Diagnostic?) {
         guard
             case let .argumentList(arguments) = node.arguments,

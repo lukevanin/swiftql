@@ -1,10 +1,12 @@
 import Foundation
 import SwiftQL
 
-// Issue #687: one model, declared once, builds its static layout for SQLite
-// and for a second dialect. Every generated member the layout uses absorbs
-// the dialect, so the call site does not change between the two. Compiled
-// with Support/DialectParameterisedSupport.swift.
+// Issue #687: one model builds its static layout for SQLite and for a second
+// dialect. Every generated member the layout uses absorbs the dialect, so the
+// call site does not change between the two. Since issue #789 a query selects
+// the columns of a model declared for its dialect, so the second dialect's
+// layout selects the second declaration's columns. Compiled with
+// Support/DialectParameterisedSupport.swift.
 
 @SQLBindings(dialect: CompileFailSecondDialect.self)
 struct DialectFixtureBindings {
@@ -13,18 +15,19 @@ struct DialectFixtureBindings {
 
 func dialectFixtureLayout<Dialect: XLLiteralValueDialect>(
     using dialect: Dialect,
+    id: any XLExpression<Int, Dialect>,
+    code: any XLExpression<String, Dialect>,
     configuration: XLValueCodingConfiguration
 ) throws -> XLStaticRowLayout<DialectFixtureGauge, Dialect> {
-    let gauge = XLSchema().table(DialectFixtureGauge.self)
-    return try DialectFixtureGauge.staticRowLayout(
+    try DialectFixtureGauge.staticRowLayout(
         using: Dialect.self,
         id: XLStaticSelectField<Int, Int, Dialect>.intrinsic(
-            selecting: gauge.id,
+            selecting: id,
             identifiedBy: XLQuerySlotIdentity(path: ["gauge", "id"]),
             using: dialect
         ),
         code: DialectFixtureGauge.staticResultField(
-            code: gauge.code,
+            code: code,
             storedAs: String.self,
             identifiedBy: XLQuerySlotIdentity(path: ["gauge", "code"]),
             using: dialect,
@@ -34,12 +37,19 @@ func dialectFixtureLayout<Dialect: XLLiteralValueDialect>(
 }
 
 func bothDialects(configuration: XLValueCodingConfiguration) throws {
+    let sqliteGauge = XLSchema().table(DialectFixtureGauge.self)
+    let secondGauge = XLSchema(dialect: CompileFailSecondDialect.self)
+        .table(SecondDialectFixtureGauge.self)
     let sqlite: XLStaticRowLayout<DialectFixtureGauge, XLSQLiteDialect> = try dialectFixtureLayout(
         using: XLSQLiteDialect(),
+        id: sqliteGauge.id,
+        code: sqliteGauge.code,
         configuration: configuration
     )
     let second: XLStaticRowLayout<DialectFixtureGauge, CompileFailSecondDialect> = try dialectFixtureLayout(
         using: CompileFailSecondDialect(),
+        id: secondGauge.id,
+        code: secondGauge.code,
         configuration: configuration
     )
     _ = (sqlite, second)

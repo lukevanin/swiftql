@@ -128,7 +128,7 @@ protocol XLTransactionScopeReporting {
 /// the direct-result anchor needs its own name.
 ///
 public func sqlResult<Row, Result>(
-    @XLQueryExpressionBuilder _ builder: (XLSchema) -> any XLQueryStatement<Row>
+    @XLQueryExpressionBuilder _ builder: (XLSQLiteSchema) -> any XLQueryStatement<Row>
 ) -> Result {
     fatalError(
         "'sqlResult' marks a @SQLQuery/@SQLQueries specification, not an "

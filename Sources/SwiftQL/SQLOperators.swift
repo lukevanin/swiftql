@@ -26,13 +26,13 @@ import Foundation
 /// The operand is grouped so adjacent unary operators cannot form SQL tokens such as SQLite's `--`
 /// line-comment marker.
 ///
-public struct XLUnaryOperatorExpression<T>: XLExpression {
+public struct XLUnaryOperatorExpression<T, Dialect>: XLExpression {
     
     let op: String
     
-    let operand: any XLExpression
+    let operand: any XLTypedExpression
     
-    public init(op: String, operand: any XLExpression) {
+    public init(op: String, operand: any XLTypedExpression) {
         self.op = op
         self.operand = operand
     }
@@ -60,13 +60,13 @@ public struct XLUnaryOperatorExpression<T>: XLExpression {
 /// (NOT foo)
 /// ```
 ///
-public struct XLPrefixOperatorExpression<T>: XLExpression {
+public struct XLPrefixOperatorExpression<T, Dialect>: XLExpression {
     
     let op: String
     
-    let operand: any XLExpression
+    let operand: any XLTypedExpression
     
-    public init(op: String, operand: any XLExpression) {
+    public init(op: String, operand: any XLTypedExpression) {
         self.op = op
         self.operand = operand
     }
@@ -95,13 +95,13 @@ public struct XLPrefixOperatorExpression<T>: XLExpression {
 /// (foo ISNULL)
 /// ```
 ///
-public struct XLPostfixOperatorExpression<T>: XLExpression {
+public struct XLPostfixOperatorExpression<T, Dialect>: XLExpression {
     
     let op: String
     
-    let operand: any XLExpression
+    let operand: any XLTypedExpression
     
-    public init(op: String, operand: any XLExpression) {
+    public init(op: String, operand: any XLTypedExpression) {
         self.op = op
         self.operand = operand
     }
@@ -122,18 +122,18 @@ public struct XLPostfixOperatorExpression<T>: XLExpression {
 /// of from this node. SQLite spells a null-safe equality `IS`, which is a
 /// syntax error in PostgreSQL.
 ///
-public struct XLComparisonExpression<T>: XLExpression {
+public struct XLComparisonExpression<T, Dialect>: XLExpression {
 
     let comparison: XLComparisonOperator
 
-    let lhs: any XLExpression
+    let lhs: any XLTypedExpression
 
-    let rhs: any XLExpression
+    let rhs: any XLTypedExpression
 
     public init(
         _ comparison: XLComparisonOperator,
-        lhs: any XLExpression,
-        rhs: any XLExpression
+        lhs: any XLTypedExpression,
+        rhs: any XLTypedExpression
     ) {
         self.comparison = comparison
         self.lhs = lhs
@@ -154,13 +154,13 @@ public struct XLComparisonExpression<T>: XLExpression {
 /// SQLite accepts `ISNULL` and `NOTNULL`; standard SQL spells the same tests
 /// `IS NULL` and `IS NOT NULL`.
 ///
-public struct XLNullTestExpression<T>: XLExpression {
+public struct XLNullTestExpression<T, Dialect>: XLExpression {
 
     let test: XLNullTest
 
-    let operand: any XLExpression
+    let operand: any XLTypedExpression
 
-    public init(_ test: XLNullTest, operand: any XLExpression) {
+    public init(_ test: XLNullTest, operand: any XLTypedExpression) {
         self.test = test
         self.operand = operand
     }
@@ -188,15 +188,15 @@ public struct XLNullTestExpression<T>: XLExpression {
 /// (foo * bar)
 /// ```
 ///
-public struct XLBinaryOperatorExpression<T>: XLExpression {
+public struct XLBinaryOperatorExpression<T, Dialect>: XLExpression {
     
     let op: String
     
-    let lhs: any XLExpression
+    let lhs: any XLTypedExpression
     
-    let rhs: any XLExpression
+    let rhs: any XLTypedExpression
     
-    public init(op: String, lhs: any XLExpression, rhs: any XLExpression) {
+    public init(op: String, lhs: any XLTypedExpression, rhs: any XLTypedExpression) {
         self.op = op
         self.lhs = lhs
         self.rhs = rhs
@@ -228,15 +228,15 @@ public struct XLBinaryOperatorExpression<T>: XLExpression {
 /// The result is grouped so postfix operators such as `COLLATE` apply to the complete
 /// concatenation, and so nesting on either side of another binary operator is unambiguous.
 ///
-public struct XLConcatenationExpression<T>: XLExpression {
+public struct XLConcatenationExpression<T, Dialect>: XLExpression {
     
     let op: String
     
-    let lhs: any XLExpression
+    let lhs: any XLTypedExpression
     
-    let rhs: any XLExpression
+    let rhs: any XLTypedExpression
     
-    public init(op: String, lhs: any XLExpression, rhs: any XLExpression) {
+    public init(op: String, lhs: any XLTypedExpression, rhs: any XLTypedExpression) {
         self.op = op
         self.lhs = lhs
         self.rhs = rhs
@@ -265,9 +265,9 @@ public struct XLConcatenationExpression<T>: XLExpression {
 /// (foo IN ('bar', 'baz'))
 /// ```
 ///
-public struct XLInValueExpression<T>: XLExpression {
+public struct XLInValueExpression<T, Dialect>: XLExpression {
     
-    let lhs: any XLExpression
+    let lhs: any XLTypedExpression
     
     let rhs: any XLEncodable
 
@@ -280,7 +280,7 @@ public struct XLInValueExpression<T>: XLExpression {
     ///   carried by this expression rather than a wrapping `NOT`, so composing
     ///   the result cannot move it outwards.
     ///
-    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
+    public init(lhs: any XLTypedExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
         self.negated = negated
@@ -315,9 +315,9 @@ public struct XLInValueExpression<T>: XLExpression {
 /// (foo IN bar)
 /// ```
 ///
-public struct XLInTableExpression<T>: XLExpression {
+public struct XLInTableExpression<T, Dialect>: XLExpression {
     
-    let lhs: any XLExpression
+    let lhs: any XLTypedExpression
     
     let rhs: any XLEncodable
 
@@ -331,7 +331,7 @@ public struct XLInTableExpression<T>: XLExpression {
     ///   carried by this expression rather than a wrapping `NOT`, so composing
     ///   the result cannot move it outwards.
     ///
-    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
+    public init(lhs: any XLTypedExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
         self.negated = negated
@@ -364,13 +364,13 @@ public struct XLInTableExpression<T>: XLExpression {
 /// CAST(foo AS TEXT)
 /// ```
 ///
-public struct XLTypeCastExpression<T>: XLExpression {
+public struct XLTypeCastExpression<T, Dialect>: XLExpression {
     
     private let type: String
     
-    private let expression: any XLExpression
+    private let expression: any XLTypedExpression
     
-    public init(type: String, expression: any XLExpression) {
+    public init(type: String, expression: any XLTypedExpression) {
         self.type = type
         self.expression = expression
     }
@@ -404,11 +404,11 @@ public struct XLTypeCastExpression<T>: XLExpression {
 /// foo
 /// ```
 ///
-public struct XLTypeAffinityExpression<T>: XLExpression {
+public struct XLTypeAffinityExpression<T, Dialect>: XLExpression {
     
-    private let expression: any XLExpression
+    private let expression: any XLTypedExpression
     
-    public init(expression: any XLExpression) {
+    public init(expression: any XLTypedExpression) {
         self.expression = expression
     }
     
@@ -432,13 +432,13 @@ public struct XLTypeAffinityExpression<T>: XLExpression {
 /// ```SQL
 /// COALESCE(foo, 'bar')
 /// ```
-public struct XLNullCoalesceExpression<T>: XLExpression {
+public struct XLNullCoalesceExpression<T, Dialect>: XLExpression {
     
-    let lhs: any XLExpression<Optional<T>>
+    let lhs: any XLTypedExpression<Optional<T>>
     
-    let rhs: any XLExpression<T>
+    let rhs: any XLTypedExpression<T>
     
-    public init(lhs: any XLExpression<Optional<T>>, rhs: any XLExpression<T>) {
+    public init(lhs: any XLTypedExpression<Optional<T>>, rhs: any XLTypedExpression<T>) {
         self.lhs = lhs
         self.rhs = rhs
     }
@@ -471,15 +471,15 @@ public struct XLNullCoalesceExpression<T>: XLExpression {
 /// IIF((foo.bar ISNULL), 'baz', 'buzz')
 /// ```
 ///
-public struct XLIfExpression<T>: XLExpression {
+public struct XLIfExpression<T, Dialect>: XLExpression {
     
-    let condition: any XLExpression
+    let condition: any XLTypedExpression
 
-    let trueResult: any XLExpression
+    let trueResult: any XLTypedExpression
 
-    let falseResult: any XLExpression
+    let falseResult: any XLTypedExpression
     
-    public init(condition: any XLExpression, trueResult: any XLExpression, falseResult: any XLExpression) {
+    public init(condition: any XLTypedExpression, trueResult: any XLTypedExpression, falseResult: any XLTypedExpression) {
         self.condition = condition
         self.trueResult = trueResult
         self.falseResult = falseResult

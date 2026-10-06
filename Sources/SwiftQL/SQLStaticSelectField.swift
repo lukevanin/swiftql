@@ -31,8 +31,12 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
 
     /// The selected SQL expression retyped to this field's intrinsic storage
     /// carrier. Callers can pass it directly to storage-inferred APIs such as
-    /// `queryCapture(_:matching:identifiedBy:selection:)`.
-    public let expression: any XLExpression<Storage>
+    /// `queryCapture(_:matching:identifiedBy:selection:)`, and compare it
+    /// with the resulting capture.
+    ///
+    /// The expression is in the field's dialect: a field selects only an
+    /// expression of the dialect its layout is built for (issue #789).
+    public let expression: any XLExpression<Storage, Dialect>
 
     /// The durable storage contract shared by result and parameter metadata.
     public let storageIdentifier: XLValueStorageIdentifier
@@ -54,7 +58,7 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
     let field: XLStaticRowField?
 
     init(
-        expression: any XLExpression<Storage>,
+        expression: any XLExpression<Storage, Dialect>,
         identity: XLQuerySlotIdentity,
         valueTypeIdentifier: XLValueTypeIdentifier,
         valueTypeName: String,

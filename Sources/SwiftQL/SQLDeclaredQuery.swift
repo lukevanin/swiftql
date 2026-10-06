@@ -519,7 +519,7 @@ final class XLDeclaredQueryResultRecorder: XLRowReader {
     private(set) var columns: [Column] = []
 
     func column<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
         columns.append(Column(alias: alias.rawValue, valueType: T.self))

@@ -85,7 +85,7 @@ public protocol XLRowReader {
     /// should be called multiple times, to read each column in sequence.
     ///
     func column<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral
 
@@ -97,7 +97,7 @@ public protocol XLRowReader {
     /// generated static layouts decode those types from `dialectValue`
     /// instead.
     func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T
 
@@ -117,7 +117,7 @@ public protocol XLRowReader {
     /// generated code calls it on a protocol-typed reader: an extension
     /// member cannot win a dispatch that resolves through the witness table.
     func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral
 
@@ -135,14 +135,14 @@ public protocol XLRowReader {
 
 extension XLRowReader {
     public func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
         try column(expression, alias: alias)
     }
 
     public func staticColumn<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T {
         guard let literalType = T.self as? any XLLiteral.Type else {
@@ -230,7 +230,7 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
     var columnNames: [XLName] { names }
 
     func column<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) -> T where T: XLLiteral {
         names.append(alias)
@@ -302,7 +302,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
     /// Reads the value of the current column from the row, then advances the state to the next column.
     ///
     func column<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
         try readValue()
@@ -402,11 +402,11 @@ func xlDialectValue<Handle, Expected>(
 
 private func _xlReadLegacyStaticColumn<Literal, Value>(
     _ literalType: Literal.Type,
-    expression: any XLExpression<Value>,
+    expression: any XLTypedExpression<Value>,
     alias: XLName,
     reader: any XLRowReader
 ) throws -> Value where Literal: XLLiteral {
-    guard let retyped = expression as? any XLExpression<Literal> else {
+    guard let retyped = expression as? any XLTypedExpression<Literal> else {
         preconditionFailure(
             "Reopened literal expression type \(String(reflecting: Literal.self)) does not match \(String(reflecting: Value.self))."
         )

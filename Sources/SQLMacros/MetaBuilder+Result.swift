@@ -18,7 +18,9 @@ extension MetaBuilder {
     func makeMetaResultExtension(table: Bool) -> String {
         var context = CodeWriter()
         context.block("extension \(structName): XLResult") { context in
-            
+
+            context.line(makeDialectWitness(isStatic: true))
+
             makeCommonMeta(context: &context, table: table)
         }
         return context.build()
@@ -114,12 +116,12 @@ extension MetaBuilder {
             context.line("public typealias Row = \(structName)")
 
             for property in properties {
-                context.line("private let \(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
+                context.line("private let \(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
             }
 
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): any SwiftQL.XLTypedExpression<\(property.qualifiedType)>")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {

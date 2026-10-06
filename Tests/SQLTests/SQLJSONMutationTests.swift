@@ -31,25 +31,31 @@ final class XLJSONMutationRenderingTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
+    /// The document binding, lifted into SQLite so SQLite's own JSON
+    /// functions take it (issue #789).
+    private func sqliteDocument() -> some XLSQLiteExpression<String> {
+        document().sqlite
+    }
+
     // MARK: - Extraction
 
     func testSinglePathExtractionRendersOnePath() {
         assertSQL(
-            document().jsonExtract(at: XLJSONPath.root.key("a"), as: Int.self),
+            sqliteDocument().jsonExtract(at: XLJSONPath.root.key("a"), as: Int.self),
             "json_extract(:document, '$.a')"
         )
     }
 
     func testMultiplePathExtractionRendersEveryPath() {
         assertSQL(
-            document().jsonExtract(
+            sqliteDocument().jsonExtract(
                 at: XLJSONPath.root.key("a"),
                 XLJSONPath.root.key("b")
             ),
             "json_extract(:document, '$.a', '$.b')"
         )
         assertSQL(
-            document().jsonExtract(
+            sqliteDocument().jsonExtract(
                 at: XLJSONPath.root.key("a"),
                 XLJSONPath.root.key("b"),
                 XLJSONPath.root.key("c")
@@ -60,11 +66,11 @@ final class XLJSONMutationRenderingTests: XCTestCase {
 
     func testTheTwoExtractionFormsHaveDifferentResultTypes() {
         assertExpressionType(
-            document().jsonExtract(at: XLJSONPath.root, as: Int.self),
+            sqliteDocument().jsonExtract(at: XLJSONPath.root, as: Int.self),
             Int?.self
         )
         assertExpressionType(
-            document().jsonExtract(at: XLJSONPath.root, XLJSONPath.root),
+            sqliteDocument().jsonExtract(at: XLJSONPath.root, XLJSONPath.root),
             String?.self
         )
     }
@@ -75,26 +81,26 @@ final class XLJSONMutationRenderingTests: XCTestCase {
         let a = XLJSONPath.root.key("a")
         let b = XLJSONPath.root.key("b")
         assertSQL(
-            document().jsonInserting((a, 1)),
+            sqliteDocument().jsonInserting((a, 1)),
             "json_insert(:document, '$.a', 1)"
         )
         assertSQL(
-            document().jsonReplacing((a, 1), (b, "x")),
+            sqliteDocument().jsonReplacing((a, 1), (b, "x")),
             "json_replace(:document, '$.a', 1, '$.b', 'x')"
         )
         assertSQL(
-            document().jsonSetting((a, 1), (b, "x")),
+            sqliteDocument().jsonSetting((a, 1), (b, "x")),
             "json_set(:document, '$.a', 1, '$.b', 'x')"
         )
     }
 
     func testRemovalRendersEveryPath() {
         assertSQL(
-            document().jsonRemoving(at: XLJSONPath.root.key("a")),
+            sqliteDocument().jsonRemoving(at: XLJSONPath.root.key("a")),
             "json_remove(:document, '$.a')"
         )
         assertSQL(
-            document().jsonRemoving(
+            sqliteDocument().jsonRemoving(
                 at: XLJSONPath.root.key("a"),
                 XLJSONPath.root.key("b")
             ),
@@ -104,7 +110,7 @@ final class XLJSONMutationRenderingTests: XCTestCase {
 
     func testPatchRendersBothDocuments() {
         assertSQL(
-            document().jsonPatched(with: #"{"a":null}"#),
+            sqliteDocument().jsonPatched(with: #"{"a":null}"#),
             #"json_patch(:document, '{"a":null}')"#
         )
     }
@@ -112,7 +118,7 @@ final class XLJSONMutationRenderingTests: XCTestCase {
     func testAWrittenValueMayBeABoundParameter() {
         let value = XLNamedBindingReference<String>(name: "value")
         assertSQL(
-            document().jsonSetting((XLJSONPath.root.key("a"), value)),
+            sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), value)),
             "json_set(:document, '$.a', :value)"
         )
     }
@@ -120,27 +126,27 @@ final class XLJSONMutationRenderingTests: XCTestCase {
     func testAMutationOnANullableDocumentIsOptional() {
         let a = XLJSONPath.root.key("a")
         let nullable = XLNamedBindingReference<String?>(name: "document")
-        assertExpressionType(nullable.jsonInserting((a, 1)), String?.self)
-        assertExpressionType(nullable.jsonReplacing((a, 1)), String?.self)
-        assertExpressionType(nullable.jsonSetting((a, 1)), String?.self)
-        assertExpressionType(nullable.jsonRemoving(at: a), String?.self)
-        assertExpressionType(nullable.jsonPatched(with: "{}"), String?.self)
+        assertExpressionType(nullable.sqlite.jsonInserting((a, 1)), String?.self)
+        assertExpressionType(nullable.sqlite.jsonReplacing((a, 1)), String?.self)
+        assertExpressionType(nullable.sqlite.jsonSetting((a, 1)), String?.self)
+        assertExpressionType(nullable.sqlite.jsonRemoving(at: a), String?.self)
+        assertExpressionType(nullable.sqlite.jsonPatched(with: "{}"), String?.self)
     }
 
     func testAMutationOnANonNullDocumentIsNotOptional() {
         // Each `let` is inferred, so the assertion names the overload Swift
         // picks when nothing else constrains the result.
         let a = XLJSONPath.root.key("a")
-        let inserted = document().jsonInserting((a, 1))
-        let replaced = document().jsonReplacing((a, 1))
-        let set = document().jsonSetting((a, 1), (a, "x"))
-        let removed = document().jsonRemoving(at: a, a)
+        let inserted = sqliteDocument().jsonInserting((a, 1))
+        let replaced = sqliteDocument().jsonReplacing((a, 1))
+        let set = sqliteDocument().jsonSetting((a, 1), (a, "x"))
+        let removed = sqliteDocument().jsonRemoving(at: a, a)
         assertExpressionType(inserted, String.self)
         assertExpressionType(replaced, String.self)
         assertExpressionType(set, String.self)
         assertExpressionType(removed, String.self)
         // `json_patch` gives `NULL` for a `NULL` patch, so it stays optional.
-        let patched = document().jsonPatched(with: "{}")
+        let patched = sqliteDocument().jsonPatched(with: "{}")
         assertExpressionType(patched, String?.self)
     }
 
@@ -149,14 +155,14 @@ final class XLJSONMutationRenderingTests: XCTestCase {
         // an optional context and `coalesce` both still resolve, and render
         // the same SQL.
         let a = XLJSONPath.root.key("a")
-        let optional: any XLExpression<String?> = document().jsonSetting((a, 1))
+        let optional: any XLTypedExpression<String?> = sqliteDocument().jsonSetting((a, 1))
         assertSQL(optional, "json_set(:document, '$.a', 1)")
         assertSQL(
-            document().jsonSetting((a, 1)).coalesce(document()),
+            sqliteDocument().jsonSetting((a, 1)).coalesce(document()),
             "COALESCE(json_set(:document, '$.a', 1), :document)"
         )
         assertSQL(
-            document().jsonRemoving(at: a).coalesce(document()),
+            sqliteDocument().jsonRemoving(at: a).coalesce(document()),
             "COALESCE(json_remove(:document, '$.a'), :document)"
         )
     }
@@ -207,24 +213,24 @@ final class XLJSONMutationRenderingTests: XCTestCase {
     func testANonOptionalRemovalRejectsTheRootPath() {
         XCTAssertEqual(
             encoder.makeSQL(
-                document().jsonRemoving(at: XLJSONPath.root.key("a"), .root)
+                sqliteDocument().jsonRemoving(at: XLJSONPath.root.key("a"), .root)
             ).valueEncodingError,
             .jsonRootRemoval(function: "json_remove")
         )
         XCTAssertNil(
             encoder.makeSQL(
-                document().jsonRemoving(at: XLJSONPath.root.key("a"))
+                sqliteDocument().jsonRemoving(at: XLJSONPath.root.key("a"))
             ).valueEncodingError
         )
         // The optional form can hold `NULL`, so it still renders the root.
         let nullable = XLNamedBindingReference<String?>(name: "document")
-        let rendered = encoder.makeSQL(nullable.jsonRemoving(at: .root))
+        let rendered = encoder.makeSQL(nullable.sqlite.jsonRemoving(at: .root))
         XCTAssertNil(rendered.valueEncodingError)
         XCTAssertEqual(rendered.sql, "json_remove(:document, '$')")
     }
 
     private func assertSQL<T>(
-        _ expression: any XLExpression<T>,
+        _ expression: any XLTypedExpression<T>,
         _ expected: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -237,7 +243,7 @@ final class XLJSONMutationRenderingTests: XCTestCase {
         )
     }
 
-    private func assertExpressionType<T>(_: any XLExpression<T>, _: T.Type) {
+    private func assertExpressionType<T>(_: any XLTypedExpression<T>, _: T.Type) {
     }
 }
 
@@ -272,8 +278,14 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         XLNamedBindingReference<String>(name: "document")
     }
 
+    /// The document binding, lifted into SQLite so SQLite's own JSON
+    /// functions take it (issue #789).
+    private func sqliteDocument() -> some XLSQLiteExpression<String> {
+        document().sqlite
+    }
+
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLTypedExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -288,7 +300,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let json = #"{"name":"Alice","age":41,"ratio":0.5,"tags":["a"]}"#
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("name"),
                     as: String.self
                 ),
@@ -298,7 +310,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("age"),
                     as: Int.self
                 ),
@@ -308,7 +320,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("ratio"),
                     as: Double.self
                 ),
@@ -319,7 +331,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         // An array has no SQL value, so SQLite returns its JSON text.
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("tags"),
                     as: String.self
                 ),
@@ -333,14 +345,14 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let json = #"{"a":null}"#
         guard
             let missing = try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("z"),
                     as: Int.self
                 ),
                 document: json
             ),
             let jsonNull = try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("a"),
                     as: Int.self
                 ),
@@ -357,7 +369,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
     func testMultiplePathExtractionReturnsAJSONArray() throws {
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("a"),
                     XLJSONPath.root.key("b")
                 ),
@@ -372,7 +384,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         // it, so entry order still matches path order.
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("a"),
                     XLJSONPath.root.key("z")
                 ),
@@ -388,14 +400,14 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let json = #"{"a":1}"#
         XCTAssertEqual(
             try evaluate(
-                document().jsonInserting((XLJSONPath.root.key("b"), 2)),
+                sqliteDocument().jsonInserting((XLJSONPath.root.key("b"), 2)),
                 document: json
             ),
             #"{"a":1,"b":2}"#
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonInserting((XLJSONPath.root.key("a"), 9)),
+                sqliteDocument().jsonInserting((XLJSONPath.root.key("a"), 9)),
                 document: json
             ),
             #"{"a":1}"#
@@ -406,14 +418,14 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let json = #"{"a":1}"#
         XCTAssertEqual(
             try evaluate(
-                document().jsonReplacing((XLJSONPath.root.key("a"), 9)),
+                sqliteDocument().jsonReplacing((XLJSONPath.root.key("a"), 9)),
                 document: json
             ),
             #"{"a":9}"#
         )
         XCTAssertEqual(
             try evaluate(
-                document().jsonReplacing((XLJSONPath.root.key("b"), 9)),
+                sqliteDocument().jsonReplacing((XLJSONPath.root.key("b"), 9)),
                 document: json
             ),
             #"{"a":1}"#
@@ -423,7 +435,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
     func testSetAddsAndOverwrites() throws {
         XCTAssertEqual(
             try evaluate(
-                document().jsonSetting(
+                sqliteDocument().jsonSetting(
                     (XLJSONPath.root.key("a"), 9),
                     (XLJSONPath.root.key("b"), 8)
                 ),
@@ -436,7 +448,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
     func testRemoveDeletesEveryNamedPath() throws {
         XCTAssertEqual(
             try evaluate(
-                document().jsonRemoving(
+                sqliteDocument().jsonRemoving(
                     at: XLJSONPath.root.key("a"),
                     XLJSONPath.root.key("c")
                 ),
@@ -449,7 +461,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
     func testPatchMergesAndRemovesNullMembers() throws {
         XCTAssertEqual(
             try evaluate(
-                document().jsonPatched(with: #"{"b":null,"c":3}"#),
+                sqliteDocument().jsonPatched(with: #"{"b":null,"c":3}"#),
                 document: #"{"a":1,"b":2}"#
             ),
             #"{"a":1,"c":3}"#
@@ -459,7 +471,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
     func testAMutationOnANullDocumentIsNull() throws {
         let reference = XLNamedBindingReference<String?>(name: "nullDocument")
         let statement = sql { _ in
-            Select(reference.jsonSetting((XLJSONPath.root.key("a"), 1)))
+            Select(reference.sqlite.jsonSetting((XLJSONPath.root.key("a"), 1)))
         }
         var request = database.makeRequest(with: statement)
         request.set(reference, String?.none)
@@ -472,7 +484,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
 
     func testANonOptionalRootRemovalFailsBeforeSQLitePreparesTheStatement() {
         let statement = sql { _ in
-            Select(document().jsonRemoving(at: .root))
+            Select(sqliteDocument().jsonRemoving(at: .root))
         }
         var request = database.makeRequest(with: statement)
         request.set(document(), "{}")
@@ -490,7 +502,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let awkward = #"he said "hi" \ and ' too"#
         guard
             let written = try evaluate(
-                document().jsonSetting((XLJSONPath.root.key("a"), awkward)),
+                sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), awkward)),
                 document: "{}"
             )
         else {
@@ -499,7 +511,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         }
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("a"),
                     as: String.self
                 ),
@@ -513,7 +525,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         let awkward = #"he said "hi" \ and ' too"#
         let value = XLNamedBindingReference<String>(name: "value")
         let statement = sql { _ in
-            Select(document().jsonSetting((XLJSONPath.root.key("a"), value)))
+            Select(sqliteDocument().jsonSetting((XLJSONPath.root.key("a"), value)))
         }
         var request = database.makeRequest(with: statement)
         request.set(document(), "{}")
@@ -524,7 +536,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         }
         XCTAssertEqual(
             try evaluate(
-                document().jsonExtract(
+                sqliteDocument().jsonExtract(
                     at: XLJSONPath.root.key("a"),
                     as: String.self
                 ),
