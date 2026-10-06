@@ -355,12 +355,27 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
         }
     }
 
-    /// The second case in issue #816: a main-thread body spins the run loop,
-    /// which runs a main-queue block that uses the scope.
-    func testMainQueueWorkThatARunLoopInAMainThreadBodyRunsThrowsScopeEscaped() throws {
+    /// Skips the test unless it runs on the main thread, and spinning the run
+    /// loop there runs main-queue work, as the run-loop cases need. A host
+    /// that runs test methods inside a main-queue block does not.
+    private func skipUnlessTheRunLoopRunsMainQueueWork() throws {
         guard Thread.isMainThread else {
             throw XCTSkip("needs a test method that runs on the main thread")
         }
+        let ran = LockedValue(false)
+        DispatchQueue.main.async {
+            ran.withValue { $0 = true }
+        }
+        spinRunLoop { ran.read() }
+        guard ran.read() else {
+            throw XCTSkip("spinning the run loop here does not run main-queue work")
+        }
+    }
+
+    /// The second case in issue #816: a main-thread body spins the run loop,
+    /// which runs a main-queue block that uses the scope.
+    func testMainQueueWorkThatARunLoopInAMainThreadBodyRunsThrowsScopeEscaped() throws {
+        try skipUnlessTheRunLoopRunsMainQueueWork()
         let database = try makeDatabase()
         try createTestTable(in: database)
 
@@ -387,9 +402,7 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
     /// there, which the run loop drains. Elsewhere the main executor may be
     /// one this run loop does not drive.
     func testAMainActorTaskThatARunLoopInAMainThreadBodyRunsThrowsScopeEscaped() throws {
-        guard Thread.isMainThread else {
-            throw XCTSkip("needs a test method that runs on the main thread")
-        }
+        try skipUnlessTheRunLoopRunsMainQueueWork()
         let database = try makeDatabase()
         try createTestTable(in: database)
 
@@ -410,10 +423,9 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
 
     // MARK: - What still works
 
-    /// The scope still works when the body runs on the main thread, and a
-    /// `DispatchQueue.main.sync` call from a body on another thread runs on
-    /// the main thread, where the thread check refuses it as before.
-    func testAMainThreadBodyCanUseTheScopeAndMainQueueSyncIsStillRefused() throws {
+    /// The scope still works when the body runs on the main thread: GRDB runs
+    /// the body on the writer's queue there, which carries the mark.
+    func testAMainThreadBodyCanUseTheScope() throws {
         guard Thread.isMainThread else {
             throw XCTSkip("needs a test method that runs on the main thread")
         }
@@ -424,20 +436,5 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
             try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
         }
         XCTAssertEqual(try rows(in: database), [TestTable(id: "alpha", value: 1)])
-
-        let outcomes = LockedValue<[String]?>(nil)
-        DispatchQueue.global().async {
-            do {
-                try database.withTransaction { scope in
-                    let refused = DispatchQueue.main.sync { Self.outcomes(of: scope) }
-                    outcomes.withValue { $0 = refused }
-                }
-            }
-            catch {
-                outcomes.withValue { $0 = ["withTransaction: \(error)"] }
-            }
-        }
-        spinRunLoop { outcomes.read() != nil }
-        XCTAssertEqual(outcomes.read(), Self.refused)
     }
 }

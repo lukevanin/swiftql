@@ -397,7 +397,10 @@ rule below describes them.
   `withResultSet(_:)` body of a request on another database. When the body
   runs on the main thread, main-queue work that a run loop the body spins
   runs, including a main-actor task, is refused the same way. Use the scope
-  directly in the body, not from inside another queue's block.
+  directly in the body, not from inside another queue's block. The check
+  runs when a statement starts. An `XLResultSet` is checked when it opens,
+  not on each `next()`, so do not step it from another queue's block, as its
+  own documentation says.
 
   The queue check covers a database SwiftQL opens, with
   `GRDBDatabase(url:...)` or ``GRDBDatabaseBuilder``: SwiftQL marks the queue

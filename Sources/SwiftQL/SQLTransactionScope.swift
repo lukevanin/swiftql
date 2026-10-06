@@ -64,8 +64,9 @@ import Foundation
 /// refuse a statement run through the scope, or through a request made from
 /// it, on any other thread with ``XLTransactionScopeError/scopeEscaped``
 /// rather than share the connection, as ``GRDBDatabase`` does.
-/// <doc:AdvancedUsage> gives the full rule for `GRDBDatabase`, including what
-/// the compiler does not yet catch.
+/// <doc:AdvancedUsage> gives the full rule for `GRDBDatabase`, which also
+/// refuses a block that another dispatch queue runs on the body's thread,
+/// and what the compiler does not yet catch.
 ///
 /// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for
 /// concrete examples of the durable-state guarantees this API makes.
