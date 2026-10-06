@@ -15,7 +15,9 @@ import Foundation
 /// A custom type is a value, so it is an operand in a SQLite query, as an
 /// ``XLSQLiteExpression``, like `String` or `Int` (issue #789). A type that
 /// conforms to `XLExpression`, `XLBindable`, and `XLLiteral` separately,
-/// rather than to this alias, conforms to `XLSQLiteExpression` itself.
+/// rather than to this alias, conforms to `XLSQLiteExpression` itself. A type
+/// used in another dialect's query conforms to that dialect's expression
+/// protocol as well.
 ///
 public typealias XLCustomType = XLExpression & XLBindable & XLLiteral & XLSQLiteExpression
 
@@ -499,7 +501,8 @@ extension XLFunction: XLNamedFunction {
 /// be overridden as required. Reading an unknown stored raw value throws `XLColumnReadError`.
 ///
 /// An enum is a value, so it is an operand in a SQLite query, as an
-/// ``XLSQLiteExpression`` (issue #789).
+/// ``XLSQLiteExpression`` (issue #789). An enum used in another dialect's
+/// query conforms to that dialect's expression protocol as well.
 ///
 public protocol XLEnum: XLLiteral, XLExpression, XLSQLiteExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     

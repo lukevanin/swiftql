@@ -11,8 +11,11 @@ import Foundation
 // MARK: - Standard library numeric operands
 
 
-// `Int` and `Double` conform to `XLExpression`, so a plain `Int` or `Double`
-// operand also matches the generic operators above. Swift 5.9 and Swift 6.4
+// `Int` and `Double` are expressions of every dialect, so a plain `Int` or
+// `Double` operand also matches each dialect's generic prefix operators,
+// which scripts/dialect-surface generates from
+// Templates/NumericOperators.swift.template and
+// Templates/IntegerOperators.swift.template (issue #789). Swift 5.9 and Swift 6.4
 // still pick the standard library operator for such an operand, but Swift 6.3
 // picks SwiftQL's, and `let x = -someInt` stops compiling in every file that
 // imports SwiftQL (issue #771). These exact-match overloads restore `Int` and

@@ -296,20 +296,22 @@ func _xlStaticStorageExpression<Storage, Dialect>(
 ///
 /// The selected expression as an expression of the field's dialect.
 ///
-/// An expression that records its dialect, such as a column of a model or a
-/// capture, must record `Dialect`: a column of a model declared for another
-/// dialect throws
+/// Every part of the expression that records its dialect, such as a column of
+/// a model or a capture, must record `Dialect`: an expression that holds a
+/// column of a model declared for another dialect, at any depth, throws
 /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
-/// (issue #789). Any other expression, such as a value, belongs to every
-/// dialect.
+/// (issue #789). Any other part, such as a value, belongs to every dialect.
+///
+/// The walk reads stored properties through `Mirror`, so it does not see into
+/// a closure, such as the arms of a `CASE` expression. A field is built once
+/// per layout, so the walk is not on a per-row path.
 ///
 func _xlDialectExpression<Storage, Dialect>(
     _ expression: any XLExpression<Storage>,
     in _: Dialect.Type,
     identity: XLQuerySlotIdentity
 ) throws -> XLDialectExpression<Storage, Dialect> {
-    if let tagged = expression as? any XLDialectTaggedExpression,
-       tagged.expressionDialect != Dialect.self {
+    if _xlForeignDialect(in: expression, expected: Dialect.self) != nil {
         throw XLStaticRowLayoutError.expressionDialectMismatch(
             identity: identity,
             expectedDialect: String(reflecting: Dialect.self),
@@ -320,4 +322,31 @@ func _xlDialectExpression<Storage, Dialect>(
         return expression
     }
     return XLDialectExpression(expression)
+}
+
+
+///
+/// The dialect of the first part of `value` that records a dialect other than
+/// `expected`, or `nil` when every part that records one records `expected`.
+///
+func _xlForeignDialect(
+    in value: Any,
+    expected: Any.Type,
+    depth: Int = 0
+) -> Any.Type? {
+    if let tagged = value as? any XLDialectTaggedExpression,
+       tagged.expressionDialect != expected {
+        return tagged.expressionDialect
+    }
+    // An expression is a shallow tree; the bound only stops a cycle through
+    // a reference type from recursing forever.
+    guard depth < 64 else {
+        return nil
+    }
+    for child in Mirror(reflecting: value).children {
+        if let found = _xlForeignDialect(in: child.value, expected: expected, depth: depth + 1) {
+            return found
+        }
+    }
+    return nil
 }

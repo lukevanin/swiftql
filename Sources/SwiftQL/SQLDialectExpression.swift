@@ -69,6 +69,16 @@ extension XLDialectExpression: XLDialectTaggedExpression {
 }
 
 
+// A check that recognises a function by its name, such as the JSON value
+// check that lets a `jsonb` result into a JSON function, sees through the
+// wrapper. A wrapper of anything else has no name.
+extension XLDialectExpression: XLNamedFunction {
+    var functionName: String {
+        (wrapped as? any XLNamedFunction)?.functionName ?? ""
+    }
+}
+
+
 extension XLQueryCapture: XLDialectTaggedExpression {
     var expressionDialect: Any.Type { Dialect.self }
 }

@@ -24,13 +24,21 @@ import SwiftQL
 /// These are the compile-fail second dialect expressions:
 ///
 /// - A column of a model declared for the compile-fail second dialect.
-/// - A Swift value, an optional of one, a named binding, an enum, and a custom
-///   type. A value is written the same way in every dialect, so it is an
-///   expression of every dialect.
+/// - A Swift value (`Bool`, `Int`, `Double`, `String`, `Data`), an optional of
+///   one, and a named binding. A value is written the same way in every
+///   dialect, so it is an expression of every dialect.
+/// - An enum or a custom type that conforms to this protocol. A protocol
+///   cannot be made to refine this one from outside, so a type declares it:
+///   `XLEnum` and `XLCustomType` include SQLite's, and a type used in another
+///   dialect's query conforms to that dialect's protocol as well.
 /// - A capture or contextual binding that encodes its value for
 ///   the compile-fail second dialect.
 /// - The result of a the compile-fail second dialect operator or function, which returns
 ///   `some CompileFailSecondDialectExpression`.
+///
+/// A node built through its public initializer, such as
+/// `XLBinaryOperatorExpression(op:lhs:rhs:)`, takes any expression and is an
+/// expression of every dialect, so building one directly is not checked.
 ///
 /// A helper that builds part of a query takes and returns this protocol:
 ///

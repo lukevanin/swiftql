@@ -380,10 +380,18 @@
     A type that conforms to `XLCustomType` or `XLEnum` needs no change: both
     include `XLSQLiteExpression`. `XLCustomFunction` refines it, because a
     custom function runs inside SQLite.
-  - A Swift value, an optional of one, a named binding, an enum, and a custom
-    type are expressions of every dialect, so they need no conversion next to
-    a column. A function of a value alone, such as `"abc".collate(.nocase)`,
-    is SQLite's.
+  - A Swift value (`Bool`, `Int`, `Double`, `String`, `Data`), an optional of
+    one, and a named binding are expressions of every dialect, so they need no
+    conversion next to a column. A function of a value alone, such as
+    `"abc".collate(.nocase)`, is SQLite's. An enum and a custom type are
+    SQLite expressions through `XLEnum` and `XLCustomType`. A protocol cannot
+    be made to refine another dialect's protocol from outside, so to use one in
+    another dialect's query, conform it to that dialect's protocol as well,
+    such as `extension JobState: PostgreSQLExpression {}`.
+  - Building an expression node through its public initializer, such as
+    `XLBinaryOperatorExpression(op:lhs:rhs:)`, is not checked: a node takes
+    any expression, and it is an expression of every dialect. The dialect is
+    checked by the operators and functions.
   - SQLite's own functions are declared only on `XLSQLiteExpression`:
     `collate(_:)`, `regexp(_:)`, `printf(_:)`, the JSON and JSONB functions
     and operators, the date functions, and `json_group_array` and

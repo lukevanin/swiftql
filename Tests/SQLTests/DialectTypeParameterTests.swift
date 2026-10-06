@@ -42,6 +42,28 @@ struct DialectSecondPerson: Equatable {
 }
 
 
+/// An enum. `XLEnum` makes it a SQLite expression; it is an expression of the
+/// second dialect because it declares that dialect's protocol as well.
+enum DialectMood: String, XLEnum, FakeSecondDialectExpression {
+    typealias T = Self
+
+    case calm
+    case cross
+
+    static func sqlDefault() -> DialectMood {
+        .calm
+    }
+}
+
+
+/// The table with an enum column, declared for the second dialect.
+@SQLTable(name: "mood", dialect: FakeSecondDialect.self)
+struct DialectSecondMood: Equatable {
+    let id: Int
+    let mood: DialectMood
+}
+
+
 /// A result model declared for the second dialect.
 @SQLResult(dialect: FakeSecondDialect.self)
 struct DialectSecondName: Equatable {
@@ -204,6 +226,23 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertTrue(try sqliteSQL(statement).contains(#"WHERE ((("t0"."name" || 'x') COLLATE NOCASE) == 'ax')"#))
     }
 
+    // An enum is an expression of a dialect whose protocol it declares, so it
+    // is an operand next to that dialect's column.
+    func testAnEnumThatDeclaresTheSecondDialectIsAnOperandInIt() throws {
+        let statement = sql(dialect: FakeSecondDialect.self) { schema in
+            let row = schema.table(DialectSecondMood.self)
+            Select(row.id)
+            From(row)
+            Where(row.mood == DialectMood.cross)
+        }
+        XCTAssertEqual(
+            try secondSQL(statement),
+            #"SELECT "t0"."id" FROM "mood" AS "t0" WHERE ("t0"."mood" == 'cross')"#
+        )
+        assertSQLite(DialectMood.calm)
+        assertSecond(DialectMood.calm)
+    }
+
     // A value is a SQLite expression, so SQLite's own functions take it
     // directly.
     func testSQLiteOperationsApplyToValues() throws {
@@ -240,6 +279,17 @@ final class DialectTypeParameterTests: XCTestCase {
             XCTAssertEqual(thrownIdentity, identity)
             XCTAssertEqual(expectedDialect, String(reflecting: XLSQLiteDialect.self))
         }
+        // A composed expression is refused too, wherever the column is in it.
+        XCTAssertThrowsError(
+            try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: second.name + "x",
+                identifiedBy: identity
+            )
+        ) { error in
+            guard case XLStaticRowLayoutError.expressionDialectMismatch = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
         let sqlite = XLSchema().table(DialectSQLitePerson.self)
         let field = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
             selecting: sqlite.name,
@@ -248,5 +298,22 @@ final class DialectTypeParameterTests: XCTestCase {
         // The field's expression is of its dialect, so it composes with that
         // dialect's expressions.
         assertSQLite(field.expression == "a")
+        // A composed expression of the field's own dialect is accepted.
+        _ = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+            selecting: sqlite.name + "x",
+            identifiedBy: identity
+        )
+    }
+
+    // The field wraps its expression, and a JSON function still recognises a
+    // wrapped `jsonb` result as JSON rather than refusing it as a blob.
+    func testAStaticFieldKeepsAJSONBResultRecognisable() throws {
+        let document = XLNamedBindingReference<String>(name: "document")
+        let field = try XLStaticSelectField<Data?, Data?, XLSQLiteDialect>.intrinsic(
+            selecting: document.minifiedJSONB(),
+            identifiedBy: try XLQuerySlotIdentity(path: ["dialect", "document"])
+        )
+        let encoder = XLDialectEncoder(dialect: XLSQLiteDialect())
+        XCTAssertNil(encoder.makeSQL(jsonArray(field.expression)).valueEncodingError)
     }
 }

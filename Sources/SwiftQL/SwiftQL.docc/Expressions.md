@@ -699,8 +699,10 @@ Every expression belongs to a dialect. A column belongs to the dialect of the
 model that declares it: SQLite, unless the model names another with
 `@SQLTable(dialect:)` or `@SQLResult(dialect:)`. An operator or a function
 returns an expression of its operands' dialect. A Swift value, an optional of
-one, a named binding, an enum, and an ``XLCustomType`` are written the same way
-in every dialect, so each is an expression of every dialect.
+one, and a named binding are written the same way in every dialect, so each is
+an expression of every dialect. An enum and an ``XLCustomType`` are SQLite
+expressions; to use one in another dialect's query, conform it to that
+dialect's expression protocol as well.
 
 Each dialect has its own expression protocol, and SQLite's is
 ``XLSQLiteExpression``. The operators and functions take and return it, so a

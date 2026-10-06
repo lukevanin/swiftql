@@ -269,9 +269,12 @@ The copies are generated from one set of templates
 
 - A column conforms where its model's dialect is that dialect:
   `extension XLColumnReference: XLSQLiteExpression where Dialect == XLSQLiteDialect`.
-- A Swift value, an optional of one, a named binding, an enum, and an
-  `XLCustomType` conform for every dialect, so a user's custom type keeps
-  compiling: `XLCustomType` and `XLEnum` include `XLSQLiteExpression`.
+- A Swift value, an optional of one, and a named binding conform for every
+  dialect. An enum and an `XLCustomType` conform for SQLite, so a user's
+  custom type keeps compiling: `XLCustomType` and `XLEnum` include
+  `XLSQLiteExpression`. For another dialect the type declares that dialect's
+  protocol too, because a protocol cannot be made to refine another from
+  outside.
 - A node such as `XLBinaryOperatorExpression<T>` conforms for every dialect.
   The opaque result is what keeps a composed expression in one dialect: the
   result of a second dialect's `==` is `some SecondExpression<Bool>`, which is

@@ -23,12 +23,17 @@ A template is Swift with these placeholders:
     {{DialectName}}  the dialect's name in prose, such as SQLite
 
 The template's leading comment is replaced with a header that says the file
-is generated, and a dialect's `imports` are added after `import Foundation`. A dialect whose `access` is `internal` has every `public`
-modifier removed, so a test can declare a dialect without making its types
+is generated, and a dialect's `imports` are added after `import Foundation`.
+A dialect whose `access` is `internal` has every `public` modifier removed
+from the code, so a test can declare a dialect without making its types
 public. A dialect marked `disfavored` has `@_disfavoredOverload` added to every
-function, so that where two dialects' surfaces are visible and nothing picks a
-dialect, such as a function called on a Swift value, the other dialect's
-overload wins rather than the call being ambiguous.
+function, initializer, and subscript, so that where two dialects' surfaces are
+visible and nothing picks a dialect, such as a function called on a Swift
+value, the other dialect's overload wins rather than the call being
+ambiguous. Both rewrites are checked after they run, and a declaration they
+did not reach stops the generator, so a template written in a form they do
+not recognise fails loudly instead of generating the wrong access or an
+ambiguous overload.
 
 Run with no arguments to write the generated files. `--check` writes nothing,
 and exits with status 1 and a list of the files that differ when any
@@ -55,8 +60,13 @@ TEMPLATE_DIRECTORY = GENERATOR_DIRECTORY / "Templates"
 SPECIFICATION = GENERATOR_DIRECTORY / "dialects.json"
 TEMPLATE_SUFFIX = ".swift.template"
 PLACEHOLDER = re.compile(r"\{\{([A-Za-z]+)\}\}")
-PUBLIC_MODIFIER = re.compile(r"\bpublic +(?=(?:(?:static|prefix|postfix|infix) +)*(?:func|protocol|struct|enum|class|var|let|init|typealias|subscript)\b)")
-FUNCTION = re.compile(r"^([ \t]*)((?:public +)?(?:static +)?(?:(?:prefix|postfix|infix) +)?func\b)", re.MULTILINE)
+PUBLIC = re.compile(r"\bpublic\b *")
+# A function, initializer, or subscript declaration, with any modifiers and
+# attributes written before it on the same line.
+DECLARATION = re.compile(
+    r"^([ \t]*)((?:(?:@\w+(?:\([^)]*\))?|public|internal|static|class|final|mutating|nonmutating|override|prefix|postfix|infix|convenience|required) +)*(?:func|init|subscript)\b)",
+    re.MULTILINE,
+)
 DUPLICATE_DISFAVOURED = re.compile(r"([ \t]*@_disfavoredOverload\n)(?:[ \t]*@_disfavoredOverload\n)+")
 
 
@@ -99,12 +109,46 @@ def render(template: Path, dialect: Mapping[str, str]) -> str:
             raise SystemExit(f"{relative(template)}: no `import Foundation` to add imports after")
         body = body.replace("import Foundation\n", "import Foundation\n" + imports, 1)
     if dialect.get("disfavored"):
-        body = FUNCTION.sub(r"\1@_disfavoredOverload\n\1\2", body)
+        body = DECLARATION.sub(r"\1@_disfavoredOverload\n\1\2", body)
         # A function the template already disfavours keeps one attribute.
         body = DUPLICATE_DISFAVOURED.sub(r"\1", body)
+        check_disfavoured(template, body)
     if dialect.get("access", "public") == "internal":
-        body = PUBLIC_MODIFIER.sub("", body)
+        body = "".join(
+            line if is_comment(line) else PUBLIC.sub("", line)
+            for line in body.splitlines(keepends=True)
+        )
+        check_internal(template, body)
     return header(template, dialect) + body
+
+
+def is_comment(line: str) -> bool:
+    return line.lstrip().startswith("//")
+
+
+def check_internal(template: Path, body: str) -> None:
+    for number, line in enumerate(body.splitlines(), start=1):
+        if not is_comment(line) and re.search(r"\bpublic\b", line):
+            raise SystemExit(f"{relative(template)}: line {number} is still public: {line.strip()}")
+
+
+def check_disfavoured(template: Path, body: str) -> None:
+    lines = body.splitlines()
+    for number, line in enumerate(lines):
+        if is_comment(line) or not re.search(r"\b(?:func|init|subscript)\b(?:[\s<(]|$)", line):
+            continue
+        if not DECLARATION.match(line + "\n"):
+            raise SystemExit(
+                f"{relative(template)}: cannot tell whether line {number + 1} declares a function; "
+                f"write its modifiers in a form generate.py recognises: {line.strip()}"
+            )
+        previous = number - 1
+        while previous >= 0 and lines[previous].lstrip().startswith("@"):
+            if lines[previous].strip() == "@_disfavoredOverload":
+                break
+            previous -= 1
+        if previous < 0 or lines[previous].strip() != "@_disfavoredOverload":
+            raise SystemExit(f"{relative(template)}: line {number + 1} is not disfavoured: {line.strip()}")
 
 
 def load_dialects() -> List[Dict[str, str]]:
