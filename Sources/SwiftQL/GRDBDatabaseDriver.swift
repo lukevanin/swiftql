@@ -434,8 +434,14 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
     private let lock = NSLock()
     private var database: Database?
 
-    /// The thread that runs the body. GRDB confines `database` to it.
+    /// The thread that runs the body.
     private let thread = pthread_self()
+
+    /// The mark on the dispatch queue that runs the body, or `nil` when
+    /// SwiftQL did not open the pool and so did not mark its queues. GRDB
+    /// confines `database` to that queue, not only to `thread`. See
+    /// ``GRDBTransactionQueueMark``.
+    private let queueMark = GRDBTransactionQueueMark.current
 
     init(_ database: Database) {
         self.database = database
@@ -463,11 +469,104 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
         lock.unlock()
         // A scope value used from another thread -- a task created in the
         // body, for example -- would touch `database` off GRDB's writer
-        // queue, which GRDB stops with a precondition. It throws instead.
-        guard let database, pthread_equal(thread, pthread_self()) != 0 else {
+        // queue, which GRDB stops with a precondition. So would a block that
+        // another queue runs on the body's own thread, such as a `sync` call
+        // onto a global queue, or main-queue work run by a run loop that a
+        // main-thread body spins (issue #816). Both throw instead.
+        guard let database,
+              pthread_equal(thread, pthread_self()) != 0,
+              GRDBTransactionQueueMark.current === queueMark
+        else {
             throw XLTransactionScopeError.scopeEscaped
         }
         return makeConnection(database)
+    }
+}
+
+
+///
+/// Marks the dispatch queue that runs a SwiftQL-opened pool's transaction
+/// bodies, so the pinned scope can tell that queue from another queue that
+/// runs a block on the body's thread (issue #816).
+///
+/// GRDB confines a connection to its dispatch queue and stops the process
+/// when it is used anywhere else. It has no public test for "is this the
+/// writer's queue" that does not stop the process, and a queue label is not
+/// an identity. So the pool SwiftQL opens gets a target queue SwiftQL owns,
+/// with a mark of its own: `DispatchQueue.getSpecific(key:)` reads a value
+/// set on the current queue or on any queue it targets, so a block on GRDB's
+/// queue sees the mark, and a block on any other queue does not.
+///
+/// Each pool gets its own mark, so a block on another SwiftQL-opened pool's
+/// queue is refused too. GRDB allows a connection there only when that other
+/// pool's access was opened from inside this one, which the mark cannot see.
+///
+/// A pool passed to the `@_spi(GRDB)` initialisers was opened by its caller,
+/// so its queues carry no mark, and the scope falls back to checking only
+/// the thread. The one exception is a pool opened from a marked pool's own
+/// `configuration`, which names the marked queue and so shares its mark.
+///
+enum GRDBTransactionQueueMark {
+
+    /// One pool's mark. Compared by identity.
+    final class Token: Sendable {}
+
+    /// `DispatchSpecificKey` is not declared `Sendable`, but the key is only
+    /// ever passed to Dispatch, which synchronizes its own reads.
+    private struct Key: @unchecked Sendable {
+        let key = DispatchSpecificKey<Token>()
+    }
+
+    private static let storage = Key()
+
+    /// The mark of the queue running the caller, or `nil` when no queue in
+    /// its target hierarchy has one.
+    static var current: Token? {
+        DispatchQueue.getSpecific(key: storage.key)
+    }
+
+    ///
+    /// Returns `configuration` with a marked target queue for the queue that
+    /// runs transaction bodies: the writer's queue, or, for a read-only pool,
+    /// whose writer is opened read-only and uses the readers' target, the
+    /// queue of every connection.
+    ///
+    /// The marked queue is concurrent, as GRDB asks of a pool's target queue,
+    /// so it adds no ordering of its own: GRDB's own serial queue under it
+    /// still serializes the connection. It targets the queue `configuration`
+    /// already names, if any, so a caller's target queue keeps applying. With
+    /// none, it carries the quality of service GRDB would have given the
+    /// queue itself.
+    ///
+    static func marking(_ configuration: Configuration) -> Configuration {
+        var configuration = configuration
+        let label = (configuration.label ?? "GRDB.DatabasePool") + ".swiftql"
+        let queue: DispatchQueue
+        if configuration.readonly {
+            queue = makeQueue(label: label, target: configuration.targetQueue, qos: configuration.qos)
+            configuration.targetQueue = queue
+        }
+        else {
+            queue = makeQueue(
+                label: label + ".writer",
+                target: configuration.writeTargetQueue ?? configuration.targetQueue,
+                qos: configuration.qos
+            )
+            configuration.writeTargetQueue = queue
+        }
+        queue.setSpecific(key: storage.key, value: Token())
+        return configuration
+    }
+
+    private static func makeQueue(
+        label: String,
+        target: DispatchQueue?,
+        qos: DispatchQoS
+    ) -> DispatchQueue {
+        if let target {
+            return DispatchQueue(label: label, attributes: .concurrent, target: target)
+        }
+        return DispatchQueue(label: label, qos: qos, attributes: .concurrent)
     }
 }
 

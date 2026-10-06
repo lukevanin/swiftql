@@ -346,9 +346,9 @@ above describes, plus the guarantees a typed, adapter-neutral surface adds:
 Four misuses are rejected, each with a predictable, catchable
 `XLTransactionScopeError` rather than a crash or silent wrong answer. A nested
 transaction and a live query are rejected before they do any work; use from
-another thread, or after the body, is rejected when a statement would run.
-One kind of other-queue use on the body's own thread is not caught and still
-stops the process; the thread rule below describes it.
+another thread or queue, or after the body, is rejected when a statement would
+run. A database that wraps a pool you opened yourself has one gap in this; the
+thread rule below describes it.
 
 - **Nested transactions and savepoints are not supported.** Calling
   `withTransaction(_:)` again from inside an active body — on the scope it was
@@ -368,10 +368,11 @@ stops the process; the thread rule below describes it.
   pinned connection is invalidated the instant the body returns, so
   continuing would silently touch a connection GRDB may already be reusing
   for unrelated work.
-- **The scope must stay on the body's thread.** The pinned connection belongs
-  to the thread that runs the body until the body returns. A statement run
-  through the scope, or through a request made from it, on any other thread
-  throws `.scopeEscaped` on that thread, rather than touching the connection.
+- **The scope must stay on the body's thread and queue.** The pinned
+  connection belongs to the thread that runs the body until the body returns.
+  A statement run through the scope, or through a request made from it, on
+  any other thread throws `.scopeEscaped` on that thread, rather than
+  touching the connection.
   A block sent with `DispatchQueue.global().async` runs on another thread, and
   so does a task created in the body, unless it inherits the body's actor,
   such as the main actor. Such a task waits for that actor, which the body
@@ -386,17 +387,27 @@ stops the process; the thread rule below describes it.
   [#802](https://github.com/lukevanin/swiftql/issues/802) tracks a scope type
   that the compiler would refuse to send.
 
-  The check is by thread, but GRDB confines the connection to its writer
-  dispatch queue. A block that another queue runs on the body's thread
-  passes the check, and GRDB stops the process with "Database was not used
-  on the correct thread". A `sync` call from inside the body onto a queue
-  that runs its blocks on the caller's thread, such as a global queue or a
-  serial queue that does not target the main queue, does this. So, when the
-  body runs on the main thread, does main-queue work, including a main-actor
-  task, that a run loop the body spins runs. Use the scope directly in the
-  body, not from inside another queue's block, and do not spin a run loop in
-  a main-thread body. Closing this gap is
-  [#816](https://github.com/lukevanin/swiftql/issues/816).
+  GRDB confines the connection to the dispatch queue that runs the body, not
+  only to its thread, so the scope must also stay on that queue. A block that
+  another queue runs on the body's thread throws `.scopeEscaped` too. A `sync`
+  call from inside the body onto a global queue or a serial queue runs its
+  block on the body's thread, and so does another database's access opened
+  from inside the body, such as a `withResultSet(_:)` body of a request on
+  another database. When the body runs on the main thread, main-queue work
+  that a run loop the body spins runs, including a main-actor task, is
+  refused the same way. Use the scope directly in the body, not from inside
+  another queue's block.
+
+  The queue check covers a database SwiftQL opens, with
+  `GRDBDatabase(url:...)` or ``GRDBDatabaseBuilder``: SwiftQL marks the queue
+  that runs its transaction bodies. A database that wraps a pool you opened
+  yourself, through the GRDB escape hatch above, is checked by thread only,
+  because SwiftQL did not configure that pool's queues. There, a block that
+  another queue runs on the body's thread passes the check, and GRDB stops
+  the process with "Database was not used on the correct thread". To get the
+  queue check for a GRDB `Configuration` of your own, open the database with
+  `GRDBDatabaseBuilder.init(url:grdbConfiguration:formatter:logger:liveQueryRetryPolicy:)`
+  instead of wrapping a pool.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

@@ -46,9 +46,10 @@ extension GRDBDatabase: XLTransactionalDatabase {
     /// original error — when `body` throws. See ``XLTransactionalDatabase``
     /// for the full ordering, atomicity, and lifetime contract.
     ///
-    /// Use the scope only on the thread that runs `body`: a statement run
-    /// through it, or through a request made from it, on another thread
-    /// throws ``XLTransactionScopeError/scopeEscaped``. A request made from
+    /// Use the scope only on the thread and dispatch queue that run `body`: a
+    /// statement run through it, or through a request made from it, on
+    /// another thread, or in a block that another queue runs on the body's
+    /// thread, throws ``XLTransactionScopeError/scopeEscaped``. A request made from
     /// the scope has no working `async` view: awaiting it throws
     /// `scopeEscaped`, wherever the request went. The scope is a
     /// `GRDBDatabase`, which is `Sendable`, so the compiler does not reject

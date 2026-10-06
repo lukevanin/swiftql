@@ -111,12 +111,13 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     /// A request, write request, or scope value created inside a
     /// ``XLTransactionalDatabase/withTransaction(_:)`` body was used after
     /// that body returned, or from a thread other than the one running the
-    /// body, such as from a task created in the body. After the body returns,
-    /// the connection is no longer pinned — the transaction already committed
-    /// or rolled back — so continuing would silently operate on a connection
-    /// reused for unrelated work. From another thread, the connection is still
-    /// in use by the body on its own thread, and GRDB does not allow it to be
-    /// shared.
+    /// body, such as from a task created in the body. `GRDBDatabase` also
+    /// throws it for a block that another dispatch queue runs on the body's
+    /// thread. After the body returns, the connection is no longer pinned —
+    /// the transaction already committed or rolled back — so continuing would
+    /// silently operate on a connection reused for unrelated work. From
+    /// another thread or queue, the connection is still in use by the body on
+    /// its own queue, and GRDB does not allow it to be shared.
     ///
     case scopeEscaped
 
@@ -146,7 +147,7 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     public var errorDescription: String? {
         switch self {
         case .scopeEscaped:
-            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned, or from another thread or task. Transaction-scoped values must not escape the closure's synchronous body."
+            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned, or from another thread, queue, or task. Transaction-scoped values must not escape the closure's synchronous body."
         case .nestedTransactionUnsupported:
             return "The original (root) database was used from inside a scope that already holds one of its connections: 'withTransaction(_:)' was called again inside a transaction body, the root database was used instead of the pinned scope value the body was given, or a second root read ran inside a result-set body. Nested transactions and savepoints are not supported; inside a transaction, use the scope value the body receives, and inside a result set, finish reading before the next root read."
         case .liveQueriesUnsupportedInTransaction:
