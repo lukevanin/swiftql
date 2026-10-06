@@ -187,7 +187,7 @@ let matches = try database.withTransaction { scope in
   packet a call on the database builds. See "Inside a transaction" under
   "Render-once caching" below.
 - **The scope rules do not change.** A scope used after its body returns, or
-  from another thread such as a task created in the body, throws
+  from another thread or queue, such as a task created in the body, throws
   `XLTransactionScopeError.scopeEscaped`; see <doc:AdvancedUsage>. The
   original database, called inside a body, and `execute(_:)`, called on a
   scope, still open a transaction of their own and throw
