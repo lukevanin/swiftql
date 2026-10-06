@@ -74,11 +74,13 @@ See [DialectParameterTypeCheckCost.md](../DialectParameterTypeCheckCost.md).
 `measure-shipped.sh <label>=<package-root> ...` type-checks the same bodies
 against real, already built copies of SwiftQL, such as the base branch and a
 branch that changes the query surface (issue #789). Besides the clause bodies
-above, it times one `Where` that joins 2 to 8 comparisons with `&&`, and the
+above, it times one `Where` that joins 2 to 16 comparisons with `&&`, and the
 error for a mistake in the last term of one.
 
 `measure-chains.sh` isolates the cost of that predicate. `chain_scaling.py`
 writes one stand-in library per operator shape, with SwiftQL's operator counts,
-and the script times a predicate of 4 to 16 comparisons against each.
+and the script times a predicate of 4 to 16 comparisons against each. The
+`dialect` shapes are the design #789 adopted: one expression protocol per
+dialect, with its own copy of the operators.
 
 See [the recorded result](../DialectParameterTypeCheckCost.md#re-measured-on-the-shipped-surface-one-predicate-of-joined-comparisons).

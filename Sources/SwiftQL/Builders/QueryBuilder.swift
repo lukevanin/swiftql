@@ -377,7 +377,7 @@ public struct QueryBuilder<Row> {
         var condition: (any XLExpression)?
         for term in whereTerms {
             if let current = condition {
-                condition = XLQueryBuilderTermJunction(op: term.op, lhs: current, rhs: term.condition)
+                condition = XLBinaryOperatorExpression<Bool>(op: term.op, lhs: current, rhs: term.condition)
             }
             else {
                 condition = term.condition
@@ -402,30 +402,5 @@ public struct QueryBuilder<Row> {
             statement.components.append(offset)
         }
         return AbstractXLQueryStatement(components: statement)
-    }
-}
-
-
-///
-/// Joins two terms of a ``QueryBuilder`` where clause.
-///
-/// The builder erases its terms, so they share no dialect type, and the
-/// junction carries none either. It renders what an
-/// ``XLBinaryOperatorExpression`` renders.
-///
-private struct XLQueryBuilderTermJunction: XLExpression {
-
-    typealias T = Bool
-
-    let op: String
-
-    let lhs: any XLEncodable
-
-    let rhs: any XLEncodable
-
-    func makeSQL(context: inout XLBuilder) {
-        context.parenthesis { context in
-            context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL)
-        }
     }
 }
