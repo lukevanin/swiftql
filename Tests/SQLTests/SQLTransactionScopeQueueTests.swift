@@ -20,10 +20,13 @@ import GRDB
 /// on the correct thread". For a database SwiftQL opens, every such use
 /// throws `scopeEscaped` instead (issue #816).
 ///
-/// Each test asserts that the other queue's block ran on the body's thread,
-/// so the refusal comes from the queue check and not from the thread check
-/// before it. Without the queue check, each of these tests stops the process
-/// in GRDB.
+/// Each test of a `sync` block asserts that the block ran on the body's
+/// thread, so the refusal comes from the queue check and not from the thread
+/// check before it. Without the queue check, the `sync` and run-loop tests
+/// stop the process in GRDB, and the other-database test fails its
+/// assertions because those statements run. The remaining tests check the
+/// configuration SwiftQL opens a pool with, and what the check leaves
+/// alone.
 final class SQLTransactionScopeQueueTests: XCTestCase {
 
     private var directory: URL!
@@ -249,8 +252,8 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
             DispatchQueue.getSpecific(key: callerKey)
         }
         XCTAssertEqual(callerQueueValue, "caller")
-        XCTAssertEqual(database.databasePool.configuration.writeQoS, .utility)
-        XCTAssertEqual(database.databasePool.configuration.readQoS, .utility)
+        XCTAssertEqual(database.databasePool.configuration.writeQoS, callerQueue.qos)
+        XCTAssertEqual(database.databasePool.configuration.readQoS, callerQueue.qos)
 
         try assertSyncBlockIsRefused(on: .global(), database: database)
     }
@@ -261,7 +264,8 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
         let url = databaseURL()
         try createTestTable(in: makeDatabase(url: url))
         let callerKey = DispatchSpecificKey<String>()
-        let database = try makeDatabase(targetedAt: makeCallerQueue(key: callerKey), readonly: true, url: url)
+        let callerQueue = makeCallerQueue(key: callerKey)
+        let database = try makeDatabase(targetedAt: callerQueue, readonly: true, url: url)
 
         let callerQueueValues = try database.withTransaction { _ in
             DispatchQueue.getSpecific(key: callerKey)
@@ -271,17 +275,25 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
             try database.databasePool.read { _ in DispatchQueue.getSpecific(key: callerKey) },
             "caller"
         )
-        XCTAssertEqual(database.databasePool.configuration.readQoS, .utility)
+        XCTAssertEqual(database.databasePool.configuration.readQoS, callerQueue.qos)
         XCTAssertEqual(try rows(in: database), [])
     }
 
     /// With no target queue configured, the pool's configuration reports the
     /// quality of service GRDB would have given its queues, which GRDB reads
     /// to schedule its readers and observations.
+    ///
+    /// The writer's now comes from the marked queue, so it is compared with
+    /// what Dispatch reports for a queue created with GRDB's default, which
+    /// on Darwin is that default itself.
     func testTheConfigurationKeepsGRDBsQualityOfService() throws {
         let database = try makeDatabase()
-        XCTAssertEqual(database.databasePool.configuration.writeQoS, Configuration().qos)
+        let reported = DispatchQueue(label: "probe", qos: Configuration().qos, attributes: .concurrent).qos
+        XCTAssertEqual(database.databasePool.configuration.writeQoS, reported)
         XCTAssertEqual(database.databasePool.configuration.readQoS, Configuration().qos)
+        #if canImport(Darwin)
+        XCTAssertEqual(reported, Configuration().qos)
+        #endif
     }
 
     /// GRDB allows the connection on another database's queue when that

@@ -97,7 +97,10 @@
     - To tell the body's queue from another, SwiftQL gives the pool it opens
       a target queue of its own: the writer's `writeTargetQueue`, or the
       `targetQueue` of a read-only pool. It targets the queue your GRDB
-      `Configuration` names, if any, so that queue still applies.
+      `Configuration` names, if any, so that queue still applies. Through
+      `@_spi(GRDB)`, `databasePool.configuration` now names SwiftQL's queue,
+      and a GRDB connection you open from it shares the check's mark; see
+      <doc:AdvancedUsage>.
     - A database that wraps a pool you opened yourself, through the
       `@_spi(GRDB)` `init(databasePool:...)` initialisers, has no such queue,
       so it checks only the thread. A block that another queue runs on the

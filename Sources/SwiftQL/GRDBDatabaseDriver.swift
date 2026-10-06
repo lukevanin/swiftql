@@ -473,9 +473,9 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
         // another queue runs on the body's own thread, such as a `sync` call
         // onto a global queue, or main-queue work run by a run loop that a
         // main-thread body spins (issue #816). Both throw instead. Without a
-        // mark, only the thread is checked: refusing every marked queue would
-        // also refuse one GRDB allows, a SwiftQL-opened pool's access opened
-        // from inside the body.
+        // mark, SwiftQL did not open the pool, so only the thread is checked,
+        // as the docs say; the queue check is the one SwiftQL can make for a
+        // pool it configured.
         guard let database,
               pthread_equal(thread, pthread_self()) != 0,
               queueMark == nil || GRDBTransactionQueueMark.current === queueMark
@@ -515,8 +515,11 @@ enum GRDBTransactionQueueMark {
     /// One pool's mark. Compared by identity.
     final class Token: Sendable {}
 
-    /// `DispatchSpecificKey` is not declared `Sendable`, but the key is only
-    /// ever passed to Dispatch, which synchronizes its own reads.
+    /// `DispatchSpecificKey` is `Sendable` on Darwin but not on every
+    /// platform; GRDB imports Dispatch `@preconcurrency` outside Darwin for
+    /// the same reason. A `nonisolated(unsafe)` static warns on Darwin, so
+    /// the key is held here instead. It is only ever passed to Dispatch,
+    /// which synchronizes its own reads.
     private struct Key: @unchecked Sendable {
         let key = DispatchSpecificKey<Token>()
     }
@@ -543,11 +546,12 @@ enum GRDBTransactionQueueMark {
     /// still serializes the connection. A serial one would serialize two
     /// connections opened from the same configuration, and libdispatch stops
     /// the process when one's access is opened from inside the other's,
-    /// because both `sync` calls need the same serial queue. It targets the queue `configuration`
-    /// already names, if any, so a caller's target queue keeps applying. It
-    /// carries that queue's quality of service, or with none the
-    /// configuration's own, because GRDB reads the target's to schedule its
-    /// readers and observations.
+    /// because both `sync` calls need the same serial queue.
+    ///
+    /// It targets the queue `configuration` already names, if any, so a
+    /// caller's target queue keeps applying. It carries that queue's quality
+    /// of service, or with none the configuration's own, because GRDB reads
+    /// the target's to schedule its readers and observations.
     ///
     static func marking(_ configuration: Configuration) -> Configuration {
         var configuration = configuration
