@@ -111,9 +111,9 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     /// A request, write request, or scope value created inside a
     /// ``XLTransactionalDatabase/withTransaction(_:)`` body was used after
     /// that body returned, or from a thread other than the one running the
-    /// body, such as from a task created in the body. `GRDBDatabase` also
-    /// throws it for a block that another dispatch queue runs on the body's
-    /// thread. After the body returns, the connection is no longer pinned —
+    /// body, such as from a task created in the body. A `GRDBDatabase` whose
+    /// pool SwiftQL opened also throws it for a block that another dispatch
+    /// queue runs on the body's thread. After the body returns, the connection is no longer pinned —
     /// the transaction already committed or rolled back — so continuing would
     /// silently operate on a connection reused for unrelated work. From
     /// another thread or queue, the connection is still in use by the body on

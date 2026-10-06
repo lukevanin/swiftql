@@ -529,44 +529,39 @@ enum GRDBTransactionQueueMark {
     /// Returns `configuration` with a marked target queue for the queue that
     /// runs transaction bodies: the writer's queue, or, for a read-only pool,
     /// whose writer is opened read-only and uses the readers' target, the
-    /// queue of every connection.
+    /// queue of every connection. In a read-only pool the readers therefore
+    /// share the writer's mark. SwiftQL never runs a scope's statement on one
+    /// of them, because a root read from the body's thread is rejected first,
+    /// so only a reader access opened directly through GRDB could pass.
     ///
     /// The marked queue is concurrent, as GRDB asks of a pool's target queue,
     /// so it adds no ordering of its own: GRDB's own serial queue under it
     /// still serializes the connection. It targets the queue `configuration`
-    /// already names, if any, so a caller's target queue keeps applying. With
-    /// none, it carries the quality of service GRDB would have given the
-    /// queue itself.
+    /// already names, if any, so a caller's target queue keeps applying. It
+    /// carries that queue's quality of service, or with none the
+    /// configuration's own, because GRDB reads the target's to schedule its
+    /// readers and observations.
     ///
     static func marking(_ configuration: Configuration) -> Configuration {
         var configuration = configuration
         let label = (configuration.label ?? "GRDB.DatabasePool") + ".swiftql"
-        let queue: DispatchQueue
+        let target = configuration.readonly
+            ? configuration.targetQueue
+            : configuration.writeTargetQueue ?? configuration.targetQueue
+        let queue = DispatchQueue(
+            label: configuration.readonly ? label : label + ".writer",
+            qos: target?.qos ?? configuration.qos,
+            attributes: .concurrent,
+            target: target
+        )
+        queue.setSpecific(key: storage.key, value: Token())
         if configuration.readonly {
-            queue = makeQueue(label: label, target: configuration.targetQueue, qos: configuration.qos)
             configuration.targetQueue = queue
         }
         else {
-            queue = makeQueue(
-                label: label + ".writer",
-                target: configuration.writeTargetQueue ?? configuration.targetQueue,
-                qos: configuration.qos
-            )
             configuration.writeTargetQueue = queue
         }
-        queue.setSpecific(key: storage.key, value: Token())
         return configuration
-    }
-
-    private static func makeQueue(
-        label: String,
-        target: DispatchQueue?,
-        qos: DispatchQoS
-    ) -> DispatchQueue {
-        if let target {
-            return DispatchQueue(label: label, attributes: .concurrent, target: target)
-        }
-        return DispatchQueue(label: label, qos: qos, attributes: .concurrent)
     }
 }
 

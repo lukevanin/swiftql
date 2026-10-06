@@ -390,13 +390,13 @@ thread rule below describes it.
   GRDB confines the connection to the dispatch queue that runs the body, not
   only to its thread, so the scope must also stay on that queue. A block that
   another queue runs on the body's thread throws `.scopeEscaped` too. A `sync`
-  call from inside the body onto a global queue or a serial queue runs its
-  block on the body's thread, and so does another database's access opened
-  from inside the body, such as a `withResultSet(_:)` body of a request on
-  another database. When the body runs on the main thread, main-queue work
-  that a run loop the body spins runs, including a main-actor task, is
-  refused the same way. Use the scope directly in the body, not from inside
-  another queue's block.
+  call from inside the body onto a global queue, or onto a serial queue that
+  does not target the main queue, runs its block on the body's thread, and so
+  does another database's access opened from inside the body, such as a
+  `withResultSet(_:)` body of a request on another database. When the body
+  runs on the main thread, main-queue work that a run loop the body spins
+  runs, including a main-actor task, is refused the same way. Use the scope
+  directly in the body, not from inside another queue's block.
 
   The queue check covers a database SwiftQL opens, with
   `GRDBDatabase(url:...)` or ``GRDBDatabaseBuilder``: SwiftQL marks the queue

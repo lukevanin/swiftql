@@ -204,28 +204,71 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
         }
     }
 
-    /// The queue SwiftQL marks targets a target queue the caller set in a
-    /// GRDB configuration, so that queue keeps applying, and the scope is
-    /// still refused on another queue.
-    func testACallersTargetQueueStillAppliesAndTheScopeIsStillRefusedOnAnotherQueue() throws {
-        let callerKey = DispatchSpecificKey<String>()
-        let callerQueue = DispatchQueue(label: "SQLTransactionScopeQueueTests.caller", attributes: .concurrent)
-        callerQueue.setSpecific(key: callerKey, value: "caller")
+    /// Opens a database through the GRDB escape hatch's builder, with a
+    /// target queue of the caller's own that has a quality of service other
+    /// than GRDB's default.
+    private func makeDatabase(
+        targetedAt callerQueue: DispatchQueue,
+        readonly: Bool = false,
+        url: URL? = nil
+    ) throws -> GRDBDatabase {
         var configuration = Configuration()
+        configuration.readonly = readonly
         configuration.targetQueue = callerQueue
-        let database = try GRDBDatabaseBuilder(url: databaseURL(), grdbConfiguration: configuration, logger: nil)
-            .build()
+        let database = try GRDBDatabaseBuilder(
+            url: url ?? databaseURL(),
+            grdbConfiguration: configuration,
+            formatter: XLiteFormatter(identifierFormattingOptions: .mysqlCompatible),
+            logger: nil
+        ).build()
         addTeardownBlock {
             try? database.databasePool.close()
         }
+        return database
+    }
+
+    private func makeCallerQueue(key: DispatchSpecificKey<String>) -> DispatchQueue {
+        let callerQueue = DispatchQueue(
+            label: "SQLTransactionScopeQueueTests.caller",
+            qos: .utility,
+            attributes: .concurrent
+        )
+        callerQueue.setSpecific(key: key, value: "caller")
+        return callerQueue
+    }
+
+    /// The queue SwiftQL marks targets a target queue the caller set in a
+    /// GRDB configuration, so that queue keeps applying, with its quality of
+    /// service, and the scope is still refused on another queue.
+    func testACallersTargetQueueStillAppliesAndTheScopeIsStillRefusedOnAnotherQueue() throws {
+        let callerKey = DispatchSpecificKey<String>()
+        let callerQueue = makeCallerQueue(key: callerKey)
+        let database = try makeDatabase(targetedAt: callerQueue)
 
         let callerQueueValue = try database.withTransaction { _ in
             DispatchQueue.getSpecific(key: callerKey)
         }
         XCTAssertEqual(callerQueueValue, "caller")
-        XCTAssertEqual(database.databasePool.configuration.writeQoS, callerQueue.qos)
+        XCTAssertEqual(database.databasePool.configuration.writeQoS, .utility)
+        XCTAssertEqual(database.databasePool.configuration.readQoS, .utility)
 
         try assertSyncBlockIsRefused(on: .global(), database: database)
+    }
+
+    /// A read-only pool's marked queue is its readers' target too, so they
+    /// keep the caller's queue and its quality of service.
+    func testAReadOnlyDatabaseKeepsACallersTargetQueue() throws {
+        let url = databaseURL()
+        try createTestTable(in: makeDatabase(url: url))
+        let callerKey = DispatchSpecificKey<String>()
+        let database = try makeDatabase(targetedAt: makeCallerQueue(key: callerKey), readonly: true, url: url)
+
+        let callerQueueValues = try database.withTransaction { _ in
+            DispatchQueue.getSpecific(key: callerKey)
+        }
+        XCTAssertEqual(callerQueueValues, "caller")
+        XCTAssertEqual(database.databasePool.configuration.readQoS, .utility)
+        XCTAssertEqual(try rows(in: database), [])
     }
 
     /// With no target queue configured, the writer keeps the quality of
