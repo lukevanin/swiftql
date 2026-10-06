@@ -65,6 +65,12 @@ writes those overloads. They are the cost the measurement reports.
   prints the first error of each one, or says the surface accepted the
   mistake.
 
+Since issue #789 the operators are generated per dialect, so `generate.py`
+no longer finds them in `Sources/SwiftQL/Operators` and stops with a message.
+To reproduce the record, run `measure.sh` from a checkout of `version/2.0`
+at `52c3d256`. `measure-shipped.sh` and `measure-chains.sh` measure the
+current surface.
+
 ## The recorded result
 
 See [DialectParameterTypeCheckCost.md](../DialectParameterTypeCheckCost.md).
