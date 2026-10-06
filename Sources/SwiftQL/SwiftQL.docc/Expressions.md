@@ -735,6 +735,7 @@ A function that only SQLite has, such as `collate(_:)`, `regexp(_:)`,
 declared only on `XLSQLiteExpression`. Calling one on a column of a model
 declared for another dialect, or on an expression composed from one, or
 comparing that column with a SQLite column, is a compile error at the call
-site. A clause such as `Where` takes any expression, so it does not check the
-dialect of an expression built from Swift values alone, such as
-`"a".regexp("b")`.
+site. A clause such as `Where` or `From` takes any expression or table, so it
+does not check the dialect of an expression built from Swift values alone,
+such as `"a".regexp("b")`, or of a column or table taken from another
+dialect's schema and passed to it directly.

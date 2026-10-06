@@ -344,10 +344,15 @@
   declared for one dialect, and its columns compose only with that dialect's
   expressions, so an operation one dialect does not have is a compile error at
   the call site on another dialect's columns and the expressions composed from
-  them. A clause such as `Where` takes any expression, so an expression built
-  from Swift values alone is not checked against the query's dialect, and
-  neither is a statement: `sql(dialect:_:)` returns the same statement type as
-  `sql(_:)`. A SQLite model, query, and value
+  them. The check is in the expressions, not in the statement: a clause such
+  as `Where`, `From`, or a join takes any expression or table, so an
+  expression built from Swift values alone, or a column or table taken from
+  another dialect's schema and passed to a clause directly, is not checked
+  against the query's dialect, and `sql(dialect:_:)` returns the same
+  statement type as `sql(_:)`. The schema-less scalar subquery functions,
+  `subquery { ... }` and `subqueryExpression { ... }` with a closure that
+  takes no schema, are SQLite's; another dialect writes
+  `schema.subquery { ... }`. A SQLite model, query, and value
   are written as before; what changes is code that names SwiftQL's expression
   types.
   - Each dialect has its own expression protocol, and SQLite's is

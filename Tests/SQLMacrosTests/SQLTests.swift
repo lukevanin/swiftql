@@ -770,6 +770,45 @@ final class SQLMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    // A type declared under `#if` is a member in some configuration, and a
+    // typealias takes the associated type's place as a nested type does.
+    func test_nestedDialectTypeUnderIfConfigOrTypealias_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct Phrase {
+                #if DEBUG
+                struct Dialect {}
+                #endif
+                typealias Dialect = String
+                var id: Int
+            }
+            """,
+            expandedSource: """
+            struct Phrase {
+                #if DEBUG
+                struct Dialect {}
+                #endif
+                typealias Dialect = String
+                var id: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "A nested type named 'Dialect' conflicts with the dialect the macro gives the model. Rename the type, or declare it outside the model.",
+                    line: 4,
+                    column: 12
+                ),
+                DiagnosticSpec(
+                    message: "A nested type named 'Dialect' conflicts with the dialect the macro gives the model. Rename the type, or declare it outside the model.",
+                    line: 6,
+                    column: 15
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
     // Issue #789: every metadata type names its dialect as `_dialect`.
     func test_dialectWitnessPropertyName_emitsError() {
         assertMacroExpansion(

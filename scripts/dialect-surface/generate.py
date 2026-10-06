@@ -35,10 +35,14 @@ did not reach stops the generator, so a template written in a form they do
 not recognise fails loudly instead of generating the wrong access or an
 ambiguous overload.
 
-Run with no arguments to write the generated files. `--check` writes nothing,
-and exits with status 1 and a list of the files that differ when any
-generated file is missing, stale, or no longer generated, so CI catches a
-template changed without regenerating.
+dialects.json is checked too: a key the generator does not know, or a value
+it does not accept, stops it rather than falling back to a default.
+
+Run with no arguments to write the generated files, and to delete a file
+that says this generator wrote it but that nothing generates any more, such
+as a removed dialect's. `--check` writes nothing, and exits with status 1 and
+a list of the files that differ when any generated file is missing, stale, or
+no longer generated, so CI catches a template changed without regenerating.
 """
 
 from __future__ import annotations
@@ -151,22 +155,42 @@ def check_disfavoured(template: Path, body: str) -> None:
             raise SystemExit(f"{relative(template)}: line {number + 1} is not disfavoured: {line.strip()}")
 
 
+REQUIRED_KEYS = ("Expression", "Dialect", "DialectName", "filePrefix", "output")
+OPTIONAL_KEYS = ("access", "disfavored", "imports")
+ACCESS_LEVELS = ("public", "internal")
+# The roots searched for a generated file that no dialect generates any more,
+# such as the output of a dialect removed from dialects.json.
+GENERATED_ROOTS = ("Sources", "Tests")
+GENERATED_MARKER = f"by {GENERATOR.relative_to(SOURCE_ROOT).as_posix()}\n"
+
+
 def load_dialects() -> List[Dict[str, str]]:
+    """Reads dialects.json, refusing a key or value the generator does not use,
+    so a misspelled option fails rather than silently taking its default."""
     dialects = json.loads(SPECIFICATION.read_text())["dialects"]
-    required = ("Expression", "Dialect", "DialectName", "filePrefix", "output")
     for dialect in dialects:
-        missing = [key for key in required if key not in dialect]
+        name = dialect.get("DialectName", "a dialect")
+        missing = [key for key in REQUIRED_KEYS if key not in dialect]
         if missing:
-            raise SystemExit(f"{relative(SPECIFICATION)}: a dialect lacks {', '.join(missing)}")
+            raise SystemExit(f"{relative(SPECIFICATION)}: {name} lacks {', '.join(missing)}")
+        unknown = [key for key in dialect if key not in REQUIRED_KEYS + OPTIONAL_KEYS]
+        if unknown:
+            raise SystemExit(f"{relative(SPECIFICATION)}: {name} has unknown keys {', '.join(unknown)}")
+        if dialect.get("access", "public") not in ACCESS_LEVELS:
+            raise SystemExit(f"{relative(SPECIFICATION)}: {name}'s access must be one of {', '.join(ACCESS_LEVELS)}")
+        if not isinstance(dialect.get("disfavored", False), bool):
+            raise SystemExit(f"{relative(SPECIFICATION)}: {name}'s disfavored must be true or false")
+        if not isinstance(dialect.get("imports", []), list):
+            raise SystemExit(f"{relative(SPECIFICATION)}: {name}'s imports must be a list")
     return dialects
 
 
-def expected_files() -> Dict[Path, str]:
+def expected_files(dialects: List[Dict[str, str]]) -> Dict[Path, str]:
     templates = sorted(TEMPLATE_DIRECTORY.glob("*" + TEMPLATE_SUFFIX))
     if not templates:
         raise SystemExit(f"no templates in {relative(TEMPLATE_DIRECTORY)}")
     files: Dict[Path, str] = {}
-    for dialect in load_dialects():
+    for dialect in dialects:
         output = SOURCE_ROOT / dialect["output"]
         for template in templates:
             name = dialect["filePrefix"] + template.name[:-len(TEMPLATE_SUFFIX)] + ".swift"
@@ -174,8 +198,23 @@ def expected_files() -> Dict[Path, str]:
     return files
 
 
-def output_directories() -> List[Path]:
-    return [SOURCE_ROOT / dialect["output"] for dialect in load_dialects()]
+def generated_files_on_disk(dialects: List[Dict[str, str]]) -> List[Path]:
+    """Every Swift file in a dialect's output directory, and every Swift file
+    under Sources or Tests whose header says this generator wrote it."""
+    found = set()
+    for dialect in dialects:
+        directory = SOURCE_ROOT / dialect["output"]
+        if directory.is_dir():
+            found.update(directory.glob("*.swift"))
+    for root in GENERATED_ROOTS:
+        for path in (SOURCE_ROOT / root).rglob("*.swift"):
+            if ".build" in path.parts:
+                continue
+            with path.open() as handle:
+                header = "".join(handle.readline() for _ in range(5))
+            if GENERATED_MARKER in header:
+                found.add(path)
+    return sorted(found)
 
 
 def main() -> int:
@@ -187,14 +226,9 @@ def main() -> int:
     )
     arguments = parser.parse_args()
 
-    files = expected_files()
-    extra = [
-        path
-        for directory in output_directories()
-        if directory.is_dir()
-        for path in sorted(directory.glob("*.swift"))
-        if path not in files
-    ]
+    dialects = load_dialects()
+    files = expected_files(dialects)
+    extra = [path for path in generated_files_on_disk(dialects) if path not in files]
     stale = [
         path
         for path, contents in files.items()

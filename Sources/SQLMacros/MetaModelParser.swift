@@ -105,26 +105,23 @@ internal enum MetaModelParser {
         _ declaration: DeclSyntax,
         diagnostics: inout MacroDiagnosticCollector
     ) {
-        let name: TokenSyntax?
-        if let nested = declaration.as(StructDeclSyntax.self) {
-            name = nested.name
+        // A declaration inside `#if` is a member in some configuration.
+        if let conditional = declaration.as(IfConfigDeclSyntax.self) {
+            for clause in conditional.clauses {
+                guard case .decls(let members)? = clause.elements else {
+                    continue
+                }
+                for member in members {
+                    reportNestedDialectType(member.decl, diagnostics: &diagnostics)
+                }
+            }
+            return
         }
-        else if let nested = declaration.as(EnumDeclSyntax.self) {
-            name = nested.name
-        }
-        else if let nested = declaration.as(ClassDeclSyntax.self) {
-            name = nested.name
-        }
-        else if let nested = declaration.as(ActorDeclSyntax.self) {
-            name = nested.name
-        }
-        else if let nested = declaration.as(TypeAliasDeclSyntax.self) {
-            name = nested.name
-        }
-        else {
-            name = nil
-        }
-        guard let name, name.text == "Dialect" else {
+        // Every named declaration here but a function declares a type, such
+        // as a nested structure, enumeration, or type alias.
+        guard !declaration.is(FunctionDeclSyntax.self),
+              let name = declaration.asProtocol(NamedDeclSyntax.self)?.name,
+              name.text == "Dialect" else {
             return
         }
         diagnostics.report(

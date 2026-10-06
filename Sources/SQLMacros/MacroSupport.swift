@@ -142,7 +142,8 @@ internal enum MacroDialectArgument {
 
     ///
     /// Returns the dialect type the attribute names, as source text, or
-    /// ``defaultDialectType`` when the argument is absent.
+    /// `defaultDialectType` when the argument is absent: by default
+    /// ``defaultDialectType``, and ``defaultModelDialectType`` for a model.
     ///
     /// The macro declaration types the argument as `Dialect.Type`, so the
     /// compiler has already checked that it names a dialect. The macro still
@@ -157,7 +158,7 @@ internal enum MacroDialectArgument {
     /// and the compiler reports it there.
     ///
     /// A reported argument is returned as a diagnostic, with
-    /// ``defaultDialectType`` in its place, rather than thrown: the caller adds
+    /// `defaultDialectType` in its place, rather than thrown: the caller adds
     /// it to the diagnostics it collects from the rest of the declaration, so
     /// one compile reports every problem.
     ///

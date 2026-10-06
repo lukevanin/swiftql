@@ -303,7 +303,7 @@ final class SQLFunctionMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Property 'value' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'Int'.",
+                    message: "Property 'value' must be typed as 'any XLExpression<...>' or 'any XLSQLiteExpression<...>' (or the 'some' form of either) to be used as a function argument. Found 'Int'.",
                     line: 3,
                     column: 16
                 )
@@ -479,12 +479,12 @@ final class SQLFunctionMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Property 'a' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'Int'.",
+                    message: "Property 'a' must be typed as 'any XLExpression<...>' or 'any XLSQLiteExpression<...>' (or the 'some' form of either) to be used as a function argument. Found 'Int'.",
                     line: 3,
                     column: 12
                 ),
                 DiagnosticSpec(
-                    message: "Property 'c' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found 'String'.",
+                    message: "Property 'c' must be typed as 'any XLExpression<...>' or 'any XLSQLiteExpression<...>' (or the 'some' form of either) to be used as a function argument. Found 'String'.",
                     line: 5,
                     column: 12
                 ),

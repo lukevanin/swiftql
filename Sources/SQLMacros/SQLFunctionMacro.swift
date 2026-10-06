@@ -180,7 +180,7 @@ internal struct FunctionMetaBuilder {
             guard isExpressionType(annotation.type) else {
                 report(
                     annotation.type, id: "unsupported-argument-type",
-                    "Property '\(name)' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
+                    "Property '\(name)' must be typed as 'any XLExpression<...>' or 'any XLSQLiteExpression<...>' (or the 'some' form of either) to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
                 )
                 continue
             }
