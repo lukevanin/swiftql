@@ -109,6 +109,28 @@ public protocol XLDatabaseDriverConnection {
     @discardableResult
     mutating func execute(_ statement: PhysicalStatement) throws -> XLExecutionResult
 
+    /// Tells the connection that SwiftQL is done with a statement it
+    /// prepared (issue #677).
+    ///
+    /// SwiftQL's requests, result sets, prepared invocations, and batch
+    /// inserts call this once for every statement they prepare, on the
+    /// connection access that prepared it, after the statement's last run,
+    /// and also when binding or running it threw. The statement is not used
+    /// again. A connection that caches statements returns it to its cache,
+    /// reset, or discards it if it cannot reset it; a connection that does
+    /// not cache releases it. Finalizing cannot fail: an error the statement
+    /// has left to report was reported by the run that met it.
+    ///
+    /// Code outside SwiftQL that calls ``prepare(_:)`` may never call this,
+    /// so a connection must still release a statement that is never
+    /// finalized, at the latest when the access that prepared it ends. The
+    /// driver lends each access, so it knows when one ends, and can release
+    /// or return to its cache every statement still unfinalized then.
+    ///
+    /// The default implementation does nothing, which is correct for a
+    /// connection that releases a statement when its last reference goes.
+    mutating func finalizePhysical(_ statement: PhysicalStatement)
+
     /// Makes each function a statement calls available on this connection
     /// before the statement is prepared (issue #683).
     ///

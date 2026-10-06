@@ -833,6 +833,14 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         }
     }
 
+    // The connection keeps the default `finalizePhysical(_:)`, which does
+    // nothing (issue #677). GRDB owns the statements in its cache, and
+    // releases a statement prepared outside it when its last reference goes.
+    // GRDB also keeps its cache to itself: it counts nothing, and it clears
+    // the cache on its own when a statement changes the schema or a pooled
+    // reader sees a new schema version. So this connection does not conform
+    // to `XLStatementCachingDriverConnection`.
+
     ///
     /// Runs `body`, reporting a GRDB `DatabaseError` it throws as an
     /// `XLDatabaseError` from this connection's driver (issue #679).

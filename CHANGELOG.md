@@ -325,6 +325,16 @@
   - `XLStaticRowLayoutError.unsupportedSQLiteStorage` and
     `XLQueryCaptureError.unsupportedLiteralStorage` keep their names, and
     their messages no longer say SQLite.
+- **`XLDatabaseDriverConnection` has a new requirement, with a default**
+  (issue #677), so a connection outside SwiftQL keeps compiling. See "A
+  connection's statement cache can be observed and warmed" under "Added".
+  - `finalizePhysical(_:)` tells the connection SwiftQL is done with a
+    statement. Its default does nothing.
+  - SwiftQL's requests, result sets, prepared invocations, and batch
+    inserts now finalize every statement they prepare, on the connection
+    access that prepared it, including when binding or running it throws.
+  - A connection that already declared a method with this signature now
+    provides the requirement, and SwiftQL calls it.
 
 ### Added
 
@@ -376,6 +386,29 @@
     A `@SQLQueries` container supplies its dialect to every specification.
     SwiftQL's requests are SQLite's, so a declared query that names another
     dialect does not compile until a driver for that dialect exists.
+
+- **A connection's statement cache can be observed and warmed** (issue
+  #677). A driver does not have to cache statements; one that does can let
+  SwiftQL see and steer its cache.
+  - `XLStatementCachingDriverConnection`, in SwiftQLCore, is an optional
+    refinement of `XLDatabaseDriverConnection`. Its
+    `statementCacheStatistics` reports an `XLStatementCacheStatistics`: the
+    cache's hits, misses, evictions, invalidations, and the statements it
+    holds. Its `invalidatePreparedStatements()` discards every cached
+    statement after a schema change the connection cannot see itself, such
+    as one made through another connection; a statement in use finishes its
+    run and is not cached again. Its `resetPhysical(_:)` returns a statement
+    that has run to its prepared state, for a caller that runs one cached
+    statement more than once.
+  - `warmUp(_:)` prepares each statement of a manifest of logical statements
+    without running it. Its default prepares each one as a request does,
+    with `prepare(_:)`, then finalizes it, so it stays in the cache;
+    a connection can implement it to prepare in bulk. A warmed statement's
+    first run is a cache hit. It warms one connection; warming every
+    connection of a pool is the driver's to arrange.
+  - The GRDB connection does not conform. GRDB keeps its statement cache
+    private, counts nothing, and clears the cache itself when a statement
+    changes the schema.
 
 - **Requests run on any driver** (issue #682). `XLDriverDatabase<Driver>` is a
   public database over any driver that implements SwiftQL's driver contract,

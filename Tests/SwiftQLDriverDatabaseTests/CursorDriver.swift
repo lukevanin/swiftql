@@ -24,6 +24,8 @@ final class CursorLog: @unchecked Sendable {
 
     private var log: [String] = []
 
+    private var lifecycleLog: [String] = []
+
     /// The rows every query returns from now on.
     var rows: [[XLSQLiteValue]] {
         get { locked { scriptedRows } }
@@ -39,6 +41,17 @@ final class CursorLog: @unchecked Sendable {
 
     func record(_ event: String) {
         locked { log.append(event) }
+    }
+
+    /// Each statement's lifecycle so far, in order (issue #677): `prepare`,
+    /// `step 0` for each row the cursor steps, and `finalize`. Kept apart
+    /// from ``events`` so the row-read tests see only steps and reads.
+    var lifecycle: [String] {
+        locked { lifecycleLog }
+    }
+
+    func recordLifecycle(_ event: String) {
+        locked { lifecycleLog.append(event) }
     }
 
     func reset() {
@@ -102,7 +115,8 @@ struct CursorConnection: XLDatabaseDriverConnection {
     mutating func preparePhysical(
         _ statement: XLValidatedLogicalPreparedStatement
     ) throws -> String {
-        statement.logicalStatement.sql
+        log.recordLifecycle("prepare")
+        return statement.logicalStatement.sql
     }
 
     mutating func bind(
@@ -126,12 +140,17 @@ struct CursorConnection: XLDatabaseDriverConnection {
         XLExecutionResult(rowsAffected: 0, access: .write)
     }
 
+    mutating func finalizePhysical(_ statement: String) {
+        log.recordLifecycle("finalize")
+    }
+
     mutating func forEachRowHandle(
         _ statement: String,
         _ body: (CursorRowHandle) throws -> XLRowStreamControl
     ) throws {
         for (index, row) in log.rows.enumerated() {
             log.record("step \(index)")
+            log.recordLifecycle("step \(index)")
             if try body(CursorRowHandle(rowIndex: index, row: row, log: log)) == .stop {
                 return
             }
@@ -152,6 +171,7 @@ struct CursorConnection: XLDatabaseDriverConnection {
             let index = nextIndex
             nextIndex += 1
             log.record("step \(index)")
+            log.recordLifecycle("step \(index)")
             return CursorRowHandle(rowIndex: index, row: rows[index], log: log)
         }
     }

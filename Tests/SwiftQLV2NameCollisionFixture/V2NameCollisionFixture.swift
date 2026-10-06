@@ -291,6 +291,8 @@ enum V2NameCollisionFixture {
     typealias Check_Separator = Separator
     typealias Check_SimpleSelectQueryStatement = SimpleSelectQueryStatement
     typealias Check_StatementAccess = StatementAccess
+    typealias Check_StatementCacheStatistics = StatementCacheStatistics
+    typealias Check_StatementCachingDriverConnection = StatementCachingDriverConnection
     typealias Check_StaticColumnReader = StaticColumnReader
     typealias Check_StaticFieldGroup = StaticFieldGroup
     typealias Check_StaticQueryDescriptor = StaticQueryDescriptor

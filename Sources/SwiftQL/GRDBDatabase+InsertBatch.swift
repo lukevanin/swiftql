@@ -222,8 +222,14 @@ where
         let executor = template.executor
         let layout = executor.parameterLayout
         // Prepared once for this call, on this connection. It is a local value,
-        // so it cannot outlive the connection access the caller holds.
+        // so it cannot outlive the connection access the caller holds. It is
+        // finalized when the batch ends, however it ends (issue #677). It is
+        // not reset between rows: `executeBatchRow` binds every value by
+        // position, and GRDB resets the SQLite statement before each run.
         let statement = try connection.prepare(executor.logicalStatement)
+        defer {
+            connection.finalizePhysical(statement)
+        }
         let capture = XLInsertValueRecorder(expectedShape: template.shape)
         var isFirstRow = true
         var next: Row? = first

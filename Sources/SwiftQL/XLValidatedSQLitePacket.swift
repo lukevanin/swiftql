@@ -6,8 +6,8 @@
 //  about to be bound to (issue #561).
 //
 //  Validation used to be a step anyone could skip and anyone could repeat, and
-//  it was repeated: an execution validated its packet, then handed it to
-//  `boundStatement`, which validated it again -- two or three full passes over
+//  it was repeated: an execution validated its packet, then handed it to the
+//  binding step, which validated it again -- two or three full passes over
 //  every binding per call. Making the result a distinct type that only
 //  validation can produce turns "already validated" into something the compiler
 //  knows, so a second pass is not merely unnecessary but unrepresentable.
@@ -41,7 +41,7 @@ struct XLValidatedSQLitePacket {
     /// Checks `bindings` against `layout` and keeps the result.
     ///
     /// This is the only way to make one, and it cannot be handed something it
-    /// has not checked -- which is what lets `boundStatement` execute a packet
+    /// has not checked -- which is what lets `withBoundStatement` execute a packet
     /// without validating it again.
     ///
     /// - Parameter requestType: Named in the mismatch error, so the message

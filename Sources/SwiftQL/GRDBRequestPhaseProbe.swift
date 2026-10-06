@@ -156,7 +156,12 @@ package final class GRDBRequestPhaseConnection {
     /// binds the validated values, and validates GRDB's arguments.
     package func bind() throws -> GRDBRequestPhaseStatement {
         let packet = try executor.sqlitePacket(bindings.packet())
-        let statement = try executor.boundStatement(packet: packet, in: &connection)
+        // The probe is a benchmark harness, not a request, and its statement
+        // lives across the phases of one sample. The GRDB connection
+        // finalizes nothing, so the probe does not call `finalizePhysical(_:)`
+        // (issue #677).
+        var statement = try connection.prepare(executor.logicalStatement)
+        try executor.bind(packet: packet, to: &statement, in: &connection)
         return GRDBRequestPhaseStatement(
             physicalStatement: statement,
             bindingCount: packet.bindings.count
