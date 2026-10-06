@@ -55,7 +55,7 @@ extension XLSchema {
     ///
     /// Constructs a select query for a From expression in an Update statement.
     ///
-    public func fromExpression<T>(as alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable, T.Dialect == Dialect {
+    public func fromExpression<T>(as alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLUpdateFromTableDependency(alias: alias, statement: statement(schema))

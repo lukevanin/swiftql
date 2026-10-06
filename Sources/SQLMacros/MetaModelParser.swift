@@ -53,7 +53,6 @@ internal enum MetaModelParser {
         // Collect the properties from the struct definition.
         let properties = collectProperties(
             declaration: declaration,
-            dialectType: dialect.dialectType,
             diagnostics: &diagnostics
         )
 
@@ -79,12 +78,10 @@ internal enum MetaModelParser {
     ///
     private static func collectProperties(
         declaration: StructDeclSyntax,
-        dialectType: String,
         diagnostics: inout MacroDiagnosticCollector
     ) -> [MetaProperty] {
         var properties: [MetaProperty] = []
         for member in declaration.memberBlock.members {
-            reportNestedDialectType(member.decl, dialectType: dialectType, diagnostics: &diagnostics)
             // Members which are not variable declarations (methods, initializers, nested types,
             // subscripts) are never columns.
             guard let variable = member.decl.as(VariableDeclSyntax.self) else {
@@ -93,59 +90,6 @@ internal enum MetaModelParser {
             properties.append(contentsOf: collectProperties(variable: variable, diagnostics: &diagnostics))
         }
         return properties
-    }
-
-    ///
-    /// Reports a nested type named `Dialect` (issue #789).
-    ///
-    /// `XLResult` and the metadata protocols have an associated type
-    /// `Dialect`, which the generated `_dialect` member names. A nested type of
-    /// that name is taken as the associated type instead, and the conformance
-    /// fails with an error that does not point here, so the macro reports it.
-    /// A typealias that names the model's own dialect agrees with `_dialect`,
-    /// so it is allowed. A type declared in an extension of the model is
-    /// outside what the macro can see.
-    ///
-    private static func reportNestedDialectType(
-        _ declaration: DeclSyntax,
-        dialectType: String,
-        diagnostics: inout MacroDiagnosticCollector
-    ) {
-        // A declaration inside `#if` is a member in some configuration.
-        if let conditional = declaration.as(IfConfigDeclSyntax.self) {
-            for clause in conditional.clauses {
-                guard case .decls(let members)? = clause.elements else {
-                    continue
-                }
-                for member in members {
-                    reportNestedDialectType(member.decl, dialectType: dialectType, diagnostics: &diagnostics)
-                }
-            }
-            return
-        }
-        if let alias = declaration.as(TypeAliasDeclSyntax.self),
-           unqualified(alias.initializer.value.trimmedDescription) == unqualified(dialectType) {
-            return
-        }
-        // Every named declaration here but a function declares a type, such
-        // as a nested structure, enumeration, or type alias.
-        guard !declaration.is(FunctionDeclSyntax.self),
-              let name = declaration.asProtocol(NamedDeclSyntax.self)?.name,
-              name.text == "Dialect" else {
-            return
-        }
-        diagnostics.report(
-            name, id: "nested-dialect-type",
-            "A nested type named 'Dialect' conflicts with the dialect the macro gives the model. Rename the type, or declare it outside the model."
-        )
-    }
-
-    /// A dialect's spelling without its qualification, so `XLSQLiteDialect`
-    /// and `SwiftQL.XLSQLiteDialect` compare equal. Two types of the same name
-    /// in different modules compare equal too; the compiler reports that one,
-    /// at the conformance.
-    private static func unqualified(_ type: String) -> String {
-        String(type.split(separator: ".").last ?? Substring(type))
     }
 
     ///

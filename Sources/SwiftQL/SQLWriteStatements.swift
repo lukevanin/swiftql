@@ -105,7 +105,7 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
     /// `INSERT OR` is SQLite's own, so the table must be a SQLite table
     /// (issue #789).
     ///
-    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row, T.Dialect == XLSQLiteDialect {
+    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
         self.init(table: meta._dependency, target: .insertOr(action))
     }
 
@@ -127,7 +127,7 @@ public struct Replace<Row>: XLEncodable, XLRowWritable {
 
     internal let insert: Insert<Row>
 
-    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.Dialect == XLSQLiteDialect {
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
         self.insert = Insert(table: meta._dependency, target: .replace)
     }
 
@@ -324,7 +324,7 @@ public struct As<Table> {
     ///
     /// Populates a SQLite table from a query.
     ///
-    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLQueryStatement<Table>) where Table: XLTable, Table.Dialect == XLSQLiteDialect {
+    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLQueryStatement<Table>) where Table: XLTable, Table.XLModelDialect == XLSQLiteDialect {
         let schema = XLSchema()
         self.queryStatement = builder(schema)
     }
@@ -337,7 +337,7 @@ public struct As<Table> {
     /// the table's own dialect cannot do inside a result builder (issue
     /// #789).
     ///
-    public init<Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> some XLQueryStatement<Table>) where Table: XLTable, Table.Dialect == Dialect {
+    public init<Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> some XLQueryStatement<Table>) where Table: XLTable, Table.XLModelDialect == Dialect {
         let schema = XLSchema(dialect: dialect)
         self.queryStatement = builder(schema)
     }

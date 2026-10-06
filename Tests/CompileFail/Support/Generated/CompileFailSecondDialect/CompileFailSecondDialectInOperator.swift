@@ -99,7 +99,7 @@ extension CompileFailSecondDialectExpression {
     }
 
     @_disfavoredOverload
-    func `in`<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == CompileFailSecondDialect {
+    func `in`<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == CompileFailSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias
@@ -193,7 +193,7 @@ extension CompileFailSecondDialectExpression {
     }
 
     @_disfavoredOverload
-    func notIn<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == CompileFailSecondDialect {
+    func notIn<T>(_ table: T) -> some CompileFailSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == CompileFailSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias,

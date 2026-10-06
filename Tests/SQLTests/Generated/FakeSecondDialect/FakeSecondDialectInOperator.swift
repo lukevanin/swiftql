@@ -99,7 +99,7 @@ extension FakeSecondDialectExpression {
     }
 
     @_disfavoredOverload
-    func `in`<T>(_ table: T) -> some FakeSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == FakeSecondDialect {
+    func `in`<T>(_ table: T) -> some FakeSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == FakeSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias
@@ -193,7 +193,7 @@ extension FakeSecondDialectExpression {
     }
 
     @_disfavoredOverload
-    func notIn<T>(_ table: T) -> some FakeSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == FakeSecondDialect {
+    func notIn<T>(_ table: T) -> some FakeSecondDialectExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == FakeSecondDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias,

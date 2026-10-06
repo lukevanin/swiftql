@@ -91,7 +91,7 @@ extension XLSQLiteExpression {
         )
     }
 
-    public func `in`<T>(_ table: T) -> some XLSQLiteExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == XLSQLiteDialect {
+    public func `in`<T>(_ table: T) -> some XLSQLiteExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == XLSQLiteDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias
@@ -178,7 +178,7 @@ extension XLSQLiteExpression {
         )
     }
 
-    public func notIn<T>(_ table: T) -> some XLSQLiteExpression<Bool> where T: XLMetaCommonTable, T.Result.Dialect == XLSQLiteDialect {
+    public func notIn<T>(_ table: T) -> some XLSQLiteExpression<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == XLSQLiteDialect {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias,

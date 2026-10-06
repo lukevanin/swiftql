@@ -62,7 +62,7 @@ internal struct MetaProperty {
     
     /// The column's generated type. `dialect` is the model's dialect, as
     /// source text (issue #789). It is written into the type itself rather
-    /// than through the metadata's `Dialect` typealias, so a diagnostic prints
+    /// than through the metadata's `XLModelDialect` member, so a diagnostic prints
     /// `XLColumnReference<String, XLSQLiteDialect>` and not the alias.
     func columnType(kind: ColumnKind, dialect: String) -> String {
         switch kind {

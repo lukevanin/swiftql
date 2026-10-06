@@ -233,7 +233,7 @@ extension XLSchema {
     ///
     /// Constructs a common table expression on a schema.
     ///
-    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.Dialect == Dialect {
+    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
@@ -246,7 +246,7 @@ extension XLSchema {
     /// The subquery's alias comes from this schema, and the body receives a
     /// schema nested in this one (see ``XLSchema/init(parent:)``).
     ///
-    public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == Dialect {
+    public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousResult(namespace: tableNamespace, dependency: dependency)
@@ -256,7 +256,7 @@ extension XLSchema {
     /// Constructs a subquery in this schema whose columns can evaluate to NULL,
     /// for use on the nullable side of a `LEFT JOIN`.
     ///
-    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.Dialect == Dialect {
+    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -289,7 +289,7 @@ extension XLSchema {
 ///   independent scope. Use ``XLSchema/subqueryExpression(alias:statement:)``
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == XLSQLiteDialect {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -303,7 +303,7 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 /// - Important: This function opens an independent scope. Give the subquery
 ///   an explicit alias when it is joined to another source.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.Dialect == XLSQLiteDialect {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -360,7 +360,7 @@ public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () 
 ///   method `XLSchema.nullableSubqueryExpression(alias:statement:)` to take the
 ///   alias and the body's names from the enclosing schema.
 ///
-public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.Dialect == XLSQLiteDialect {
+public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -443,12 +443,12 @@ public func sql<Row, Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder b
 // `XLSchema` subquery methods to take names from the enclosing schema.
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.Dialect == XLSQLiteDialect {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.Dialect == XLSQLiteDialect {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 

@@ -89,7 +89,7 @@ extension {{Expression}} {
         )
     }
 
-    public func `in`<T>(_ table: T) -> some {{Expression}}<Bool> where T: XLMetaCommonTable, T.Result.Dialect == {{Dialect}} {
+    public func `in`<T>(_ table: T) -> some {{Expression}}<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == {{Dialect}} {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias
@@ -176,7 +176,7 @@ extension {{Expression}} {
         )
     }
 
-    public func notIn<T>(_ table: T) -> some {{Expression}}<Bool> where T: XLMetaCommonTable, T.Result.Dialect == {{Dialect}} {
+    public func notIn<T>(_ table: T) -> some {{Expression}}<Bool> where T: XLMetaCommonTable, T.Result.XLModelDialect == {{Dialect}} {
         XLInTableExpression(
             lhs: self,
             rhs: table.definition.alias,

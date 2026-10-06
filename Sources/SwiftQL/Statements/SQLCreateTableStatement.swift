@@ -66,9 +66,9 @@ public struct XLCreateTableStatement<Table>: XLCreateStatement {
     ///
     /// Adds a select query which is used to populate the table when it is created.
     ///
-    public func `as`(builder: (XLSchema<Table.Dialect>) -> some XLQueryStatement<Table>) -> some XLCreateStatement where Table: XLTable {
+    public func `as`(builder: (XLSchema<Table.XLModelDialect>) -> some XLQueryStatement<Table>) -> some XLCreateStatement where Table: XLTable {
         let meta = Table.makeSQLCreateAs()
-        let schema = XLSchema(dialect: Table.Dialect.self)
+        let schema = XLSchema(dialect: Table.XLModelDialect.self)
         let queryStatement = builder(schema)
         let components = XLCreateTableStatementComponents(create: Create(meta), components: [queryStatement])
         return XLCreateTableAsStatement(components: components)

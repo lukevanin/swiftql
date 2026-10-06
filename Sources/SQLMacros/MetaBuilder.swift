@@ -63,11 +63,10 @@ internal struct MetaBuilder {
     /// The member every generated metadata type names its dialect with (issue
     /// #789).
     ///
-    /// Swift infers the protocols' `Dialect` associated type from it. The
-    /// generated code never declares a member named `Dialect`: one declared in
-    /// an extension of the model would also be visible in the model's own
-    /// body, and would capture a property whose type is the user's own
-    /// `Dialect`.
+    /// Swift infers the protocols' `XLModelDialect` associated type from it.
+    /// The associated type is in SwiftQL's prefix space, so the member type
+    /// Swift gives the model does not capture a type of the user's own, such
+    /// as one named `Dialect`.
     ///
     func makeDialectWitness(isStatic: Bool) -> String {
         let modifier = isStatic ? "public static var" : "public var"

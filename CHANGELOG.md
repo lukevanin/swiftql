@@ -422,17 +422,19 @@
     `XLSchema` takes an `XLSQLiteSchema`. `XLSchema(dialect:)` and
     `sql(dialect:_:)` start another dialect's query. `schema.table(_:)` takes
     only a model declared for the schema's dialect.
-  - `XLResult` and the metadata protocols the macros conform to have a
-    `Dialect` associated type, which they infer from a `_dialect` member the
-    macros generate. A hand-written conformance declares
+  - `XLResult` and the metadata protocols the macros conform to have an
+    `XLModelDialect` associated type, which they infer from a `_dialect`
+    member the macros generate. The name is in SwiftQL's prefix space because
+    Swift makes it a member type of every model: a plainer name would capture
+    a type of the user's own, such as one named `Dialect`, inside the model.
+    A generic helper that ties a model to a schema writes the constraint with
+    it. Before: `where T: XLTable` (with an `XLSchema`). After:
+    `where T: XLTable, T.XLModelDialect == Dialect` (with an
+    `XLSchema<Dialect>`), or `T.XLModelDialect == XLSQLiteDialect` for SQLite.
+    A hand-written conformance declares
     `public static var _dialect: XLSQLiteDialect.Type { XLSQLiteDialect.self }`
     on the model, and the instance form on its metadata. A model property
-    named `_dialect` is reported, as other generated names are. So is a type
-    named `Dialect` nested in a model, which Swift would take as the
-    associated type: rename it, or declare it outside the model. A typealias
-    `Dialect` that names the model's own dialect is allowed. A type of that
-    name declared in an extension of the model is out of the macro's sight,
-    and the conformance fails instead.
+    named `_dialect` is reported, as other generated names are.
   - Types that carry the dialect gained a generic parameter for it:
     `ConstantCase`, `ConstantCaseWhenThen`, `ConstantCaseWhenThenElse`,
     `VariableCaseWhenThen`, `VariableCaseElse`, `XLScalarCommonTable`, and

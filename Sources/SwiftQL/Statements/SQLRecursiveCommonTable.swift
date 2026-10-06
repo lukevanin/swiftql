@@ -302,7 +302,7 @@ struct XLAliasOnlyCommonTableBody: XLEncodable {
 ///
 struct XLCompositeRecursiveCommonTableLayout<T>: XLRecursiveCommonTableReferenceLayout where T: XLResult {
 
-    let schema: XLSchema<T.Dialect>
+    let schema: XLSchema<T.XLModelDialect>
 
     func makeReference(cteAlias: XLName) -> T.MetaCommonTable.Result.MetaNamedResult {
         let dependency = XLCommonTableDependency(

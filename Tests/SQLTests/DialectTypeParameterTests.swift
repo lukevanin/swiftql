@@ -94,12 +94,12 @@ final class DialectTypeParameterTests: XCTestCase {
     // MARK: - The model names the dialect
 
     func testAModelDeclaresItsDialect() {
-        XCTAssertTrue(DialectSQLitePerson.Dialect.self == XLSQLiteDialect.self)
-        XCTAssertTrue(DialectSecondPerson.Dialect.self == FakeSecondDialect.self)
-        XCTAssertTrue(DialectSecondName.Dialect.self == FakeSecondDialect.self)
-        XCTAssertTrue(DialectSecondPerson.MetaNamedResult.Dialect.self == FakeSecondDialect.self)
-        XCTAssertTrue(DialectSecondPerson.MetaNullableNamedResult.Dialect.self == FakeSecondDialect.self)
-        XCTAssertTrue(DialectSecondPerson.MetaWritableTable.Dialect.self == FakeSecondDialect.self)
+        XCTAssertTrue(DialectSQLitePerson.XLModelDialect.self == XLSQLiteDialect.self)
+        XCTAssertTrue(DialectSecondPerson.XLModelDialect.self == FakeSecondDialect.self)
+        XCTAssertTrue(DialectSecondName.XLModelDialect.self == FakeSecondDialect.self)
+        XCTAssertTrue(DialectSecondPerson.MetaNamedResult.XLModelDialect.self == FakeSecondDialect.self)
+        XCTAssertTrue(DialectSecondPerson.MetaNullableNamedResult.XLModelDialect.self == FakeSecondDialect.self)
+        XCTAssertTrue(DialectSecondPerson.MetaWritableTable.XLModelDialect.self == FakeSecondDialect.self)
     }
 
     func testEveryColumnAndComposedExpressionIsOfTheModelDialect() {
