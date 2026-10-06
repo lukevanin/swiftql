@@ -349,10 +349,15 @@ func _xlForeignDialect(
             return nil
         }
     }
-    for child in Mirror(reflecting: value).children {
-        if let found = _xlForeignDialect(in: child.value, expected: expected, visited: &visited) {
-            return found
+    var mirror: Mirror? = Mirror(reflecting: value)
+    while let current = mirror {
+        for child in current.children {
+            if let found = _xlForeignDialect(in: child.value, expected: expected, visited: &visited) {
+                return found
+            }
         }
+        // A class's inherited stored properties are its superclass's.
+        mirror = current.superclassMirror
     }
     return nil
 }

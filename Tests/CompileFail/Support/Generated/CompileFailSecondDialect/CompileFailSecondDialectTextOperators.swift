@@ -113,30 +113,3 @@ extension CompileFailSecondDialectExpression {
         )
     }
 }
-
-
-// MARK: - GLOB
-
-
-extension CompileFailSecondDialectExpression {
-    
-    @_disfavoredOverload
-    func glob(_ other: any CompileFailSecondDialectExpression<String>) -> some CompileFailSecondDialectExpression<Bool> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any CompileFailSecondDialectExpression<Optional<String>>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any CompileFailSecondDialectExpression<String>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any CompileFailSecondDialectExpression<Optional<String>>) -> some CompileFailSecondDialectExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-}

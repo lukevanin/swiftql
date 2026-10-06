@@ -402,10 +402,12 @@
     any expression, and it is an expression of every dialect. The dialect is
     checked by the operators and functions.
   - SQLite's own functions are declared only on `XLSQLiteExpression`:
-    `collate(_:)`, `regexp(_:)`, `printf(_:)`, the type casts (`cast(to:)`,
-    `toInt()`, `toDouble()`, `toString()`, `toData()`), which name SQLite's
-    storage classes, the JSON and JSONB functions and operators, the date
-    functions, and `json_group_array` and `json_group_object`. So are `Insert(_:or:)`, `Replace`, and the
+    `collate(_:)`, `regexp(_:)`, `glob(_:)`, `printf(_:)`, `iif`, `total`,
+    `groupConcat` and `groupConcatOrNull`, the scalar `min(_:_:)` and
+    `max(_:_:)` of several arguments, the type casts (`cast(to:)`, `toInt()`,
+    `toDouble()`, `toString()`, `toData()`), which name SQLite's storage
+    classes, the JSON and JSONB functions and operators, the date functions,
+    and `json_group_array` and `json_group_object`. So are `Insert(_:or:)`, `Replace`, and the
     `insert(_:or:)` and `replace` statement functions. A DocC link to one of
     them changes from `XLExpression/minifiedJSON()` to
     `XLSQLiteExpression/minifiedJSON()`.
@@ -427,7 +429,10 @@
     on the model, and the instance form on its metadata. A model property
     named `_dialect` is reported, as other generated names are. So is a type
     named `Dialect` nested in a model, which Swift would take as the
-    associated type: rename it, or declare it outside the model.
+    associated type: rename it, or declare it outside the model. A typealias
+    `Dialect` that names the model's own dialect is allowed. A type of that
+    name declared in an extension of the model is out of the macro's sight,
+    and the conformance fails instead.
   - Types that carry the dialect gained a generic parameter for it:
     `ConstantCase`, `ConstantCaseWhenThen`, `ConstantCaseWhenThenElse`,
     `VariableCaseWhenThen`, `VariableCaseElse`, `XLScalarCommonTable`, and

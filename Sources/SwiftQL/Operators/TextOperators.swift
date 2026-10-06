@@ -183,3 +183,30 @@ extension XLSQLiteExpression {
         XLRegexpExpression<Optional<Bool>>(lhs: self, pattern: pattern)
     }
 }
+
+
+// MARK: - GLOB
+
+// SQLite's own: `GLOB`. Declared only on a SQLite expression, not generated
+// for every dialect (issue #789).
+
+
+
+extension XLSQLiteExpression {
+    
+    public func glob(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Bool> where T == String {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == String {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+    
+    public func glob(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
+    }
+}

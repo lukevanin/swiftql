@@ -1,13 +1,14 @@
 //
-//  SQLiteConditionalFunctions.swift
+//  ConditionalFunctions.swift
 //
-//  Generated for SQLite by scripts/dialect-surface/generate.py
-//  from scripts/dialect-surface/Templates/ConditionalFunctions.swift.template.
-//  Do not edit: edit the template, then run
-//  `python3 scripts/dialect-surface/generate.py`.
+//
+//  Created by Luke Van In on 2023/08/28.
 //
 
 import Foundation
+
+// SQLite's own: `IIF`. Declared only on a SQLite expression, not generated
+// for every dialect (issue #789).
 
 
 // MARK: - IIF

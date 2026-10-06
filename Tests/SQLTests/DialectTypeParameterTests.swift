@@ -114,7 +114,7 @@ final class DialectTypeParameterTests: XCTestCase {
         assertSecond(second.id + 1)
         assertSecond(second.nickname.coalesce("none"))
         assertSecond(second.nickname.isNull())
-        assertSecond((second.id > 1).iif(then: "a", else: "b"))
+        assertSecond((second.id > 1) && (second.id < 9))
         assertSecond(second.name.like("a%"))
         assertSecond(switchCase(second.id).when(1, then: "one").else("other"))
         assertSecond(when(second.id > 1, then: "many").else("one"))

@@ -731,8 +731,8 @@ conforms to `XLExpression` to be used as an operand conforms to
 `XLSQLiteExpression` as well; `XLCustomType` and `XLEnum` already include it.
 
 A function that only SQLite has, such as `collate(_:)`, `regexp(_:)`,
-`printf(_:)`, the type casts, the JSON functions, and the date functions, is
-declared only on `XLSQLiteExpression`. Calling one on a column of a model
+`glob(_:)`, `iif`, `printf(_:)`, the type casts, the JSON functions, and the
+date functions, is declared only on `XLSQLiteExpression`. Calling one on a column of a model
 declared for another dialect, or on an expression composed from one, or
 comparing that column with a SQLite column, is a compile error at the call
 site. A clause such as `Where` or `From` takes any expression or table, so it

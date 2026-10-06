@@ -92,44 +92,4 @@ extension XLSQLiteExpression {
     public func sum(distinct: Bool = false) -> some XLSQLiteExpression<T> where T: Numeric & XLLiteral {
         XLFunction(name: "SUM", distinct: distinct, parameters: [self])
     }
-
-
-    /// Returns the floating-point total of the non-NULL numeric values.
-    ///
-    /// Unlike `SUM`, SQLite `TOTAL` returns `0.0` for an empty input or an all-NULL group.
-    public func total(distinct: Bool = false) -> some XLSQLiteExpression<Double> where T: Numeric & XLLiteral {
-        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
-    }
-
-
-    /// Returns the floating-point total of the non-NULL numeric values, ignoring NULL inputs.
-    ///
-    /// SQLite returns `0.0` when no non-NULL input remains.
-    public func total<Wrapped>(distinct: Bool = false) -> some XLSQLiteExpression<Double> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
-        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
-    }
-
-
-    /// Concatenates the non-NULL values, or returns NULL when the input is empty or contains no non-NULL values.
-    public func groupConcatOrNull(distinct: Bool = false) -> some XLSQLiteExpression<String?> where T == String, T: XLLiteral {
-        XLFunction<String?>(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])
-    }
-
-
-    @available(*, deprecated, message: "SQLite GROUP_CONCAT can return NULL. Use groupConcatOrNull(distinct:) instead. groupConcat() will return an optional expression in SwiftQL 2.")
-    public func groupConcat(distinct: Bool = false) -> some XLSQLiteExpression<T> where T == String, T: XLLiteral {
-        XLFunction(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])
-    }
-
-
-    /// Concatenates the non-NULL values using a separator, or returns NULL when no non-NULL values exist.
-    public func groupConcatOrNull(separator: String) -> some XLSQLiteExpression<String?> where T == String, T: XLLiteral {
-        XLFunction<String?>(name: "GROUP_CONCAT", parameters: [self, separator])
-    }
-
-
-    @available(*, deprecated, message: "SQLite GROUP_CONCAT can return NULL. Use groupConcatOrNull(separator:) instead. groupConcat(separator:) will return an optional expression in SwiftQL 2.")
-    public func groupConcat(separator: String) -> some XLSQLiteExpression<T> where T == String, T: XLLiteral {
-        XLFunction(name: "GROUP_CONCAT", parameters: [self, separator])
-    }
 }

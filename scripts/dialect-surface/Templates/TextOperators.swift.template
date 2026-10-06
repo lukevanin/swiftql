@@ -1,7 +1,7 @@
 //
 //  TextOperators.swift.template
 //
-//  Text concatenation, LIKE, and GLOB.
+//  Text concatenation and LIKE.
 //  scripts/dialect-surface/generate.py renders it once for each dialect in
 //  scripts/dialect-surface/dialects.json (issue #789).
 //
@@ -97,28 +97,5 @@ extension {{Expression}} {
             pattern: other,
             escape: escape
         )
-    }
-}
-
-
-// MARK: - GLOB
-
-
-extension {{Expression}} {
-    
-    public func glob(_ other: any {{Expression}}<String>) -> some {{Expression}}<Bool> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any {{Expression}}<String>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any {{Expression}}<Optional<String>>) -> some {{Expression}}<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
     }
 }

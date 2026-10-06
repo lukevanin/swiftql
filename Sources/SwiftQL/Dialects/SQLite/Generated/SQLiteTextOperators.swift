@@ -100,26 +100,3 @@ extension XLSQLiteExpression {
         )
     }
 }
-
-
-// MARK: - GLOB
-
-
-extension XLSQLiteExpression {
-    
-    public func glob(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Bool> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLSQLiteExpression<String>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    public func glob(_ other: any XLSQLiteExpression<Optional<String>>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-}

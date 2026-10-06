@@ -1,13 +1,14 @@
 //
-//  SQLiteComparableFunctions.swift
+//  ComparableFunctions.swift
+//  
 //
-//  Generated for SQLite by scripts/dialect-surface/generate.py
-//  from scripts/dialect-surface/Templates/ComparableFunctions.swift.template.
-//  Do not edit: edit the template, then run
-//  `python3 scripts/dialect-surface/generate.py`.
+//  Created by Luke Van In on 2023/08/14.
 //
 
 import Foundation
+
+// SQLite's own: the scalar `MIN` and `MAX` of several arguments. Declared
+// only on a SQLite expression, not generated for every dialect (issue #789).
 
 
 ///

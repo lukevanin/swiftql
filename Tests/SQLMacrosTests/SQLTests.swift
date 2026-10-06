@@ -2111,6 +2111,21 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(result.contains("public let dialect: XLColumnReference<Dialect, SwiftQL.XLSQLiteDialect>"))
     }
 
+    // A typealias that names the model's own dialect agrees with the
+    // generated `_dialect`, so it is not reported.
+    func test_typealiasNamingTheModelsDialect_isAccepted() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Phrase {
+                typealias Dialect = XLSQLiteDialect
+                var id: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.tableName, "Phrase")
+    }
+
     func test_valueSlotsTakeAnExpressionOfAnyDialect() throws {
         let builder = try makeBuilder(
             """

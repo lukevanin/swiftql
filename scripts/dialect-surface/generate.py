@@ -198,21 +198,33 @@ def expected_files(dialects: List[Dict[str, str]]) -> Dict[Path, str]:
     return files
 
 
+def says_generated(path: Path) -> bool:
+    with path.open() as handle:
+        header = "".join(handle.readline() for _ in range(5))
+    return GENERATED_MARKER in header
+
+
 def generated_files_on_disk(dialects: List[Dict[str, str]]) -> List[Path]:
-    """Every Swift file in a dialect's output directory, and every Swift file
-    under Sources or Tests whose header says this generator wrote it."""
+    """Every Swift file under Sources or Tests whose header says this
+    generator wrote it. A Swift file in a dialect's output directory without
+    that header stops the generator: the directory holds only generated
+    files, and the generator never deletes a file it did not write."""
     found = set()
     for dialect in dialects:
         directory = SOURCE_ROOT / dialect["output"]
-        if directory.is_dir():
-            found.update(directory.glob("*.swift"))
+        if not directory.is_dir():
+            continue
+        for path in directory.glob("*.swift"):
+            if not says_generated(path):
+                raise SystemExit(
+                    f"{relative(path)} was not written by {relative(GENERATOR)}. "
+                    f"{dialect['output']} holds only generated files; move the file out of it."
+                )
     for root in GENERATED_ROOTS:
         for path in (SOURCE_ROOT / root).rglob("*.swift"):
             if ".build" in path.parts:
                 continue
-            with path.open() as handle:
-                header = "".join(handle.readline() for _ in range(5))
-            if GENERATED_MARKER in header:
+            if says_generated(path):
                 found.add(path)
     return sorted(found)
 

@@ -113,30 +113,3 @@ extension FakeSecondDialectExpression {
         )
     }
 }
-
-
-// MARK: - GLOB
-
-
-extension FakeSecondDialectExpression {
-    
-    @_disfavoredOverload
-    func glob(_ other: any FakeSecondDialectExpression<String>) -> some FakeSecondDialectExpression<Bool> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any FakeSecondDialectExpression<Optional<String>>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == String {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any FakeSecondDialectExpression<String>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-    
-    @_disfavoredOverload
-    func glob(_ other: any FakeSecondDialectExpression<Optional<String>>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "GLOB", lhs: self, rhs: other)
-    }
-}
