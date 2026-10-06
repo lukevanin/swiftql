@@ -540,7 +540,10 @@ enum GRDBTransactionQueueMark {
     ///
     /// The marked queue is concurrent, as GRDB asks of a pool's target queue,
     /// so it adds no ordering of its own: GRDB's own serial queue under it
-    /// still serializes the connection. It targets the queue `configuration`
+    /// still serializes the connection. A serial one would serialize two
+    /// connections opened from the same configuration, and libdispatch stops
+    /// the process when one's access is opened from inside the other's,
+    /// because both `sync` calls need the same serial queue. It targets the queue `configuration`
     /// already names, if any, so a caller's target queue keeps applying. It
     /// carries that queue's quality of service, or with none the
     /// configuration's own, because GRDB reads the target's to schedule its

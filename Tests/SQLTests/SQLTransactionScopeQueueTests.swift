@@ -275,9 +275,10 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
         XCTAssertEqual(try rows(in: database), [])
     }
 
-    /// With no target queue configured, the writer keeps the quality of
-    /// service GRDB would have given it.
-    func testTheWriterKeepsItsQualityOfService() throws {
+    /// With no target queue configured, the pool's configuration reports the
+    /// quality of service GRDB would have given its queues, which GRDB reads
+    /// to schedule its readers and observations.
+    func testTheConfigurationKeepsGRDBsQualityOfService() throws {
         let database = try makeDatabase()
         XCTAssertEqual(database.databasePool.configuration.writeQoS, Configuration().qos)
         XCTAssertEqual(database.databasePool.configuration.readQoS, Configuration().qos)

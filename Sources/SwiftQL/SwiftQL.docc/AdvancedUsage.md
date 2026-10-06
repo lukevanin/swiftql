@@ -347,8 +347,9 @@ Four misuses are rejected, each with a predictable, catchable
 `XLTransactionScopeError` rather than a crash or silent wrong answer. A nested
 transaction and a live query are rejected before they do any work; use from
 another thread or queue, or after the body, is rejected when a statement would
-run. A database that wraps a pool you opened yourself has one gap in this; the
-thread rule below describes it.
+run. The queue part of that check has gaps: for a database that wraps a pool
+you opened yourself, and for GRDB connections you use directly. The thread
+rule below describes them.
 
 - **Nested transactions and savepoints are not supported.** Calling
   `withTransaction(_:)` again from inside an active body — on the scope it was
