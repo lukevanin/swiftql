@@ -472,10 +472,13 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
         // queue, which GRDB stops with a precondition. So would a block that
         // another queue runs on the body's own thread, such as a `sync` call
         // onto a global queue, or main-queue work run by a run loop that a
-        // main-thread body spins (issue #816). Both throw instead.
+        // main-thread body spins (issue #816). Both throw instead. Without a
+        // mark, only the thread is checked: refusing every marked queue would
+        // also refuse one GRDB allows, a SwiftQL-opened pool's access opened
+        // from inside the body.
         guard let database,
               pthread_equal(thread, pthread_self()) != 0,
-              GRDBTransactionQueueMark.current === queueMark
+              queueMark == nil || GRDBTransactionQueueMark.current === queueMark
         else {
             throw XLTransactionScopeError.scopeEscaped
         }
@@ -503,8 +506,9 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
 ///
 /// A pool passed to the `@_spi(GRDB)` initialisers was opened by its caller,
 /// so its queues carry no mark, and the scope falls back to checking only
-/// the thread. The one exception is a pool opened from a marked pool's own
-/// `configuration`, which names the marked queue and so shares its mark.
+/// the thread. A connection opened from a marked pool's own `configuration`
+/// names the marked queue, so it shares the mark: a block on its queue
+/// passes the check. AdvancedUsage says so.
 ///
 enum GRDBTransactionQueueMark {
 

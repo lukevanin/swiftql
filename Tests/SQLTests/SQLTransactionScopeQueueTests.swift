@@ -267,6 +267,10 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
             DispatchQueue.getSpecific(key: callerKey)
         }
         XCTAssertEqual(callerQueueValues, "caller")
+        XCTAssertEqual(
+            try database.databasePool.read { _ in DispatchQueue.getSpecific(key: callerKey) },
+            "caller"
+        )
         XCTAssertEqual(database.databasePool.configuration.readQoS, .utility)
         XCTAssertEqual(try rows(in: database), [])
     }
@@ -298,6 +302,33 @@ final class SQLTransactionScopeQueueTests: XCTestCase {
 
         XCTAssertEqual(outcomes, Self.refused)
         XCTAssertEqual(try rows(in: database), [])
+    }
+
+    /// A database that wraps a pool its caller opened has no mark, so only
+    /// the thread is checked. Its scope still works inside an access to a
+    /// SwiftQL-opened database opened from the body, which GRDB allows, as it
+    /// did before the queue check.
+    func testAScopeOfAWrappedPoolStillRunsInsideAnotherDatabasesAccess() throws {
+        let wrappedPool = try DatabasePool(path: databaseURL("wrapped").path)
+        addTeardownBlock {
+            try? wrappedPool.close()
+        }
+        let wrapped = try GRDBDatabase(
+            databasePool: wrappedPool,
+            formatter: XLiteFormatter(identifierFormattingOptions: .mysqlCompatible),
+            logger: nil
+        )
+        try createTestTable(in: wrapped)
+        let other = try makeDatabase()
+        try createTestTable(in: other)
+
+        try wrapped.withTransaction { scope in
+            try other.withTransaction { _ in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            }
+        }
+
+        XCTAssertEqual(try rows(in: wrapped), [TestTable(id: "alpha", value: 1)])
     }
 
     // MARK: - Main-queue work run by a run loop the body spins

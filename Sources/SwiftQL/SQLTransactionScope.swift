@@ -113,11 +113,12 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     /// that body returned, or from a thread other than the one running the
     /// body, such as from a task created in the body. A `GRDBDatabase` whose
     /// pool SwiftQL opened also throws it for a block that another dispatch
-    /// queue runs on the body's thread. After the body returns, the connection is no longer pinned —
-    /// the transaction already committed or rolled back — so continuing would
-    /// silently operate on a connection reused for unrelated work. From
-    /// another thread or queue, the connection is still in use by the body on
-    /// its own queue, and GRDB does not allow it to be shared.
+    /// queue runs on the body's thread. After the body returns, the
+    /// connection is no longer pinned — the transaction already committed or
+    /// rolled back — so continuing would silently operate on a connection
+    /// reused for unrelated work. From another thread or queue, the
+    /// connection is still in use by the body on its own queue, and GRDB does
+    /// not allow it to be shared.
     ///
     case scopeEscaped
 

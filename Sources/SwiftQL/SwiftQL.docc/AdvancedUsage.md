@@ -407,7 +407,12 @@ thread rule below describes it.
   the process with "Database was not used on the correct thread". To get the
   queue check for a GRDB `Configuration` of your own, open the database with
   `GRDBDatabaseBuilder.init(url:grdbConfiguration:formatter:logger:liveQueryRetryPolicy:)`
-  instead of wrapping a pool.
+  instead of wrapping a pool. Nor does the check see a GRDB connection you
+  use directly through `databasePool`: a connection opened from
+  `databasePool.configuration` shares the mark of the queue it targets, and
+  so do the readers of a read-only database. A scope used in such a
+  connection's access, opened from another queue's block on the body's
+  thread, passes the check, and GRDB stops the process.
 - **Live queries are not supported inside a transaction.** `publish()` /
   `publishOne()` on a transaction-scoped request throws
   `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a

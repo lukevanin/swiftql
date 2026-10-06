@@ -492,9 +492,10 @@
   process with "Database was not used on the correct thread" when a
   `withTransaction(_:)` scope ran a statement from a task created in the body,
   or from a block that another dispatch queue ran on the body's thread. Both
-  now throw `XLTransactionScopeError.scopeEscaped`, for a database SwiftQL
-  opens. See the Migration entry for the asynchronous driver scopes above,
-  which also covers a database that wraps a pool you opened yourself.
+  now throw `XLTransactionScopeError.scopeEscaped`; the other-queue case only
+  for a database whose pool SwiftQL opens. See the Migration entry for the
+  asynchronous driver scopes above, which also covers a database that wraps a
+  pool you opened yourself.
 
 ## [1.9.0] - 2026-09-16
 
