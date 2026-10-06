@@ -166,6 +166,11 @@ public struct GRDBDatabaseBuilder {
     /// `XLDatabaseError` whose code is `.misuse` (issue #702). GRDB would stop
     /// the process for all but a negative timeout, which SQLite would treat
     /// as no timeout at all.
+    ///
+    /// The queue that runs the pool's transaction bodies gets a SwiftQL mark,
+    /// so a transaction scope used from a block that another queue runs on
+    /// the body's thread throws instead of reaching GRDB's queue check
+    /// (issue #816). See ``GRDBTransactionQueueMark``.
     func makeDatabasePool() throws -> DatabasePool {
         try xlMappingDatabaseErrors(driver: .grdb) {
             guard configuration.maximumReaderCount > 0 else {
@@ -190,7 +195,10 @@ public struct GRDBDatabaseBuilder {
                     )
                 }
             }
-            return try DatabasePool(path: url.path, configuration: configuration)
+            return try DatabasePool(
+                path: url.path,
+                configuration: GRDBTransactionQueueMark.marking(configuration)
+            )
         }
     }
 

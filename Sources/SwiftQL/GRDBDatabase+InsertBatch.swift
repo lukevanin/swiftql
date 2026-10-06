@@ -71,7 +71,8 @@ extension GRDBDatabase {
     ///   raises, after every row written by this call is rolled back;
     ///   ``XLTransactionScopeError/scopeEscaped`` when called on a transaction
     ///   scope after its body returned, or from a thread other than the one
-    ///   running the body; or
+    ///   running the body or, on a database whose pool SwiftQL opened, from
+    ///   a block another dispatch queue runs on that thread; or
     ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` when called on
     ///   the root database from inside an active transaction body.
     ///

@@ -83,14 +83,29 @@
     root write from inside that body, still run.
   - A `withTransaction(_:)` scope, or a request made from it, used from
     another thread, such as a task created in the body, throws
-    `XLTransactionScopeError.scopeEscaped` (issue #696). On 1.9 GRDB stopped
-    the process with "Database was not used on the correct thread". The check
-    is by thread, so a block another queue runs on the body's thread still
-    stops the process: for example a `sync` call from the body onto a global
-    queue, though not `DispatchQueue.main.sync`, which runs on the main
-    thread. See <doc:AdvancedUsage>; closing this gap is issue #816. The
-    scope is still a `Sendable` `GRDBDatabase`, so the compiler accepts the
-    capture; a scope type it rejects is issue #802.
+    `XLTransactionScopeError.scopeEscaped` (issue #696). So does one used from
+    a block that another dispatch queue runs on the body's thread, such as a
+    `sync` call from the body onto a global queue, or main-queue work that a
+    run loop spun in a main-thread body runs (issue #816). On 1.9 GRDB stopped
+    the process with "Database was not used on the correct thread". The scope
+    is still a `Sendable` `GRDBDatabase`, so the compiler accepts the capture;
+    a scope type it rejects is issue #802. See <doc:AdvancedUsage>.
+    - Another database's access opened from inside the body is another
+      queue's block too. On 1.9 a scope used inside a `withResultSet(_:)` body
+      of a request on another database ran; now it throws `scopeEscaped`.
+      Fetch the other database's rows first, then use the scope.
+    - To tell the body's queue from another, SwiftQL gives the pool it opens
+      a target queue of its own: the writer's `writeTargetQueue`, or the
+      `targetQueue` of a read-only pool. It targets the queue your GRDB
+      `Configuration` names, if any, so that queue still applies. Through
+      `@_spi(GRDB)`, `databasePool.configuration` now names SwiftQL's queue,
+      and a GRDB connection you open from it shares the check's mark; see
+      <doc:AdvancedUsage>.
+    - A database that wraps a pool you opened yourself, through the
+      `@_spi(GRDB)` `init(databasePool:...)` initialisers, has no such queue,
+      so it checks only the thread. A block that another queue runs on the
+      body's thread still stops the process there. Open the database with
+      `GRDBDatabaseBuilder` to get the queue check.
   - These checks apply to every `GRDBDatabase` over the same
     `DatabasePool`, not only to the one that opened the scope.
   - A root read from inside a write transaction that SwiftQL opened now
@@ -572,6 +587,18 @@
   - A `@SQLQueries` container still rejects `async`, now with a message that
     says why: its executors run inside a synchronous transaction, which has
     no asynchronous form yet. It accepts `throws`.
+
+### Fixed
+
+- **A transaction scope used from another thread or queue throws instead of
+  stopping the process** (issues #696 and #816). On 1.9 GRDB stopped the
+  process with "Database was not used on the correct thread" when a
+  `withTransaction(_:)` scope ran a statement from a task created in the body,
+  or from a block that another dispatch queue ran on the body's thread. Both
+  now throw `XLTransactionScopeError.scopeEscaped`; the other-queue case only
+  for a database whose pool SwiftQL opens. See the Migration entry for the
+  asynchronous driver scopes above, which also covers a database that wraps a
+  pool you opened yourself.
 
 ## [1.9.0] - 2026-09-16
 
