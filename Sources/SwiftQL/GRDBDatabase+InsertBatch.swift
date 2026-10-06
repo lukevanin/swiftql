@@ -70,7 +70,8 @@ extension GRDBDatabase {
     /// - Throws: The first error a row's rendering, binding, or execution
     ///   raises, after every row written by this call is rolled back;
     ///   ``XLTransactionScopeError/scopeEscaped`` when called on a transaction
-    ///   scope after its body returned; or
+    ///   scope after its body returned, or from a thread other than the one
+    ///   running the body; or
     ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` when called on
     ///   the root database from inside an active transaction body.
     ///

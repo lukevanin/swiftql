@@ -542,9 +542,11 @@ Values computed inside the closure come back out as its return value, as
 `workingAgeCount` and `insertedID` do above.
 
 Transactions have boundaries the compiler cannot enforce: nesting them, using
-the scope after the closure returns, and observing live queries inside one are
-all rejected at runtime. <doc:AdvancedUsage> lists each rejection and the
-reason for it.
+the scope after the closure returns or from another thread, such as a task
+started inside the closure, and observing live queries inside one are
+rejected at runtime, with one exception for other-queue blocks that run on the
+closure's own thread. <doc:AdvancedUsage> lists each rejection, the reason for
+it, and that exception.
 
 ## Where to go next
 

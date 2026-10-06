@@ -726,51 +726,138 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows().map(\.id), ["alpha"])
     }
 
-    /// A scope value used from a task created in the body would touch the
-    /// pinned connection off GRDB's writer queue, which GRDB stops with a
-    /// precondition. It throws `scopeEscaped` instead.
+    /// A request made from the scope and used from a task created in the
+    /// body would touch the pinned connection off GRDB's writer queue, which
+    /// GRDB stops with a precondition. It throws `scopeEscaped` instead.
     ///
     /// The body runs on a dispatch thread, so blocking it while the task
     /// runs cannot starve the cooperative pool.
-    func testAScopeUsedFromATaskCreatedInTheBodyThrowsScopeEscaped() async throws {
+    func testARequestFromTheScopeUsedFromATaskCreatedInTheBodyThrowsScopeEscaped() async throws {
         try createTestTable()
         let database = self.database!
         nonisolated(unsafe) let query = selectAllTestRowsQuery()
 
         let childError = try await onDispatchThread {
             try database.withTransaction { scope -> XLTransactionScopeError? in
-                let finished = DispatchSemaphore(value: 0)
-                let recorded = LockedValue<XLTransactionScopeError?>(nil)
                 // Deliberate misuse: the request crosses to another thread,
                 // which is what the guard must catch.
                 let request = UncheckedTransfer(scope.makeRequest(with: query))
-                Task {
+                return try resultOfTaskBlockingThisThread {
                     do {
                         _ = try request.value.fetchAll()
+                        return nil
                     }
                     catch {
-                        recorded.withValue { $0 = error as? XLTransactionScopeError }
+                        return error as? XLTransactionScopeError
                     }
-                    finished.signal()
                 }
-                _ = finished.wait(timeout: .now() + 10)
-                return recorded.read()
             }
         }
 
         XCTAssertEqual(childError, .scopeEscaped)
     }
 
-    /// Runs `body` on a dispatch thread, outside any task, and resumes with
-    /// its result.
-    private func onDispatchThread<Result: Sendable>(
-        _ body: @escaping @Sendable () throws -> Result
-    ) async throws -> Result {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().async {
-                continuation.resume(with: Swift.Result { try body() })
+    /// The scope itself, not only a request made from it, is refused on
+    /// another thread (issue #696). A detached task, as in the issue, that
+    /// captures the scope and runs a statement through each of its entry
+    /// points gets `scopeEscaped` from every one, rather than reaching the
+    /// pinned connection, which GRDB stops with a precondition off its writer
+    /// queue. The body can still use the scope afterwards, and none of the
+    /// task's writes commits.
+    ///
+    /// Every row but the asynchronous one reaches the pinned connection's
+    /// thread check. The test asserts only the error, so that is checked by
+    /// hand: with the check removed, the test process stops in GRDB.
+    ///
+    /// The capture compiles because the scope is a `GRDBDatabase`, which is
+    /// `Sendable`. Rejecting it at compile time is issue #802's work; until
+    /// then this guard is what stops it.
+    func testATaskThatRunsStatementsThroughTheScopeItselfThrowsScopeEscaped() async throws {
+        try createTestTable()
+        let database = self.database!
+
+        let outcomes = try await onDispatchThread {
+            try database.withTransaction { scope -> [String] in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+
+                let outcomes = try resultOfTaskBlockingThisThread(detached: true) {
+                    func outcome(_ entryPoint: String, _ work: () async throws -> Void) async -> String {
+                        do {
+                            try await work()
+                            return "\(entryPoint): ran"
+                        }
+                        catch let error as XLTransactionScopeError {
+                            return "\(entryPoint): \(error)"
+                        }
+                        catch {
+                            return "\(entryPoint): \(type(of: error)): \(error)"
+                        }
+                    }
+                    let select = sql { schema in
+                        let table = schema.table(TestTable.self)
+                        Select(table)
+                        From(table)
+                    }
+                    return [
+                        await outcome("makeRequest(with:).fetchAll()") {
+                            _ = try scope.makeRequest(with: select).fetchAll()
+                        },
+                        await outcome("makeRequest(with:).fetchOne()") {
+                            _ = try scope.makeRequest(with: select).fetchOne()
+                        },
+                        await outcome("makeRequest(with:).withResultSet(_:)") {
+                            _ = try scope.makeRequest(with: select).withResultSet { try $0.next() }
+                        },
+                        await outcome("makeRequest(with:).execute()") {
+                            try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
+                        },
+                        // A scope's request has no asynchronous form on any
+                        // thread, so this row holds whether or not the thread
+                        // check runs; it pins that a task gets no further.
+                        await outcome("makeRequest(with:).async.fetchAll()") {
+                            _ = try await scope.makeRequest(with: select).async.fetchAll()
+                        },
+                        await outcome("insert(contentsOf:)") {
+                            try scope.insert(contentsOf: [TestTable(id: "gamma", value: 3)])
+                        },
+                        await outcome("prepareInvocation(with:)") {
+                            let invocation = scope.prepareInvocation(with: select)
+                            let bindings = try XLInvocationBindings<XLSQLiteValue>(
+                                layout: invocation.parameterLayout,
+                                bindings: []
+                            ).validatingComplete()
+                            _ = try invocation.fetchAllValues(bindings: bindings)
+                        },
+                        await outcome("@SQLQuery executor") {
+                            _ = try scope.fetchTransactionScopeRowByID(id: "alpha")
+                        },
+                        await outcome("@SQLQueries executor") {
+                            _ = try scope.containerRowsMatchingID(id: "alpha")
+                        },
+                    ]
+                }
+
+                // The refused calls left the scope usable on its own thread.
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "delta", value: 4))).execute()
+                return outcomes
             }
         }
+
+        XCTAssertEqual(outcomes, [
+            "makeRequest(with:).fetchAll(): scopeEscaped",
+            "makeRequest(with:).fetchOne(): scopeEscaped",
+            "makeRequest(with:).withResultSet(_:): scopeEscaped",
+            "makeRequest(with:).execute(): scopeEscaped",
+            "makeRequest(with:).async.fetchAll(): scopeEscaped",
+            "insert(contentsOf:): scopeEscaped",
+            "prepareInvocation(with:): scopeEscaped",
+            "@SQLQuery executor: scopeEscaped",
+            "@SQLQueries executor: scopeEscaped",
+        ])
+        XCTAssertEqual(
+            try freshRows().sorted { $0.id < $1.id },
+            [TestTable(id: "alpha", value: 1), TestTable(id: "delta", value: 4)]
+        )
     }
 
     // MARK: - Cancellation

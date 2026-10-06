@@ -57,6 +57,16 @@ import Foundation
 /// synchronously to completion and has no cooperative cancellation point
 /// while committed or rolled-back writes are underway.
 ///
+/// ## One thread
+///
+/// Use the scope only on the thread that runs `body`. The scope's connection
+/// is lent to that thread until `body` returns. A conforming database should
+/// refuse a statement run through the scope, or through a request made from
+/// it, on any other thread with ``XLTransactionScopeError/scopeEscaped``
+/// rather than share the connection, as ``GRDBDatabase`` does.
+/// <doc:AdvancedUsage> gives the full rule for `GRDBDatabase`, including what
+/// the compiler does not yet catch.
+///
 /// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for
 /// concrete examples of the durable-state guarantees this API makes.
 /// <doc:GettingStarted> introduces the everyday spelling.
@@ -70,7 +80,8 @@ public protocol XLTransactionalDatabase: XLDatabase {
     /// - Parameter body: Receives a database-shaped scope pinned to this
     ///   transaction's connection. Use it exactly like the enclosing
     ///   database — `makeRequest(with:)`, the v1 fetch/execute methods, and
-    ///   any `@SQLQueries`-generated `Context` all work unchanged.
+    ///   any `@SQLQueries`-generated `Context` all work unchanged — but only
+    ///   on the thread that runs `body`; see ``XLTransactionalDatabase``.
     /// - Returns: `body`'s result, after the transaction has committed.
     /// - Throws: The original error `body` threw (preparation, binding,
     ///   execution, decoding, or user-thrown) after rolling back every write
@@ -99,12 +110,13 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     ///
     /// A request, write request, or scope value created inside a
     /// ``XLTransactionalDatabase/withTransaction(_:)`` body was used after
-    /// that body returned, or from asynchronous code such as a task created
-    /// in the body. After the body returns, the connection is no longer
-    /// pinned — the transaction already committed or rolled back — so
-    /// continuing would silently operate on a connection reused for unrelated
-    /// work. From another task, the connection is still in use by the body on
-    /// its own thread, and GRDB does not allow it to be shared.
+    /// that body returned, or from a thread other than the one running the
+    /// body, such as from a task created in the body. After the body returns,
+    /// the connection is no longer pinned — the transaction already committed
+    /// or rolled back — so continuing would silently operate on a connection
+    /// reused for unrelated work. From another thread, the connection is still
+    /// in use by the body on its own thread, and GRDB does not allow it to be
+    /// shared.
     ///
     case scopeEscaped
 
@@ -134,7 +146,7 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     public var errorDescription: String? {
         switch self {
         case .scopeEscaped:
-            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned, or from another task. Transaction-scoped values must not escape the closure's synchronous body."
+            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned, or from another thread or task. Transaction-scoped values must not escape the closure's synchronous body."
         case .nestedTransactionUnsupported:
             return "The original (root) database was used from inside a scope that already holds one of its connections: 'withTransaction(_:)' was called again inside a transaction body, the root database was used instead of the pinned scope value the body was given, or a second root read ran inside a result-set body. Nested transactions and savepoints are not supported; inside a transaction, use the scope value the body receives, and inside a result set, finish reading before the next root read."
         case .liveQueriesUnsupportedInTransaction:
