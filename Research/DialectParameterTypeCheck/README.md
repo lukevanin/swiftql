@@ -68,3 +68,17 @@ writes those overloads. They are the cost the measurement reports.
 ## The recorded result
 
 See [DialectParameterTypeCheckCost.md](../DialectParameterTypeCheckCost.md).
+
+## The shipped surface, and one joined predicate
+
+`measure-shipped.sh <label>=<package-root> ...` type-checks the same bodies
+against real, already built copies of SwiftQL, such as the base branch and a
+branch that changes the query surface (issue #789). Besides the clause bodies
+above, it times one `Where` that joins 2 to 8 comparisons with `&&`, and the
+error for a mistake in the last term of one.
+
+`measure-chains.sh` isolates the cost of that predicate. `chain_scaling.py`
+writes one stand-in library per operator shape, with SwiftQL's operator counts,
+and the script times a predicate of 4 to 16 comparisons against each.
+
+See [the recorded result](../DialectParameterTypeCheckCost.md#re-measured-on-the-shipped-surface-one-predicate-of-joined-comparisons).

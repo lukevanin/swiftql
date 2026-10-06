@@ -165,3 +165,83 @@ Option 1 is measured and rejected. Option 2 is therefore the only way left, so
 as depending on #789. For the operators and the expression nodes that
 direction is right. For the scope the direction is the other way, and the two
 issues have to be sequenced together.
+
+## Re-measured on the shipped surface: one predicate of joined comparisons
+
+**Recorded 6 October 2026** for issue #789. Swift 6.4, macOS 26.6.2, Apple M4
+Pro. Base: `version/2.0` at `17743faa`.
+
+The measurement above gives every clause its own statement, and no clause holds
+more than two operators. A query's filter is usually one `Where` that joins
+several comparisons with `&&`, and the type checker solves that whole predicate
+as one expression. The harness above never measured that shape.
+
+Issue #789's prototype, on the branch `claude/789-dialect-type-parameter`,
+carries the dialect through the whole SwiftQL surface, and its test suite
+passes. `measure-shipped.sh` type-checks the same bodies against real builds of
+SwiftQL. Three builds are compared:
+
+- **base**: `version/2.0`.
+- **existential**: the surface this record recommends. Operands are
+  `any XLExpression<T, D>`, generic over the dialect, and a Swift value is a
+  separate dialect-free protocol that takes one extra overload on each side of
+  every binary operator.
+- **universal**: the same, except that a Swift value keeps its `XLExpression`
+  conformance with the dialect `XLUniversalDialect`, so users' custom types and
+  enums compile unchanged.
+
+Median of 7 runs, from `-debug-time-function-bodies`.
+
+| Body | base | existential | universal |
+| --- | ---: | ---: | ---: |
+| 30 separate clauses | 19.9 ms | 26.3 ms (+32 %) | 30.5 ms (+53 %) |
+| 120 separate clauses | 63.7 ms | 79.5 ms (+25 %) | 100.2 ms (+57 %) |
+| 450 separate clauses | 449.7 ms | 520.3 ms (+16 %) | 631.6 ms (+40 %) |
+| one `Where` of 2 terms | 7.5 ms | 10.9 ms (+46 %) | 11.2 ms (+51 %) |
+| one `Where` of 4 terms | 9.0 ms | 22.9 ms (+156 %) | 32.7 ms (+265 %) |
+| one `Where` of 6 terms | 10.5 ms | 72.4 ms (+588 %) | 129.6 ms (+1,132 %) |
+| one `Where` of 8 terms | 11.8 ms | 279.2 ms (+2,266 %) | 625.0 ms (+5,197 %) |
+
+The separate-clause bodies reproduce the result above: the existential surface
+costs +16 to +32 percent. A single predicate does not. Its cost grows
+exponentially with the number of terms.
+
+A mistake in the last term of one predicate shows the same growth, in the
+wall time of one compile:
+
+| Terms | base | existential | universal |
+| ---: | ---: | ---: | ---: |
+| 4, misspelled column | 1.3 s | 1.5 s | 1.8 s |
+| 6, misspelled column | 1.5 s | 6.1 s | 16.7 s |
+| 5, wrong value type | 1.4 s | 8.2 s | 21.5 s |
+| 6, wrong value type | 1.6 s | *unable to type-check in reasonable time* | *unable to type-check in reasonable time* |
+
+At six terms both dialect surfaces replace the error with "the compiler is
+unable to type-check this expression in reasonable time". That breaks the
+diagnostics bar of #789 for an ordinary mistake in an ordinary filter.
+
+### What causes it
+
+`measure-chains.sh` writes stand-in libraries with SwiftQL's operator counts
+and times one predicate of 4 to 16 comparisons:
+
+| Shape | 4 | 8 | 12 | 16 |
+| --- | ---: | ---: | ---: | ---: |
+| base, `any E<T>` | 12.1 ms | 13.7 ms | 16.2 ms | 18.6 ms |
+| generic, `any E<T, D>`, no universal overloads | 14.0 ms | 79.1 ms | 1,430 ms | 28,001 ms |
+| mixed, generic plus universal overloads | 18.4 ms | 262 ms | 6,855 ms | over budget |
+| generic operand types `<L: E, R: E>` | 12.8 ms | 15.1 ms | 21.8 ms | 23.0 ms |
+| generic operand types, returned as `any E<Bool, D>` | 64.1 ms | 10,004 ms | 15,387 ms | 22,805 ms |
+| concrete `X<T, D>` struct | 23.5 ms | 139 ms | 611 ms | 1,582 ms |
+
+- The cause is the dialect generic on the operators, not the treatment of
+  Swift values. With no universal overloads at all, `any E<T, D>` operands take
+  28 seconds for 16 terms. The overloads for a Swift value multiply the cost.
+- Generic operand types solve a bare predicate in linear time, but not one
+  whose result is converted to an existential, as a helper that returns
+  `any XLExpression<Bool, D>` does: 10 seconds for 8 terms. On the shipped
+  surface they also need `Optional` to lose its conditional `XLExpression`
+  conformance, which otherwise makes even the bare predicate exponential.
+- The concrete struct surface grows too, more slowly.
+
+No shape measured keeps a joined predicate within the budget of this record.
