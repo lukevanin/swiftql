@@ -1,13 +1,16 @@
 //
-//  SQLiteTypeCastFunctions.swift
+//  TypeCastFunctions.swift
+//  
 //
-//  Generated for SQLite by scripts/dialect-surface/generate.py
-//  from scripts/dialect-surface/Templates/TypeCastFunctions.swift.template.
-//  Do not edit: edit the template, then run
-//  `python3 scripts/dialect-surface/generate.py`.
+//  Created by Luke Van In on 2023/09/01.
 //
 
 import Foundation
+
+
+// The casts name SQLite's storage classes (`INTEGER`, `REAL`, `TEXT`, `BLOB`)
+// and rely on its storage affinity, so they are SQLite's own: declared only on
+// a SQLite expression (issue #789).
 
 
 // MARK: - Bool

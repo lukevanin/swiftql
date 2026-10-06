@@ -343,7 +343,11 @@
 - **The dialect is part of a query's types** (issue #789). A model is
   declared for one dialect, and its columns compose only with that dialect's
   expressions, so an operation one dialect does not have is a compile error at
-  the call site in another dialect's query. A SQLite model, query, and value
+  the call site on another dialect's columns and the expressions composed from
+  them. A clause such as `Where` takes any expression, so an expression built
+  from Swift values alone is not checked against the query's dialect, and
+  neither is a statement: `sql(dialect:_:)` returns the same statement type as
+  `sql(_:)`. A SQLite model, query, and value
   are written as before; what changes is code that names SwiftQL's expression
   types.
   - Each dialect has its own expression protocol, and SQLite's is
@@ -393,9 +397,10 @@
     any expression, and it is an expression of every dialect. The dialect is
     checked by the operators and functions.
   - SQLite's own functions are declared only on `XLSQLiteExpression`:
-    `collate(_:)`, `regexp(_:)`, `printf(_:)`, the JSON and JSONB functions
-    and operators, the date functions, and `json_group_array` and
-    `json_group_object`. So are `Insert(_:or:)`, `Replace`, and the
+    `collate(_:)`, `regexp(_:)`, `printf(_:)`, the type casts (`cast(to:)`,
+    `toInt()`, `toDouble()`, `toString()`, `toData()`), which name SQLite's
+    storage classes, the JSON and JSONB functions and operators, the date
+    functions, and `json_group_array` and `json_group_object`. So are `Insert(_:or:)`, `Replace`, and the
     `insert(_:or:)` and `replace` statement functions. A DocC link to one of
     them changes from `XLExpression/minifiedJSON()` to
     `XLSQLiteExpression/minifiedJSON()`.
@@ -415,7 +420,9 @@
     macros generate. A hand-written conformance declares
     `public static var _dialect: XLSQLiteDialect.Type { XLSQLiteDialect.self }`
     on the model, and the instance form on its metadata. A model property
-    named `_dialect` is reported, as other generated names are.
+    named `_dialect` is reported, as other generated names are. So is a type
+    named `Dialect` nested in a model, which Swift would take as the
+    associated type: rename it, or declare it outside the model.
   - Types that carry the dialect gained a generic parameter for it:
     `ConstantCase`, `ConstantCaseWhenThen`, `ConstantCaseWhenThenElse`,
     `VariableCaseWhenThen`, `VariableCaseElse`, `XLScalarCommonTable`, and
@@ -425,7 +432,7 @@
     with a capture. The field factories take their expression erased, so they
     check its dialect when the field is built: a column of a model declared
     for another dialect throws the new
-    `XLStaticRowLayoutError.expressionDialectMismatch(identity:expectedDialect:expressionType:)`.
+    `XLStaticRowLayoutError.expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)`.
     A `switch` over `XLStaticRowLayoutError` with no `default` clause must
     handle it. `staticStorageExpression(as:)` on a column returns the column,
     retyped, in its dialect.

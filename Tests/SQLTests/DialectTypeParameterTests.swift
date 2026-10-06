@@ -272,22 +272,33 @@ final class DialectTypeParameterTests: XCTestCase {
             guard case XLStaticRowLayoutError.expressionDialectMismatch(
                 let thrownIdentity,
                 let expectedDialect,
+                let foundDialect,
                 _
             ) = error else {
                 return XCTFail("unexpected error: \(error)")
             }
             XCTAssertEqual(thrownIdentity, identity)
             XCTAssertEqual(expectedDialect, String(reflecting: XLSQLiteDialect.self))
+            XCTAssertEqual(foundDialect, String(reflecting: FakeSecondDialect.self))
         }
-        // A composed expression is refused too, wherever the column is in it.
-        XCTAssertThrowsError(
-            try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
-                selecting: second.name + "x",
-                identifiedBy: identity
-            )
-        ) { error in
-            guard case XLStaticRowLayoutError.expressionDialectMismatch = error else {
-                return XCTFail("unexpected error: \(error)")
+        // A composed expression is refused too, wherever the column is in it,
+        // and so is a CASE expression, which keeps its arms in closures.
+        let composed: [any XLExpression<String>] = [
+            second.name + "x",
+            "x" + ("y" + ("z" + second.name)),
+            when(second.id > 1, then: second.name).else("none"),
+            switchCase(second.id).when(1, then: second.name).else("none"),
+        ]
+        for expression in composed {
+            XCTAssertThrowsError(
+                try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                    selecting: expression,
+                    identifiedBy: identity
+                )
+            ) { error in
+                guard case XLStaticRowLayoutError.expressionDialectMismatch = error else {
+                    return XCTFail("unexpected error: \(error)")
+                }
             }
         }
         let sqlite = XLSchema().table(DialectSQLitePerson.self)

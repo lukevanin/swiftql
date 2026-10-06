@@ -87,3 +87,26 @@ extension XLQueryCapture: XLDialectTaggedExpression {
 extension XLContextualBindingReference: XLDialectTaggedExpression {
     var expressionDialect: Any.Type { Dialect.self }
 }
+
+
+// A `CASE` expression keeps its arms in closures, which a walk of its stored
+// properties cannot see into, so it records its dialect itself.
+
+extension ConstantCaseWhenThen: XLDialectTaggedExpression {
+    var expressionDialect: Any.Type { Dialect.self }
+}
+
+
+extension ConstantCaseWhenThenElse: XLDialectTaggedExpression {
+    var expressionDialect: Any.Type { Dialect.self }
+}
+
+
+extension VariableCaseWhenThen: XLDialectTaggedExpression {
+    var expressionDialect: Any.Type { Dialect.self }
+}
+
+
+extension VariableCaseElse: XLDialectTaggedExpression {
+    var expressionDialect: Any.Type { Dialect.self }
+}

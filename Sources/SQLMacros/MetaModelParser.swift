@@ -82,6 +82,7 @@ internal enum MetaModelParser {
     ) -> [MetaProperty] {
         var properties: [MetaProperty] = []
         for member in declaration.memberBlock.members {
+            reportNestedDialectType(member.decl, diagnostics: &diagnostics)
             // Members which are not variable declarations (methods, initializers, nested types,
             // subscripts) are never columns.
             guard let variable = member.decl.as(VariableDeclSyntax.self) else {
@@ -90,6 +91,46 @@ internal enum MetaModelParser {
             properties.append(contentsOf: collectProperties(variable: variable, diagnostics: &diagnostics))
         }
         return properties
+    }
+
+    ///
+    /// Reports a nested type named `Dialect` (issue #789).
+    ///
+    /// `XLResult` and the metadata protocols have an associated type
+    /// `Dialect`, which the generated `_dialect` member names. A nested type of
+    /// that name is taken as the associated type instead, and the conformance
+    /// fails with an error that does not point here, so the macro reports it.
+    ///
+    private static func reportNestedDialectType(
+        _ declaration: DeclSyntax,
+        diagnostics: inout MacroDiagnosticCollector
+    ) {
+        let name: TokenSyntax?
+        if let nested = declaration.as(StructDeclSyntax.self) {
+            name = nested.name
+        }
+        else if let nested = declaration.as(EnumDeclSyntax.self) {
+            name = nested.name
+        }
+        else if let nested = declaration.as(ClassDeclSyntax.self) {
+            name = nested.name
+        }
+        else if let nested = declaration.as(ActorDeclSyntax.self) {
+            name = nested.name
+        }
+        else if let nested = declaration.as(TypeAliasDeclSyntax.self) {
+            name = nested.name
+        }
+        else {
+            name = nil
+        }
+        guard let name, name.text == "Dialect" else {
+            return
+        }
+        diagnostics.report(
+            name, id: "nested-dialect-type",
+            "A nested type named 'Dialect' conflicts with the dialect the macro gives the model. Rename the type, or declare it outside the model."
+        )
     }
 
     ///

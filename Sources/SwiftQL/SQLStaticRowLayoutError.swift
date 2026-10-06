@@ -33,6 +33,7 @@ public enum XLStaticRowLayoutError:
     case expressionDialectMismatch(
         identity: XLQuerySlotIdentity,
         expectedDialect: String,
+        foundDialect: String,
         expressionType: String
     )
     case valueCountMismatch(expected: Int, actual: Int)
@@ -61,9 +62,10 @@ public enum XLStaticRowLayoutError:
         case .expressionDialectMismatch(
             let identity,
             let expectedDialect,
+            let foundDialect,
             let expressionType
         ):
-            return "Static result slot \(identity) is built for dialect \(expectedDialect), but selects \(expressionType), which is not an expression of that dialect. A model is queried in the dialect it is declared for."
+            return "Static result slot \(identity) is built for dialect \(expectedDialect), but selects \(expressionType), which holds an expression of dialect \(foundDialect). A model is queried in the dialect it is declared for."
         case .valueCountMismatch(let expected, let actual):
             return "Static row layout expected \(expected) values, but received \(actual)."
         case .nullForRequiredField(let field):

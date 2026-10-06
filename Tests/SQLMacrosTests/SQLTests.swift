@@ -742,6 +742,34 @@ final class SQLMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    // Issue #789: a nested type named `Dialect` would be taken as the
+    // metadata's associated type, so it is reported at the type.
+    func test_nestedDialectType_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Phrase {
+                enum Dialect: String { case uk, us }
+                var id: Int
+            }
+            """,
+            expandedSource: """
+            struct Phrase {
+                enum Dialect: String { case uk, us }
+                var id: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "A nested type named 'Dialect' conflicts with the dialect the macro gives the model. Rename the type, or declare it outside the model.",
+                    line: 3,
+                    column: 10
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
     // Issue #789: every metadata type names its dialect as `_dialect`.
     func test_dialectWitnessPropertyName_emitsError() {
         assertMacroExpansion(

@@ -20,7 +20,7 @@ extension XLValueCodingConfiguration {
     ///
     /// `expression` must be an expression of `dialect`, such as a column of a
     /// model declared for it. Any other expression throws
-    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``.
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``.
     public func staticResultField<Value, Storage, Dialect>(
         _ valueType: Value.Type,
         selecting expression: any XLEncodable,
@@ -130,7 +130,7 @@ where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
     ///
     /// `expression` must be an expression of `dialect`, such as a column of a
     /// model declared for it. A column of another dialect's model throws
-    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``
     /// (issue #789).
     public static func intrinsic(
         selecting expression: any XLExpression<Value>,
@@ -299,22 +299,26 @@ func _xlStaticStorageExpression<Storage, Dialect>(
 /// Every part of the expression that records its dialect, such as a column of
 /// a model or a capture, must record `Dialect`: an expression that holds a
 /// column of a model declared for another dialect, at any depth, throws
-/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:expressionType:)``
+/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``
 /// (issue #789). Any other part, such as a value, belongs to every dialect.
 ///
 /// The walk reads stored properties through `Mirror`, so it does not see into
-/// a closure, such as the arms of a `CASE` expression. A field is built once
-/// per layout, so the walk is not on a per-row path.
+/// a closure; a `CASE` expression, which keeps its arms in closures, records
+/// its dialect itself. A part that records the expected dialect is trusted,
+/// and the walk does not descend into it. A field is built once per layout,
+/// so the walk is not on a per-row path.
 ///
 func _xlDialectExpression<Storage, Dialect>(
     _ expression: any XLExpression<Storage>,
     in _: Dialect.Type,
     identity: XLQuerySlotIdentity
 ) throws -> XLDialectExpression<Storage, Dialect> {
-    if _xlForeignDialect(in: expression, expected: Dialect.self) != nil {
+    var visited = Set<ObjectIdentifier>()
+    if let found = _xlForeignDialect(in: expression, expected: Dialect.self, visited: &visited) {
         throw XLStaticRowLayoutError.expressionDialectMismatch(
             identity: identity,
             expectedDialect: String(reflecting: Dialect.self),
+            foundDialect: String(reflecting: found),
             expressionType: String(reflecting: type(of: expression))
         )
     }
@@ -332,19 +336,21 @@ func _xlDialectExpression<Storage, Dialect>(
 func _xlForeignDialect(
     in value: Any,
     expected: Any.Type,
-    depth: Int = 0
+    visited: inout Set<ObjectIdentifier>
 ) -> Any.Type? {
-    if let tagged = value as? any XLDialectTaggedExpression,
-       tagged.expressionDialect != expected {
-        return tagged.expressionDialect
+    if let tagged = value as? any XLDialectTaggedExpression {
+        return tagged.expressionDialect == expected ? nil : tagged.expressionDialect
     }
-    // An expression is a shallow tree; the bound only stops a cycle through
-    // a reference type from recursing forever.
-    guard depth < 64 else {
-        return nil
+    // A value tree cannot be cyclic; only a reference can lead back to a part
+    // already walked, so each object is walked once.
+    if type(of: value) is AnyClass {
+        let object = value as AnyObject
+        guard visited.insert(ObjectIdentifier(object)).inserted else {
+            return nil
+        }
     }
     for child in Mirror(reflecting: value).children {
-        if let found = _xlForeignDialect(in: child.value, expected: expected, depth: depth + 1) {
+        if let found = _xlForeignDialect(in: child.value, expected: expected, visited: &visited) {
             return found
         }
     }
