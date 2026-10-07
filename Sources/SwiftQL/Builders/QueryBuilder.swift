@@ -20,38 +20,43 @@ import Foundation
 /// 2. The SQL statement is generated each time the `build()` method is called, which incurs a small
 /// runtime overhead. Static queries should be used where maximum efficiency is required.
 ///
-public struct QueryBuilder<Row> {
-    
+/// The builder carries its dialect, and takes only that dialect's tables and
+/// expressions (issue #822). ``QueryBuilder`` is the builder for SQLite. The
+/// methods that take an expression are declared by each dialect's surface,
+/// from scripts/dialect-surface/Templates/QueryBuilder.swift.template.
+///
+public struct XLDialectQueryBuilder<Row, Dialect> where Dialect: XLSQLDialect {
+
     enum InternalError: LocalizedError {
         case missingFromClause
         case missingLimitClause
     }
-    
+
     private var commonTables: [XLCommonTableDependency] = []
-    
-    private var select: Select<Row>
-    
-    private var from: From?
-    
-    private var joins: [Join] = []
-    
+
+    private var select: Select<Row, Dialect>
+
+    private var from: From<Dialect>?
+
+    private var joins: [Join<Dialect>] = []
+
     /// The where terms in call order, each with the operator that joins it to
     /// the terms before it. The first term's operator is not used.
     private var whereTerms: [(op: String, condition: any XLExpression)] = []
-    
+
     private var groupBy: [any XLExpression] = []
-    
-    private var orderBy: [any XLOrderingTerm] = []
-    
-    private var limit: Limit?
-    
-    private var offset: Offset?
-    
+
+    private var orderBy: [any XLOrderingTerm<Dialect>] = []
+
+    private var limit: Limit<Dialect>?
+
+    private var offset: Offset<Dialect>?
+
     ///
     /// Create a query builder using a row definition. The row is typically defined using the row reader on
     /// a struct annotated with `@SQLTable` or `@SQLResult`.
     ///
-    public init<T>(select result: T) where T: XLRowReadable, T.Row == Row {
+    public init<T>(select result: T) where T: XLRowReadable & XLDialectBound, T.Row == Row, T.XLModelDialect == Dialect {
         self.init(select: Select(result))
     }
 
@@ -59,53 +64,39 @@ public struct QueryBuilder<Row> {
     /// Creates a query builder from a static row layout. The layout's metadata
     /// names the columns, so no `readRow` replay runs.
     ///
-    public init<T>(select layout: T) where T: XLStaticRowReadable, T.Row == Row {
+    public init<T>(select layout: T) where T: XLStaticRowReadable, T.Row == Row, T.XLModelDialect == Dialect {
         self.init(select: Select(layout))
     }
 
-
-    ///
-    /// Creates a query builder using an expression. The expression should use one or more fields in one or
-    /// more tables in the from clause.
-    ///
-    /// The logical result type is unconstrained. Contextual-only values still
-    /// require a static row layout to supply result codec metadata.
-    ///
-    public init(select expression: any XLExpression<Row>) {
-        self.init(select: Select(expression))
-    }
-    
-    
     ///
     /// Creates a query builder from a select statement.
     ///
-    public init(select: Select<Row>) {
+    public init(select: Select<Row, Dialect>) {
         self.select = select
     }
 
     ///
     /// Creates a query using a common table expression.
     ///
-    public func with<T>(_ commonTable: T) -> QueryBuilder where T: XLMetaCommonTable {
+    public func with<T>(_ commonTable: T) -> XLDialectQueryBuilder where T: XLMetaCommonTable, T.Result.XLModelDialect == Dialect {
         copy {
             $0.commonTables.append(commonTable.definition)
         }
     }
 
     ///
-    /// Appends a raw common-table definition. Used by scalar common table
-    /// support, whose definition is not carried by an `XLMetaCommonTable`.
+    /// Adds a scalar common table expression to the query.
     ///
-    func with(commonTableDefinition definition: XLCommonTableDependency) -> QueryBuilder {
+    public func with<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> XLDialectQueryBuilder where Value: XLLiteral {
         copy {
-            $0.commonTables.append(definition)
+            $0.commonTables.append(scalarCommonTable.definition)
         }
     }
-    
+
     ///
     /// Adds a from clause to the query.
     ///
-    public func from<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+    public func from<T>(_ table: T) -> XLDialectQueryBuilder where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.from = From(table)
         }
@@ -115,90 +106,16 @@ public struct QueryBuilder<Row> {
     /// Adds a from clause whose table can resolve to `NULL`, for use as the
     /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
     ///
-    public func from<T>(_ table: T) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func from<T>(_ table: T) -> XLDialectQueryBuilder where T: XLMetaNullableNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.from = From(table)
         }
     }
 
     ///
-    /// Adds an inner join clause to the query.
-    ///
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
-        copy {
-            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds an inner join clause to the query, using an optional field.
-    ///
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaResult {
-        copy {
-            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a left join to the query.
-    ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a left join to the query.
-    ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a left join to the query.
-    ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a left join to the query.
-    ///
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a right join to the query. The joined table stays non-nullable;
-    /// declare the from table with `from(_:)`'s nullable overload so its columns
-    /// decode as optionals. Requires SQLite 3.39.0 or later.
-    ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a right join to the query, using an optional constraint.
-    ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
     /// Adds an inner join whose constraint is a `USING (columns...)` clause.
     ///
-    public func innerJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNamedResult {
+    public func innerJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLDialectQueryBuilder where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.joins.append(Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns))
         }
@@ -207,7 +124,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a left join whose constraint is a `USING (columns...)` clause.
     ///
-    public func leftJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func leftJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLDialectQueryBuilder where T: XLMetaNullableNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.joins.append(Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns))
         }
@@ -216,7 +133,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a natural (inner) join, which implicitly matches every shared column.
     ///
-    public func naturalJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+    public func naturalJoin<T>(_ table: T) -> XLDialectQueryBuilder where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.joins.append(Join(kind: .naturalJoin, table: table, constraint: nil))
         }
@@ -225,7 +142,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a natural left join, whose joined table can resolve to `NULL`.
     ///
-    public func naturalLeftJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func naturalLeftJoin<T>(_ table: T) -> XLDialectQueryBuilder where T: XLMetaNullableNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.joins.append(Join(kind: .naturalLeftJoin, table: table, constraint: nil))
         }
@@ -234,126 +151,93 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a cross join to the query, returning every combination of rows.
     ///
-    public func crossJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+    public func crossJoin<T>(_ table: T) -> XLDialectQueryBuilder where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
         copy {
             $0.joins.append(Join(kind: .crossJoin, table: table, constraint: nil))
         }
     }
 
     ///
-    /// Adds a full outer join to the query. Both sides can be `NULL`: the joined
-    /// table is nullable, and the from table must be declared with `from(_:)`'s
-    /// nullable overload. Requires SQLite 3.39.0 or later.
-    ///
-    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds a full outer join to the query, using an optional constraint.
-    ///
-    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
-        }
-    }
-
-    ///
-    /// Adds an and expression to the where clause.
-    ///
-    /// Terms fold in call order: each call combines the whole condition so far
-    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. Build
-    /// a grouped expression and pass it as one term for another grouping.
-    ///
-    public func and(_ condition: any XLExpression<Bool>) -> QueryBuilder {
-        copy {
-            $0.whereTerms.append((op: "AND", condition: condition))
-        }
-    }
-
-    ///
-    /// Adds an and expression to the where clause.
-    ///
-    /// Terms fold in call order, as for the non-optional overload.
-    ///
-    public func and(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
-        copy {
-            $0.whereTerms.append((op: "AND", condition: condition))
-        }
-    }
-
-    ///
-    /// Adds an or expression to the where clause.
-    ///
-    /// Terms fold in call order: each call combines the whole condition so far
-    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. The
-    /// operator of the first term is not used, so `or(a).and(b)` renders
-    /// `(a AND b)`.
-    ///
-    public func or(_ condition: any XLExpression<Bool>) -> QueryBuilder {
-        copy {
-            $0.whereTerms.append((op: "OR", condition: condition))
-        }
-    }
-
-    ///
-    /// Adds an or expression to the where clause.
-    ///
-    /// Terms fold in call order, as for the non-optional overload.
-    ///
-    public func or(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
-        copy {
-            $0.whereTerms.append((op: "OR", condition: condition))
-        }
-    }
-
-    ///
-    /// Adds a group by expression to the where clause.
-    ///
-    public func groupBy(_ expression: any XLExpression) -> QueryBuilder {
-        copy {
-            $0.groupBy.append(expression)
-        }
-    }
-    
-    ///
     /// Adds an order by expression to the where clause.
     ///
-    public func orderBy(_ condition: any XLOrderingTerm) -> QueryBuilder {
+    public func orderBy(_ condition: any XLOrderingTerm<Dialect>) -> XLDialectQueryBuilder {
         copy {
             $0.orderBy.append(condition)
         }
     }
-    
+
     ///
-    /// Adds a limit clause.
+    /// Adds a join of `kind` on a table and a constraint that belong to
+    /// `Dialect`. Used by the generated join methods.
     ///
-    public func limit(_ expression: any XLExpression) -> QueryBuilder {
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceJoin(_ kind: Join<Dialect>.Kind, table: any XLEncodable, constraint: any XLExpression) -> XLDialectQueryBuilder {
         copy {
-            $0.limit = Limit(unchecked: expression)
+            $0.joins.append(Join(kind: kind, table: table, constraint: constraint))
         }
     }
-    
+
     ///
-    /// Adds an offset clause.
+    /// Adds a where term that belongs to `Dialect`, joined by `AND`. Used by
+    /// the generated `and(_:)`.
     ///
-    /// SQLite requires an explicit limit before an offset. `build()` throws if an offset is set without a
-    /// limit. Use `limit(-1).offset(n)` to apply an offset without an upper bound.
-    ///
-    public func offset(_ expression: any XLExpression) -> QueryBuilder {
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceAnd(_ condition: any XLExpression) -> XLDialectQueryBuilder {
         copy {
-            $0.offset = Offset(unchecked: expression)
+            $0.whereTerms.append((op: "AND", condition: condition))
         }
     }
-    
-    private func copy(modifier: (inout QueryBuilder) -> Void) -> QueryBuilder {
+
+    ///
+    /// Adds a where term that belongs to `Dialect`, joined by `OR`. Used by
+    /// the generated `or(_:)`.
+    ///
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceOr(_ condition: any XLExpression) -> XLDialectQueryBuilder {
+        copy {
+            $0.whereTerms.append((op: "OR", condition: condition))
+        }
+    }
+
+    ///
+    /// Adds a group by expression that belongs to `Dialect`. Used by the
+    /// generated `groupBy(_:)`.
+    ///
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceGroupBy(_ expression: any XLExpression) -> XLDialectQueryBuilder {
+        copy {
+            $0.groupBy.append(expression)
+        }
+    }
+
+    ///
+    /// Sets the limit to an expression that belongs to `Dialect`. Used by the
+    /// generated `limit(_:)`.
+    ///
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceLimit(_ expression: any XLExpression) -> XLDialectQueryBuilder {
+        copy {
+            $0.limit = Limit(_dialectSurface: expression)
+        }
+    }
+
+    ///
+    /// Sets the offset to an expression that belongs to `Dialect`. Used by
+    /// the generated `offset(_:)`.
+    ///
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceOffset(_ expression: any XLExpression) -> XLDialectQueryBuilder {
+        copy {
+            $0.offset = Offset(_dialectSurface: expression)
+        }
+    }
+
+    private func copy(modifier: (inout XLDialectQueryBuilder) -> Void) -> XLDialectQueryBuilder {
         var newInstance = self
         modifier(&newInstance)
         return newInstance
     }
-    
+
     ///
     /// Constructs the SQL query from the provided clauses.
     /// - Returns: A complete SQL select statement.
@@ -361,7 +245,7 @@ public struct QueryBuilder<Row> {
     /// - Throws: `InternalError.missingLimitClause` if an offset term is specified without a
     /// limit expression.
     ///
-    public func build() throws -> any XLQueryStatement<Row> {
+    public func build() throws -> any XLDialectQueryStatement<Row, Dialect> {
         var statement = XLQueryStatementComponents(select: select)
         if !commonTables.isEmpty {
             statement.commonTables = commonTables
@@ -384,13 +268,13 @@ public struct QueryBuilder<Row> {
             }
         }
         if let condition {
-            statement.components.append(Where(condition))
+            statement.components.append(Where<Dialect>(_dialectSurface: condition))
         }
         if !groupBy.isEmpty {
-            statement.components.append(GroupBy(groupBy))
+            statement.components.append(GroupBy<Dialect>(_dialectSurface: groupBy))
         }
         if !orderBy.isEmpty {
-            statement.components.append(OrderBy(terms: orderBy))
+            statement.components.append(OrderBy<Dialect>(terms: orderBy))
         }
         if let limit {
             statement.components.append(limit)
@@ -401,6 +285,16 @@ public struct QueryBuilder<Row> {
             }
             statement.components.append(offset)
         }
-        return AbstractXLQueryStatement(components: statement)
+        return AbstractXLQueryStatement<Row, Dialect>(components: statement)
     }
 }
+
+
+///
+/// QueryBuilder constructs SQLite select statements when the structure of the
+/// query is not known at compile time.
+///
+/// It takes only SQLite tables and expressions. See
+/// ``XLDialectQueryBuilder`` for another dialect.
+///
+public typealias QueryBuilder<Row> = XLDialectQueryBuilder<Row, XLSQLiteDialect>

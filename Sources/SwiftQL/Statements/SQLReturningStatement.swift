@@ -22,6 +22,15 @@ import Foundation
 /// columns *unqualified* (`RETURNING id, value`) while decoding rows through the
 /// projection's own reader.
 ///
+/// The projection must belong to the statement's dialect (issue #822): the
+/// `returning(_:)` methods take only a result of the dialect of the table the
+/// statement writes, which is the dialect of the model the statement names.
+/// A statement erased with its model, such as an
+/// `any XLInsertStatement<Person>`, keeps it. A statement erased without its
+/// model, such as the `any XLInsertStatement` a `sql { }` insert returns, has
+/// lost it, so `returning(_:)` follows the statement before it is erased, as
+/// in `insert(t).values(row).returning(t)`.
+///
 /// Requires SQLite 3.35.0 (2021-03-12) or later.
 ///
 public struct Returning<Row>: XLEncodable, XLRowReadable {
@@ -152,7 +161,7 @@ public struct XLInsertReturningStatement<Row>: XLReturningStatement {
 }
 
 
-extension XLInsertStatement {
+extension XLInsertStatement where Row: XLTable {
 
     ///
     /// Appends a `RETURNING` clause projecting the given result metadata, turning
@@ -166,7 +175,7 @@ extension XLInsertStatement {
     ///
     /// Requires SQLite 3.35.0 or later.
     ///
-    public func returning<T>(_ result: T) -> XLInsertReturningStatement<T.Row> where T: XLRowReadable {
+    public func returning<T>(_ result: T) -> XLInsertReturningStatement<T.Row> where T: XLRowReadable & XLDialectBound, T.XLModelDialect == Row.XLModelDialect {
         let clause = Returning<T.Row>(result)
         return XLInsertReturningStatement(
             statement: components.appending(clause),
@@ -178,7 +187,7 @@ extension XLInsertStatement {
     /// Appends a `RETURNING` clause whose columns come from a static row
     /// layout's metadata, so no `readRow` replay runs.
     ///
-    public func returning<T>(_ layout: T) -> XLInsertReturningStatement<T.Row> where T: XLStaticRowReadable {
+    public func returning<T>(_ layout: T) -> XLInsertReturningStatement<T.Row> where T: XLStaticRowReadable, T.XLModelDialect == Row.XLModelDialect {
         let clause = Returning<T.Row>(layout)
         return XLInsertReturningStatement(
             statement: components.appending(clause),
@@ -207,7 +216,7 @@ public struct XLDeleteReturningStatement<Row>: XLReturningStatement {
 }
 
 
-extension XLDeleteStatement {
+extension XLDeleteStatement where Table: XLMetaWritableTable {
 
     ///
     /// Appends a `RETURNING` clause projecting the given result metadata, turning
@@ -224,7 +233,7 @@ extension XLDeleteStatement {
     ///
     /// Requires SQLite 3.35.0 or later.
     ///
-    public func returning<T>(_ result: T) -> XLDeleteReturningStatement<T.Row> where T: XLRowReadable {
+    public func returning<T>(_ result: T) -> XLDeleteReturningStatement<T.Row> where T: XLRowReadable & XLDialectBound, T.XLModelDialect == Table.XLModelDialect {
         let clause = Returning<T.Row>(result)
         return XLDeleteReturningStatement(
             statement: components.appending(clause),
@@ -236,7 +245,7 @@ extension XLDeleteStatement {
     /// Appends a `RETURNING` clause whose columns come from a static row
     /// layout's metadata, so no `readRow` replay runs.
     ///
-    public func returning<T>(_ layout: T) -> XLDeleteReturningStatement<T.Row> where T: XLStaticRowReadable {
+    public func returning<T>(_ layout: T) -> XLDeleteReturningStatement<T.Row> where T: XLStaticRowReadable, T.XLModelDialect == Table.XLModelDialect {
         let clause = Returning<T.Row>(layout)
         return XLDeleteReturningStatement(
             statement: components.appending(clause),
@@ -265,7 +274,7 @@ public struct XLUpdateReturningStatement<Row>: XLReturningStatement {
 }
 
 
-extension XLUpdateStatement {
+extension XLUpdateStatement where Table: XLTable {
 
     ///
     /// Appends a `RETURNING` clause projecting the given result metadata, turning
@@ -279,7 +288,7 @@ extension XLUpdateStatement {
     ///
     /// Requires SQLite 3.35.0 or later.
     ///
-    public func returning<T>(_ result: T) -> XLUpdateReturningStatement<T.Row> where T: XLRowReadable {
+    public func returning<T>(_ result: T) -> XLUpdateReturningStatement<T.Row> where T: XLRowReadable & XLDialectBound, T.XLModelDialect == Table.XLModelDialect {
         let clause = Returning<T.Row>(result)
         return XLUpdateReturningStatement(
             statement: components.appending(clause),
@@ -291,7 +300,7 @@ extension XLUpdateStatement {
     /// Appends a `RETURNING` clause whose columns come from a static row
     /// layout's metadata, so no `readRow` replay runs.
     ///
-    public func returning<T>(_ layout: T) -> XLUpdateReturningStatement<T.Row> where T: XLStaticRowReadable {
+    public func returning<T>(_ layout: T) -> XLUpdateReturningStatement<T.Row> where T: XLStaticRowReadable, T.XLModelDialect == Table.XLModelDialect {
         let clause = Returning<T.Row>(layout)
         return XLUpdateReturningStatement(
             statement: components.appending(clause),

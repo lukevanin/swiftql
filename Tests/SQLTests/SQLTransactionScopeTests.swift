@@ -258,7 +258,7 @@ final class SQLTransactionScopeTests: XCTestCase {
         try createTestTable()
 
         let idParameter = XLNamedBindingReference<String>(name: "id")
-        let query = sql { schema -> any XLQueryStatement<TestTable> in
+        let query = sql { schema -> any XLDialectQueryStatement<TestTable, XLSQLiteDialect> in
             let table = schema.table(TestTable.self)
             Select(table)
             From(table)
@@ -303,7 +303,7 @@ final class SQLTransactionScopeTests: XCTestCase {
         try createTestTable()
 
         let minimumValue = XLNamedBindingReference<Int>(name: "minimumValue")
-        let query = sql { schema -> any XLQueryStatement<TestTable> in
+        let query = sql { schema -> any XLDialectQueryStatement<TestTable, XLSQLiteDialect> in
             let table = schema.table(TestTable.self)
             Select(table)
             From(table)
@@ -403,7 +403,7 @@ final class SQLTransactionScopeTests: XCTestCase {
                 // `TestNullablesTable` maps to a table that was never
                 // created in this database: "no such table" at prepare time.
                 _ = try scope.makeRequest(
-                    with: sql { schema -> any XLQueryStatement<TestNullablesTable> in
+                    with: sql { schema -> any XLDialectQueryStatement<TestNullablesTable, XLSQLiteDialect> in
                         let table = schema.table(TestNullablesTable.self)
                         Select(table)
                         From(table)
@@ -422,7 +422,7 @@ final class SQLTransactionScopeTests: XCTestCase {
         try database.makeRequest(with: sqlCreate(DoubleTest.self)).execute()
 
         let valueParameter = XLNamedBindingReference<Double>(name: "value")
-        let query = sql { schema -> any XLQueryStatement<DoubleTest> in
+        let query = sql { schema -> any XLDialectQueryStatement<DoubleTest, XLSQLiteDialect> in
             let table = schema.table(DoubleTest.self)
             Select(table)
             From(table)
@@ -463,7 +463,7 @@ final class SQLTransactionScopeTests: XCTestCase {
             logger: nil
         )
         let remaining = try freshDatabase.makeRequest(
-            with: sql { schema -> any XLQueryStatement<DoubleTest> in
+            with: sql { schema -> any XLDialectQueryStatement<DoubleTest, XLSQLiteDialect> in
                 let table = schema.table(DoubleTest.self)
                 Select(table)
                 From(table)

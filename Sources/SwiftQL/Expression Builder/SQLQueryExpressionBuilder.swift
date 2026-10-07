@@ -16,39 +16,58 @@ import Foundation
 /// of a single expression.
 ///
 @resultBuilder public struct XLScalarExpressionBuilder {
-    
-    public static func buildBlock<T>(_ component: some XLExpression<T>) -> some XLExpression<T> {
+
+    /// Returns the expression with its own type, so that a closure that
+    /// returns a dialect's expression protocol keeps the expression's dialect
+    /// (issue #822).
+    public static func buildBlock<Expression>(_ component: Expression) -> Expression where Expression: XLExpression {
         component
     }
 }
 
 
 ///
-/// Result builder used to construct a select query.
+/// Result builder used to construct a select query in `Dialect`.
 ///
-@resultBuilder public struct XLQueryExpressionBuilder {
-    
+/// Every clause of the body must belong to `Dialect`: a `From` or a join of
+/// another dialect's table, or a `Where` over another dialect's columns, is a
+/// compile error at the clause, which names both dialects (issue #822). The
+/// builder is also the context in which each clause's initializer is chosen,
+/// so a clause built from values alone, such as `Where(true)` or `Limit(10)`,
+/// takes `Dialect`.
+///
+/// ``XLQueryExpressionBuilder`` is the builder for SQLite.
+///
+@resultBuilder public struct XLDialectQueryExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
+
+    ///
+    /// Accepts a clause of the builder's dialect.
+    ///
+    public static func buildExpression<Clause>(_ clause: Clause) -> Clause where Clause: XLDialectClause, Clause.Dialect == Dialect {
+        clause
+    }
+
     ///
     /// Constructs a With expression.
     ///
-    public static func buildPartialBlock(first: With) -> XLWithStatement {
-        XLWithStatement(first.commonTables)
+    public static func buildPartialBlock(first: With<Dialect>) -> XLWithStatement<Dialect> {
+        XLWithStatement(_dialectSurface: first.commonTables)
     }
 
     ///
     /// Constructs a Select expression.
     ///
-    public static func buildPartialBlock<Row>(first: Select<Row>) -> XLQuerySelectStatement<Row> {
+    public static func buildPartialBlock<Row>(first: Select<Row, Dialect>) -> XLQuerySelectStatement<Row, Dialect> {
         XLQuerySelectStatement(components: XLQueryStatementComponents(select: first))
     }
-    
-    
+
+
     // MARK: With
-    
+
     ///
     /// Constructs a Select expression with a With clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Select<Row>) -> XLQuerySelectStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement<Dialect>, next: Select<Row, Dialect>) -> XLQuerySelectStatement<Row, Dialect> {
         XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: accumulated.commonTables, select: next))
     }
 
@@ -58,35 +77,35 @@ import Foundation
     ///
     /// Constructs a Union expression.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Union) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement {
+    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Union<Dialect>) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement, Statement.Dialect == Dialect {
         return XLQueryPartialUnion(kind: .union, query: accumulated)
     }
     
     ///
     /// Constructs a UnionAll expression.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: Statement, next: UnionAll) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement {
+    public static func buildPartialBlock<Statement>(accumulated: Statement, next: UnionAll<Dialect>) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement, Statement.Dialect == Dialect {
         return XLQueryPartialUnion(kind: .unionAll, query: accumulated)
     }
     
     ///
     /// Constructs an Intersect expression.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Intersect) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement {
+    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Intersect<Dialect>) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement, Statement.Dialect == Dialect {
         return XLQueryPartialUnion(kind: .intersect, query: accumulated)
     }
     
     ///
     /// Constructs an Except expression.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Except) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement {
+    public static func buildPartialBlock<Statement>(accumulated: Statement, next: Except<Dialect>) -> XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement, Statement.Dialect == Dialect {
         return XLQueryPartialUnion(kind: .except, query: accumulated)
     }
 
     ///
     /// Constructs a Select expression with a partial union.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row>) -> XLQuerySelectStatement<Statement.Row> where Statement: XLSimpleSelectQueryStatement {
+    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row, Dialect>) -> XLQuerySelectStatement<Statement.Row, Dialect> where Statement: XLSimpleSelectQueryStatement, Statement.Dialect == Dialect {
         let union = BooleanClause(kind: accumulated.kind, lhs: accumulated.query.components, rhs: next)
         return XLQuerySelectStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
@@ -97,7 +116,7 @@ import Foundation
     ///
     /// Constructs a Select expression with a From clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQuerySelectStatement<Row>, next: From) -> XLQueryTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQuerySelectStatement<Row, Dialect>, next: From<Dialect>) -> XLQueryTableStatement<Row, Dialect> {
         XLQueryTableStatement(components: accumulated.components.appending(next))
     }
     
@@ -107,35 +126,35 @@ import Foundation
     ///
     /// Constructs a Select expression with a From clause that includes a Join clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row>, next: Join) -> XLQueryTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row, Dialect>, next: Join<Dialect>) -> XLQueryTableStatement<Row, Dialect> {
         XLQueryTableStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs a Select expression with a From clause that includes a Where clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row>, next: Where) -> XLQueryWhereStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row, Dialect>, next: Where<Dialect>) -> XLQueryWhereStatement<Row, Dialect> {
         XLQueryWhereStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs a Select expression with a From clause that includes a GroupBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row>, next: GroupBy) -> XLQueryGroupByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row, Dialect>, next: GroupBy<Dialect>) -> XLQueryGroupByStatement<Row, Dialect> {
         XLQueryGroupByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs a Select expression with a From clause that includes an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row>, next: OrderBy) -> XLQueryOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLQueryOrderByStatement<Row, Dialect> {
         XLQueryOrderByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs a Select expression with a From clause that includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row>, next: Limit) -> XLQueryLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryTableStatement<Row, Dialect>, next: Limit<Dialect>) -> XLQueryLimitStatement<Row, Dialect> {
         XLQueryLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -145,21 +164,21 @@ import Foundation
     ///
     /// Constructs a Select expression with a Where clause that includes a GroupBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row>, next: GroupBy) -> XLQueryGroupByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row, Dialect>, next: GroupBy<Dialect>) -> XLQueryGroupByStatement<Row, Dialect> {
         XLQueryGroupByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs a Select expression with a Where clause that includes an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row>, next: OrderBy) -> XLQueryOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLQueryOrderByStatement<Row, Dialect> {
         XLQueryOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs a Select expression with a Where clause that includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row>, next: Limit) -> XLQueryLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryWhereStatement<Row, Dialect>, next: Limit<Dialect>) -> XLQueryLimitStatement<Row, Dialect> {
         XLQueryLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -169,21 +188,21 @@ import Foundation
     ///
     /// Constructs a Select expression with a GroupBy clause that includes a Having clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row>, next: Having) -> XLQueryHavingStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row, Dialect>, next: Having<Dialect>) -> XLQueryHavingStatement<Row, Dialect> {
         XLQueryHavingStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs a Select expression with a GroupBy clause that includes an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row>, next: OrderBy) -> XLQueryOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLQueryOrderByStatement<Row, Dialect> {
         XLQueryOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs a Select expression with a GroupBy clause that includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row>, next: Limit) -> XLQueryLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryGroupByStatement<Row, Dialect>, next: Limit<Dialect>) -> XLQueryLimitStatement<Row, Dialect> {
         XLQueryLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -193,14 +212,14 @@ import Foundation
     ///
     /// Constructs a Select expression with a Having clause that includes an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryHavingStatement<Row>, next: OrderBy) -> XLQueryOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryHavingStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLQueryOrderByStatement<Row, Dialect> {
         XLQueryOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs a Select expression with a Having clause that includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryHavingStatement<Row>, next: Limit) -> XLQueryLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryHavingStatement<Row, Dialect>, next: Limit<Dialect>) -> XLQueryLimitStatement<Row, Dialect> {
         XLQueryLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -210,7 +229,7 @@ import Foundation
     ///
     /// Constructs a Select expression with an OrderBy clause that includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryOrderByStatement<Row>, next: Limit) -> XLQueryLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryOrderByStatement<Row, Dialect>, next: Limit<Dialect>) -> XLQueryLimitStatement<Row, Dialect> {
         XLQueryLimitStatement(components: accumulated.components.appending(next))
     }
     
@@ -220,10 +239,20 @@ import Foundation
     ///
     /// Constructs a Select expression with an Limit clause that includes an Offset clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLQueryLimitStatement<Row>, next: Offset) -> XLQueryOffsetStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLQueryLimitStatement<Row, Dialect>, next: Offset<Dialect>) -> XLQueryOffsetStatement<Row, Dialect> {
         XLQueryOffsetStatement(components: accumulated.components.appending(next))
     }
 }
+
+
+///
+/// Result builder used to construct a SQLite select query.
+///
+/// Every clause of the body must be a SQLite clause: a table of a model
+/// declared for SQLite, and SQLite's expressions (issue #822). A helper that
+/// builds a SQLite query with this builder keeps compiling unchanged.
+///
+public typealias XLQueryExpressionBuilder = XLDialectQueryExpressionBuilder<XLSQLiteDialect>
 
 
 // MARK: - Schema
@@ -233,7 +262,7 @@ extension XLSchema {
     ///
     /// Constructs a common table expression on a schema.
     ///
-    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
+    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<T, Dialect>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
@@ -246,7 +275,7 @@ extension XLSchema {
     /// The subquery's alias comes from this schema, and the body receives a
     /// schema nested in this one (see ``XLSchema/init(parent:)``).
     ///
-    public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == Dialect {
+    public func subqueryExpression<T>(alias: XLName? = nil, @XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<T, Dialect>) -> T.MetaResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousResult(namespace: tableNamespace, dependency: dependency)
@@ -256,7 +285,7 @@ extension XLSchema {
     /// Constructs a subquery in this schema whose columns can evaluate to NULL,
     /// for use on the nullable side of a `LEFT JOIN`.
     ///
-    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == Dialect {
+    public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<T, Dialect>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -266,7 +295,7 @@ extension XLSchema {
     /// Constructs a scalar subquery in this schema using the query expression
     /// builder.
     ///
-    public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> XLDialectExpression<Optional<T>, Dialect> where T: XLLiteral {
+    public func subqueryExpression<T>(@XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<T, Dialect>) -> XLDialectExpression<Optional<T>, Dialect> where T: XLLiteral {
         XLDialectExpression(XLSubquery<T>(statement: statement(XLSchema(parent: self))))
     }
 
@@ -274,7 +303,7 @@ extension XLSchema {
     /// Constructs a scalar subquery in this schema whose inner statement is
     /// already nullable.
     ///
-    public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> XLDialectExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
+    public func subqueryExpression<Wrapped>(@XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<Optional<Wrapped>, Dialect>) -> XLDialectExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
         XLDialectExpression(XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self))))
     }
 }
@@ -289,7 +318,7 @@ extension XLSchema {
 ///   independent scope. Use ``XLSchema/subqueryExpression(alias:statement:)``
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -303,7 +332,7 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 /// - Important: This function opens an independent scope. Give the subquery
 ///   an explicit alias when it is joined to another source.
 ///
-public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
+public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -320,7 +349,7 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 ///   form whose closure takes no schema, to use names from the enclosing
 ///   schema.
 ///
-public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
     return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement(schema)))
 }
@@ -329,7 +358,7 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSQLite
 ///
 /// Constructs a subquery that returns a scalar value.
 ///
-public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement()))
 }
 
@@ -341,13 +370,13 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any
 /// - Important: The schema passed to `statement` starts an independent scope,
 ///   as for the non-optional scalar form.
 ///
-public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<Optional<Wrapped>, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
     return XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement(schema)))
 }
 
 
-public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLDialectQueryStatement<Optional<Wrapped>, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement()))
 }
 
@@ -360,7 +389,7 @@ public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () 
 ///   method `XLSchema.nullableSubqueryExpression(alias:statement:)` to take the
 ///   alias and the body's names from the enclosing schema.
 ///
-public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
+public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -375,8 +404,10 @@ public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressi
 ///
 /// The builder receives a SQLite schema, which accepts only models declared
 /// for SQLite: a model declared with `@SQLTable` and no `dialect:` argument.
+/// Every clause of the body is a SQLite clause (issue #822). The statement is
+/// an `any XLQueryStatement<Row>` too, so it can be stored and run as one.
 ///
-public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> any XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
+public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> any XLDialectQueryStatement<Row, XLSQLiteDialect>) -> any XLDialectQueryStatement<Row, XLSQLiteDialect> {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -388,9 +419,10 @@ public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> any 
 /// schema of `dialect`, which accepts only models declared for it, so every
 /// column and every expression in the body carries the dialect, and an
 /// operation the dialect does not have is a compile error at its call site
-/// (issue #789). The body is written exactly as for SQLite.
+/// (issue #789). Every clause takes only the dialect's tables and
+/// expressions (issue #822). The body is written exactly as for SQLite.
 ///
-public func sql<Row, Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> any XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
+public func sql<Row, Dialect>(dialect: Dialect.Type, @XLDialectQueryExpressionBuilder<Dialect> builder: (XLSchema<Dialect>) -> any XLDialectQueryStatement<Row, Dialect>) -> any XLDialectQueryStatement<Row, Dialect> {
     let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }
@@ -443,32 +475,32 @@ public func sql<Row, Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder b
 // `XLSchema` subquery methods to take names from the enclosing schema.
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable, T.Basis.XLModelDialect == XLSQLiteDialect {
     subqueryExpression(alias: alias, statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+public func sql<T>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+public func sql<T>(@XLQueryExpressionBuilder statement: () -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<Optional<Wrapped>, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     subqueryExpression(statement: statement)
 }
 
 @_disfavoredOverload
-public func sql<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLDialectQueryStatement<Optional<Wrapped>, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     subqueryExpression(statement: statement)
 }
 #endif

@@ -240,11 +240,11 @@ public struct XLUpdateFromTableDependency: XLTableDeclaration, XLNamedDependency
 /// Vestigial join-kind enumeration.
 ///
 /// This type is unused by the library — join rendering is driven by the
-/// canonical ``Join/Kind``, which covers inner, left, right, full outer, and
-/// cross joins. It is retained (deprecated) only for source compatibility and
-/// does not receive new cases.
+/// canonical ``XLJoinOperator``, which covers inner, left, right, full outer,
+/// and cross joins. It is retained (deprecated) only for source compatibility
+/// and does not receive new cases.
 ///
-@available(*, deprecated, message: "Unused; the canonical join kinds are Join.Kind.")
+@available(*, deprecated, message: "Unused; the canonical join kinds are XLJoinOperator.")
 public enum JoinKind: String {
     case innerJoin = "INNER JOIN"
     case leftJoin = "LEFT JOIN"

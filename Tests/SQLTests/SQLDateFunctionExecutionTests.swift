@@ -49,7 +49,7 @@ final class XLDateFunctionExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>
+        _ expression: any XLSQLiteExpression<Value>
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         var request = database.makeRequest(with: statement)

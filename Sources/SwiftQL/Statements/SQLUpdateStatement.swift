@@ -4,6 +4,11 @@
 //
 //  Created by Luke Van In on 2024/10/25.
 //
+//  Each statement carries the dialect of the table it updates (issue #822).
+//  `where(_:)` takes the dialect's expression protocol, so each dialect's
+//  surface declares it, from
+//  scripts/dialect-surface/Templates/WriteStatements.swift.template.
+//
 
 import Foundation
 
@@ -55,6 +60,9 @@ public struct XLUpdateStatementComponents<Row>: XLEncodable {
 ///
 public protocol XLUpdateStatement<Table>: XLEncodable  {
     associatedtype Table
+    /// The dialect of the table the statement updates, and of every clause
+    /// in it (issue #822).
+    associatedtype Dialect: XLSQLDialect
     var components: XLUpdateStatementComponents<Table> { get }
 }
 
@@ -68,15 +76,21 @@ extension XLUpdateStatement {
 ///
 /// An update statement.
 ///
-public struct XLUpdateTableStatement<Row> {
-    
+public struct XLUpdateTableStatement<Row, Dialect> where Dialect: XLSQLDialect {
+
     public let components: XLUpdateStatementComponents<Row>
-    
-    public func `set`<S>(_ values: S) -> XLUpdateSetStatement<Row> where S: XLMetaUpdate, S.Row == Row, Row: XLTable {
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLUpdateStatementComponents<Row>) {
+        self.components = components
+    }
+
+    public func `set`<S>(_ values: S) -> XLUpdateSetStatement<Row, Dialect> where S: XLMetaUpdate, S.Row == Row, Row: XLTable {
         XLUpdateSetStatement(components: components.appending(Setting(values)))
     }
-    
-    public func `set`(_ values: @escaping (inout Row.MetaUpdate) -> Void) -> XLUpdateSetStatement<Row> where Row: XLTable {
+
+    public func `set`(_ values: @escaping (inout Row.MetaUpdate) -> Void) -> XLUpdateSetStatement<Row, Dialect> where Row: XLTable {
         XLUpdateSetStatement(components: components.appending(Setting<Row>(values)))
     }
 }
@@ -85,16 +99,18 @@ public struct XLUpdateTableStatement<Row> {
 ///
 /// An update statement with a set clause.
 ///
-public struct XLUpdateSetStatement<Row>: XLUpdateStatement {
-    
+public struct XLUpdateSetStatement<Row, Dialect>: XLUpdateStatement where Dialect: XLSQLDialect {
+
     public let components: XLUpdateStatementComponents<Row>
-    
-    public func from<R>(_ statement: R) -> XLUpdateFromStatement<Row> where R: XLMetaNamedResult {
-        XLUpdateFromStatement(components: components.appending(From(statement)))
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLUpdateStatementComponents<Row>) {
+        self.components = components
     }
-    
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
-        XLUpdateWhereStatement(components: components.appending(Where(expression)))
+
+    public func from<R>(_ statement: R) -> XLUpdateFromStatement<Row, Dialect> where R: XLMetaNamedResult, R.XLModelDialect == Dialect {
+        XLUpdateFromStatement(components: components.appending(From<Dialect>(statement)))
     }
 }
 
@@ -102,12 +118,14 @@ public struct XLUpdateSetStatement<Row>: XLUpdateStatement {
 ///
 /// An update statement with a from clause.
 ///
-public struct XLUpdateFromStatement<Row>: XLUpdateStatement {
-    
+public struct XLUpdateFromStatement<Row, Dialect>: XLUpdateStatement where Dialect: XLSQLDialect {
+
     public let components: XLUpdateStatementComponents<Row>
 
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
-        XLUpdateWhereStatement(components: components.appending(Where(expression)))
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLUpdateStatementComponents<Row>) {
+        self.components = components
     }
 }
 
@@ -115,7 +133,13 @@ public struct XLUpdateFromStatement<Row>: XLUpdateStatement {
 ///
 /// An update statement with a where clause.
 ///
-public struct XLUpdateWhereStatement<Row>: XLUpdateStatement {
-    
+public struct XLUpdateWhereStatement<Row, Dialect>: XLUpdateStatement where Dialect: XLSQLDialect {
+
     public let components: XLUpdateStatementComponents<Row>
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLUpdateStatementComponents<Row>) {
+        self.components = components
+    }
 }

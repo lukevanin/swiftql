@@ -37,7 +37,7 @@ import Foundation
 ///
 /// Constructs a SQLite Create expression.
 ///
-public func sql<Table>(@XLCreateExpressionBuilder<Table> builder: (XLSQLiteSchema) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> {
+public func sql<Table>(@XLCreateExpressionBuilder<Table> builder: (XLSQLiteSchema) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> where Table: XLTable, Table.XLModelDialect == XLSQLiteDialect {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -46,9 +46,10 @@ public func sql<Table>(@XLCreateExpressionBuilder<Table> builder: (XLSQLiteSchem
 /// Constructs a Create expression in `dialect`.
 ///
 /// The builder receives a schema of `dialect`, which accepts only models
-/// declared for it (issue #789).
+/// declared for it (issue #789), and the table must be declared for
+/// `dialect` (issue #822).
 ///
-public func sql<Table, Dialect>(dialect: Dialect.Type, @XLCreateExpressionBuilder<Table> builder: (XLSchema<Dialect>) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> {
+public func sql<Table, Dialect>(dialect: Dialect.Type, @XLCreateExpressionBuilder<Table> builder: (XLSchema<Dialect>) -> any XLCreateStatement<Table>) -> any XLCreateStatement<Table> where Table: XLTable, Table.XLModelDialect == Dialect {
     let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

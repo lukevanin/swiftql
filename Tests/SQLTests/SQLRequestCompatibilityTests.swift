@@ -5,7 +5,7 @@ import OpenCombine
 #endif
 import Foundation
 import GRDB
-import SwiftQL
+@_spi(XLDialectSurface) import SwiftQL
 import XCTest
 
 
@@ -13,12 +13,12 @@ final class SQLRequestCompatibilityTests: XCTestCase {
 
     func testScalarSelectAcceptsAnUnconstrainedLogicalResultType() throws {
         let expression = LegacyContextOnlyExpression()
-        let direct: Select<LegacyContextOnlyValue> = Select(expression)
-        let built: Select<LegacyContextOnlyValue> = Select { expression }
-        let functional: XLQuerySelectStatement<LegacyContextOnlyValue> =
+        let direct: Select<LegacyContextOnlyValue, XLSQLiteDialect> = Select(expression)
+        let built: Select<LegacyContextOnlyValue, XLSQLiteDialect> = Select { expression }
+        let functional: XLQuerySelectStatement<LegacyContextOnlyValue, XLSQLiteDialect> =
             select(expression)
-        let factored: XLQuerySelectStatement<LegacyContextOnlyValue> =
-            XLWithStatement([]).select(expression)
+        let factored: XLQuerySelectStatement<LegacyContextOnlyValue, XLSQLiteDialect> =
+            XLWithStatement<XLSQLiteDialect>(_dialectSurface: []).select(expression)
         let dynamic: QueryBuilder<LegacyContextOnlyValue> = QueryBuilder(
             select: expression
         )
@@ -450,7 +450,7 @@ private final class LegacyManualRowReader: XLRowReader {
 private struct LegacyContextOnlyValue {}
 
 
-private struct LegacyContextOnlyExpression: XLExpression {
+private struct LegacyContextOnlyExpression: XLSQLiteExpression {
     typealias T = LegacyContextOnlyValue
 
     func makeSQL(context: inout XLBuilder) {
@@ -459,7 +459,8 @@ private struct LegacyContextOnlyExpression: XLExpression {
 }
 
 
-private struct LegacyQueryStatementProjection: XLRowReadable {
+private struct LegacyQueryStatementProjection: XLRowReadable, XLDialectBound {
+    typealias XLModelDialect = XLSQLiteDialect
     typealias Row = Int
 
     func readRow(reader: XLRowReader) throws -> Int {
@@ -486,7 +487,7 @@ private struct LegacyDualQueryStatementExpression:
 }
 
 
-private struct LegacyDirectNamedBindingExpression: XLExpression {
+private struct LegacyDirectNamedBindingExpression: XLSQLiteExpression {
 
     typealias T = String
 

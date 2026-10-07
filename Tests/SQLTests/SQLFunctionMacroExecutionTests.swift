@@ -28,10 +28,10 @@ struct MacroHaversineDistance: XLCustomFunction {
     private let toLongitude: any XLExpression<Double>
 
     init(
-        fromLatitude: any XLExpression<Double>,
-        fromLongitude: any XLExpression<Double>,
-        toLatitude: any XLExpression<Double>,
-        toLongitude: any XLExpression<Double>
+        fromLatitude: any XLSQLiteExpression<Double>,
+        fromLongitude: any XLSQLiteExpression<Double>,
+        toLatitude: any XLSQLiteExpression<Double>,
+        toLongitude: any XLSQLiteExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude

@@ -21,7 +21,10 @@ import Foundation
 /// A scalar common table expression: a CTE whose result is a single typed value
 /// column, referenced and decoded directly as `Value`.
 ///
-public struct XLScalarCommonTable<Value, Dialect> where Value: XLLiteral, Dialect: XLSQLDialect {
+public struct XLScalarCommonTable<Value, Dialect>: XLDialectCommonTable where Value: XLLiteral, Dialect: XLSQLDialect {
+
+    /// The dialect of the common table's statement.
+    public typealias XLModelDialect = Dialect
 
     /// The renderable common-table definition, carrying the explicit one-column
     /// list (`alias(column) AS (...)`).
@@ -124,7 +127,7 @@ extension XLSchema {
         alias: XLName? = nil,
         column: XLName = "value",
         materialization: XLCommonTableMaterialization = .unspecified,
-        statement: (XLSchema) -> any XLQueryStatement<Value>
+        statement: (XLSchema) -> any XLDialectQueryStatement<Value, Dialect>
     ) -> XLScalarCommonTable<Value, Dialect> where Value: XLLiteral {
         let cteAlias = commonTableNamespace.makeAlias(alias: alias)
         let bodySchema = XLSchema(parent: self)
@@ -149,7 +152,7 @@ extension XLSchema {
         alias: XLName? = nil,
         column: XLName = "value",
         materialization: XLCommonTableMaterialization = .unspecified,
-        statement: (XLSchema, XLScalarCommonTableReference<Value, Dialect>) -> any XLQueryStatement<Value>
+        statement: (XLSchema, XLScalarCommonTableReference<Value, Dialect>) -> any XLDialectQueryStatement<Value, Dialect>
     ) -> XLScalarCommonTable<Value, Dialect> where Value: XLLiteral {
         let cteAlias = commonTableNamespace.makeAlias(alias: alias)
         let bodySchema = XLSchema(parent: self)
@@ -175,7 +178,7 @@ extension XLSchema {
         alias: XLName? = nil,
         column: XLName = "value",
         materialization: XLCommonTableMaterialization = .unspecified,
-        @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Value>
+        @XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema) -> any XLDialectQueryStatement<Value, Dialect>
     ) -> XLScalarCommonTable<Value, Dialect> where Value: XLLiteral {
         scalarCommonTable(
             type,
@@ -195,7 +198,7 @@ extension XLSchema {
         alias: XLName? = nil,
         column: XLName = "value",
         materialization: XLCommonTableMaterialization = .unspecified,
-        @XLQueryExpressionBuilder statement: (XLSchema, XLScalarCommonTableReference<Value, Dialect>) -> any XLQueryStatement<Value>
+        @XLDialectQueryExpressionBuilder<Dialect> statement: (XLSchema, XLScalarCommonTableReference<Value, Dialect>) -> any XLDialectQueryStatement<Value, Dialect>
     ) -> XLScalarCommonTable<Value, Dialect> where Value: XLLiteral {
         recursiveScalarCommonTable(
             type,
@@ -219,35 +222,5 @@ extension XLSchema {
             tableAlias: tableAlias,
             columnAlias: scalarCommonTable.columnAlias
         )
-    }
-}
-
-
-///
-/// Specifies a scalar common table expression used in a statement.
-///
-public func with<Value, Dialect>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> XLWithStatement where Value: XLLiteral {
-    XLWithStatement([scalarCommonTable.definition])
-}
-
-
-extension With {
-
-    ///
-    /// Specifies a scalar common table expression.
-    ///
-    public init<Value, Dialect>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) where Value: XLLiteral {
-        self.init(scalarCommonTable.definition)
-    }
-}
-
-
-extension QueryBuilder {
-
-    ///
-    /// Adds a scalar common table expression to the query.
-    ///
-    public func with<Value, Dialect>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> QueryBuilder where Value: XLLiteral {
-        with(commonTableDefinition: scalarCommonTable.definition)
     }
 }

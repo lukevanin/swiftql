@@ -344,17 +344,12 @@
   declared for one dialect, and its columns compose only with that dialect's
   expressions, so an operation one dialect does not have is a compile error at
   the call site on another dialect's columns and the expressions composed from
-  them. The check is in the expressions, not in the statement: a clause such
-  as `Where`, `From`, or a join takes any expression or table, so an
-  expression built from Swift values alone, or a column or table taken from
-  another dialect's schema and passed to a clause directly, is not checked
-  against the query's dialect, and `sql(dialect:_:)` returns the same
-  statement type as `sql(_:)`. The schema-less scalar subquery functions,
-  `subquery { ... }` and `subqueryExpression { ... }` with a closure that
-  takes no schema, are SQLite's; another dialect writes
-  `schema.subquery { ... }`. A SQLite model, query, and value
-  are written as before; what changes is code that names SwiftQL's expression
-  types.
+  them. Clauses and statements check the dialect too; see "Clauses and
+  statements take only their dialect" below (issue #822). The schema-less
+  scalar subquery functions, `subquery { ... }` and `subqueryExpression { ... }`
+  with a closure that takes no schema, are SQLite's; another dialect writes
+  `schema.subquery { ... }`. A SQLite model, query, and value are written as
+  before; what changes is code that names SwiftQL's expression types.
   - Each dialect has its own expression protocol, and SQLite's is
     `XLSQLiteExpression`. The operators and functions take and return it. A
     helper that composes part of a query names it instead of `XLExpression`.
@@ -374,14 +369,12 @@
     }
     ```
 
-    `XLExpression` still names any expression, and `Where`, `OrderBy`,
-    `Select`, a column assignment, and every other clause that does not
-    compose its expression still take it, so a stored predicate passed to a
-    clause keeps its type. A stored `any XLExpression<T>` that is then
-    compared, added to, or given a function becomes
-    `any XLSQLiteExpression<T>`; without the change the operator reports that
-    no overload applies, often as a requirement on an unrelated protocol such
-    as "requires that 'X' conform to 'BinaryInteger'".
+    `XLExpression` still names any expression. A stored
+    `any XLExpression<T>` that is then compared, added to, given a function,
+    or passed to a clause becomes `any XLSQLiteExpression<T>`; without the
+    change the operator reports that no overload applies, often as a
+    requirement on an unrelated protocol such as "requires that 'X' conform to
+    'BinaryInteger'".
   - A type of your own that conforms to `XLExpression` and is used as an
     operand also conforms to `XLSQLiteExpression`. Before:
     `struct Celsius: XLExpression, XLBindable, XLLiteral`. After:
@@ -400,7 +393,14 @@
   - Building an expression node through its public initializer, such as
     `XLBinaryOperatorExpression(op:lhs:rhs:)`, is not checked: a node takes
     any expression, and it is an expression of every dialect. The dialect is
-    checked by the operators and functions.
+    checked by the operators and functions. The initializers 2.0 added for the
+    generated surface, `XLComparisonExpression(_:lhs:rhs:)`,
+    `XLNullTestExpression(_:operand:)`, `XLInValueExpression(lhs:list:negated:)`,
+    `XLBetweenExpression(term:minimum:maximum:negated:)`, and
+    `XLLikeEscapeExpression(term:pattern:escape:)`, and the `CASE` builders'
+    underscored primitives, are SwiftQL's dialect-surface SPI (issue #822): a
+    dialect declared outside SwiftQL imports them with
+    `@_spi(XLDialectSurface) import SwiftQL`, as its generated surface does.
   - SQLite's own functions are declared only on `XLSQLiteExpression`:
     `collate(_:)`, `regexp(_:)`, `glob(_:)`, `printf(_:)`, `iif`, `total`,
     `groupConcat` and `groupConcatOrNull`, the scalar `min(_:_:)` and
@@ -449,6 +449,118 @@
     A `switch` over `XLStaticRowLayoutError` with no `default` clause must
     handle it. `staticStorageExpression(as:)` on a column returns the column,
     retyped, in its dialect.
+- **Clauses and statements take only their dialect** (issue #822). Each
+  clause and statement carries the dialect of its query, and takes only that
+  dialect's tables, common tables, statements, and expressions, so another
+  dialect's table, column, expression, or subquery passed to a clause is a
+  compile error at the clause that names both dialects. A clause built from
+  Swift values alone, such as `Where(true)`, takes the dialect of the query
+  it is written in, so `Where("a".regexp("b"))` is an error in another
+  dialect's query. A SQLite query is written as before; what changes is code
+  that names the clause and statement types, or that passes a clause an
+  erased expression or statement.
+  - The clause types gained a `Dialect` generic parameter: `Select<Row,
+    Dialect>`, `From`, `Join`, `Where`, `GroupBy`, `Having`, `OrderBy`,
+    `Limit`, `Offset`, `With`, `Ascending`, `Descending`, `Union`,
+    `UnionAll`, `Intersect`, and `Except`. So did the statement types:
+    `XLQuerySelectStatement<Row, Dialect>` and the other `XLQuery...Statement`
+    types, the `XLInsert...`, `XLUpdate...`, and `XLDelete...Statement`
+    types, and `XLWithStatement<Dialect>`. A clause written in a result
+    builder or a statement built with `select(_:)` infers it. Code that names
+    one adds the dialect. Before: `XLQueryTableStatement<Person>`. After:
+    `XLQueryTableStatement<Person, XLSQLiteDialect>`. A join's kind is the
+    new `XLJoinOperator`, which `Join<Dialect>.Kind` names; a bare `Join.Kind`
+    no longer names a type, because `Join` is generic. Before:
+    `Join.Kind.allCases`. After: `XLJoinOperator.allCases`.
+  - A clause takes its dialect's expression protocol, as the operators do. A
+    stored `any XLExpression<Bool>` passed to `Where`, or `any XLExpression`
+    passed to `GroupBy`, `Limit`, or `QueryBuilder.and(_:)`, becomes
+    `any XLSQLiteExpression<Bool>` or `any XLSQLiteExpression`. A type of your
+    own that conforms to `XLExpression` and is used in a clause, such as a
+    custom binding reference, also conforms to `XLSQLiteExpression`. Before:
+    `struct Flag: XLExpression`. After: `struct Flag: XLSQLiteExpression`.
+  - `XLOrderingTerm` has a `Dialect` primary associated type, and `OrderBy`
+    takes `any XLOrderingTerm<Dialect>`. `ascending()` and `descending()` are
+    declared on each dialect's expression protocol and return its terms. A
+    stored `any XLOrderingTerm` becomes `any XLOrderingTerm<XLSQLiteDialect>`.
+  - A statement that another statement contains is an
+    `XLDialectQueryStatement<Row, Dialect>`: the closure of a subquery, a
+    common table, `in(expression:)`, a compound branch such as
+    `union { ... }`, `commonTable(statement:)`, and `As`. `sql { }` returns
+    `any XLDialectQueryStatement<Row, XLSQLiteDialect>`, which is an
+    `any XLQueryStatement<Row>`, so a query stored or run as one keeps
+    working. A closure annotated with the erased type changes its annotation.
+    Before: `sql { schema -> any XLQueryStatement<Person> in ... }` or
+    `schema.subquery { inner -> any XLQueryStatement<Int> in ... }`.
+    After: `sql { schema -> any XLDialectQueryStatement<Person,
+    XLSQLiteDialect> in ... }`, `schema.subquery { inner -> any
+    XLDialectQueryStatement<Int, XLSQLiteDialect> in ... }`, or no annotation. A statement stored as
+    `any XLQueryStatement<Row>` cannot become a subquery or a branch; store it
+    as `any XLDialectQueryStatement<Row, XLSQLiteDialect>`.
+  - `returning(_:)` takes a projection of the dialect of the model the
+    statement writes, so it follows a statement whose model is known, such as
+    an `any XLInsertStatement<Person>` or `InsertBuilder`'s `build()`. A write
+    statement erased without its model, the `any XLInsertStatement`,
+    `any XLUpdateStatement`, or `any XLDeleteStatement` that `sql { }`
+    returns, has lost it.
+    Before: `let s = sql { schema in Insert(t); Values(row) }` then
+    `s.returning(t)`. After: `insert(t).values(row).returning(t)`.
+    `sqlInsert(_:)` now returns its statement's type,
+    `XLInsertTableValuesStatement<Row, XLSQLiteDialect>`, so
+    `sqlInsert(row).returning(t)` keeps compiling.
+  - A projection passed to `Select`, `select(_:)`, `QueryBuilder`, or
+    `returning(_:)` belongs to the statement's dialect: a table or result of a
+    model of that dialect, or a static row layout for it. A row reader written
+    by hand also conforms to `XLDialectBound`. Before:
+    `struct Projection: XLRowReadable`. After:
+    `struct Projection: XLRowReadable, XLDialectBound` with
+    `typealias XLModelDialect = XLSQLiteDialect`. `#row(...)` is a SQLite
+    projection.
+  - The result builders are generic over the dialect:
+    `XLDialectQueryExpressionBuilder<Dialect>`, and the insert, update, and
+    delete builders likewise. `XLQueryExpressionBuilder`,
+    `XLInsertExpressionBuilder`, `XLUpdateExpressionBuilder`, and
+    `XLDeleteExpressionBuilder` name SQLite's, so a helper declared with
+    `@XLQueryExpressionBuilder` keeps compiling and builds a SQLite query.
+  - `QueryBuilder<Row>` names `XLDialectQueryBuilder<Row, XLSQLiteDialect>`,
+    and takes only SQLite tables and expressions. Another dialect writes
+    `XLDialectQueryBuilder(select:)`. `build()` returns an
+    `any XLDialectQueryStatement<Row, Dialect>`.
+  - `With`, `with(_:)`, and the builders' `with(_:)` take an
+    `XLDialectCommonTable` of the statement's dialect, a protocol that the
+    macros' common tables and `XLScalarCommonTable` conform to; one model's
+    common table is checked by the dialect of its result, as
+    `schema.table(_:)` checks it, so generic code can pass a model's
+    `MetaCommonTable`. The
+    initializers that took a raw `XLCommonTableDependency`, such as
+    `With(cte.definition)` and `XLWithStatement(_:)`, are SwiftQL's
+    dialect-surface SPI: pass the common table itself. Before:
+    `With(cte.definition)`. After: `With(cte)`.
+  - `@SQLFunction` generates an initializer that takes each argument as an
+    `any XLSQLiteExpression<...>`, in place of the memberwise initializer and
+    with its access, so a custom function's argument must be a SQLite
+    expression. A struct that
+    declares its own initializer keeps it as written; type its parameters
+    `any XLSQLiteExpression<...>` to have them checked. A call that passed an
+    erased `any XLExpression<T>` passes an `any XLSQLiteExpression<T>`. The
+    macro cannot see an initializer declared in an extension, so the struct
+    gets the generated one too: an extension initializer that delegates to
+    the memberwise one with an erased argument takes an
+    `any XLSQLiteExpression<...>` instead, and one with the generated
+    initializer's signature moves into the struct body.
+  - `sqlUpdate(builder:)` and `sqlInsert(builder:)` take the closure's
+    statement generically and require it to be a SQLite statement, and
+    `sqlCreate(builder:)` and the create forms of `sql` require the table to
+    be declared for the schema's dialect.
+  - Some parts of a query still take any expression, and are not checked
+    against the dialect by the compiler: an expression node built through its
+    public initializer; the value slots of a model's generated metadata, which
+    are a column assignment in `Setting { row in ... }` and the arguments of
+    `columns(...)` and `#row(...)`, because the macros cannot name a dialect's
+    expression protocol from the model's dialect type; and a static row
+    field's expression, which the field factories take erased so that a
+    generated layout can build its fields for any dialect, and which the field
+    checks when it is built, throwing `expressionDialectMismatch`.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
   (issue #677), so a connection outside SwiftQL keeps compiling. See "A
   connection's statement cache can be observed and warmed" under "Added".
@@ -529,6 +641,26 @@
     are public, and `XLInValueExpression` has an `init(lhs:list:negated:)`,
     so a dialect declared outside SwiftQL can generate its surface from the
     same templates.
+
+- **Clauses and statements check the dialect** (issue #822). See "Clauses
+  and statements take only their dialect" under "Migration".
+  - `XLDialectQueryStatement<Row, Dialect>` is a statement of one dialect,
+    and `XLDialectClause` a clause of one. `XLDialectBound` is a part of a
+    query that belongs to one dialect: a model's metadata, a static row
+    layout, or a common table, and `XLDialectCommonTable` a common table of
+    one dialect.
+  - Each dialect's surface declares the clause initializers and statement
+    methods that take an expression, from the templates `Clauses`,
+    `QueryStatements`, `WriteStatements`, and `QueryBuilder` in
+    `scripts/dialect-surface/Templates`. A dialect declared outside SwiftQL
+    imports SwiftQL with `@_spi(XLDialectSurface)`, and the generator writes
+    that import.
+  - `scripts/ci/check-dialect-type-parameter-type-safety.sh` refuses a
+    `Where` over another dialect's expression, a SQLite-only operation on
+    values in another dialect's `Where`, another dialect's table in `From`,
+    a join, and `QueryBuilder`, another dialect's subquery, compound branch,
+    and common table, another dialect's `RETURNING` projection and write
+    condition, and another dialect's column as a custom function's argument.
 
 - **A connection's statement cache can be observed and warmed** (issue
   #677). A driver does not have to cache statements; one that does can let

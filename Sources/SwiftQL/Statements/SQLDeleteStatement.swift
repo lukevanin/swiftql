@@ -4,6 +4,11 @@
 //
 //  Created by Luke Van In on 2024/10/29.
 //
+//  Each statement carries the dialect of the table it deletes from (issue
+//  #822). `where(_:)` takes the dialect's expression protocol, so each
+//  dialect's surface declares it, from
+//  scripts/dialect-surface/Templates/WriteStatements.swift.template.
+//
 
 import Foundation
 
@@ -50,6 +55,9 @@ public struct XLDeleteStatementComponents<Table>: XLEncodable {
 ///
 public protocol XLDeleteStatement<Table>: XLEncodable {
     associatedtype Table
+    /// The dialect of the table the statement deletes from, and of every
+    /// clause in it (issue #822).
+    associatedtype Dialect: XLSQLDialect
     var components: XLDeleteStatementComponents<Table> { get }
 }
 
@@ -66,15 +74,14 @@ extension XLDeleteStatement {
 ///
 /// > Warning: A delete statement without a where clause affects all rows in the given table.
 ///
-public struct XLDeleteTableStatement<Table>: XLDeleteStatement {
-    
+public struct XLDeleteTableStatement<Table, Dialect>: XLDeleteStatement where Dialect: XLSQLDialect {
+
     public var components: XLDeleteStatementComponents<Table>
-    
-    ///
-    /// Adds a where clause to the delete statement.
-    ///
-    public func `where`<U>(_ expression: any XLExpression<U>) -> XLDeleteWhereStatement<Table> where U: XLBoolean {
-        XLDeleteWhereStatement(components: components.appending(Where(expression)))
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLDeleteStatementComponents<Table>) {
+        self.components = components
     }
 }
 
@@ -82,8 +89,13 @@ public struct XLDeleteTableStatement<Table>: XLDeleteStatement {
 ///
 /// Where clause on a delete statement.
 ///
-public struct XLDeleteWhereStatement<Table>: XLDeleteStatement {
-    
+public struct XLDeleteWhereStatement<Table, Dialect>: XLDeleteStatement where Dialect: XLSQLDialect {
+
     public let components: XLDeleteStatementComponents<Table>
 
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLDeleteStatementComponents<Table>) {
+        self.components = components
+    }
 }

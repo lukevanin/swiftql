@@ -1,0 +1,127 @@
+//
+//  WriteStatements.swift.template
+//
+//  The insert, update, and delete statement methods that take an expression.
+//  The statement types are in Statements/SQLInsertStatement.swift,
+//  SQLUpdateStatement.swift, and SQLDeleteStatement.swift.
+//  scripts/dialect-surface/generate.py renders this template once for each
+//  dialect in scripts/dialect-surface/dialects.json (issue #822).
+//
+
+import Foundation
+
+
+// MARK: - Insert ... select
+
+
+extension XLInsertSelectTableStatement where Dialect == {{Dialect}} {
+
+    // MARK: Join
+
+    public func innerJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLInsertSelectTableStatement<Row, {{Dialect}}> where T: XLMetaResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLInsertSelectTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .innerJoin, table: t, constraint: condition)))
+    }
+
+    public func leftJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLInsertSelectTableStatement<Row, {{Dialect}}> where T: XLMetaNullableResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLInsertSelectTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .leftJoin, table: t, constraint: condition)))
+    }
+
+    // MARK: Where
+
+    public func `where`<T>(_ condition: any {{Expression}}<T>) -> XLInsertSelectWhereStatement<Row, {{Dialect}}> where T: XLBoolean {
+        XLInsertSelectWhereStatement(components: components.appending(Where<{{Dialect}}>(_dialectSurface: condition)))
+    }
+
+    // MARK: Group
+
+    public func groupBy(_ expressions: any {{Expression}}...) -> XLInsertSelectGroupByStatement<Row, {{Dialect}}> {
+        XLInsertSelectGroupByStatement(components: components.appending(GroupBy<{{Dialect}}>(_dialectSurface: expressions)))
+    }
+
+    // MARK: Limit
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLInsertSelectLimitStatement<Row, {{Dialect}}> {
+        XLInsertSelectLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+extension XLInsertSelectWhereStatement where Dialect == {{Dialect}} {
+
+    public func groupBy(_ expressions: any {{Expression}}...) -> XLInsertSelectGroupByStatement<Row, {{Dialect}}> {
+        XLInsertSelectGroupByStatement(components: components.appending(GroupBy<{{Dialect}}>(_dialectSurface: expressions)))
+    }
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLInsertSelectLimitStatement<Row, {{Dialect}}> {
+        XLInsertSelectLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+extension XLInsertSelectGroupByStatement where Dialect == {{Dialect}} {
+
+    public func having<T>(_ condition: any {{Expression}}<T>) -> XLInsertSelectHavingStatement<Row, {{Dialect}}> where T: XLBoolean {
+        XLInsertSelectHavingStatement(components: components.appending(Having<{{Dialect}}>(_dialectSurface: condition)))
+    }
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLInsertSelectLimitStatement<Row, {{Dialect}}> {
+        XLInsertSelectLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+extension XLInsertSelectHavingStatement where Dialect == {{Dialect}} {
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLInsertSelectLimitStatement<Row, {{Dialect}}> {
+        XLInsertSelectLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+extension XLInsertSelectOrderByStatement where Dialect == {{Dialect}} {
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLInsertSelectLimitStatement<Row, {{Dialect}}> {
+        XLInsertSelectLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+extension XLInsertSelectLimitStatement where Dialect == {{Dialect}} {
+
+    public func offset(_ count: any {{Expression}}<Int>) -> XLInsertSelectOffsetStatement<Row, {{Dialect}}> {
+        XLInsertSelectOffsetStatement(components: components.appending(Offset<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Update
+
+
+extension XLUpdateSetStatement where Dialect == {{Dialect}} {
+
+    public func `where`<U>(_ expression: any {{Expression}}<U>) -> XLUpdateWhereStatement<Row, {{Dialect}}> where U: XLBoolean {
+        XLUpdateWhereStatement(components: components.appending(Where<{{Dialect}}>(_dialectSurface: expression)))
+    }
+}
+
+
+extension XLUpdateFromStatement where Dialect == {{Dialect}} {
+
+    public func `where`<U>(_ expression: any {{Expression}}<U>) -> XLUpdateWhereStatement<Row, {{Dialect}}> where U: XLBoolean {
+        XLUpdateWhereStatement(components: components.appending(Where<{{Dialect}}>(_dialectSurface: expression)))
+    }
+}
+
+
+// MARK: - Delete
+
+
+extension XLDeleteTableStatement where Dialect == {{Dialect}} {
+
+    ///
+    /// Adds a where clause to the delete statement.
+    ///
+    public func `where`<U>(_ expression: any {{Expression}}<U>) -> XLDeleteWhereStatement<Table, {{Dialect}}> where U: XLBoolean {
+        XLDeleteWhereStatement(components: components.appending(Where<{{Dialect}}>(_dialectSurface: expression)))
+    }
+}

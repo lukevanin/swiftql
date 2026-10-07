@@ -1,7 +1,7 @@
 import SwiftQL
 
 func typeCheckValidQueryClauseOrdering(
-    query: XLQueryTableStatement<Int>,
+    query: XLQueryTableStatement<Int, XLSQLiteDialect>,
     value: XLNamedBindingReference<Int>,
     predicate: XLNamedBindingReference<Bool>
 ) {
@@ -26,8 +26,8 @@ func typeCheckValidQueryClauseOrdering(
         .limit(10)
         .offset(2)
 
-    // A branch known only as `any XLQueryStatement` still compiles. Its
-    // clauses are checked when the compound renders.
-    let erased: any XLQueryStatement<Int> = query
+    // A branch known only as a statement of the query's dialect still
+    // compiles. Its clauses are checked when the compound renders.
+    let erased: any XLDialectQueryStatement<Int, XLSQLiteDialect> = query
     _ = query.unionAll { erased }
 }

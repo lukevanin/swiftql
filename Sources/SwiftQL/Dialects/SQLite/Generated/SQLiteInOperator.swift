@@ -14,7 +14,7 @@ import Foundation
 
 extension XLSQLiteExpression {
 
-    public func `in`(expression: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Bool> {
+    public func `in`(expression: () -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Bool> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
@@ -31,7 +31,7 @@ extension XLSQLiteExpression {
     ///   build the inner tables from the enclosing schema, or from
     ///   `XLSchema(parent:)`.
     ///
-    public func `in`(@XLQueryExpressionBuilder expression: (XLSchema<XLSQLiteDialect>) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Bool> {
+    public func `in`(@XLDialectQueryExpressionBuilder<XLSQLiteDialect> expression: (XLSchema<XLSQLiteDialect>) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Bool> {
         let schema = XLSchema(dialect: XLSQLiteDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
@@ -43,14 +43,14 @@ extension XLSQLiteExpression {
     /// left-hand value is NULL, or when no row matches and the candidate set
     /// contains NULL.
     ///
-    public func `in`<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    public func `in`<Wrapped>(expression: () -> any XLDialectQueryStatement<Wrapped, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as in the non-optional overload. Use the closure form without
     ///   a schema for a correlated query.
-    public func `in`<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<XLSQLiteDialect>) -> any XLQueryStatement<Wrapped>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    public func `in`<Wrapped>(@XLDialectQueryExpressionBuilder<XLSQLiteDialect> expression: (XLSchema<XLSQLiteDialect>) -> any XLDialectQueryStatement<Wrapped, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema(dialect: XLSQLiteDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
@@ -113,14 +113,14 @@ extension XLSQLiteExpression {
     /// SQLite the one exception is an empty set, where `NOT IN` is true even
     /// for a NULL operand.
     ///
-    public func notIn(expression: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Bool> {
+    public func notIn(expression: () -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Bool> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
-    public func notIn(@XLQueryExpressionBuilder expression: (XLSchema<XLSQLiteDialect>) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Bool> {
+    public func notIn(@XLDialectQueryExpressionBuilder<XLSQLiteDialect> expression: (XLSchema<XLSQLiteDialect>) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> some XLSQLiteExpression<Bool> {
         let schema = XLSchema(dialect: XLSQLiteDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }
@@ -130,14 +130,14 @@ extension XLSQLiteExpression {
     /// overloads. As with `in`, the result is `Optional<Bool>` because a NULL
     /// operand or a NULL in the candidate set makes the answer unknown.
     ///
-    public func notIn<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    public func notIn<Wrapped>(expression: () -> any XLDialectQueryStatement<Wrapped, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
     /// - Important: The schema passed to `expression` starts an independent
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
-    public func notIn<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<XLSQLiteDialect>) -> any XLQueryStatement<Wrapped>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    public func notIn<Wrapped>(@XLDialectQueryExpressionBuilder<XLSQLiteDialect> expression: (XLSchema<XLSQLiteDialect>) -> any XLDialectQueryStatement<Wrapped, XLSQLiteDialect>) -> some XLSQLiteExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema(dialect: XLSQLiteDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }

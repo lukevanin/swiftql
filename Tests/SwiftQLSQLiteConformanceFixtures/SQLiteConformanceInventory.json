@@ -10003,7 +10003,7 @@
       "public_api": [
         {
           "symbol": "Join.FullOuter",
-          "source_path": "Sources/SwiftQL/Join+Factories.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteClauses.swift",
           "source_tokens": [
             "FullOuter"
           ]
@@ -10081,7 +10081,7 @@
       "public_api": [
         {
           "symbol": "Join.Right",
-          "source_path": "Sources/SwiftQL/Join+Factories.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteClauses.swift",
           "source_tokens": [
             "Right"
           ]
@@ -10216,15 +10216,15 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.ascending",
-          "source_path": "Sources/SwiftQL/Functions/ExpressionFunctions.swift",
+          "symbol": "XLSQLiteExpression.ascending",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteClauses.swift",
           "source_tokens": [
             "ascending"
           ]
         },
         {
-          "symbol": "XLExpression.descending",
-          "source_path": "Sources/SwiftQL/Functions/ExpressionFunctions.swift",
+          "symbol": "XLSQLiteExpression.descending",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteClauses.swift",
           "source_tokens": [
             "descending"
           ]

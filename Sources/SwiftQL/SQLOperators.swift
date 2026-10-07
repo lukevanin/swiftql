@@ -130,6 +130,10 @@ public struct XLComparisonExpression<T>: XLExpression {
 
     let rhs: any XLExpression
 
+    /// SwiftQL's dialect-surface SPI, for a dialect's generated operators: a
+    /// node built here belongs to every dialect, so it is not public API
+    /// (issue #822).
+    @_spi(XLDialectSurface)
     public init(
         _ comparison: XLComparisonOperator,
         lhs: any XLExpression,
@@ -160,6 +164,10 @@ public struct XLNullTestExpression<T>: XLExpression {
 
     let operand: any XLExpression
 
+    /// SwiftQL's dialect-surface SPI, for a dialect's generated operators: a
+    /// node built here belongs to every dialect, so it is not public API
+    /// (issue #822).
+    @_spi(XLDialectSurface)
     public init(_ test: XLNullTest, operand: any XLExpression) {
         self.test = test
         self.operand = operand
@@ -292,6 +300,10 @@ public struct XLInValueExpression<T>: XLExpression {
     ///   list.
     /// - Parameter negated: Renders `NOT IN` instead of `IN`.
     ///
+    /// SwiftQL's dialect-surface SPI, for a dialect's generated operators: a
+    /// node built here belongs to every dialect, so it is not public API
+    /// (issue #822).
+    @_spi(XLDialectSurface)
     public init(lhs: any XLExpression, list: [any XLExpression], negated: Bool = false) {
         self.init(
             lhs: lhs,

@@ -1,7 +1,7 @@
 import GRDB
 import XCTest
 
-@testable import SwiftQL
+@_spi(XLDialectSurface) @testable import SwiftQL
 
 
 @SQLResult
@@ -58,7 +58,7 @@ final class RecursiveCommonTableConstructionTests: XCTestCase {
             cteAlias: definition.alias,
             tableAlias: "result_row"
         )
-        let query = XLWithStatement([definition])
+        let query = XLWithStatement<XLSQLiteDialect>(_dialectSurface: [definition])
             .select(output)
             .from(output)
             .orderBy(output.value.ascending())
@@ -116,7 +116,7 @@ final class RecursiveCommonTableConstructionTests: XCTestCase {
             tableAlias: "result_value",
             columnAlias: "value"
         )
-        let query = XLWithStatement([definition])
+        let query = XLWithStatement<XLSQLiteDialect>(_dialectSurface: [definition])
             .select(output.value)
             .from(output)
             .orderBy(output.value.ascending())
@@ -213,7 +213,7 @@ final class RecursiveCommonTableConstructionTests: XCTestCase {
                 columnAlias: "value"
             )
             return TestUnionAll(
-                XLWithStatement([innerDefinition])
+                XLWithStatement<XLSQLiteDialect>(_dialectSurface: [innerDefinition])
                     .select(
                         TestAliasedExpression(
                             expression: innerOutput.value * 10,
@@ -238,7 +238,7 @@ final class RecursiveCommonTableConstructionTests: XCTestCase {
             tableAlias: "outer_result",
             columnAlias: "value"
         )
-        let query = XLWithStatement([outerDefinition])
+        let query = XLWithStatement<XLSQLiteDialect>(_dialectSurface: [outerDefinition])
             .select(output.value)
             .from(output)
             .orderBy(output.value.ascending())
@@ -507,7 +507,7 @@ private struct TestScalarReference<Value>: XLMetaNamedResult where Value: XLLite
 }
 
 
-private struct TestAliasedExpression<Value>: XLExpression where Value: XLLiteral {
+private struct TestAliasedExpression<Value>: XLSQLiteExpression where Value: XLLiteral {
     typealias T = Value
 
     let expression: any XLExpression<Value>
@@ -594,7 +594,7 @@ private func renderScalarDefinition(_ definition: XLCommonTableDependency) -> St
         columnAlias: "value"
     )
     return render(
-        XLWithStatement([definition])
+        XLWithStatement<XLSQLiteDialect>(_dialectSurface: [definition])
             .select(output.value)
             .from(output)
     )
@@ -623,7 +623,7 @@ private func makeIndependentScalarSQL(index: Int) throws -> String {
         columnAlias: "value"
     )
     return render(
-        XLWithStatement([definition])
+        XLWithStatement<XLSQLiteDialect>(_dialectSurface: [definition])
             .select(output.value)
             .from(output)
     )

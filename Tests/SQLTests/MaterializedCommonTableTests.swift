@@ -185,7 +185,7 @@ final class MaterializedCommonTableTests: XCTestCase {
 }
 
 
-private struct MaterializedInlineExpression: XLExpression {
+private struct MaterializedInlineExpression: XLSQLiteExpression {
     typealias T = Int
     let value: Int
     func makeSQL(context: inout XLBuilder) {

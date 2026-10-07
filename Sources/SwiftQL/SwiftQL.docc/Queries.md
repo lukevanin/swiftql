@@ -610,8 +610,8 @@ inside the closure. Both spellings render the same SQL.
 
 In the functional syntax, a branch such as
 `union { select(row).from(table).orderBy(...) }` compiles, because the compound
-methods accept any query statement, but it is checked when the statement
-renders: the request fails with
+methods accept any query statement of the compound's dialect, but it is
+checked when the statement renders: the request fails with
 `XLSQLValueEncodingError.unsupportedCompoundBranchClause` before SQLite
 prepares it.
 

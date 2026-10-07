@@ -45,10 +45,10 @@ public struct HaversineDistance: XLCustomFunction {
     private let toLongitude: any XLExpression
     
     init(
-        fromLatitude: any XLExpression<Double>,
-        fromLongitude: any XLExpression<Double>,
-        toLatitude: any XLExpression<Double>,
-        toLongitude: any XLExpression<Double>
+        fromLatitude: any XLSQLiteExpression<Double>,
+        fromLongitude: any XLSQLiteExpression<Double>,
+        toLatitude: any XLSQLiteExpression<Double>,
+        toLongitude: any XLSQLiteExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude
@@ -212,10 +212,10 @@ public struct HaversineDistance: XLCustomFunction {
     private let toLongitude: any XLExpression<Double>
 
     public init(
-        fromLatitude: any XLExpression<Double>,
-        fromLongitude: any XLExpression<Double>,
-        toLatitude: any XLExpression<Double>,
-        toLongitude: any XLExpression<Double>
+        fromLatitude: any XLSQLiteExpression<Double>,
+        fromLongitude: any XLSQLiteExpression<Double>,
+        toLatitude: any XLSQLiteExpression<Double>,
+        toLongitude: any XLSQLiteExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude
@@ -243,10 +243,23 @@ public struct HaversineDistance: XLCustomFunction {
 }
 ```
 
-Each stored property must be typed as `any XLExpression<...>` (or `some
-XLExpression<...>`) so the macro can reference its `.makeSQL` method; any
-other stored property is reported as a diagnostic rather than producing code
-that fails to compile. The `name:` argument is optional and defaults to the
+Each stored property must be typed as `any XLExpression<...>` or
+`any XLSQLiteExpression<...>` (or the `some` form of either) so the macro can
+reference its `.makeSQL` method; any other stored property is reported as a
+diagnostic rather than producing code that fails to compile.
+
+A custom function runs inside SQLite, so its arguments are SQLite expressions.
+A struct that declares no initializer gets one from the macro, in place of the
+memberwise initializer, that takes each argument as an
+`any XLSQLiteExpression<...>` with the property's own label, so a column of a
+model declared for another dialect is a compile error. The generated
+initializer has the memberwise initializer's access, so it is `private` when a
+property is; a function used from other files declares its initializer, as
+`HaversineDistance` does. A declared initializer is kept as written, so type
+its parameters `any XLSQLiteExpression<...>` to have the compiler check them.
+The macro sees only the struct's own body: declare such an initializer there,
+not in an extension, because an extension's initializer sits beside the
+generated one. The `name:` argument is optional and defaults to the
 struct's name, so `@SQLFunction(name: "haversineDistance")` above could have
 been written as plain `@SQLFunction` and inferred `HaversineDistance` instead.
 Installing and calling the function are unaffected by whether `makeSQL` was

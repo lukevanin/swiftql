@@ -171,8 +171,8 @@ final class XLQueryTests: XCTestCase {
     // A bare "OUTER JOIN" is not a valid SQLite join type. SQLite only accepts
     // OUTER as part of LEFT OUTER JOIN, RIGHT OUTER JOIN, or FULL OUTER JOIN.
     func testJoinKind_cannotEmitBareOuterJoin() {
-        XCTAssertNil(Join.Kind(rawValue: "OUTER JOIN"))
-        for kind in Join.Kind.allCases {
+        XCTAssertNil(XLJoinOperator(rawValue: "OUTER JOIN"))
+        for kind in XLJoinOperator.allCases {
             let sql = kind.rawValue
             if sql.contains("OUTER") {
                 XCTAssertTrue(

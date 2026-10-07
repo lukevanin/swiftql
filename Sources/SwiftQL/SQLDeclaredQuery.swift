@@ -148,7 +148,7 @@ public struct XLDeclaredQuery {
         self.render = { encoder in
             let value = statement()
             let encoding = encoder.makeSQL(value)
-            if let select = value.components.reader as? Select<Row>,
+            if let select = value.components.reader as? any XLSelectProjection,
                let layout = select.staticLayout {
                 return RenderedStatement(encoding: encoding, results: .staticLayout(layout.metadata))
             }

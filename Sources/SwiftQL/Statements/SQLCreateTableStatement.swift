@@ -65,8 +65,9 @@ public struct XLCreateTableStatement<Table>: XLCreateStatement {
     /// Adds an as clause with a select query.
     ///
     /// Adds a select query which is used to populate the table when it is created.
+    /// The query is a statement of the table's dialect (issue #822).
     ///
-    public func `as`(builder: (XLSchema<Table.XLModelDialect>) -> some XLQueryStatement<Table>) -> some XLCreateStatement where Table: XLTable {
+    public func `as`(builder: (XLSchema<Table.XLModelDialect>) -> some XLDialectQueryStatement<Table, Table.XLModelDialect>) -> some XLCreateStatement where Table: XLTable {
         let meta = Table.makeSQLCreateAs()
         let schema = XLSchema(dialect: Table.XLModelDialect.self)
         let queryStatement = builder(schema)

@@ -201,7 +201,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLSQLiteExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
@@ -211,7 +211,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>
+        _ expression: any XLSQLiteExpression<Value>
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         return try database.makeRequest(with: statement).fetchOne()
@@ -345,7 +345,7 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
     func testMutationsWriteBackAndReadAsJSON() throws {
         try requireJSONB()
         let json = #"{"a":1,"b":2}"#
-        let cases: [(any XLExpression<Data?>, String)] = [
+        let cases: [(any XLSQLiteExpression<Data?>, String)] = [
             (document().jsonbInserting((XLJSONPath.root.key("c"), 3)),
              #"{"a":1,"b":2,"c":3}"#),
             (document().jsonbReplacing((XLJSONPath.root.key("a"), 9)),

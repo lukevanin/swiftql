@@ -78,7 +78,8 @@ See [DialectParameterTypeCheckCost.md](../DialectParameterTypeCheckCost.md).
 ## The shipped surface, and one joined predicate
 
 `measure-shipped.sh <label>=<package-root> ...` type-checks the same bodies
-against real, already built copies of SwiftQL, such as the base branch and a
+against real, already built copies of SwiftQL (it asks SwiftPM for each
+root's binary directory, so any build system's layout works), such as the base branch and a
 branch that changes the query surface (issue #789). Besides the clause bodies
 above, it times one `Where` that joins 2 to 16 comparisons with `&&`, and the
 error for a mistake in the last term of one.

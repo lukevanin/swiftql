@@ -340,6 +340,61 @@ public class XLNamespace {
 
 
 ///
+/// A part of a query that belongs to one dialect: the metadata of a model, a
+/// common table, or a static row layout.
+///
+/// A clause or a statement accepts such a part only when it belongs to the
+/// statement's dialect, so a table, a projection, or a common table of another
+/// dialect is a compile error where it is used (issue #822).
+///
+public protocol XLDialectBound {
+
+    ///
+    /// The dialect the part belongs to: the dialect its model is declared
+    /// for, named with `@SQLTable(dialect:)` or `@SQLResult(dialect:)`.
+    ///
+    associatedtype XLModelDialect: XLSQLDialect
+
+    ///
+    /// The dialect, from which Swift infers ``XLModelDialect``. Generated
+    /// metadata names it; see ``XLResult/_dialect``.
+    ///
+    var _dialect: XLModelDialect.Type { get }
+}
+
+
+extension XLDialectBound {
+
+    /// The dialect, for a type that names ``XLModelDialect`` itself, such as
+    /// a projection written by hand:
+    ///
+    /// ```swift
+    /// struct Projection: XLRowReadable, XLDialectBound {
+    ///     typealias XLModelDialect = XLSQLiteDialect
+    ///     ...
+    /// }
+    /// ```
+    public var _dialect: XLModelDialect.Type {
+        XLModelDialect.self
+    }
+}
+
+
+///
+/// A common table of one dialect, as a `WITH` clause names it: the metadata of
+/// a `@SQLTable` or `@SQLResult` common table, or a scalar common table.
+///
+/// `With`, `with(_:)`, and the builders' `with(_:)` take only common tables of
+/// their statement's dialect (issue #822).
+///
+public protocol XLDialectCommonTable<XLModelDialect>: XLDialectBound {
+
+    /// The common table's definition, which the `WITH` clause renders.
+    var definition: XLCommonTableDependency { get }
+}
+
+
+///
 /// Metadata for a `@SQLTable` or `@SQLResult` struct where every field is forced to be optional.
 ///
 /// Implemented by macro.
@@ -355,13 +410,8 @@ public protocol XLMetaNullable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaResult: XLEncodable {
+public protocol XLMetaResult: XLEncodable, XLDialectBound {
     associatedtype Row
-    /// The dialect of the model, which every column carries.
-    associatedtype XLModelDialect: XLSQLDialect
-    /// The dialect, from which Swift infers ``XLModelDialect``. See
-    /// ``XLResult/_dialect``.
-    var _dialect: XLModelDialect.Type { get }
     var _namespace: XLNamespace { get }
     var _dependency: XLTableDeclaration { get }
 }
@@ -373,13 +423,8 @@ public protocol XLMetaResult: XLEncodable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaNamedResult: XLEncodable {
+public protocol XLMetaNamedResult: XLEncodable, XLDialectBound {
     associatedtype Row
-    /// The dialect of the model, which every column carries.
-    associatedtype XLModelDialect: XLSQLDialect
-    /// The dialect, from which Swift infers ``XLModelDialect``. See
-    /// ``XLResult/_dialect``.
-    var _dialect: XLModelDialect.Type { get }
     var _namespace: XLNamespace { get }
     var _dependency: XLNamedTableDeclaration { get }
 }
@@ -391,13 +436,8 @@ public protocol XLMetaNamedResult: XLEncodable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaNullableResult: XLEncodable {
+public protocol XLMetaNullableResult: XLEncodable, XLDialectBound {
     associatedtype Dependency = XLTableDeclaration
-    /// The dialect of the model, which every column carries.
-    associatedtype XLModelDialect: XLSQLDialect
-    /// The dialect, from which Swift infers ``XLModelDialect``. See
-    /// ``XLResult/_dialect``.
-    var _dialect: XLModelDialect.Type { get }
     var _namespace: XLNamespace { get }
     var _dependency: Dependency { get }
 }
@@ -410,13 +450,8 @@ public protocol XLMetaNullableResult: XLEncodable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaNullableNamedResult: XLEncodable {
+public protocol XLMetaNullableNamedResult: XLEncodable, XLDialectBound {
     associatedtype Dependency = XLTableDeclaration & XLNamedDependency
-    /// The dialect of the model, which every column carries.
-    associatedtype XLModelDialect: XLSQLDialect
-    /// The dialect, from which Swift infers ``XLModelDialect``. See
-    /// ``XLResult/_dialect``.
-    var _dialect: XLModelDialect.Type { get }
     var _namespace: XLNamespace { get }
     var _dependency: Dependency { get }
 }
@@ -428,10 +463,17 @@ public protocol XLMetaNullableNamedResult: XLEncodable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaCommonTable {
+public protocol XLMetaCommonTable<XLModelDialect>: XLDialectCommonTable {
     associatedtype Result: XLResult
-    var definition: XLCommonTableDependency { get }
+    /// The dialect of the common table's result, and so of its statement.
+    ///
+    /// The macros' common tables take the default. It is not required to
+    /// equal `Result.XLModelDialect`: that requirement makes the conformance
+    /// of a generic model's common table circular, which the compiler
+    /// rejects.
+    associatedtype XLModelDialect = Result.XLModelDialect
 }
+
 
 
 ///
@@ -439,13 +481,8 @@ public protocol XLMetaCommonTable {
 ///
 /// Implemented by macro.
 ///
-public protocol XLMetaWritableTable<Row>: XLEncodable {
+public protocol XLMetaWritableTable<Row>: XLEncodable, XLDialectBound {
     associatedtype Row
-    /// The dialect of the table, which every column carries.
-    associatedtype XLModelDialect: XLSQLDialect
-    /// The dialect, from which Swift infers ``XLModelDialect``. See
-    /// ``XLResult/_dialect``.
-    var _dialect: XLModelDialect.Type { get }
     var _table: any XLEncodable { get }
 }
 

@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import SwiftQL
+@_spi(XLDialectSurface) import SwiftQL
 
 
 // MARK: - IN
@@ -16,7 +16,7 @@ import SwiftQL
 extension FakeSecondDialectExpression {
 
     @_disfavoredOverload
-    func `in`(expression: () -> any XLQueryStatement<T>) -> some FakeSecondDialectExpression<Bool> {
+    func `in`(expression: () -> any XLDialectQueryStatement<T, FakeSecondDialect>) -> some FakeSecondDialectExpression<Bool> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
@@ -34,7 +34,7 @@ extension FakeSecondDialectExpression {
     ///   `XLSchema(parent:)`.
     ///
     @_disfavoredOverload
-    func `in`(@XLQueryExpressionBuilder expression: (XLSchema<FakeSecondDialect>) -> any XLQueryStatement<T>) -> some FakeSecondDialectExpression<Bool> {
+    func `in`(@XLDialectQueryExpressionBuilder<FakeSecondDialect> expression: (XLSchema<FakeSecondDialect>) -> any XLDialectQueryStatement<T, FakeSecondDialect>) -> some FakeSecondDialectExpression<Bool> {
         let schema = XLSchema(dialect: FakeSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
@@ -47,7 +47,7 @@ extension FakeSecondDialectExpression {
     /// contains NULL.
     ///
     @_disfavoredOverload
-    func `in`<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    func `in`<Wrapped>(expression: () -> any XLDialectQueryStatement<Wrapped, FakeSecondDialect>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
@@ -55,7 +55,7 @@ extension FakeSecondDialectExpression {
     ///   scope, as in the non-optional overload. Use the closure form without
     ///   a schema for a correlated query.
     @_disfavoredOverload
-    func `in`<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<FakeSecondDialect>) -> any XLQueryStatement<Wrapped>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    func `in`<Wrapped>(@XLDialectQueryExpressionBuilder<FakeSecondDialect> expression: (XLSchema<FakeSecondDialect>) -> any XLDialectQueryStatement<Wrapped, FakeSecondDialect>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema(dialect: FakeSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
@@ -122,7 +122,7 @@ extension FakeSecondDialectExpression {
     /// for a NULL operand.
     ///
     @_disfavoredOverload
-    func notIn(expression: () -> any XLQueryStatement<T>) -> some FakeSecondDialectExpression<Bool> {
+    func notIn(expression: () -> any XLDialectQueryStatement<T, FakeSecondDialect>) -> some FakeSecondDialectExpression<Bool> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
@@ -130,7 +130,7 @@ extension FakeSecondDialectExpression {
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
     @_disfavoredOverload
-    func notIn(@XLQueryExpressionBuilder expression: (XLSchema<FakeSecondDialect>) -> any XLQueryStatement<T>) -> some FakeSecondDialectExpression<Bool> {
+    func notIn(@XLDialectQueryExpressionBuilder<FakeSecondDialect> expression: (XLSchema<FakeSecondDialect>) -> any XLDialectQueryStatement<T, FakeSecondDialect>) -> some FakeSecondDialectExpression<Bool> {
         let schema = XLSchema(dialect: FakeSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }
@@ -141,7 +141,7 @@ extension FakeSecondDialectExpression {
     /// operand or a NULL in the candidate set makes the answer unknown.
     ///
     @_disfavoredOverload
-    func notIn<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    func notIn<Wrapped>(expression: () -> any XLDialectQueryStatement<Wrapped, FakeSecondDialect>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
@@ -149,7 +149,7 @@ extension FakeSecondDialectExpression {
     ///   scope, as for `in`. Use the closure form without a schema for a
     ///   correlated query.
     @_disfavoredOverload
-    func notIn<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema<FakeSecondDialect>) -> any XLQueryStatement<Wrapped>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
+    func notIn<Wrapped>(@XLDialectQueryExpressionBuilder<FakeSecondDialect> expression: (XLSchema<FakeSecondDialect>) -> any XLDialectQueryStatement<Wrapped, FakeSecondDialect>) -> some FakeSecondDialectExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema(dialect: FakeSecondDialect.self)
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
     }

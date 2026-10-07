@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import SwiftQL
+@_spi(XLDialectSurface) import SwiftQL
 
 
 @available(*, deprecated, message: "Use all().count() instead. count(_:) will be removed in SwiftQL 2.")

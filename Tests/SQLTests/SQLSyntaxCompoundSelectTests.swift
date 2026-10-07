@@ -112,7 +112,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let familyDad = schema.table(Family.self)
         let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
         let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
-        let expression = select(momRow).from(familyMom).union { () -> any XLQueryStatement<FamilyMemberParent> in
+        let expression = select(momRow).from(familyMom).union { () -> any XLDialectQueryStatement<FamilyMemberParent, XLSQLiteDialect> in
             select(dadRow).from(familyDad).orderBy(familyDad.born.ascending())
         }
         XCTAssertEqual(
@@ -128,7 +128,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let familyDad = schema.table(Family.self)
         let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
         let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
-        let expression = select(momRow).from(familyMom).unionAll { () -> any XLQueryStatement<FamilyMemberParent> in
+        let expression = select(momRow).from(familyMom).unionAll { () -> any XLDialectQueryStatement<FamilyMemberParent, XLSQLiteDialect> in
             select(dadRow).from(familyDad).limit(1)
         }
         XCTAssertEqual(
@@ -440,7 +440,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let schema = XLSchema()
         let outer = schema.binding(of: Int.self)
         let expression = select(
-            schema.subquery { inner -> any XLQueryStatement<Int> in
+            schema.subquery { inner -> any XLDialectQueryStatement<Int, XLSQLiteDialect> in
                 let limit = inner.binding(of: Int.self)
                 return select(outer + limit)
             }

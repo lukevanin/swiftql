@@ -127,8 +127,11 @@ protocol XLTransactionScopeReporting {
 /// builders in `SQLFunctionalSyntax.swift` / the query expression builder, so
 /// the direct-result anchor needs its own name.
 ///
+/// Its closure has the type of `sql {}`'s, so a body that type-checks here
+/// also type-checks once the macro renames the callee (issue #822).
+///
 public func sqlResult<Row, Result>(
-    @XLQueryExpressionBuilder _ builder: (XLSQLiteSchema) -> any XLQueryStatement<Row>
+    @XLQueryExpressionBuilder _ builder: (XLSQLiteSchema) -> any XLDialectQueryStatement<Row, XLSQLiteDialect>
 ) -> Result {
     fatalError(
         "'sqlResult' marks a @SQLQuery/@SQLQueries specification, not an "

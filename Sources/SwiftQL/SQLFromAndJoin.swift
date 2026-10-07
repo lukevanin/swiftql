@@ -7,6 +7,11 @@
 //  Split out of SQLStatements.swift (issue #559). The eleven join factories --
 //  one per join shape SQLite supports -- are in Join+Factories.swift beside it.
 //
+//  Both clauses carry the dialect of their statement, and take only a table of
+//  that dialect (issue #822). A join constraint is an expression, so the
+//  initializers and factories that take one are declared by each dialect's
+//  surface, from scripts/dialect-surface/Templates/Clauses.swift.template.
+//
 
 import Foundation
 
@@ -17,17 +22,19 @@ import Foundation
 ///
 /// From clause.
 ///
-/// Specifies the table to use in a select clause.
+/// Specifies the table to use in a select clause. The table must belong to
+/// `Dialect`, the statement's dialect: a table of a model declared for
+/// another dialect is a compile error that names both dialects.
 ///
-public struct From: XLTableStatement {
-    
+public struct From<Dialect>: XLTableStatement, XLDialectClause where Dialect: XLSQLDialect {
+
     let table: XLEncodable
-    
-    public init<T>(_ meta: T) where T: XLMetaResult {
+
+    public init<T>(_ meta: T) where T: XLMetaResult, T.XLModelDialect == Dialect {
         self.table = meta
     }
 
-    public init<T>(_ meta: T) where T: XLMetaNamedResult {
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
         self.table = meta
     }
 
@@ -38,7 +45,7 @@ public struct From: XLTableStatement {
     /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
     /// with `NULL`. Build the nullable table reference with `nullableTable(_:as:)`.
     ///
-    public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
+    public init<T>(_ meta: T) where T: XLMetaNullableNamedResult, T.XLModelDialect == Dialect {
         self.table = meta
     }
 
@@ -49,6 +56,20 @@ public struct From: XLTableStatement {
 
 
 // MARK: Join
+
+
+///
+/// The kind of a join clause.
+///
+public enum XLJoinOperator: String, CaseIterable {
+    case innerJoin = "INNER JOIN"
+    case leftJoin = "LEFT JOIN"
+    case rightJoin = "RIGHT JOIN"
+    case fullOuterJoin = "FULL OUTER JOIN"
+    case crossJoin = "CROSS JOIN"
+    case naturalJoin = "NATURAL JOIN"
+    case naturalLeftJoin = "NATURAL LEFT JOIN"
+}
 
 
 ///
@@ -65,17 +86,13 @@ public struct From: XLTableStatement {
 /// `FROM` table with `nullableTable(_:as:)` so its columns
 /// decode as optionals. `RIGHT JOIN` requires SQLite 3.39.0 or later.
 ///
-public struct Join: XLTableStatement {
-    
-    public enum Kind: String, CaseIterable {
-        case innerJoin = "INNER JOIN"
-        case leftJoin = "LEFT JOIN"
-        case rightJoin = "RIGHT JOIN"
-        case fullOuterJoin = "FULL OUTER JOIN"
-        case crossJoin = "CROSS JOIN"
-        case naturalJoin = "NATURAL JOIN"
-        case naturalLeftJoin = "NATURAL LEFT JOIN"
-    }
+/// The joined table and the `ON` predicate must belong to `Dialect`, the
+/// statement's dialect (issue #822).
+///
+public struct Join<Dialect>: XLTableStatement, XLDialectClause where Dialect: XLSQLDialect {
+
+    /// The kind of join. Every dialect's joins share it.
+    public typealias Kind = XLJoinOperator
 
     private let kind: Kind
 
@@ -88,10 +105,13 @@ public struct Join: XLTableStatement {
     private let using: [XLName]?
 
     ///
-    /// `Join` is a synonym for `Join.Inner`.
+    /// Creates a join of `kind` from a table and a constraint that belong to
+    /// `Dialect`. Used by the generated initializers and factories, which
+    /// take only `Dialect`'s tables and expressions.
     ///
-    public init<T, U>(_ table: T, on constraint: any XLExpression<U>) where T: XLMetaNamedResult, U: XLBoolean {
-        self.init(kind: .innerJoin, table: table, constraint: constraint)
+    @_spi(XLDialectSurface)
+    public init(_dialectSurfaceKind kind: Kind, table: any XLEncodable, constraint: (any XLExpression)?) {
+        self.init(kind: kind, table: table, constraint: constraint)
     }
 
     internal init(kind: Kind, table: XLEncodable, constraint: (any XLExpression)?) {
@@ -132,8 +152,4 @@ public struct Join: XLTableStatement {
             })
         }
     }
-    
-    ///
-    /// Creates a cross join.
-    ///
 }

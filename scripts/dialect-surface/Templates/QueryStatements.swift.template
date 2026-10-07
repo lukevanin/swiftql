@@ -1,0 +1,166 @@
+//
+//  QueryStatements.swift.template
+//
+//  The select statement methods that take an expression. The statement types
+//  are in Statements/SQLQueryStatement.swift and SQLWithStatement.swift.
+//  scripts/dialect-surface/generate.py renders this template once for each
+//  dialect in scripts/dialect-surface/dialects.json (issue #822).
+//
+
+import Foundation
+
+
+// MARK: - Select
+
+
+///
+/// Constructs a select statement that returns a scalar value.
+///
+/// The logical result type is unconstrained. Bare contextual values can be
+/// rendered here, but decoding them requires an ``XLStaticRowLayout`` carrying
+/// result codec metadata.
+///
+public func select<T>(
+    _ expression: any {{Expression}}<T>
+) -> XLQuerySelectStatement<T, {{Dialect}}> {
+    XLQuerySelectStatement(components: XLQueryStatementComponents(select: Select<T, {{Dialect}}>(_dialectSurface: expression)))
+}
+
+
+extension XLWithStatement where Dialect == {{Dialect}} {
+
+    /// Builds a factored scalar select without constraining its logical result
+    /// type. Contextual-only values still need a static row layout for decoding.
+    public func select<T>(
+        _ expression: any {{Expression}}<T>
+    ) -> XLQuerySelectStatement<T, {{Dialect}}> {
+        XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select<T, {{Dialect}}>(_dialectSurface: expression)))
+    }
+}
+
+
+// MARK: - From
+
+
+extension XLQueryTableStatement where Dialect == {{Dialect}} {
+
+    // MARK: Join
+
+    public func innerJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLQueryTableStatement<Row, {{Dialect}}> where T: XLMetaNamedResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .innerJoin, table: t, constraint: condition)))
+    }
+
+    public func leftJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLQueryTableStatement<Row, {{Dialect}}> where T: XLMetaNullableNamedResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .leftJoin, table: t, constraint: condition)))
+    }
+
+    ///
+    /// Adds a `RIGHT JOIN`. The joined table stays non-nullable; declare the
+    /// `FROM` table with `nullableTable(_:)` so its columns decode as optionals.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func rightJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLQueryTableStatement<Row, {{Dialect}}> where T: XLMetaNamedResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .rightJoin, table: t, constraint: condition)))
+    }
+
+    ///
+    /// Adds a `FULL OUTER JOIN`. Both sides can be `NULL`: the joined table is
+    /// nullable, and the `FROM` table must be declared with `nullableTable(_:)`.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T, U>(_ t: T, on condition: any {{Expression}}<U>) -> XLQueryTableStatement<Row, {{Dialect}}> where T: XLMetaNullableNamedResult, T.XLModelDialect == {{Dialect}}, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join<{{Dialect}}>(_dialectSurfaceKind: .fullOuterJoin, table: t, constraint: condition)))
+    }
+
+    // MARK: Where
+
+    public func `where`<T>(_ condition: any {{Expression}}<T>) -> XLQueryWhereStatement<Row, {{Dialect}}> where T: XLBoolean {
+        XLQueryWhereStatement(components: components.appending(Where<{{Dialect}}>(_dialectSurface: condition)))
+    }
+
+    // MARK: Group
+
+    public func groupBy(_ expressions: any {{Expression}}...) -> XLQueryGroupByStatement<Row, {{Dialect}}> {
+        XLQueryGroupByStatement(components: components.appending(GroupBy<{{Dialect}}>(_dialectSurface: expressions)))
+    }
+
+    // MARK: Limit
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Where
+
+
+extension XLQueryWhereStatement where Dialect == {{Dialect}} {
+
+    public func groupBy(_ expressions: any {{Expression}}...) -> XLQueryGroupByStatement<Row, {{Dialect}}> {
+        XLQueryGroupByStatement(components: components.appending(GroupBy<{{Dialect}}>(_dialectSurface: expressions)))
+    }
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Group By
+
+
+extension XLQueryGroupByStatement where Dialect == {{Dialect}} {
+
+    public func having<T>(_ condition: any {{Expression}}<T>) -> XLQueryHavingStatement<Row, {{Dialect}}> where T: XLBoolean {
+        XLQueryHavingStatement(components: components.appending(Having<{{Dialect}}>(_dialectSurface: condition)))
+    }
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Having
+
+
+extension XLQueryHavingStatement where Dialect == {{Dialect}} {
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Union
+
+
+extension XLQueryUnionStatement where Dialect == {{Dialect}} {
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Order By
+
+
+extension XLQueryOrderByStatement where Dialect == {{Dialect}} {
+
+    public func limit(_ count: any {{Expression}}<Int>) -> XLQueryLimitStatement<Row, {{Dialect}}> {
+        XLQueryLimitStatement(components: components.appending(Limit<{{Dialect}}>(_dialectSurface: count)))
+    }
+}
+
+
+// MARK: - Limit
+
+
+extension XLQueryLimitStatement where Dialect == {{Dialect}} {
+
+    public func offset(_ count: any {{Expression}}<Int>) -> XLQueryOffsetStatement<Row, {{Dialect}}> {
+        XLQueryOffsetStatement(components: components.appending(Offset<{{Dialect}}>(_dialectSurface: count)))
+    }
+}

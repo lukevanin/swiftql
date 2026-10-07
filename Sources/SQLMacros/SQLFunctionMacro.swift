@@ -57,7 +57,16 @@ internal struct FunctionMetaBuilder {
     let functionName: String
 
     /// Ordered names of the stored properties which become SQL function arguments.
-    let argumentNames: [String]
+    var argumentNames: [String] {
+        arguments.map(\.name)
+    }
+
+    /// Ordered stored properties which become SQL function arguments.
+    let arguments: [FunctionArgument]
+
+    /// Whether the struct declares an initializer of its own, which the
+    /// generated one would sit beside rather than replace.
+    let declaresInitializer: Bool
 
     ///
     /// Convenience initializer used to initialise the builder with a `DeclGroupSyntax`.
@@ -89,11 +98,12 @@ internal struct FunctionMetaBuilder {
             diagnostics: &diagnostics
         )
 
-        let argumentNames = Self.collectArguments(declaration: declaration, diagnostics: &diagnostics)
+        let arguments = Self.collectArguments(declaration: declaration, diagnostics: &diagnostics)
 
         try diagnostics.throwIfNotEmpty()
 
-        self.argumentNames = argumentNames
+        self.arguments = arguments
+        self.declaresInitializer = Self.declaresInitializer(in: declaration.memberBlock.members)
     }
 
     ///
@@ -108,8 +118,8 @@ internal struct FunctionMetaBuilder {
     private static func collectArguments(
         declaration: StructDeclSyntax,
         diagnostics: inout MacroDiagnosticCollector
-    ) -> [String] {
-        var names: [String] = []
+    ) -> [FunctionArgument] {
+        var names: [FunctionArgument] = []
         for member in declaration.memberBlock.members {
             // Members which are not variable declarations (methods, initializers, nested types,
             // subscripts) are never arguments.
@@ -122,13 +132,60 @@ internal struct FunctionMetaBuilder {
     }
 
     ///
+    /// Whether `members` declare an initializer, including one inside an `#if`
+    /// clause, which the generated initializer would sit beside rather than
+    /// replace, or a stored property inside an `#if` clause, which the
+    /// arguments do not include and so the generated initializer would leave
+    /// unset.
+    ///
+    private static func declaresInitializer(in members: MemberBlockItemListSyntax, conditionally: Bool = false) -> Bool {
+        members.contains { member in
+            if member.decl.is(InitializerDeclSyntax.self) {
+                return true
+            }
+            if conditionally, let variable = member.decl.as(VariableDeclSyntax.self), isStoredInstanceProperty(variable) {
+                return true
+            }
+            guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
+                return false
+            }
+            return ifConfig.clauses.contains { clause in
+                guard case .decls(let nested) = clause.elements else {
+                    return false
+                }
+                return declaresInitializer(in: nested, conditionally: true)
+            }
+        }
+    }
+
+    ///
+    /// Whether `variable` declares a stored instance property, which the
+    /// memberwise initializer takes: not `static` or `class`, and with a
+    /// binding that is not computed.
+    ///
+    private static func isStoredInstanceProperty(_ variable: VariableDeclSyntax) -> Bool {
+        let isTypeMember = variable.modifiers.contains { modifier in
+            modifier.name.text == "static" || modifier.name.text == "class"
+        }
+        guard !isTypeMember else {
+            return false
+        }
+        return variable.bindings.contains { binding in
+            guard let accessorBlock = binding.accessorBlock else {
+                return true
+            }
+            return !StoredPropertyClassifier.isComputed(accessorBlock)
+        }
+    }
+
+    ///
     /// Maps a single variable declaration to zero or more arguments, or appends an error diagnostic
     /// if the declaration cannot be mapped faithfully.
     ///
     private static func collectArguments(
         variable: VariableDeclSyntax,
         diagnostics: inout MacroDiagnosticCollector
-    ) -> [String] {
+    ) -> [FunctionArgument] {
 
         func report(_ node: some SyntaxProtocol, id: String, _ message: String) {
             diagnostics.report(node, id: id, message)
@@ -144,7 +201,24 @@ internal struct FunctionMetaBuilder {
             return []
         }
 
-        var names: [String] = []
+        // A private or fileprivate property narrows the memberwise
+        // initializer to the same access, and the generated initializer
+        // follows it. A setter-only modifier such as `private(set)` does
+        // not narrow it.
+        let access = variable.modifiers.compactMap { modifier -> FunctionArgument.Access? in
+            guard modifier.detail == nil else {
+                return nil
+            }
+            switch modifier.name.text {
+            case "private":
+                return .private
+            case "fileprivate":
+                return .fileprivate
+            default:
+                return nil
+            }
+        }.min()
+        var names: [FunctionArgument] = []
         for binding in variable.bindings {
 
             if
@@ -185,9 +259,44 @@ internal struct FunctionMetaBuilder {
                 continue
             }
 
-            names.append(name)
+            names.append(
+                FunctionArgument(
+                    name: name,
+                    sqliteType: sqliteExpressionType(annotation.type),
+                    hasInitialValue: binding.initializer != nil,
+                    access: access
+                )
+            )
         }
         return names
+    }
+
+    ///
+    /// The type of the generated initializer's parameter for a property typed
+    /// `type`: `any XLSQLiteExpression` with the property's own generic
+    /// arguments, so the argument must be a SQLite expression (issue #822).
+    /// `nil` for a property typed `some ...`, which the initializer cannot
+    /// take as an existential.
+    ///
+    private static func sqliteExpressionType(_ type: TypeSyntax) -> String? {
+        guard
+            let existential = type.as(SomeOrAnyTypeSyntax.self),
+            existential.someOrAnySpecifier.tokenKind == .keyword(.any)
+        else {
+            return nil
+        }
+        // A module-qualified property type keeps its qualifier, so a client
+        // that qualifies its types to avoid a clash is not exposed to one.
+        let constraint = existential.constraint
+        if let identifier = constraint.as(IdentifierTypeSyntax.self) {
+            let genericArguments = identifier.genericArgumentClause?.trimmedDescription ?? ""
+            return "any XLSQLiteExpression\(genericArguments)"
+        }
+        if let member = constraint.as(MemberTypeSyntax.self) {
+            let genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
+            return "any \(member.baseType.trimmedDescription).XLSQLiteExpression\(genericArguments)"
+        }
+        return nil
     }
 
     ///
@@ -223,6 +332,45 @@ internal struct FunctionMetaBuilder {
     // MARK: - Generation
 
     ///
+    /// Generates an initializer that takes each argument as a SQLite
+    /// expression, in declaration order, with the labels of the memberwise
+    /// initializer it replaces (issue #822).
+    ///
+    /// A custom function runs inside SQLite, so its arguments are SQLite
+    /// expressions. A property typed `any XLExpression<...>` stores any
+    /// expression, and the memberwise initializer would take a column of
+    /// another dialect's model; this one does not. A struct with no
+    /// arguments, an argument with an initial value, or an argument typed
+    /// `some ...` keeps its memberwise initializer, which this cannot replace
+    /// faithfully, and is not checked; so does a struct with a property inside
+    /// an `#if` clause. A struct that declares an initializer,
+    /// also inside an `#if` clause, keeps it as written: the initializer's
+    /// parameter types decide what it takes. The generated initializer has
+    /// the memberwise initializer's access: `private` or `fileprivate` when a
+    /// property is.
+    ///
+    func makeInitializer() -> String? {
+        guard !arguments.isEmpty, !declaresInitializer else {
+            return nil
+        }
+        var parameters: [String] = []
+        for argument in arguments {
+            guard !argument.hasInitialValue, let type = argument.sqliteType else {
+                return nil
+            }
+            parameters.append("\(argument.name): \(type)")
+        }
+        let access = arguments.compactMap(\.access).min().map { "\($0.rawValue) " } ?? ""
+        var context = CodeWriter()
+        context.block("\(access)init(\(parameters.joined(separator: ", ")))") { context in
+            for argument in arguments {
+                context.line("self.\(argument.name) = \(argument.name)")
+            }
+        }
+        return context.build()
+    }
+
+    ///
     /// Generates the `definition` static property from the function name and argument count.
     ///
     func makeDefinitionDecl() -> String {
@@ -253,6 +401,38 @@ internal struct FunctionMetaBuilder {
 
 
 ///
+/// One stored property of a custom function: one positional SQL argument.
+///
+internal struct FunctionArgument {
+
+    /// The property's name, which is also the initializer's argument label.
+    let name: String
+
+    /// The generated initializer's parameter type, or `nil` when the property
+    /// is typed in a form the initializer cannot take.
+    let sqliteType: String?
+
+    /// Whether the property has an initial value, which the memberwise
+    /// initializer makes optional.
+    let hasInitialValue: Bool
+
+    /// The property's access when it narrows the memberwise initializer's:
+    /// `private` or `fileprivate`, and `nil` otherwise.
+    let access: Access?
+
+    /// An access level narrower than the memberwise initializer's default.
+    enum Access: String, Comparable {
+        case `private`
+        case `fileprivate`
+
+        static func < (lhs: Access, rhs: Access) -> Bool {
+            lhs == .private && rhs == .fileprivate
+        }
+    }
+}
+
+
+///
 /// Declares a struct as a custom SQL scalar function.
 ///
 /// Generates the ``XLCustomFunction/definition`` (name + argument count) and the
@@ -275,9 +455,13 @@ extension SQLFunctionMacro: MemberMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let builder = try FunctionMetaBuilder(node: node, declaration: declaration)
-        return [
+        var declarations = [
             try makeDecl(builder.makeDefinitionDecl()),
             try makeDecl(builder.makeMakeSQLFunction()),
         ]
+        if let initializer = builder.makeInitializer() {
+            declarations.append(try makeDecl(initializer))
+        }
+        return declarations
     }
 }

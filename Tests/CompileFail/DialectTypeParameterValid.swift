@@ -72,3 +72,102 @@ func helpers() {
     _ = adults(binding)
     _ = secondDialectAdults(binding)
 }
+
+
+// Issue #822: every clause and statement carries its dialect. The same
+// statement shapes type-check in each dialect; a clause built from values
+// alone takes the dialect of the query it is in, also in a module that sees
+// both dialects' surfaces.
+
+func sqliteStatements(name: String) {
+    let sqlite = XLSchema()
+    let person = sqlite.table(DialectPerson.self)
+    let target = sqlite.into(DialectPerson.self)
+    _ = sql { schema in
+        let inner = schema.table(DialectPerson.self)
+        let other = schema.nullableTable(DialectPerson.self)
+        Select(inner)
+        From(inner)
+        Join.Left(other, on: other.id == inner.id)
+        Where(true)
+        GroupBy(inner.age)
+        Having(inner.age > 1)
+        OrderBy(inner.name.ascending(), Descending(expression: inner.age))
+        Limit(10)
+        Offset(5)
+    }
+    _ = sql { schema in
+        let inner = schema.table(DialectPerson.self)
+        Select(inner.age)
+        From(inner)
+        Where(inner.age == subqueryExpression { Select(1) })
+        Union()
+        Select(2)
+    }
+    _ = select(person).from(person).where(person.name == name).orderBy(person.age.ascending()).limit(1).offset(1)
+    _ = select(person.age).from(person).union { select(1) }
+    _ = delete(target).where(person.id == 1).returning(person)
+    _ = QueryBuilder(select: person).from(person).and(person.age > 1).limit(5)
+}
+
+func secondDialectStatements(name: String) {
+    let second = XLSchema(dialect: CompileFailSecondDialect.self)
+    let person = second.table(SecondDialectPerson.self)
+    let target = second.into(SecondDialectPerson.self)
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        let inner = schema.table(SecondDialectPerson.self)
+        let other = schema.nullableTable(SecondDialectPerson.self)
+        Select(inner)
+        From(inner)
+        Join.Left(other, on: other.id == inner.id)
+        Where(true)
+        GroupBy(inner.age)
+        Having(inner.age > 1)
+        OrderBy(inner.name.ascending(), Descending(expression: inner.age))
+        Limit(10)
+        Offset(5)
+    }
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        let inner = schema.table(SecondDialectPerson.self)
+        Select(inner.age)
+        From(inner)
+        Where(inner.age == schema.subqueryExpression { _ in Select(1) })
+        Union()
+        Select(2)
+    }
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        Delete(schema.into(SecondDialectPerson.self))
+        Where(true)
+    }
+    _ = select(person).from(person).where(person.name == name).orderBy(person.age.ascending()).limit(1).offset(1)
+    _ = delete(target).where(person.id == 1).returning(person)
+    _ = XLDialectQueryBuilder(select: person).from(person).and(person.age > 1).limit(5)
+}
+
+
+/// A custom function runs inside SQLite; the initializer `@SQLFunction`
+/// generates takes SQLite expressions.
+@SQLFunction(name: "whisper")
+struct Whisper: XLCustomFunction {
+    typealias T = String
+
+    let text: any XLExpression<String>
+
+    static func execute(reader: XLColumnReader) throws -> String {
+        try reader.readText(at: 0).lowercased()
+    }
+}
+
+func customFunction() {
+    let person = XLSchema().table(DialectPerson.self)
+    _ = Whisper(text: person.name) == "a"
+    _ = Whisper(text: "A")
+}
+
+
+/// Generic code that names a model's common table passes it to `With`, which
+/// checks the dialect of the common table's result.
+func genericCommonTable<T>(_ type: T.Type, _ commonTable: T.MetaCommonTable) -> With<XLSQLiteDialect> where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
+    _ = with(commonTable)
+    return With(commonTable)
+}

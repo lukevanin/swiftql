@@ -7,6 +7,13 @@
 //
 //  Split out of SQLStatements.swift (issue #559).
 //
+//  Each clause carries the dialect of the statement it belongs to. An
+//  initializer that takes an expression takes it as an expression of that
+//  dialect, so each dialect's surface declares those initializers, from
+//  scripts/dialect-surface/Templates/Clauses.swift.template (issue #822).
+//  They call the `_dialectSurface` initializers here, which take any
+//  expression and are SwiftQL's dialect-surface SPI, not public API.
+//
 
 import Foundation
 
@@ -39,32 +46,40 @@ extension XLKeywordPrefixedClause {
 }
 
 
+///
+/// A clause that SQLite applies to a whole compound select when it follows
+/// the last branch, `ORDER BY`, `LIMIT`, and `OFFSET`, and so does not accept
+/// in a branch that follows a compound operator (issue #657).
+///
+protocol XLCompoundTrailingClause: XLKeywordPrefixedClause {
+}
+
+
 // MARK: - Where
 
 
 ///
 /// Where clause.
 ///
-public struct Where: XLKeywordPrefixedClause {
+/// `Dialect` is the dialect of the statement. The clause takes a condition of
+/// that dialect only: a column of another dialect's model, or an expression
+/// composed from one, is a compile error that names both dialects
+/// (issue #822).
+///
+public struct Where<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "WHERE"
+    static var sqlKeyword: String { "WHERE" }
 
     var clauseExpression: any XLEncodable { condition }
 
     private let condition: any XLExpression
-    
-    init(_ condition: any XLExpression) {
-        self.condition = condition
-    }
-    
-    public init(_ condition: any XLExpression<Bool>) {
-        self.condition = condition
-    }
-    
-    public init(_ condition: any XLExpression<Optional<Bool>>) {
-        self.condition = condition
-    }
 
+    /// Creates the clause from a condition that belongs to `Dialect`. Used by
+    /// the generated initializers, which take only `Dialect`'s expressions.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface condition: any XLExpression) {
+        self.condition = condition
+    }
 }
 
 
@@ -74,23 +89,27 @@ public struct Where: XLKeywordPrefixedClause {
 ///
 /// An ordering term such as ascending or descending.
 ///
-public protocol XLOrderingTerm: XLEncodable {
-    
+/// `Dialect` is the dialect of the expression the term orders by, so an
+/// `ORDER BY` clause takes only terms of its statement's dialect.
+///
+public protocol XLOrderingTerm<Dialect>: XLEncodable {
+
+    /// The dialect of the expression the term orders by.
+    associatedtype Dialect: XLSQLDialect
 }
 
 
 ///
 /// Ascending ordering term used in an OrderBy expression.
 ///
-public struct Ascending: XLOrderingTerm {
-    
+public struct Ascending<Dialect>: XLOrderingTerm where Dialect: XLSQLDialect {
+
     private let expression: any XLExpression
-    
-    public init(@XLScalarExpressionBuilder expression: () -> any XLExpression) {
-        self.expression = expression()
-    }
-    
-    public init(expression: any XLExpression) {
+
+    /// Creates the term from an expression that belongs to `Dialect`. Used by
+    /// the generated initializers.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface expression: any XLExpression) {
         self.expression = expression
     }
 
@@ -103,18 +122,17 @@ public struct Ascending: XLOrderingTerm {
 ///
 /// Descending ordering term used in an OrderBy expression.
 ///
-public struct Descending: XLOrderingTerm {
-    
+public struct Descending<Dialect>: XLOrderingTerm where Dialect: XLSQLDialect {
+
     private let expression: any XLExpression
-    
-    public init(@XLScalarExpressionBuilder expression: () -> any XLExpression) {
-        self.expression = expression()
-    }
-    
-    public init(expression: any XLExpression) {
+
+    /// Creates the term from an expression that belongs to `Dialect`. Used by
+    /// the generated initializers.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface expression: any XLExpression) {
         self.expression = expression
     }
-    
+
     public func makeSQL(context: inout XLBuilder) {
         context.unarySuffix("DESC", expression: expression.makeSQL)
     }
@@ -122,11 +140,16 @@ public struct Descending: XLOrderingTerm {
 
 
 ///
-/// Constructs a list of ordering term sub-expressions.
+/// Constructs a list of ordering term sub-expressions, all of one dialect.
 ///
 @resultBuilder public struct XLOrderingTermsBuilder {
-    public static func buildBlock(_ components: XLOrderingTerm...) -> any XLEncodable {
+    public static func buildBlock<Dialect>(_ components: any XLOrderingTerm<Dialect>...) -> any XLEncodable {
         XLEncodableList(separator: .list, expressions: components)
+    }
+
+    /// An empty list, which names no dialect.
+    public static func buildBlock() -> any XLEncodable {
+        XLEncodableList(separator: .list, expressions: [any XLEncodable]())
     }
 }
 
@@ -134,19 +157,21 @@ public struct Descending: XLOrderingTerm {
 ///
 /// OrderBy clause.
 ///
-public struct OrderBy: XLKeywordPrefixedClause {
+/// Its terms order by expressions of `Dialect`, the statement's dialect.
+///
+public struct OrderBy<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "ORDER BY"
+    static var sqlKeyword: String { "ORDER BY" }
 
     var clauseExpression: any XLEncodable { orderingTerms }
 
     private let orderingTerms: XLEncodableList
-    
-    public init(_ terms: any XLOrderingTerm...) {
+
+    public init(_ terms: any XLOrderingTerm<Dialect>...) {
         self.init(terms: terms)
     }
-    
-    internal init(terms: [any XLOrderingTerm]) {
+
+    internal init(terms: [any XLOrderingTerm<Dialect>]) {
         self.orderingTerms = XLEncodableList(separator: .list, expressions: terms)
     }
 
@@ -159,28 +184,23 @@ public struct OrderBy: XLKeywordPrefixedClause {
 ///
 /// Limit clause.
 ///
-public struct Limit: XLKeywordPrefixedClause {
+public struct Limit<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "LIMIT"
+    static var sqlKeyword: String { "LIMIT" }
 
     var clauseExpression: any XLEncodable { count }
 
     private let count: any XLExpression
-    
-    public init(_ count: any XLExpression<Int>) {
+
+    /// Creates the clause from a count that belongs to `Dialect`. Used by the
+    /// generated initializers, and by QueryBuilder's type-erased API, where
+    /// SQLite validates at execution time that the expression evaluates to an
+    /// integer or a value that can be losslessly converted to one.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface count: any XLExpression) {
         self.count = count
     }
 
-    /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
-    /// evaluates to an integer or a value that can be losslessly converted to one.
-    init(unchecked count: any XLExpression) {
-        self.count = count
-    }
-    
-    public init(@XLScalarExpressionBuilder _ count: () -> any XLExpression<Int>) {
-        self.count = count()
-    }
-    
 }
 
 
@@ -190,28 +210,21 @@ public struct Limit: XLKeywordPrefixedClause {
 ///
 /// Offset clause.
 ///
-public struct Offset: XLKeywordPrefixedClause {
+public struct Offset<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "OFFSET"
+    static var sqlKeyword: String { "OFFSET" }
 
     var clauseExpression: any XLEncodable { count }
 
     private let count: any XLExpression
-    
-    public init(_ count: any XLExpression<Int>) {
+
+    /// Creates the clause from a count that belongs to `Dialect`. Used by the
+    /// generated initializers, and by QueryBuilder's type-erased API.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface count: any XLExpression) {
         self.count = count
     }
 
-    /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
-    /// evaluates to an integer or a value that can be losslessly converted to one.
-    init(unchecked count: any XLExpression) {
-        self.count = count
-    }
-    
-    public init(@XLScalarExpressionBuilder _ count: () -> any XLExpression<Int>) {
-        self.count = count()
-    }
-    
 }
 
 
@@ -221,19 +234,18 @@ public struct Offset: XLKeywordPrefixedClause {
 ///
 /// GroupBy clause.
 ///
-public struct GroupBy: XLKeywordPrefixedClause {
+public struct GroupBy<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "GROUP BY"
+    static var sqlKeyword: String { "GROUP BY" }
 
     var clauseExpression: any XLEncodable { columns }
 
     private let columns: any XLEncodable
-    
-    public init(_ columns: any XLExpression...) {
-        self.columns = XLEncodableList(separator: .list, expressions: columns)
-    }
 
-    public init(_ columns: [any XLExpression]) {
+    /// Creates the clause from columns that belong to `Dialect`. Used by the
+    /// generated initializers.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface columns: [any XLExpression]) {
         self.columns = XLEncodableList(separator: .list, expressions: columns)
     }
 
@@ -248,23 +260,18 @@ public struct GroupBy: XLKeywordPrefixedClause {
 ///
 /// Constrains a GroupBy clause.
 ///
-public struct Having: XLKeywordPrefixedClause {
+public struct Having<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
 
-    static let sqlKeyword: String = "HAVING"
+    static var sqlKeyword: String { "HAVING" }
 
     var clauseExpression: any XLEncodable { condition }
 
     private let condition: any XLExpression
-    
-    init(_ condition: any XLExpression) {
-        self.condition = condition
-    }
-    
-    public init(_ condition: any XLExpression<Bool>) {
-        self.condition = condition
-    }
-    
-    public init(_ condition: any XLExpression<Optional<Bool>>) {
+
+    /// Creates the clause from a condition that belongs to `Dialect`. Used by
+    /// the generated initializers.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface condition: any XLExpression) {
         self.condition = condition
     }
 
