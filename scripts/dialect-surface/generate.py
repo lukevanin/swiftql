@@ -24,6 +24,10 @@ A template is Swift with these placeholders:
 
 The template's leading comment is replaced with a header that says the file
 is generated, and a dialect's `imports` are added after `import Foundation`.
+A dialect outside the SwiftQL module imports SwiftQL with
+`@_spi(XLDialectSurface)`: the generated code builds clauses and statements
+through SwiftQL's dialect-surface SPI, the initializers that take an
+expression of any dialect and are not public API (issue #822).
 A dialect whose `access` is `internal` has every `public` modifier removed
 from the code, so a test can declare a dialect without making its types
 public. A dialect marked `disfavored` has `@_disfavoredOverload` added to every
@@ -118,7 +122,7 @@ def render(template: Path, dialect: Mapping[str, str]) -> str:
         return dialect[name]
 
     body = PLACEHOLDER.sub(substitute, strip_leading_comment(template.read_text()))
-    imports = "".join(f"import {module}\n" for module in dialect.get("imports", []))
+    imports = "".join(import_line(module) for module in dialect.get("imports", []))
     if imports:
         if "import Foundation\n" not in body:
             raise SystemExit(f"{relative(template)}: no `import Foundation` to add imports after")
@@ -137,6 +141,17 @@ def render(template: Path, dialect: Mapping[str, str]) -> str:
     return header(template, dialect) + body
 
 
+# SwiftQL's dialect-surface SPI: the `_dialectSurface` initializers that the
+# generated code calls. A dialect outside SwiftQL needs it to build clauses.
+SPI_MODULES = {"SwiftQL": "XLDialectSurface"}
+
+
+def import_line(module: str) -> str:
+    if module in SPI_MODULES:
+        return f"@_spi({SPI_MODULES[module]}) import {module}\n"
+    return f"import {module}\n"
+
+
 def is_comment(line: str) -> bool:
     return line.lstrip().startswith("//")
 
@@ -150,7 +165,9 @@ def check_internal(template: Path, body: str) -> None:
 def check_disfavoured(template: Path, body: str) -> None:
     lines = body.splitlines()
     for number, line in enumerate(lines):
-        if is_comment(line) or not re.search(r"\b(?:func|init|subscript)\b(?:[\s<(]|$)", line):
+        # `self.init(...)` and `.init(...)` call an initializer; they do not
+        # declare one.
+        if is_comment(line) or not re.search(r"(?<!\.)\b(?:func|init|subscript)\b(?:[\s<(]|$)", line):
             continue
         if not DECLARATION.match(line + "\n"):
             raise SystemExit(

@@ -311,7 +311,7 @@ public struct SQLiteCombinatorialDraftBinding: Equatable {
 /// an indexed SQLite placeholder. SwiftQL has a named v1 convenience type;
 /// indexed contextual parameters are otherwise expressed through the same
 /// public `XLBindingReference` and immutable declaration contracts.
-private struct C191IndexedIntegerBindingReference: XLBindingReference, Sendable {
+private struct C191IndexedIntegerBindingReference: XLBindingReference, XLSQLiteExpression, Sendable {
     typealias T = Int
 
     let declaration: XLParameterDeclaration
@@ -2138,14 +2138,14 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func completeSelect<Row>(
-        select: XLQuerySelectStatement<Row>,
+        select: XLQuerySelectStatement<Row, XLSQLiteDialect>,
         schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String,
-        predicate: (any XLExpression<Bool>)?,
+        predicate: (any XLSQLiteExpression<Bool>)?,
         groupingID: String,
         havingID: String,
-        ordering: (any XLOrderingTerm)?,
+        ordering: (any XLOrderingTerm<XLSQLiteDialect>)?,
         orderingID: String,
         limitID: String,
         offsetID: String
@@ -2203,9 +2203,9 @@ public enum SQLiteTypedCombinatorialCases {
         orderingID: String,
         limitID: String,
         offsetID: String,
-        ordered: () -> XLQueryOrderByStatement<Row>,
-        limited: () -> XLQueryLimitStatement<Row>,
-        grouped: () -> XLQueryGroupByStatement<Row>
+        ordered: () -> XLQueryOrderByStatement<Row, XLSQLiteDialect>,
+        limited: () -> XLQueryLimitStatement<Row, XLSQLiteDialect>,
+        grouped: () -> XLQueryGroupByStatement<Row, XLSQLiteDialect>
     ) -> any XLEncodable {
         switch (groupingID, havingID) {
         case ("none", "none"):
@@ -2257,8 +2257,8 @@ public enum SQLiteTypedCombinatorialCases {
         orderingID: String,
         limitID: String,
         offsetID: String,
-        ordered: () -> XLQueryOrderByStatement<Row>,
-        limited: () -> XLQueryLimitStatement<Row>
+        ordered: () -> XLQueryOrderByStatement<Row, XLSQLiteDialect>,
+        limited: () -> XLQueryLimitStatement<Row, XLSQLiteDialect>
     ) -> any XLEncodable {
         switch (orderingID, limitID, offsetID) {
         case ("none", "none", "none"):
@@ -2285,11 +2285,11 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func joined<Row>(
-        _ table: XLQueryTableStatement<Row>,
+        _ table: XLQueryTableStatement<Row, XLSQLiteDialect>,
         schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String
-    ) -> XLQueryTableStatement<Row> {
+    ) -> XLQueryTableStatement<Row, XLSQLiteDialect> {
         switch joinID {
         case "none":
             return table
@@ -2316,7 +2316,7 @@ public enum SQLiteTypedCombinatorialCases {
     private static func predicate(
         orders: C191Order.MetaNamedResult,
         predicateID: String
-    ) -> ((any XLExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
+    ) -> ((any XLSQLiteExpression<Bool>)?, [SQLiteCombinatorialDraftBinding]) {
         switch predicateID {
         case "none":
             return (nil, [])
@@ -2366,7 +2366,7 @@ public enum SQLiteTypedCombinatorialCases {
     private static func ordering(
         orders: C191Order.MetaNamedResult,
         orderingID: String
-    ) -> (any XLOrderingTerm)? {
+    ) -> (any XLOrderingTerm<XLSQLiteDialect>)? {
         switch orderingID {
         case "none":
             return nil

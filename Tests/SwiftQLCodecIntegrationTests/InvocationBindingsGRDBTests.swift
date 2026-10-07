@@ -888,7 +888,7 @@ final class InvocationBindingsGRDBTests: XCTestCase {
 }
 
 
-private struct DeclaredParameterExpression<Literal: XLLiteral>: XLExpression {
+private struct DeclaredParameterExpression<Literal: XLLiteral>: XLSQLiteExpression {
     typealias T = Literal
 
     let declaration: XLParameterDeclaration
@@ -901,7 +901,7 @@ private struct DeclaredParameterExpression<Literal: XLLiteral>: XLExpression {
 }
 
 
-private struct MixedIntegerParameterExpression: XLExpression {
+private struct MixedIntegerParameterExpression: XLSQLiteExpression {
     typealias T = Int
 
     let lhs: XLParameterDeclaration

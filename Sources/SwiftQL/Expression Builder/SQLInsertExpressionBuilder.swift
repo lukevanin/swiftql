@@ -9,42 +9,53 @@ import Foundation
 
 
 ///
-/// Result builder used to onstruct an insert statement.
+/// Result builder used to construct an insert statement in `Dialect`.
 ///
-@resultBuilder public struct XLInsertExpressionBuilder {
+/// Every clause of the body must belong to `Dialect`: the table it inserts
+/// into, and the tables and expressions of a select that feeds it
+/// (issue #822). ``XLInsertExpressionBuilder`` is the builder for SQLite.
+///
+@resultBuilder public struct XLDialectInsertExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
+
+    ///
+    /// Accepts a clause of the builder's dialect.
+    ///
+    public static func buildExpression<Clause>(_ clause: Clause) -> Clause where Clause: XLDialectClause, Clause.Dialect == Dialect {
+        clause
+    }
 
     ///
     /// Constructs a With expression.
     ///
-    public static func buildPartialBlock(first: With) -> XLWithStatement {
-        XLWithStatement(first.commonTables)
+    public static func buildPartialBlock(first: With<Dialect>) -> XLWithStatement<Dialect> {
+        XLWithStatement(_dialectSurface: first.commonTables)
     }
 
     ///
     /// Constructs an Insert expression using a With expression.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Insert<Row>) -> XLInsertTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement<Dialect>, next: Insert<Row>) -> XLInsertTableStatement<Row, Dialect> {
         XLInsertTableStatement(components: XLInsertStatementComponents(commonTables: accumulated.commonTables, insert: next))
     }
 
     ///
     /// Constructs an Insert expression.
     ///
-    public static func buildPartialBlock<Row>(first: Insert<Row>) -> XLInsertTableStatement<Row> {
+    public static func buildPartialBlock<Row>(first: Insert<Row>) -> XLInsertTableStatement<Row, Dialect> {
         XLInsertTableStatement(components: XLInsertStatementComponents(insert: first))
     }
 
     ///
     /// Constructs a Replace expression.
     ///
-    public static func buildPartialBlock<Row>(first: Replace<Row>) -> XLInsertTableStatement<Row> {
+    public static func buildPartialBlock<Row>(first: Replace<Row>) -> XLInsertTableStatement<Row, Dialect> {
         XLInsertTableStatement(components: XLInsertStatementComponents(insert: first.insert))
     }
 
     ///
     /// Constructs a Replace expression using a With expression.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Replace<Row>) -> XLInsertTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement<Dialect>, next: Replace<Row>) -> XLInsertTableStatement<Row, Dialect> {
         XLInsertTableStatement(components: XLInsertStatementComponents(commonTables: accumulated.commonTables, insert: next.insert))
     }
 
@@ -56,7 +67,7 @@ import Foundation
     ///
     /// The Values clause specifies the values for columns which are inserted.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertTableStatement<Row>, next: Values<Row>) -> XLInsertTableValuesStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertTableStatement<Row, Dialect>, next: Values<Row>) -> XLInsertTableValuesStatement<Row, Dialect> {
         XLInsertTableValuesStatement(components: accumulated.components.appending(next.values))
     }
 
@@ -65,7 +76,7 @@ import Foundation
     ///
     /// The Select clause specifies the rows which are to be inserted.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertTableStatement<Row>, next: Select<Row>) -> XLInsertSelectStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertTableStatement<Row, Dialect>, next: Select<Row, Dialect>) -> XLInsertSelectStatement<Row, Dialect> {
         XLInsertSelectStatement(components: accumulated.components.appending(next))
     }
     
@@ -75,7 +86,7 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes a From clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectStatement<Row>, next: From) -> XLInsertSelectTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectStatement<Row, Dialect>, next: From<Dialect>) -> XLInsertSelectTableStatement<Row, Dialect> {
         XLInsertSelectTableStatement(components: accumulated.components.appending(next))
     }
     
@@ -85,35 +96,35 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes a Join clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row>, next: Join) -> XLInsertSelectTableStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row, Dialect>, next: Join<Dialect>) -> XLInsertSelectTableStatement<Row, Dialect> {
         XLInsertSelectTableStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs an Insert statement with a Select clause which includes a Where clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row>, next: Where) -> XLInsertSelectWhereStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row, Dialect>, next: Where<Dialect>) -> XLInsertSelectWhereStatement<Row, Dialect> {
         XLInsertSelectWhereStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs an Insert statement with a Select clause which includes a GroupBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row>, next: GroupBy) -> XLInsertSelectGroupByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row, Dialect>, next: GroupBy<Dialect>) -> XLInsertSelectGroupByStatement<Row, Dialect> {
         XLInsertSelectGroupByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs an Insert statement with a Select clause which includes an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row>, next: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLInsertSelectOrderByStatement<Row, Dialect> {
         XLInsertSelectOrderByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs an Insert statement with a Select clause which includes a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row>, next: Limit) -> XLInsertSelectLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectTableStatement<Row, Dialect>, next: Limit<Dialect>) -> XLInsertSelectLimitStatement<Row, Dialect> {
         XLInsertSelectLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -123,21 +134,21 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes a Where clause with a GroupBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row>, next: GroupBy) -> XLInsertSelectGroupByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row, Dialect>, next: GroupBy<Dialect>) -> XLInsertSelectGroupByStatement<Row, Dialect> {
         XLInsertSelectGroupByStatement(components: accumulated.components.appending(next))
     }
 
     ///
     /// Constructs an Insert statement with a Select clause which includes a Where clause with an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row>, next: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLInsertSelectOrderByStatement<Row, Dialect> {
         XLInsertSelectOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs an Insert statement with a Select clause which includes a Where clause with a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row>, next: Limit) -> XLInsertSelectLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectWhereStatement<Row, Dialect>, next: Limit<Dialect>) -> XLInsertSelectLimitStatement<Row, Dialect> {
         XLInsertSelectLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -147,21 +158,21 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes a GroupBy clause with a Having clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row>, next: Having) -> XLInsertSelectHavingStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row, Dialect>, next: Having<Dialect>) -> XLInsertSelectHavingStatement<Row, Dialect> {
         XLInsertSelectHavingStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs an Insert statement with a Select clause which includes a GroupBy clause with an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row>, next: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLInsertSelectOrderByStatement<Row, Dialect> {
         XLInsertSelectOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs an Insert statement with a Select clause which includes a GroupBy clause with a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row>, next: Limit) -> XLInsertSelectLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectGroupByStatement<Row, Dialect>, next: Limit<Dialect>) -> XLInsertSelectLimitStatement<Row, Dialect> {
         XLInsertSelectLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -171,14 +182,14 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes a Having clause with an OrderBy clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectHavingStatement<Row>, next: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectHavingStatement<Row, Dialect>, next: OrderBy<Dialect>) -> XLInsertSelectOrderByStatement<Row, Dialect> {
         XLInsertSelectOrderByStatement(components: accumulated.components.appending(next))
     }
     
     ///
     /// Constructs an Insert statement with a Select clause which includes a Having clause with a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectHavingStatement<Row>, next: Limit) -> XLInsertSelectLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectHavingStatement<Row, Dialect>, next: Limit<Dialect>) -> XLInsertSelectLimitStatement<Row, Dialect> {
         XLInsertSelectLimitStatement(components: accumulated.components.appending(next))
     }
 
@@ -188,7 +199,7 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes an OrderBy clause with a Limit clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectOrderByStatement<Row>, next: Limit) -> XLInsertSelectLimitStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectOrderByStatement<Row, Dialect>, next: Limit<Dialect>) -> XLInsertSelectLimitStatement<Row, Dialect> {
         XLInsertSelectLimitStatement(components: accumulated.components.appending(next))
     }
     
@@ -198,10 +209,16 @@ import Foundation
     ///
     /// Constructs an Insert statement with a Select clause which includes an Limit clause with an Offset clause.
     ///
-    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectLimitStatement<Row>, next: Offset) -> XLInsertSelectOffsetStatement<Row> {
+    public static func buildPartialBlock<Row>(accumulated: XLInsertSelectLimitStatement<Row, Dialect>, next: Offset<Dialect>) -> XLInsertSelectOffsetStatement<Row, Dialect> {
         XLInsertSelectOffsetStatement(components: accumulated.components.appending(next))
     }
 }
+
+
+///
+/// Result builder used to construct a SQLite insert statement.
+///
+public typealias XLInsertExpressionBuilder = XLDialectInsertExpressionBuilder<XLSQLiteDialect>
 
 
 ///
@@ -216,9 +233,10 @@ public func sql(@XLInsertExpressionBuilder builder: (XLSQLiteSchema) -> any XLIn
 /// Constructs an Insert statement in `dialect`.
 ///
 /// The builder receives a schema of `dialect`, which accepts only models
-/// declared for it (issue #789).
+/// declared for it (issue #789), and every clause of the body must belong to
+/// `dialect` (issue #822).
 ///
-public func sql<Dialect>(dialect: Dialect.Type, @XLInsertExpressionBuilder builder: (XLSchema<Dialect>) -> any XLInsertStatement) -> any XLInsertStatement {
+public func sql<Dialect>(dialect: Dialect.Type, @XLDialectInsertExpressionBuilder<Dialect> builder: (XLSchema<Dialect>) -> any XLInsertStatement) -> any XLInsertStatement {
     let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

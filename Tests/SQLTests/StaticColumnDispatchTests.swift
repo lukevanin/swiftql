@@ -117,7 +117,7 @@ private final class DispatchRecordingRowReader: XLRowReader {
 private struct ContextOnlyValue {}
 
 
-private struct ContextOnlyExpression: XLExpression {
+private struct ContextOnlyExpression: XLSQLiteExpression {
     typealias T = ContextOnlyValue
 
     func makeSQL(context: inout XLBuilder) {

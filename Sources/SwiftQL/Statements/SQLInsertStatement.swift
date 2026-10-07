@@ -4,6 +4,12 @@
 //
 //  Created by Luke Van In on 2024/10/25.
 //
+//  Each statement carries the dialect of the table it writes (issue #822).
+//  The methods that take an expression, such as `where(_:)` on the select
+//  that feeds an insert, take the dialect's expression protocol, so each
+//  dialect's surface declares them, from
+//  scripts/dialect-surface/Templates/WriteStatements.swift.template.
+//
 
 import Foundation
 
@@ -14,7 +20,7 @@ import Foundation
 ///
 /// An insert statement.
 ///
-struct AbstractXLInsertStatement<Row>: XLInsertStatement {
+struct AbstractXLInsertStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
     var components: XLInsertStatementComponents<Row>
 }
 
@@ -64,6 +70,9 @@ public struct XLInsertStatementComponents<Row>: XLEncodable {
 ///
 public protocol XLInsertStatement<Row>: XLEncodable  {
     associatedtype Row
+    /// The dialect of the table the statement writes, and of every clause
+    /// in it (issue #822).
+    associatedtype Dialect: XLSQLDialect
     var components: XLInsertStatementComponents<Row> { get }
 }
 
@@ -77,26 +86,32 @@ extension XLInsertStatement {
 ///
 /// Insert statement.
 ///
-public struct XLInsertTableStatement<Table> {
+public struct XLInsertTableStatement<Table, Dialect> where Dialect: XLSQLDialect {
     
     public let components: XLInsertStatementComponents<Table>
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Table>) {
+        self.components = components
+    }
     
-    public func values(_ values: Table.MetaInsert) -> XLInsertTableValuesStatement<Table> where Table: XLTable {
+    public func values(_ values: Table.MetaInsert) -> XLInsertTableValuesStatement<Table, Dialect> where Table: XLTable {
         XLInsertTableValuesStatement(components: components.appending(values))
     }
     
-    public func values(_ values: Table.MetaInsert.Row) -> XLInsertTableValuesStatement<Table> where Table: XLTable {
+    public func values(_ values: Table.MetaInsert.Row) -> XLInsertTableValuesStatement<Table, Dialect> where Table: XLTable {
         XLInsertTableValuesStatement(components: components.appending(Table.MetaInsert(values)))
     }
     
     /// Inserts the rows selected through a static row layout. The layout's
     /// metadata names the columns, so no `readRow` replay runs.
-    public func select<T>(_ layout: T) -> XLInsertSelectStatement<T.Row> where T: XLStaticRowReadable, T.Row == Table {
-        XLInsertSelectStatement(components: components.appending(Select(layout)))
+    public func select<T>(_ layout: T) -> XLInsertSelectStatement<T.Row, Dialect> where T: XLStaticRowReadable, T.Row == Table, T.XLModelDialect == Dialect {
+        XLInsertSelectStatement(components: components.appending(Select<T.Row, Dialect>(layout)))
     }
 
-    public func select<T>(_ result: T) -> XLInsertSelectStatement<T.Row> where T: XLRowReadable, T.Row == Table {
-        XLInsertSelectStatement(components: components.appending(Select(result)))
+    public func select<T>(_ result: T) -> XLInsertSelectStatement<T.Row, Dialect> where T: XLRowReadable & XLDialectBound, T.Row == Table, T.XLModelDialect == Dialect {
+        XLInsertSelectStatement(components: components.appending(Select<T.Row, Dialect>(result)))
     }
     
 }
@@ -107,9 +122,15 @@ public struct XLInsertTableStatement<Table> {
 ///
 /// Specifies values for columns in an insert statement.
 ///
-public struct XLInsertTableValuesStatement<Table>: XLInsertStatement {
+public struct XLInsertTableValuesStatement<Table, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
     
     public let components: XLInsertStatementComponents<Table>
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Table>) {
+        self.components = components
+    }
 
 }
 
@@ -119,14 +140,20 @@ public struct XLInsertTableValuesStatement<Table>: XLInsertStatement {
 ///
 /// Specifies a select query used to insert rows.
 ///
-public struct XLInsertSelectStatement<Table>: XLInsertStatement {
+public struct XLInsertSelectStatement<Table, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
     
     public let components: XLInsertStatementComponents<Table>
 
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Table>) {
+        self.components = components
+    }
+
     // MARK: From
     
-    public func from<T>(_ t: T) -> XLInsertSelectTableStatement<Row> where T: XLMetaNamedResult {
-        XLInsertSelectTableStatement(components: components.appending(From(t)))
+    public func from<T>(_ t: T) -> XLInsertSelectTableStatement<Row, Dialect> where T: XLMetaNamedResult, T.XLModelDialect == Dialect {
+        XLInsertSelectTableStatement(components: components.appending(From<Dialect>(t)))
     }
 
 }
@@ -135,68 +162,30 @@ public struct XLInsertSelectStatement<Table>: XLInsertStatement {
 ///
 /// A select from statement used in an insert statement.
 ///
-public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
-        
+public struct XLInsertSelectTableStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
+
     public let components: XLInsertStatementComponents<Row>
-    
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
+    }
+
     // MARK: Inner Join
-    
-    public func innerJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaResult, U: XLBoolean {
-        XLInsertSelectTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, constraint: condition)))
-    }
-    
-    public func innerJoin<T>(_ t: T) -> XLInsertSelectTableStatement<Row> where T: XLMetaResult {
-        XLInsertSelectTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, constraint: nil)))
-    }
-    
-    public func crossJoin<T>(_ t: T) -> XLInsertSelectTableStatement<Row> where T: XLMetaResult {
-        XLInsertSelectTableStatement(components: components.appending(Join(kind: .crossJoin, table: t, constraint: nil)))
+
+    public func innerJoin<T>(_ t: T) -> XLInsertSelectTableStatement<Row, Dialect> where T: XLMetaResult, T.XLModelDialect == Dialect {
+        XLInsertSelectTableStatement(components: components.appending(Join<Dialect>(kind: .innerJoin, table: t, constraint: nil)))
     }
 
-    // MARK: Left Join
-    
-    public func leftJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLInsertSelectTableStatement<Row> where T: XLMetaNullableResult, U: XLBoolean {
-        XLInsertSelectTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
+    public func crossJoin<T>(_ t: T) -> XLInsertSelectTableStatement<Row, Dialect> where T: XLMetaResult, T.XLModelDialect == Dialect {
+        XLInsertSelectTableStatement(components: components.appending(Join<Dialect>(kind: .crossJoin, table: t, constraint: nil)))
     }
 
-    // MARK: Where
-    
-    public func `where`<T>(_ condition: any XLExpression<T>) -> XLInsertSelectWhereStatement<Row> where T: XLBoolean {
-        `where`(Where(condition))
-    }
-
-    func `where`(_ expression: Where) -> XLInsertSelectWhereStatement<Row> {
-        XLInsertSelectWhereStatement(components: components.appending(expression))
-    }
-    
-    // MARK: Group
-
-    public func groupBy(_ expressions: any XLExpression...) -> XLInsertSelectGroupByStatement<Row> {
-        groupBy(GroupBy(expressions))
-    }
-
-    func groupBy(_ expression: GroupBy) -> XLInsertSelectGroupByStatement<Row> {
-        XLInsertSelectGroupByStatement(components: components.appending(expression))
-    }
-    
     // MARK: Order
-    
-    public func orderBy(_ terms: any XLOrderingTerm...) -> XLInsertSelectOrderByStatement<Row> {
-        orderBy(OrderBy(terms: terms))
-    }
 
-    func orderBy(_ expression: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
-        XLInsertSelectOrderByStatement(components: components.appending(expression))
-    }
-    
-    // MARK: Limit
-    
-    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
-        limit(Limit(count))
-    }
-
-    func limit(_ expression: Limit) -> XLInsertSelectLimitStatement<Row> {
-        XLInsertSelectLimitStatement(components: components.appending(expression))
+    public func orderBy(_ terms: any XLOrderingTerm<Dialect>...) -> XLInsertSelectOrderByStatement<Row, Dialect> {
+        XLInsertSelectOrderByStatement(components: components.appending(OrderBy<Dialect>(terms: terms)))
     }
 }
 
@@ -204,38 +193,20 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
 ///
 /// A select where statement used in an insert statement.
 ///
-public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
-    
+public struct XLInsertSelectWhereStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
+
     public let components: XLInsertStatementComponents<Row>
 
-    // MARK: Group
-    
-    public func groupBy(_ expressions: any XLExpression...) -> XLInsertSelectGroupByStatement<Row> {
-        groupBy(GroupBy(expressions))
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
     }
 
-    func groupBy(_ expression: GroupBy) -> XLInsertSelectGroupByStatement<Row> {
-        XLInsertSelectGroupByStatement(components: components.appending(expression))
-    }
-    
     // MARK: Order
-    
-    public func orderBy(_ terms: any XLOrderingTerm...) -> XLInsertSelectOrderByStatement<Row> {
-        orderBy(OrderBy(terms: terms))
-    }
 
-    func orderBy(_ expression: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
-        XLInsertSelectOrderByStatement(components: components.appending(expression))
-    }
-    
-    // MARK: Limit
-    
-    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
-        limit(Limit(count))
-    }
-    
-    func limit(_ expression: Limit) -> XLInsertSelectLimitStatement<Row> {
-        XLInsertSelectLimitStatement(components: components.appending(expression))
+    public func orderBy(_ terms: any XLOrderingTerm<Dialect>...) -> XLInsertSelectOrderByStatement<Row, Dialect> {
+        XLInsertSelectOrderByStatement(components: components.appending(OrderBy<Dialect>(terms: terms)))
     }
 }
 
@@ -243,38 +214,20 @@ public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
 ///
 /// A select group-by statement used in an insert statement.
 ///
-public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
-    
+public struct XLInsertSelectGroupByStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
+
     public let components: XLInsertStatementComponents<Row>
 
-    // MARK: Having
-    
-    public func having<T>(_ condition: any XLExpression<T>) -> XLInsertSelectHavingStatement<Row> where T: XLBoolean {
-        having(Having(condition))
-    }
-
-    func having(_ expression: Having) -> XLInsertSelectHavingStatement<Row> {
-        XLInsertSelectHavingStatement(components: components.appending(expression))
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
     }
 
     // MARK: Order
-    
-    public func orderBy(_ terms: any XLOrderingTerm...) -> XLInsertSelectOrderByStatement<Row> {
-        orderBy(OrderBy(terms: terms))
-    }
 
-    func orderBy(_ expression: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
-        XLInsertSelectOrderByStatement(components: components.appending(expression))
-    }
-    
-    // MARK: Limit
-
-    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
-        limit(Limit(count))
-    }
-
-    func limit(_ expression: Limit) -> XLInsertSelectLimitStatement<Row> {
-        XLInsertSelectLimitStatement(components: components.appending(expression))
+    public func orderBy(_ terms: any XLOrderingTerm<Dialect>...) -> XLInsertSelectOrderByStatement<Row, Dialect> {
+        XLInsertSelectOrderByStatement(components: components.appending(OrderBy<Dialect>(terms: terms)))
     }
 }
 
@@ -282,46 +235,34 @@ public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
 ///
 /// An insert ... having statement used in an insert statement.
 ///
-public struct XLInsertSelectHavingStatement<Row>: XLInsertStatement {
-    
+public struct XLInsertSelectHavingStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
+
     public let components: XLInsertStatementComponents<Row>
 
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
+    }
+
     // MARK: Order
-    
-    public func orderBy(_ terms: any XLOrderingTerm...) -> XLInsertSelectOrderByStatement<Row> {
-        orderBy(OrderBy(terms: terms))
-    }
 
-    func orderBy(_ expression: OrderBy) -> XLInsertSelectOrderByStatement<Row> {
-        XLInsertSelectOrderByStatement(components: components.appending(expression))
-    }
-    
-    // MARK: Limit
-
-    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
-        limit(Limit(count))
-    }
-
-    func limit(_ expression: Limit) -> XLInsertSelectLimitStatement<Row> {
-        XLInsertSelectLimitStatement(components: components.appending(expression))
+    public func orderBy(_ terms: any XLOrderingTerm<Dialect>...) -> XLInsertSelectOrderByStatement<Row, Dialect> {
+        XLInsertSelectOrderByStatement(components: components.appending(OrderBy<Dialect>(terms: terms)))
     }
 }
 
 ///
 /// A select order-by statement used in an insert statement.
 ///
-public struct XLInsertSelectOrderByStatement<Row>: XLInsertStatement {
-    
+public struct XLInsertSelectOrderByStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
+
     public let components: XLInsertStatementComponents<Row>
 
-    // MARK: Limit
-    
-    public func limit(_ count: any XLExpression<Int>) -> XLInsertSelectLimitStatement<Row> {
-        limit(Limit(count))
-    }
-
-    func limit(_ expression: Limit) -> XLInsertSelectLimitStatement<Row> {
-        XLInsertSelectLimitStatement(components: components.appending(expression))
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
     }
 }
 
@@ -329,16 +270,14 @@ public struct XLInsertSelectOrderByStatement<Row>: XLInsertStatement {
 ///
 /// A select limit statement used in an insert statement.
 ///
-public struct XLInsertSelectLimitStatement<Row>: XLInsertStatement {
-    
-    public let components: XLInsertStatementComponents<Row>
-    
-    public func offset(_ count: any XLExpression<Int>) -> XLInsertSelectOffsetStatement<Row> {
-        offset(Offset(count))
-    }
+public struct XLInsertSelectLimitStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
 
-    func offset(_ expression: Offset) -> XLInsertSelectOffsetStatement<Row> {
-        XLInsertSelectOffsetStatement(components: components.appending(expression))
+    public let components: XLInsertStatementComponents<Row>
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
     }
 }
 
@@ -346,8 +285,14 @@ public struct XLInsertSelectLimitStatement<Row>: XLInsertStatement {
 ///
 /// A select offset statement used in an insert statement.
 ///
-public struct XLInsertSelectOffsetStatement<Row>: XLInsertStatement {
+public struct XLInsertSelectOffsetStatement<Row, Dialect>: XLInsertStatement where Dialect: XLSQLDialect {
     
     public let components: XLInsertStatementComponents<Row>
+
+    /// Creates the statement from components that belong to `Dialect`.
+    @_spi(XLDialectSurface)
+    public init(components: XLInsertStatementComponents<Row>) {
+        self.components = components
+    }
 
 }

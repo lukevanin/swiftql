@@ -15,6 +15,9 @@ import Foundation
 /// Currently InsertBuilder is used to construct insert statements with a variable number of
 /// parameters.
 ///
+/// The statement belongs to the dialect of the table it inserts into, and a
+/// common table must belong to that dialect too (issue #822).
+///
 public struct InsertBuilder<Row> {
     
     enum InternalError: LocalizedError {
@@ -38,7 +41,7 @@ public struct InsertBuilder<Row> {
     ///
     /// Creates an insert using a common table expression.
     ///
-    public func with<T>(_ commonTable: T) -> InsertBuilder where T: XLMetaCommonTable {
+    public func with<T>(_ commonTable: T) -> InsertBuilder where T: XLDialectCommonTable, Row: XLTable, T.XLModelDialect == Row.XLModelDialect {
         copy {
             $0.commonTables.append(commonTable.definition)
         }
@@ -56,7 +59,7 @@ public struct InsertBuilder<Row> {
         }
     }
     
-    public func build() throws -> any XLInsertStatement<Row> {
+    public func build() throws -> any XLInsertStatement<Row> where Row: XLTable {
         var statement = XLInsertStatementComponents(commonTables: commonTables, insert: insert)
         
         guard let values else {
@@ -64,6 +67,6 @@ public struct InsertBuilder<Row> {
         }
         
         statement.components.append(values)
-        return AbstractXLInsertStatement(components: statement)
+        return AbstractXLInsertStatement<Row, Row.XLModelDialect>(components: statement)
     }
 }

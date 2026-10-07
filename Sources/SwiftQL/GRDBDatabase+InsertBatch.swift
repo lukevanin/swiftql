@@ -165,7 +165,7 @@ where
         let table = schema.table(Row.self)
         // The same statement `sqlInsert(_:)` builds, except that the values
         // clause renders a parameter in place of each literal.
-        let statement = XLInsertTableValuesStatement<Row>(
+        let statement = XLInsertTableValuesStatement<Row, XLSQLiteDialect>(
             components: SwiftQL.insert(table).components.appending(
                 XLInsertValueParameterization(
                     values: Row.MetaInsert(row),

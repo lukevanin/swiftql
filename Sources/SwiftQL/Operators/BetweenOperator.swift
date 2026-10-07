@@ -16,6 +16,10 @@ public struct XLBetweenExpression<T>: XLExpression {
 
     private let negated: Bool
 
+    /// SwiftQL's dialect-surface SPI, for a dialect's generated operators: a
+    /// node built here belongs to every dialect, so it is not public API
+    /// (issue #822).
+    @_spi(XLDialectSurface)
     public init(
         term: any XLExpression,
         minimum: any XLExpression,

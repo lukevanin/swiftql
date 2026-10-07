@@ -13,7 +13,9 @@ import Foundation
 // expression take that dialect's expressions, so each dialect's surface
 // declares them, from scripts/dialect-surface/Templates/CaseWhenThen.swift.template
 // (issue #789). They call the underscored primitives here, which take any
-// expression and are not meant to be called directly.
+// expression. The primitives are SwiftQL's dialect-surface SPI, not public
+// API: a dialect outside SwiftQL imports them with
+// `@_spi(XLDialectSurface) import SwiftQL` (issue #822).
 
 
 // MARK: - Constant Case-When-Then expression
@@ -66,12 +68,14 @@ public struct ConstantCase<T, Dialect> {
 
     /// Starts a case expression of `Dialect` on `condition`, which must be an
     /// expression of `Dialect`. Used by the generated `switchCase(_:)`.
+    @_spi(XLDialectSurface)
     public init(_dialectSurfaceCondition condition: any XLExpression<T>) {
         self.condition = condition
     }
 
     /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
     /// which takes only expressions of `Dialect`.
+    @_spi(XLDialectSurface)
     public func _when<U>(_ condition: any XLExpression<T>, then result: any XLExpression<U>) -> ConstantCaseWhenThen<T, U, Dialect> {
         ConstantCaseWhenThen(
             components: ConstantCaseComponents(condition: self.condition),
@@ -107,12 +111,14 @@ public struct ConstantCaseWhenThen<Condition, Result, Dialect>: XLExpression {
     
     /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
     /// which takes only expressions of `Dialect`.
+    @_spi(XLDialectSurface)
     public func _when(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> ConstantCaseWhenThen<Condition, Result, Dialect> {
         ConstantCaseWhenThen(components: components, condition: condition, result: result)
     }
 
     /// Adds the `ELSE` result. Used by the generated `else(_:)`, which takes
     /// only an expression of `Dialect`.
+    @_spi(XLDialectSurface)
     public func _else(_ result: any XLExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result, Dialect> {
         ConstantCaseWhenThenElse(components: components, result: result)
     }
@@ -193,6 +199,7 @@ public struct VariableCaseWhenThen<Result, Dialect>: XLExpression {
 
     /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
     /// which takes only expressions of `Dialect`.
+    @_spi(XLDialectSurface)
     public func _when<Condition>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result, Dialect> where Condition: XLBoolean {
         VariableCaseWhenThen(
             components: components,
@@ -203,6 +210,7 @@ public struct VariableCaseWhenThen<Result, Dialect>: XLExpression {
 
     /// Adds the `ELSE` result. Used by the generated `else(_:)`, which takes
     /// only an expression of `Dialect`.
+    @_spi(XLDialectSurface)
     public func _else(_ result: any XLExpression<Result>) -> VariableCaseElse<Result, Dialect> {
         VariableCaseElse(components: components, result: result)
     }

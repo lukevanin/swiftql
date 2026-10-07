@@ -12,7 +12,25 @@ import Foundation
 
 
 public protocol XLQueryComponent: XLEncodable {
-    
+
+}
+
+
+///
+/// A clause of a statement in one dialect, such as `Select`, `From`, or
+/// `Where`.
+///
+/// A statement's result builder, such as ``XLDialectQueryExpressionBuilder``,
+/// takes a clause only when it belongs to the builder's dialect, so a clause
+/// built from another dialect's tables or expressions is a compile error at
+/// the clause (issue #822). The builder's dialect is also the context in which
+/// the clause's initializer is chosen, so a clause built from values alone,
+/// such as `Where(true)`, takes the statement's dialect.
+///
+public protocol XLDialectClause {
+
+    /// The dialect of the statement the clause belongs to.
+    associatedtype Dialect: XLSQLDialect
 }
 
 
@@ -20,12 +38,26 @@ public protocol XLQueryComponent: XLEncodable {
 
 
 ///
+/// A select clause of any dialect, as declared-query lowering reads it.
+///
+protocol XLSelectProjection {
+
+    /// The static row layout the select projects, when it was built from one.
+    var staticLayout: (any XLStaticRowReadable)? { get }
+}
+
+
+///
 /// A select statement.
 ///
-public struct Select<Row>: XLEncodable, XLRowReadable {
-    
+/// `Dialect` is the dialect of the statement. The projection must belong to
+/// it: a table or a result of a model declared for `Dialect`, a static row
+/// layout for `Dialect`, or an expression of `Dialect` (issue #822).
+///
+public struct Select<Row, Dialect>: XLEncodable, XLRowReadable, XLDialectClause, XLSelectProjection where Dialect: XLSQLDialect {
+
     private let fields: any XLEncodable
-    
+
     private let row: (XLRowReader) throws -> Row
 
     /// The static row layout this select projects, when it was built from
@@ -41,11 +73,11 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// constructing the statement. Generated model initializers and
     /// contextual codecs run only when a returned database row is decoded.
     public init<T>(_ layout: T)
-    where T: XLStaticRowReadable, T.Row == Row {
+    where T: XLStaticRowReadable, T.Row == Row, T.XLModelDialect == Dialect {
         self.fields = layout
         self.row = layout.readRow
     }
-    
+
     /// Builds a select from dynamic projection metadata.
     ///
     /// The projection is replayed once against a definition reader to capture
@@ -62,7 +94,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// above, which skips the replay. A generic caller that sees a layout only
     /// as `XLRowReadable` reaches this initializer instead, so it checks for a
     /// static layout at run time and uses the same non-replaying path.
-    public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
+    public init<T>(_ meta: T) where T: XLRowReadable & XLDialectBound, T.Row == Row, T.XLModelDialect == Dialect {
         if let layout = meta as? any XLStaticRowReadable {
             self.fields = layout
             self.row = meta.readRow
@@ -87,35 +119,36 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix("SELECT", expression: fields.makeSQL)
     }
-    
+
     public func readRow(reader: XLRowReader) throws -> Row {
         try row(reader)
     }
-    
-    /// Builds a scalar select without requiring the logical result type to
-    /// adopt the legacy expression and literal protocols.
-    ///
-    /// Bare contextual values can be rendered by this initializer, but their
-    /// row decoding still requires an ``XLStaticRowLayout`` carrying codec
-    /// metadata. The legacy path reports ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
-    /// instead of fabricating a value.
-    public init(
-        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>
-    ) {
-        self.fields = expression()
-        self.row = { reader in
-            try reader.staticColumn(expression(), alias: "c0")
-        }
-    }
 
-    /// Builds an unconstrained scalar select.
+    /// Builds a scalar select from an expression that belongs to `Dialect`.
+    /// Used by the generated initializers, which take only `Dialect`'s
+    /// expressions.
     ///
-    /// Bare contextual values still require an ``XLStaticRowLayout`` to carry
-    /// the codec metadata needed during row decoding.
-    public init(_ expression: any XLExpression<Row>) {
+    /// The logical result type is unconstrained. Bare contextual values can be
+    /// rendered by this initializer, but their row decoding still requires an
+    /// ``XLStaticRowLayout`` carrying codec metadata. The legacy path reports
+    /// ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
+    /// instead of fabricating a value.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface expression: any XLExpression<Row>) {
         self.fields = expression
         self.row = { reader in
             try reader.staticColumn(expression, alias: "c0")
+        }
+    }
+
+    /// Builds a scalar select from a closure that returns an expression that
+    /// belongs to `Dialect`. The closure is evaluated again for each row the
+    /// select decodes. Used by the generated initializers.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurfaceBuilder expression: @escaping () -> any XLExpression<Row>) {
+        self.fields = expression()
+        self.row = { reader in
+            try reader.staticColumn(expression(), alias: "c0")
         }
     }
 }
@@ -187,14 +220,13 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
             if let nested = component as? BooleanClause<Row> {
                 return nested.operatorKeyword
             }
-            if component is OrderBy {
-                return "ORDER BY"
-            }
-            if component is Limit {
-                return "LIMIT"
-            }
-            if component is Offset {
-                return "OFFSET"
+            // `ORDER BY`, `LIMIT`, and `OFFSET` are generic over the
+            // dialect, so they are recognised by their keyword.
+            if let clause = component as? any XLKeywordPrefixedClause {
+                let keyword = type(of: clause).sqlKeyword
+                if keyword == "ORDER BY" || keyword == "LIMIT" || keyword == "OFFSET" {
+                    return keyword
+                }
             }
         }
         return nil
@@ -243,7 +275,11 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
 ///
 /// > Note: Both queries must return the same row type.
 ///
-public struct Union {
+/// `Dialect` is the dialect of the query, which its result builder supplies
+/// (issue #822); `Union()` names none. The same holds for `UnionAll`,
+/// `Intersect`, and `Except`.
+///
+public struct Union<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
     public init() {
         
     }
@@ -260,7 +296,7 @@ public struct Union {
 ///
 /// > Note: Both queries must return the same row type.
 ///
-public struct UnionAll {
+public struct UnionAll<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
     public init() {
         
     }
@@ -274,7 +310,7 @@ public struct UnionAll {
 ///
 /// > Note: Both queries must return the same row type.
 ///
-public struct Intersect {
+public struct Intersect<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
     public init() {
         
     }
@@ -288,7 +324,7 @@ public struct Intersect {
 ///
 /// > Note: Both queries must return the same row type.
 ///
-public struct Except {
+public struct Except<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
     public init() {
         
     }
@@ -303,19 +339,29 @@ public struct Except {
 ///
 /// Specifies common tables used in a select, update, insert, or delete statement.
 ///
-public struct With {
-    
+/// Every common table must belong to `Dialect`, the statement's dialect
+/// (issue #822).
+///
+public struct With<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
+
     internal let commonTables: [XLCommonTableDependency]
-    
-    public init(_ tables: any XLMetaCommonTable...) {
+
+    public init(_ tables: any XLDialectCommonTable<Dialect>...) {
         self.commonTables = tables.map { $0.definition }
     }
 
-    public init(_ commonTables: XLCommonTableDependency...) {
-        self.commonTables = commonTables.map { $0 }
+    /// Specifies one common table, such as a scalar common table. The same as
+    /// the variadic form, which it precedes so that a common table of another
+    /// dialect is reported as a mismatch of the two dialects.
+    public init<T>(_ table: T) where T: XLDialectCommonTable, T.XLModelDialect == Dialect {
+        self.commonTables = [table.definition]
     }
 
-    public init(_ commonTables: [XLCommonTableDependency]) {
-        self.commonTables = commonTables.map { $0 }
+    /// Specifies common tables from definitions that belong to `Dialect`.
+    /// A definition does not record its dialect, so this is SwiftQL's
+    /// dialect-surface SPI, not public API.
+    @_spi(XLDialectSurface)
+    public init(_dialectSurface commonTables: [XLCommonTableDependency]) {
+        self.commonTables = commonTables
     }
 }

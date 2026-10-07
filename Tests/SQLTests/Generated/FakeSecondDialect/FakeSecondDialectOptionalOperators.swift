@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import SwiftQL
+@_spi(XLDialectSurface) import SwiftQL
 
 
 extension FakeSecondDialectExpression {

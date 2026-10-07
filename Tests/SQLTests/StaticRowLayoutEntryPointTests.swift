@@ -40,7 +40,7 @@ private func testTableLayout(
 
 /// Calls `select(_:)` from a generic context that sees the projection only as
 /// `XLRowReadable`, so overload resolution picks the dynamic entry point.
-private func genericSelect<R: XLRowReadable>(_ projection: R) -> XLQuerySelectStatement<R.Row> {
+private func genericSelect<R: XLRowReadable & XLDialectBound>(_ projection: R) -> XLQuerySelectStatement<R.Row, R.XLModelDialect> {
     select(projection)
 }
 

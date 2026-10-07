@@ -34,7 +34,11 @@ struct _XLStaticOffsetRowReader: XLRowReader {
 
 /// A row reader whose projection is available structurally without executing
 /// its decoding closure.
-public protocol XLStaticRowReadable<Row>: XLRowReadable, XLEncodable {
+///
+/// The layout belongs to the dialect its fields are encoded for, its
+/// ``XLDialectBound/XLModelDialect``, so a statement selects it only in that
+/// dialect (issue #822).
+public protocol XLStaticRowReadable<Row>: XLRowReadable, XLEncodable, XLDialectBound {
     associatedtype Row
     var metadata: XLStaticRowMetadata { get }
 }
@@ -49,6 +53,14 @@ public protocol XLStaticRowReadable<Row>: XLRowReadable, XLEncodable {
 public struct XLStaticRowLayout<Row, Dialect>:
     XLStaticRowReadable
 where Dialect: XLValueCodingDialect {
+
+    /// The dialect the layout's fields are encoded for.
+    public typealias XLModelDialect = Dialect
+
+    /// The dialect the layout's fields are encoded for.
+    public var _dialect: Dialect.Type {
+        Dialect.self
+    }
 
     public let metadata: XLStaticRowMetadata
 

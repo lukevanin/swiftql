@@ -217,7 +217,7 @@ final class XLJSONPathExecutionTests: XCTestCase {
     }
 
     private func evaluate<Value>(
-        _ expression: any XLExpression<Value>,
+        _ expression: any XLSQLiteExpression<Value>,
         document json: String
     ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }

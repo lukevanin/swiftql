@@ -491,7 +491,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
         try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
 
-        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+        let rows = sql { schema -> any XLDialectQueryStatement<TestTable, XLSQLiteDialect> in
             let table = schema.table(TestTable.self)
             Select(table)
             From(table)
@@ -556,7 +556,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
         try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
 
-        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+        let rows = sql { schema -> any XLDialectQueryStatement<TestTable, XLSQLiteDialect> in
             let table = schema.table(TestTable.self)
             Select(table)
             From(table)

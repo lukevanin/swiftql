@@ -9,6 +9,9 @@
 //  statements do rather than for the v1.4.4 milestone they arrived in, so as
 //  not to collide with Statements/SQLDataChangingStatements.swift.
 //
+//  A write clause belongs to the dialect of the model it writes, so a
+//  statement's result builder takes it only in that dialect (issue #822).
+//
 
 import Foundation
 
@@ -218,21 +221,19 @@ public struct OnConflict<Row>: XLEncodable {
     }
 
     ///
-    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ... WHERE ...` clause.
+    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ... WHERE ...` clause
+    /// from a filter that belongs to the table's dialect. Used by the
+    /// generated `doUpdate(on:_:set:where:)`, which takes only that dialect's
+    /// expressions.
     ///
-    /// At least one conflict target is required, because SQLite rejects
-    /// `DO UPDATE` without a conflict target. The `WHERE` predicate constrains
-    /// which conflicting rows are updated; rows that fail the predicate are
-    /// left unchanged without raising an error.
-    ///
-    public static func doUpdate<B>(
-        on firstTarget: XLName,
-        _ otherTargets: XLName...,
+    @_spi(XLDialectSurface)
+    public static func _dialectSurfaceDoUpdate(
+        on targets: [XLName],
         set values: @escaping (inout Row.MetaUpdate) -> Void,
-        where filter: any XLExpression<B>
-    ) -> OnConflict where Row: XLTable, B: XLBoolean {
+        where filter: any XLExpression
+    ) -> OnConflict where Row: XLTable {
         OnConflict(
-            targets: [firstTarget] + otherTargets,
+            targets: targets,
             resolution: .update(Setting<Row>(values), filter: filter)
         )
     }
@@ -324,7 +325,7 @@ public struct As<Table> {
     ///
     /// Populates a SQLite table from a query.
     ///
-    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLQueryStatement<Table>) where Table: XLTable, Table.XLModelDialect == XLSQLiteDialect {
+    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLDialectQueryStatement<Table, XLSQLiteDialect>) where Table: XLTable, Table.XLModelDialect == XLSQLiteDialect {
         let schema = XLSchema()
         self.queryStatement = builder(schema)
     }
@@ -337,7 +338,7 @@ public struct As<Table> {
     /// the table's own dialect cannot do inside a result builder (issue
     /// #789).
     ///
-    public init<Dialect>(dialect: Dialect.Type, @XLQueryExpressionBuilder builder: (XLSchema<Dialect>) -> some XLQueryStatement<Table>) where Table: XLTable, Table.XLModelDialect == Dialect {
+    public init<Dialect>(dialect: Dialect.Type, @XLDialectQueryExpressionBuilder<Dialect> builder: (XLSchema<Dialect>) -> some XLDialectQueryStatement<Table, Dialect>) where Table: XLTable, Table.XLModelDialect == Dialect {
         let schema = XLSchema(dialect: dialect)
         self.queryStatement = builder(schema)
     }
@@ -363,4 +364,34 @@ public struct Delete<Table>: XLEncodable {
             name.makeSQL(context: &builder)
         }
     }
+}
+
+
+// MARK: - Dialect
+
+
+// A write clause names the model it writes, and the model names its dialect.
+
+extension Update: XLDialectClause where Row: XLTable {
+    public typealias Dialect = Row.XLModelDialect
+}
+
+extension Setting: XLDialectClause where Row: XLTable {
+    public typealias Dialect = Row.XLModelDialect
+}
+
+extension Insert: XLDialectClause where Row: XLTable {
+    public typealias Dialect = Row.XLModelDialect
+}
+
+extension Replace: XLDialectClause where Row: XLTable {
+    public typealias Dialect = Row.XLModelDialect
+}
+
+extension Values: XLDialectClause where Row: XLTable {
+    public typealias Dialect = Row.XLModelDialect
+}
+
+extension Delete: XLDialectClause where Table: XLMetaWritableTable {
+    public typealias Dialect = Table.XLModelDialect
 }

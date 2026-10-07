@@ -150,8 +150,8 @@ final class QueryBuilderTests: XLEncoderTestCase {
     func test_select_from_type_erased_numeric_limit_offset() throws {
         let schema = XLSchema()
         let company = schema.table(CompanyTable.self)
-        let limit: any XLExpression = 10.0
-        let offset: any XLExpression = 5.0
+        let limit: any XLSQLiteExpression = 10.0
+        let offset: any XLSQLiteExpression = 5.0
         let query = QueryBuilder(select: company)
             .from(company)
             .limit(limit)

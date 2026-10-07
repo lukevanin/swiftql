@@ -118,7 +118,7 @@ final class XLExecutionTests: XCTestCase {
         let outer = schema.binding(of: Int.self)
         var inner: XLNamedBindingReference<Int>!
         let statement = select(
-            schema.subquery { nested -> any XLQueryStatement<Int> in
+            schema.subquery { nested -> any XLDialectQueryStatement<Int, XLSQLiteDialect> in
                 let innerBinding = nested.binding(of: Int.self)
                 inner = innerBinding
                 return select(outer - innerBinding)
@@ -233,7 +233,7 @@ final class XLExecutionTests: XCTestCase {
         let schema = XLSchema()
         let left = schema.table(TestTable.self)
         let right = schema.table(TestTable.self)
-        let statement = select(left.id).from(left).unionAll { () -> any XLQueryStatement<String> in
+        let statement = select(left.id).from(left).unionAll { () -> any XLDialectQueryStatement<String, XLSQLiteDialect> in
             select(right.id).from(right).limit(1)
         }
         XCTAssertThrowsError(
@@ -2485,7 +2485,7 @@ final class XLExecutionTests: XCTestCase {
 
 
     private func makeInsertSelectFluentCompleteClauseChain()
-        -> XLInsertSelectOffsetStatement<Temp> {
+        -> XLInsertSelectOffsetStatement<Temp, XLSQLiteDialect> {
         let schema = XLSchema()
         let temp = schema.table(Temp.self)
         let company = schema.table(CompanyTable.self)
