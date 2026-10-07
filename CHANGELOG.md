@@ -600,7 +600,10 @@
     `any` its expression protocol, on the dialect type. A dialect declared
     outside SwiftQL regenerates its surface from the templates to get it; a
     model of a dialect without it reports "'XLAnyExpression' is not a member
-    type of ...".
+    type of ...". A dialect with no generated surface, which declares models
+    only for static row layouts (issue #687), declares the typealias itself;
+    `extension MyDialect { typealias XLAnyExpression<T> = any XLExpression<T> }`
+    keeps its slots taking any expression, as before.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression as an expression of the model's
     dialect, wrapped in `XLTypeAffinityExpression`, rather than the erased
