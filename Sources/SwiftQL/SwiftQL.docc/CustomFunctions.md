@@ -253,8 +253,8 @@ A struct that declares no initializer gets one from the macro, in place of the
 memberwise initializer, that takes each argument as an
 `any XLSQLiteExpression<...>` with the property's own label, so a column of a
 model declared for another dialect is a compile error. The generated
-initializer is `fileprivate` when a property is private, as the memberwise
-initializer is; a function used from other files declares its initializer, as
+initializer has the memberwise initializer's access, so it is `private` when a
+property is; a function used from other files declares its initializer, as
 `HaversineDistance` does. A declared initializer is kept as written, so type
 its parameters `any XLSQLiteExpression<...>` to have the compiler check them. The `name:` argument is optional and defaults to the
 struct's name, so `@SQLFunction(name: "haversineDistance")` above could have

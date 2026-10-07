@@ -488,11 +488,22 @@
     `any XLDialectQueryStatement<Row, XLSQLiteDialect>`, which is an
     `any XLQueryStatement<Row>`, so a query stored or run as one keeps
     working. A closure annotated with the erased type changes its annotation.
-    Before: `schema.subquery { inner -> any XLQueryStatement<Int> in ... }`.
-    After: `schema.subquery { inner -> any XLDialectQueryStatement<Int,
-    XLSQLiteDialect> in ... }`, or no annotation. A statement stored as
+    Before: `sql { schema -> any XLQueryStatement<Person> in ... }` or
+    `schema.subquery { inner -> any XLQueryStatement<Int> in ... }`.
+    After: `sql { schema -> any XLDialectQueryStatement<Person,
+    XLSQLiteDialect> in ... }`, `schema.subquery { inner -> any
+    XLDialectQueryStatement<Int, XLSQLiteDialect> in ... }`, or no annotation. A statement stored as
     `any XLQueryStatement<Row>` cannot become a subquery or a branch; store it
     as `any XLDialectQueryStatement<Row, XLSQLiteDialect>`.
+  - `returning(_:)` takes a projection of the statement's dialect, so it
+    follows a statement whose dialect is known. A write statement erased to
+    `any XLInsertStatement`, `any XLUpdateStatement`, or
+    `any XLDeleteStatement`, such as one `sql { }` returns, has lost it.
+    Before: `let s = sql { schema in Insert(t); Values(row) }` then
+    `s.returning(t)`. After: `insert(t).values(row).returning(t)`.
+    `sqlInsert(_:)` now returns its statement's type,
+    `XLInsertTableValuesStatement<Row, XLSQLiteDialect>`, so
+    `sqlInsert(row).returning(t)` keeps compiling.
   - A projection passed to `Select`, `select(_:)`, `QueryBuilder`, or
     `returning(_:)` belongs to the statement's dialect: a table or result of a
     model of that dialect, or a static row layout for it. A row reader written
@@ -519,8 +530,9 @@
     dialect-surface SPI: pass the common table itself. Before:
     `With(cte.definition)`. After: `With(cte)`.
   - `@SQLFunction` generates an initializer that takes each argument as an
-    `any XLSQLiteExpression<...>`, in place of the memberwise initializer, so
-    a custom function's argument must be a SQLite expression. A struct that
+    `any XLSQLiteExpression<...>`, in place of the memberwise initializer and
+    with its access, so a custom function's argument must be a SQLite
+    expression. A struct that
     declares its own initializer keeps it as written; type its parameters
     `any XLSQLiteExpression<...>` to have them checked. A call that passed an
     erased `any XLExpression<T>` passes an `any XLSQLiteExpression<T>`.

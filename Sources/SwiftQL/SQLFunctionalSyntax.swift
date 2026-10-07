@@ -43,7 +43,7 @@ public func sqlInsert<Row, Statement>(builder: (XLSQLiteSchema) -> Statement) ->
 ///
 /// Returns a statement that inserts a row into an `SQLTable`.
 ///
-public func sqlInsert<Row>(_ row: Row) -> any XLInsertStatement where Row: XLTable, Row.XLModelDialect == XLSQLiteDialect, Row.MetaNamedResult.Row == Row, Row.MetaInsert.Row == Row {
+public func sqlInsert<Row>(_ row: Row) -> XLInsertTableValuesStatement<Row, XLSQLiteDialect> where Row: XLTable, Row.XLModelDialect == XLSQLiteDialect, Row.MetaNamedResult.Row == Row, Row.MetaInsert.Row == Row {
     let schema = XLSchema()
     let table = schema.table(Row.self)
     return insert(table).values(Row.MetaInsert(row))

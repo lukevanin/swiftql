@@ -131,10 +131,10 @@ public struct Descending<Dialect>: XLOrderingTerm where Dialect: XLSQLDialect {
 
 
 ///
-/// Constructs a list of ordering term sub-expressions.
+/// Constructs a list of ordering term sub-expressions, all of one dialect.
 ///
 @resultBuilder public struct XLOrderingTermsBuilder {
-    public static func buildBlock(_ components: any XLOrderingTerm...) -> any XLEncodable {
+    public static func buildBlock<Dialect>(_ components: any XLOrderingTerm<Dialect>...) -> any XLEncodable {
         XLEncodableList(separator: .list, expressions: components)
     }
 }

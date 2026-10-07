@@ -103,9 +103,7 @@ internal struct FunctionMetaBuilder {
         try diagnostics.throwIfNotEmpty()
 
         self.arguments = arguments
-        self.declaresInitializer = declaration.memberBlock.members.contains { member in
-            member.decl.is(InitializerDeclSyntax.self)
-        }
+        self.declaresInitializer = Self.declaresInitializer(in: declaration.memberBlock.members)
     }
 
     ///
@@ -134,6 +132,28 @@ internal struct FunctionMetaBuilder {
     }
 
     ///
+    /// Whether `members` declare an initializer, including one inside an `#if`
+    /// clause, which the generated initializer would sit beside rather than
+    /// replace.
+    ///
+    private static func declaresInitializer(in members: MemberBlockItemListSyntax) -> Bool {
+        members.contains { member in
+            if member.decl.is(InitializerDeclSyntax.self) {
+                return true
+            }
+            guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
+                return false
+            }
+            return ifConfig.clauses.contains { clause in
+                guard case .decls(let nested) = clause.elements else {
+                    return false
+                }
+                return declaresInitializer(in: nested)
+            }
+        }
+    }
+
+    ///
     /// Maps a single variable declaration to zero or more arguments, or appends an error diagnostic
     /// if the declaration cannot be mapped faithfully.
     ///
@@ -156,11 +176,20 @@ internal struct FunctionMetaBuilder {
             return []
         }
 
-        // A private or fileprivate property makes the memberwise initializer
-        // fileprivate, and the generated initializer follows it.
-        let isFilePrivate = variable.modifiers.contains { modifier in
-            modifier.name.text == "private" || modifier.name.text == "fileprivate"
-        }
+        // A private or fileprivate property narrows the memberwise
+        // initializer to the same access, and the generated initializer
+        // follows it. A setter-only modifier such as `private(set)` narrows
+        // it too.
+        let access = variable.modifiers.compactMap { modifier -> FunctionArgument.Access? in
+            switch modifier.name.text {
+            case "private":
+                return .private
+            case "fileprivate":
+                return .fileprivate
+            default:
+                return nil
+            }
+        }.min()
         var names: [FunctionArgument] = []
         for binding in variable.bindings {
 
@@ -207,7 +236,7 @@ internal struct FunctionMetaBuilder {
                     name: name,
                     sqliteType: sqliteExpressionType(annotation.type),
                     hasInitialValue: binding.initializer != nil,
-                    isFilePrivate: isFilePrivate
+                    access: access
                 )
             )
         }
@@ -285,9 +314,11 @@ internal struct FunctionMetaBuilder {
     /// another dialect's model; this one does not. A struct with no
     /// arguments, an argument with an initial value, or an argument typed
     /// `some ...` keeps its memberwise initializer, which this cannot replace
-    /// faithfully, and is not checked. A struct that declares an initializer
-    /// keeps it as written: the initializer's parameter types decide what it
-    /// takes.
+    /// faithfully, and is not checked. A struct that declares an initializer,
+    /// also inside an `#if` clause, keeps it as written: the initializer's
+    /// parameter types decide what it takes. The generated initializer has
+    /// the memberwise initializer's access: `private` or `fileprivate` when a
+    /// property is.
     ///
     func makeInitializer() -> String? {
         guard !arguments.isEmpty, !declaresInitializer else {
@@ -300,7 +331,7 @@ internal struct FunctionMetaBuilder {
             }
             parameters.append("\(argument.name): \(type)")
         }
-        let access = arguments.contains(where: \.isFilePrivate) ? "fileprivate " : ""
+        let access = arguments.compactMap(\.access).min().map { "\($0.rawValue) " } ?? ""
         var context = CodeWriter()
         context.block("\(access)init(\(parameters.joined(separator: ", ")))") { context in
             for argument in arguments {
@@ -356,8 +387,19 @@ internal struct FunctionArgument {
     /// initializer makes optional.
     let hasInitialValue: Bool
 
-    /// Whether the property is private or fileprivate.
-    let isFilePrivate: Bool
+    /// The property's access when it narrows the memberwise initializer's:
+    /// `private` or `fileprivate`, and `nil` otherwise.
+    let access: Access?
+
+    /// An access level narrower than the memberwise initializer's default.
+    enum Access: String, Comparable {
+        case `private`
+        case `fileprivate`
+
+        static func < (lhs: Access, rhs: Access) -> Bool {
+            lhs == .private && rhs == .fileprivate
+        }
+    }
 }
 
 

@@ -119,7 +119,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                fileprivate init(value: any XLSQLiteExpression<Int?>) {
+                private init(value: any XLSQLiteExpression<Int?>) {
                         self.value = value
                   }
             }
@@ -157,7 +157,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                fileprivate init(fromLatitude: any XLSQLiteExpression<Double>, fromLongitude: any XLSQLiteExpression<Double>, toLatitude: any XLSQLiteExpression<Double>, toLongitude: any XLSQLiteExpression<Double>) {
+                private init(fromLatitude: any XLSQLiteExpression<Double>, fromLongitude: any XLSQLiteExpression<Double>, toLatitude: any XLSQLiteExpression<Double>, toLongitude: any XLSQLiteExpression<Double>) {
                         self.fromLatitude = fromLatitude
                         self.fromLongitude = fromLongitude
                         self.toLatitude = toLatitude
@@ -189,7 +189,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                fileprivate init(value: any XLSQLiteExpression<Int>) {
+                private init(value: any XLSQLiteExpression<Int>) {
                         self.value = value
                   }
             }
@@ -289,6 +289,76 @@ final class SQLFunctionMacroTests: XCTestCase {
                         context.simpleFunction(name: Self.definition.name) { context in
                             context.listItem(expression: value.makeSQL)
                         }
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    // Issue #822: an initializer declared inside an `#if` clause is a
+    // declared initializer too.
+    func test_initializerUnderIfConfig_isKeptAndNoneIsGenerated() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+
+                #if DEBUG
+                init(value: any XLExpression<Int>) {
+                    self.value = value
+                }
+                #endif
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+
+                #if DEBUG
+                init(value: any XLExpression<Int>) {
+                    self.value = value
+                }
+                #endif
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                        }
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    // Issue #822: the generated initializer has the memberwise initializer's
+    // access, which a fileprivate property narrows to fileprivate.
+    func test_fileprivateArgument_givesAFileprivateInitializer() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                fileprivate let value: any XLExpression<Int>
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                fileprivate let value: any XLExpression<Int>
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                        }
+                  }
+
+                fileprivate init(value: any XLSQLiteExpression<Int>) {
+                        self.value = value
                   }
             }
             """,

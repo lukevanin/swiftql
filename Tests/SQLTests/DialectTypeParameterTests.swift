@@ -459,5 +459,11 @@ final class DialectTypeParameterTests: XCTestCase {
             .where(secondPerson.id == 1)
             .returning(secondPerson)
         XCTAssertEqual(try secondSQL(secondReturning), try sqliteSQL(sqliteReturning))
+
+        // `sqlInsert(_:)` returns its statement's type, so `returning(_:)`
+        // follows it.
+        let inserted = sqlInsert(DialectSQLitePerson(id: 1, name: "a", nickname: nil))
+            .returning(XLSchema().table(DialectSQLitePerson.self))
+        XCTAssertTrue(try sqliteSQL(inserted).hasSuffix(#"RETURNING "id", "name", "nickname""#))
     }
 }

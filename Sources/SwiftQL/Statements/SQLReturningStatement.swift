@@ -24,7 +24,10 @@ import Foundation
 ///
 /// The projection must belong to the statement's dialect (issue #822): the
 /// `returning(_:)` methods take only a result of the dialect of the table the
-/// statement writes.
+/// statement writes. An erased statement, such as the `any XLInsertStatement`
+/// a `sql { }` insert returns, has lost that dialect, so `returning(_:)`
+/// follows the statement before it is erased, as in
+/// `insert(t).values(row).returning(t)`.
 ///
 /// Requires SQLite 3.35.0 (2021-03-12) or later.
 ///
