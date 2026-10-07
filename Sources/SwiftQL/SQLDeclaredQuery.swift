@@ -19,6 +19,22 @@ import Foundation
 
 
 ///
+/// A database that renders its statements with an encoder a declared query
+/// can borrow (issue #113).
+///
+/// Package. Every ``XLDriverRequestFactory`` provides one, so ``GRDBDatabase``
+/// and ``XLDriverDatabase`` both do. ``XLDeclaredQuery/init(database:name:cardinality:parameters:rowType:statement:)``
+/// reads the encoder through this protocol rather than through a cast to one
+/// database type.
+///
+package protocol XLEncoderProviding {
+
+    /// The encoder the database renders its statements with.
+    var encoder: XLEncoder { get }
+}
+
+
+///
 /// One named parameter of a declared query, as its declaration spells it.
 ///
 /// The generated code passes the parameter's Swift type, so the runtime can
@@ -79,8 +95,9 @@ public struct XLDeclaredQuery {
     /// Describes one declared query read from `database`.
     ///
     /// The query renders with the database's own encoder, so its descriptor
-    /// carries the SQL that database runs. A `GRDBDatabase` supplies its
-    /// encoder. For another database type, use
+    /// carries the SQL that database runs. A `GRDBDatabase` or an
+    /// `XLDriverDatabase` supplies its encoder. For another database type,
+    /// use
     /// ``init(databaseType:encoder:name:cardinality:parameters:rowType:statement:)``.
     ///
     /// - Parameters:
@@ -101,7 +118,7 @@ public struct XLDeclaredQuery {
     ) {
         self.init(
             databaseTypeName: Self.qualifiedTypeName(of: Database.self),
-            optionalEncoder: (database as? GRDBDatabase)?.encoder,
+            optionalEncoder: (database as? any XLEncoderProviding)?.encoder,
             name: name,
             cardinality: cardinality,
             parameters: parameters,

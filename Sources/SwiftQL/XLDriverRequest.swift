@@ -8,15 +8,11 @@
 //  Split out of GRDBSQLDatabase.swift (issue #560). Its execution strategies --
 //  eager fetch, lazy result set, and live query -- are three different things
 //  that happened to live in one 500-line struct, and are now three files.
-//  Generic over the driver since issue #682; `GRDBRequest` is its GRDB
-//  specialisation.
+//  Generic over the driver since issue #682. Its GRDB specialisation,
+//  `GRDBRequest`, is declared with the GRDB driver (issue #113).
 //
 
 import Foundation
-
-
-/// The GRDB specialisation that ``GRDBDatabase`` makes.
-typealias GRDBRequest<Row: Sendable> = XLDriverRequest<GRDBDatabaseDriver, Row>
 
 
 /// The typed read request of any blocking, observing driver of the SQLite
@@ -52,7 +48,7 @@ struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
     let requiresWriteConnection: Bool
 
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
-    var legacyBindings: GRDBLegacyBindingAccumulator
+    var legacyBindings: XLLegacyBindingAccumulator
 
     init(
         driver: Driver,
@@ -74,7 +70,7 @@ struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
         self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.reader = reader
-        self.legacyBindings = GRDBLegacyBindingAccumulator(
+        self.legacyBindings = XLLegacyBindingAccumulator(
             layout: logicalStatement.parameterLayout,
             initialError: parameterLayoutError
         )

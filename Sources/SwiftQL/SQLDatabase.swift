@@ -24,12 +24,12 @@ extension String {
 
 extension NotificationCenter {
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Use XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global entity notifications. Use XLRequest.stream() or XLRequest.publish().")
     public func sqlEntitiesChangedPublisher() -> NotificationCenter.Publisher {
         publisher(for: .XLEntitiesChanged)
     }
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Use XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global entity notifications. Use XLRequest.stream() or XLRequest.publish().")
     public func sqlEntitiesChangedObserver(queue: OperationQueue, observer: @escaping @Sendable (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLEntitiesChanged,
@@ -39,7 +39,7 @@ extension NotificationCenter {
         )
     }
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Observe with XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global entity notifications. Observe with XLRequest.stream() or XLRequest.publish().")
     public func postSQLEntitiesChangedNotification(entities: Set<String>) {
         post(
             name: .XLEntitiesChanged,
@@ -58,12 +58,12 @@ extension Notification.Name {
 
 extension NotificationCenter {
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Use XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global commit notifications. Use XLRequest.stream() or XLRequest.publish().")
     public func sqlCommitPublisher() -> NotificationCenter.Publisher {
         publisher(for: .XLCommit)
     }
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Use XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global commit notifications. Use XLRequest.stream() or XLRequest.publish().")
     public func sqlCommitObserver(queue: OperationQueue, observer: @escaping @Sendable (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLCommit,
@@ -73,7 +73,7 @@ extension NotificationCenter {
         )
     }
     
-    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Observe with XLRequest.publish() or GRDB ValueObservation.")
+    @available(*, deprecated, message: "Live queries no longer consume global commit notifications. Observe with XLRequest.stream() or XLRequest.publish().")
     public func postSQLCommitNotification() {
         post(
             name: .XLCommit,
@@ -213,7 +213,7 @@ public protocol XLRequest<Row> {
     /// (decoding at most one row per `next()`, with no row fetched or decoded
     /// before `operation` calls `next()` for it) versus eager (this
     /// protocol's own compatibility default, which calls ``fetchAll()``
-    /// under the hood, and `GRDBRequest`'s `RETURNING` exception) -- both
+    /// under the hood, and `XLDriverRequest`'s `RETURNING` exception) -- both
     /// still honor `XLResultSet`'s single-pass reference semantics, throwing
     /// iteration, non-`Sendable` isolation, scope lifetime, and
     /// partial-progress behavior, just not the streaming cost profile.
@@ -239,7 +239,7 @@ public protocol XLRequest<Row> {
     /// `try await request.async.fetchAll()` runs the same SQL with the same
     /// bindings as `try request.fetchAll()`, but suspends the calling task
     /// instead of blocking its thread while it waits for a connection. A view
-    /// taken from a request that is a value, as a GRDB request is, carries the
+    /// taken from a request that is a value, as SwiftQL's own requests are, carries the
     /// bindings set through `set(parameter:value:)` when it is taken; one
     /// taken from a class reads them when it fetches. See ``XLAsyncRequest``.
     ///
@@ -332,7 +332,7 @@ extension XLRequest {
     /// `next()` surface a true streaming adapter exposes. External conformers written before this
     /// requirement existed keep compiling and behaving correctly; only the memory and latency
     /// benefit of true row-at-a-time streaming requires an adapter override (see
-    /// `GRDBRequest.withResultSet(bindings:_:)` for the true-streaming GRDB implementation).
+    /// `XLDriverRequest.withResultSet(bindings:_:)` for SwiftQL's own true-streaming implementation).
     public func withResultSet<Result>(
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {
@@ -349,7 +349,7 @@ extension XLRequest {
 
     /// Presents rows already in memory as a result set.
     ///
-    /// Internal rather than private so `GRDBRequest` can use it for the case
+    /// Internal rather than private so `XLDriverRequest` can use it for the case
     /// where it has already decoded every row -- it carried a verbatim copy
     /// (issue #561), which `private` being file-scoped had forced.
     func withEagerResultSet<Result>(
@@ -363,7 +363,7 @@ extension XLRequest {
     }
 
     /// Compatibility default for adapters that do not implement early-stopping decode: fetches every
-    /// row and truncates. Adapters that can decode incrementally (e.g. `GRDBRequest`) override this to
+    /// row and truncates. Adapters that can decode incrementally (e.g. `XLDriverRequest`) override this to
     /// actually stop after `limit` rows.
     public func fetchAtMost(
         _ limit: Int,

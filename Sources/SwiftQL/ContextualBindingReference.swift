@@ -147,7 +147,44 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 }
 
 
-extension GRDBDatabase {
+///
+/// A database whose immutable value-coding snapshot resolves contextual
+/// bindings and query captures (issue #113).
+///
+/// ``GRDBDatabase`` and ``XLDriverDatabase`` conform, and share one
+/// implementation of `contextualBinding` and `queryCapture`. Code that holds
+/// any conforming database can declare its contextual bindings and captures
+/// without naming the database's driver:
+///
+/// ```swift
+/// func titleCapture(
+///     on database: some XLValueCodingDatabase<XLSQLiteDialect>
+/// ) throws -> XLQueryCapture<String, String, XLSQLiteDialect> {
+///     try database.queryCapture(
+///         String.self,
+///         expressedAs: String.self,
+///         identifiedBy: try XLQuerySlotIdentity(path: ["title"])
+///     )
+/// }
+/// ```
+///
+public protocol XLValueCodingDatabase<Dialect>: XLDatabase {
+
+    /// The dialect statements are rendered for and values are checked
+    /// against.
+    associatedtype Dialect: XLValueCodingDialect
+
+    /// The dialect statements are rendered for and values are checked
+    /// against.
+    var dialect: Dialect { get }
+
+    /// The immutable contextual value-coding policy this database and every
+    /// request it makes capture.
+    var codingConfiguration: XLValueCodingConfiguration { get }
+}
+
+
+extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
 
     /// Resolves a named contextual parameter against this database's immutable
     /// coding snapshot.
@@ -199,32 +236,6 @@ extension GRDBDatabase {
         nullability: XLParameterNullability = .required,
         context: XLValueCodingContext? = nil,
         selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try resolveContextualBinding(
-            valueType,
-            expressedAs: literalType,
-            key: key,
-            nullability: nullability,
-            context: context,
-            selection: selection
-        )
-    }
-}
-
-
-extension XLDriverRequestFactory {
-
-    /// Resolves a contextual parameter against this database's immutable
-    /// coding snapshot. `GRDBDatabase` and `XLDriverDatabase` both forward
-    /// their `contextualBinding` members here (issue #682).
-    func resolveContextualBinding<Value, Literal>(
-        _ valueType: Value.Type,
-        expressedAs literalType: Literal.Type,
-        key: XLBindingKey,
-        nullability: XLParameterNullability,
-        context: XLValueCodingContext?,
-        selection: XLValueCodecSelection
     ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
     where Literal: XLLiteral {
         try codingConfiguration.contextualBinding(

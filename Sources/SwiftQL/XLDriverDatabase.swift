@@ -60,7 +60,7 @@ public struct XLDriverDatabase<Driver>: XLDatabase
     /// every request it makes.
     public let codingConfiguration: XLValueCodingConfiguration
 
-    let logger: XLLogger?
+    package let logger: XLLogger?
 
     /// The identity render-once cache entries are keyed by: one per database
     /// value, not per driver. A cached request captures this database's coding
@@ -189,111 +189,10 @@ public struct XLDriverDatabase<Driver>: XLDatabase
 extension XLDriverDatabase: XLDriverRequestFactory {}
 
 
-extension XLDriverDatabase {
-
-    /// Resolves a named contextual parameter against this database's immutable
-    /// coding snapshot.
-    public func contextualBinding<Value, Literal>(
-        _ valueType: Value.Type,
-        expressedAs literalType: Literal.Type,
-        named name: XLName,
-        nullability: XLParameterNullability = .required,
-        context: XLValueCodingContext? = nil,
-        selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try resolveContextualBinding(
-            valueType,
-            expressedAs: literalType,
-            key: .named(name.rawValue),
-            nullability: nullability,
-            context: context,
-            selection: selection
-        )
-    }
-
-    /// Resolves an indexed contextual parameter against this database's
-    /// immutable coding snapshot.
-    public func contextualBinding<Value, Literal>(
-        _ valueType: Value.Type,
-        expressedAs literalType: Literal.Type,
-        indexed index: Int,
-        nullability: XLParameterNullability = .required,
-        context: XLValueCodingContext? = nil,
-        selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try resolveContextualBinding(
-            valueType,
-            expressedAs: literalType,
-            key: .indexed(index),
-            nullability: nullability,
-            context: context,
-            selection: selection
-        )
-    }
-
-    /// Resolves a contextual parameter for an explicit logical binding key.
-    public func contextualBinding<Value, Literal>(
-        _ valueType: Value.Type,
-        expressedAs literalType: Literal.Type,
-        key: XLBindingKey,
-        nullability: XLParameterNullability = .required,
-        context: XLValueCodingContext? = nil,
-        selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try resolveContextualBinding(
-            valueType,
-            expressedAs: literalType,
-            key: key,
-            nullability: nullability,
-            context: context,
-            selection: selection
-        )
-    }
-
-    /// Declares a contextual capture using this database's immutable coding
-    /// configuration. Selection is constrained by `Literal`'s SQLite storage
-    /// representation before a default or unique candidate can be inferred.
-    public func queryCapture<Input, Literal>(
-        _ inputType: Input.Type,
-        expressedAs literalType: Literal.Type,
-        identifiedBy identity: XLQuerySlotIdentity,
-        context: XLValueCodingContext? = nil,
-        selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try codingConfiguration.queryCapture(
-            inputType,
-            expressedAs: literalType,
-            identifiedBy: identity,
-            using: dialect,
-            context: context,
-            selection: selection
-        )
-    }
-
-    /// Declares a contextual capture using a typed SQL expression as the
-    /// source of literal type, nullability, and SQLite storage metadata.
-    public func queryCapture<Input, Literal>(
-        _ inputType: Input.Type,
-        matching expression: any XLExpression<Literal>,
-        identifiedBy identity: XLQuerySlotIdentity,
-        context: XLValueCodingContext? = nil,
-        selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try codingConfiguration.queryCapture(
-            inputType,
-            matching: expression,
-            identifiedBy: identity,
-            using: dialect,
-            context: context,
-            selection: selection
-        )
-    }
-}
+/// Contextual bindings and query captures resolve against this database's
+/// coding snapshot through the members ``XLValueCodingDatabase`` provides,
+/// which ``GRDBDatabase`` shares (issue #113).
+extension XLDriverDatabase: XLValueCodingDatabase {}
 
 
 /// `@unchecked Sendable` because sharing one value across threads is this

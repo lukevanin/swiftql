@@ -58,7 +58,7 @@ extension XLDriverRequest {
             return try withEagerResultSet(items, operation)
         }
 
-        let rowDecoder = GRDBRowDecoder(reader: reader)
+        let rowDecoder = XLRowDecoder(reader: reader)
         return try executor.withRowHandleStepper(
             packet: packet,
             requiresWriteConnection: false

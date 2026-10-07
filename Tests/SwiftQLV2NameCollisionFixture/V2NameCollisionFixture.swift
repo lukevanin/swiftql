@@ -308,8 +308,11 @@ enum V2NameCollisionFixture {
     typealias Check_StatementCachingDriverConnection = StatementCachingDriverConnection
     typealias Check_StaticColumnReader = StaticColumnReader
     typealias Check_StaticFieldGroup = StaticFieldGroup
+    typealias Check_StaticQueryArgument = StaticQueryArgument
     typealias Check_StaticQueryDescriptor = StaticQueryDescriptor
     typealias Check_StaticQueryError = StaticQueryError
+    typealias Check_StaticQueryInvocationBuilder = StaticQueryInvocationBuilder
+    typealias Check_StaticQueryInvocationError = StaticQueryInvocationError
     typealias Check_StaticQueryParameterMetadata = StaticQueryParameterMetadata
     typealias Check_StaticQueryResultMetadata = StaticQueryResultMetadata
     typealias Check_StaticQueryResultSlot = StaticQueryResultSlot
@@ -359,6 +362,7 @@ enum V2NameCollisionFixture {
     typealias Check_ValueCodecTarget = ValueCodecTarget
     typealias Check_ValueCodingConfiguration = ValueCodingConfiguration
     typealias Check_ValueCodingContext = ValueCodingContext
+    typealias Check_ValueCodingDatabase = ValueCodingDatabase
     typealias Check_ValueCodingDialect = ValueCodingDialect
     typealias Check_ValueCodingPath = ValueCodingPath
     typealias Check_ValueCodingSite = ValueCodingSite
@@ -395,9 +399,6 @@ enum V2NameCollisionFixture {
     typealias Check_GRDBPreparedInvocation = GRDBPreparedInvocation
     typealias Check_GRDBPreparedStaticQuery = GRDBPreparedStaticQuery
     typealias Check_GRDBPreparedTypedStaticQuery = GRDBPreparedTypedStaticQuery
-    typealias Check_GRDBStaticQueryArgument = GRDBStaticQueryArgument
-    typealias Check_GRDBStaticQueryError = GRDBStaticQueryError
-    typealias Check_GRDBStaticQueryInvocationBuilder = GRDBStaticQueryInvocationBuilder
     typealias Check_GroupBy = GroupBy
     typealias Check_Having = Having
     typealias Check_Insert = Insert

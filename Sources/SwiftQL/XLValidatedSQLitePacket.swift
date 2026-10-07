@@ -23,7 +23,7 @@
 /// value in every slot the layout declares.
 ///
 /// The *semantic* checks -- codec identity, storage agreement, nullability, and
-/// the NaN guard -- stay with ``GRDBInvocationExecutor/sqlitePacket(_:)``,
+/// the NaN guard -- stay with ``XLInvocationExecutor/sqlitePacket(_:)``,
 /// which is the only caller. Those need the driver's dialect and registry,
 /// which this type deliberately knows nothing about. So the invariant this
 /// carries is "structurally valid for its layout", and the reason a second

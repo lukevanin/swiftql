@@ -63,7 +63,7 @@ extension XLDriverRequest {
         packet: XLValidatedSQLitePacket,
         in connection: inout Driver.Connection
     ) throws -> [Row] {
-        let rowDecoder = GRDBRowDecoder(reader: reader)
+        let rowDecoder = XLRowDecoder(reader: reader)
         var items: [Row] = []
 
         try executor.forEachRowHandle(packet: packet, in: &connection) { row in
@@ -109,7 +109,7 @@ extension XLDriverRequest {
         guard limit > 0 else {
             return []
         }
-        let rowDecoder = GRDBRowDecoder(reader: reader)
+        let rowDecoder = XLRowDecoder(reader: reader)
         var items: [Row] = []
 
         try executor.forEachRowHandle(packet: packet, in: &connection) { row in
@@ -178,6 +178,6 @@ extension XLDriverRequest {
         guard let values else {
             return nil
         }
-        return try GRDBRowDecoder(reader: reader).decode(values: values)
+        return try XLRowDecoder(reader: reader).decode(values: values)
     }
 }

@@ -1,5 +1,5 @@
 //
-//  GRDBCodecResolutionFailure.swift
+//  XLCodecResolutionFailure.swift
 //  SwiftQL
 //
 //  Why a declared codec cannot be used against a database, separated from how
@@ -15,7 +15,7 @@
 ///
 /// Why a slot's declared codec cannot be used against a given database.
 ///
-enum GRDBCodecResolutionFailure {
+enum XLCodecResolutionFailure {
 
     /// The codec belongs to a different SQL dialect.
     case dialectMismatch(XLValueCodecIdentity)
@@ -58,12 +58,12 @@ enum GRDBCodecResolutionFailure {
     }
 
     /// Reported against a static descriptor's result slot, where the caller's
-    /// contract is `GRDBStaticQueryError` and the descriptor is named.
+    /// contract is `XLStaticQueryInvocationError` and the descriptor is named.
     func staticQueryError(
         identity: XLQueryIdentity,
         slot: XLStaticQueryResultSlot,
         expectedDialectIdentifier: XLDialectIdentifier
-    ) -> GRDBStaticQueryError {
+    ) -> XLStaticQueryInvocationError {
         switch self {
         case .dialectMismatch(let codecIdentity):
             return .resultCodecDialectMismatch(

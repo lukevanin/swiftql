@@ -241,6 +241,16 @@
   `GRDBPreparedStaticQuery`, and `GRDBPreparedTypedStaticQuery<Row>` remain as
   typealiases, so source that names them compiles unchanged. Their
   module-qualified names change, for example in `String(reflecting:)`.
+- **The static-query helpers no longer name GRDB** (issue #113), which they
+  never used. `GRDBStaticQueryError` is now `XLStaticQueryInvocationError`,
+  `GRDBStaticQueryArgument` is `XLStaticQueryArgument`, and
+  `GRDBStaticQueryInvocationBuilder` is `XLStaticQueryInvocationBuilder`.
+  The old names remain as deprecated typealiases, so source that names them
+  compiles, with a warning that offers the rename. Their module-qualified
+  names change, for example in `String(reflecting:)`. The error is not named
+  `XLStaticQueryError`, because SwiftQLCore already has an error of that
+  name: it reports a descriptor that is invalid before any database is
+  involved.
 - **`XLDatabaseDriverConnection` has three new requirements, each with a
   default** (issue #682), so a connection outside SwiftQL keeps compiling.
   - `forEachRow(_:_:)` visits result rows one at a time, and
@@ -705,6 +715,23 @@
   - `GRDBDatabase` keeps its public surface. Its live-query retry policy now
     travels with its driver, so the GRDB driver's `observe(_:fetch:)` applies
     it too.
+
+- **Code that holds any SwiftQL database can declare its captures** (issue
+  #113). The new `XLValueCodingDatabase<Dialect>` protocol refines
+  `XLDatabase` with the database's `dialect` and `codingConfiguration`.
+  `GRDBDatabase` and `XLDriverDatabase` conform, and the
+  `contextualBinding(_:expressedAs:...)` and `queryCapture(_:...)` members
+  they each had are now written once, on the protocol, for a SQLite
+  database. A call on either database compiles unchanged, and a function
+  that takes `some XLValueCodingDatabase<XLSQLiteDialect>` can make the same
+  calls without naming the driver.
+
+- **A declared query read from an `XLDriverDatabase` can be lowered** (issue
+  #113). `XLDeclaredQuery.init(database:...)` now takes the encoder of an
+  `XLDriverDatabase`, as it does a `GRDBDatabase`'s, so `makeDescriptor()`
+  renders the query instead of throwing
+  `XLDeclaredQueryError.encoderUnavailable`. Any other database type still
+  throws it.
 
 - **An adapter supplies its own live-query change notification** (issue
   #684).

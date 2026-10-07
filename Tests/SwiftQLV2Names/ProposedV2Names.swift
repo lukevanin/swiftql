@@ -46,6 +46,9 @@
 //  Deprecated types are not carried into v2, so they have no alias either,
 //  and the fixture does not name them.
 //
+//  deprecated: GRDBStaticQueryArgument (use XLStaticQueryArgument)
+//  deprecated: GRDBStaticQueryError (use XLStaticQueryInvocationError)
+//  deprecated: GRDBStaticQueryInvocationBuilder (use XLStaticQueryInvocationBuilder)
 //  deprecated: JoinKind (use XLJoinOperator)
 //  deprecated: XLFromCommonTableDependency (use XLFromTableDependency)
 //
@@ -311,8 +314,11 @@ public typealias StatementCacheStatistics = SwiftQLCore.XLStatementCacheStatisti
 public typealias StatementCachingDriverConnection = SwiftQLCore.XLStatementCachingDriverConnection
 public typealias StaticColumnReader = SwiftQL.XLStaticColumnReader
 public typealias StaticFieldGroup = SwiftQL.XLStaticFieldGroup
+public typealias StaticQueryArgument = SwiftQL.XLStaticQueryArgument
 public typealias StaticQueryDescriptor = SwiftQLCore.XLStaticQueryDescriptor
 public typealias StaticQueryError = SwiftQLCore.XLStaticQueryError
+public typealias StaticQueryInvocationBuilder = SwiftQL.XLStaticQueryInvocationBuilder
+public typealias StaticQueryInvocationError = SwiftQL.XLStaticQueryInvocationError
 public typealias StaticQueryParameterMetadata = SwiftQLCore.XLStaticQueryParameterMetadata
 public typealias StaticQueryResultMetadata = SwiftQLCore.XLStaticQueryResultMetadata
 public typealias StaticQueryResultSlot = SwiftQLCore.XLStaticQueryResultSlot
@@ -362,6 +368,7 @@ public typealias ValueCodecSelectionSource = SwiftQLCore.XLValueCodecSelectionSo
 public typealias ValueCodecTarget = SwiftQLCore.XLValueCodecTarget
 public typealias ValueCodingConfiguration = SwiftQLCore.XLValueCodingConfiguration
 public typealias ValueCodingContext = SwiftQLCore.XLValueCodingContext
+public typealias ValueCodingDatabase = SwiftQL.XLValueCodingDatabase
 public typealias ValueCodingDialect = SwiftQLCore.XLValueCodingDialect
 public typealias ValueCodingPath = SwiftQLCore.XLValueCodingPath
 public typealias ValueCodingSite = SwiftQLCore.XLValueCodingSite

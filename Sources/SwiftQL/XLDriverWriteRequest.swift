@@ -11,10 +11,6 @@
 import Foundation
 
 
-/// The GRDB specialisation that ``GRDBDatabase`` makes.
-typealias GRDBWriteRequest = XLDriverWriteRequest<GRDBDatabaseDriver>
-
-
 /// The write request of any blocking driver of the SQLite dialect (issue
 /// #682). It runs each statement in a transaction on the writer connection.
 struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
@@ -29,7 +25,7 @@ struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
     let logger: XLLogger?
     
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
-    var legacyBindings: GRDBLegacyBindingAccumulator
+    var legacyBindings: XLLegacyBindingAccumulator
     
     init(
         driver: Driver,
@@ -47,7 +43,7 @@ struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
-        self.legacyBindings = GRDBLegacyBindingAccumulator(
+        self.legacyBindings = XLLegacyBindingAccumulator(
             layout: logicalStatement.parameterLayout,
             initialError: parameterLayoutError
         )

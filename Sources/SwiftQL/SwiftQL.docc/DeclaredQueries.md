@@ -643,7 +643,8 @@ function.
   custom type that is not an `XLEnum` also binds its `sqlDefault()` once, to
   learn its SQLite storage class. A query whose columns cannot be recorded, or
   whose placeholder binds `NULL`, is skipped from the manifest by name.
-- **Only a `GRDBDatabase` supplies its encoder.** A declared query read from
-  another database type throws `XLDeclaredQueryError.encoderUnavailable` when
-  it is lowered. Describe such a query with the `XLDeclaredQuery` initializer
-  that takes an encoder.
+- **Only SwiftQL's own databases supply their encoder.** A declared query read
+  from a `GRDBDatabase` or an `XLDriverDatabase` renders with that database's
+  encoder. One read from another database type throws
+  `XLDeclaredQueryError.encoderUnavailable` when it is lowered. Describe such
+  a query with the `XLDeclaredQuery` initializer that takes an encoder.

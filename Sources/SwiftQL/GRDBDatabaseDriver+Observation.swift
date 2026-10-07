@@ -18,7 +18,7 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
     /// The observation recovers from a failure as the driver's
     /// ``liveQueryRetryPolicy`` says, which is terminal unless the database
     /// that owns the driver is configured to retry.
-    func observe<Value: Sendable>(
+    package func observe<Value: Sendable>(
         _ statement: XLLogicalPreparedStatement,
         fetch: @escaping @Sendable (inout GRDBDatabaseDriverConnection) throws -> Value
     ) -> AsyncThrowingStream<Value, Error> {
@@ -94,5 +94,14 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
                     )
             }
         )
+    }
+}
+
+
+extension GRDBDatabaseDriver: XLLiveQueryAvailability {
+
+    /// A driver pinned to a transaction scope has no pool to observe.
+    package var liveQueryUnavailableError: Error? {
+        databasePool == nil ? XLTransactionScopeError.liveQueriesUnsupportedInTransaction : nil
     }
 }

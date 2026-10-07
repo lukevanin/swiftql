@@ -444,7 +444,7 @@ extension XLValueCodingConfiguration {
 }
 
 
-extension GRDBDatabase {
+extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
 
     /// Declares a contextual capture using this database's immutable coding
     /// configuration. Selection is constrained by `Literal`'s SQLite storage

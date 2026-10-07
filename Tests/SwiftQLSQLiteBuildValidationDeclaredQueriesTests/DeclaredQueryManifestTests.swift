@@ -519,7 +519,7 @@ final class DeclaredQueryManifestTests: XCTestCase {
         let query = mutatingDatabase.declaredMutatingAuthorsDeclaredQuery()
 
         XCTAssertEqual(query.id, "DeclaredMutatingDatabase.declaredMutatingAuthors")
-        // Only a GRDBDatabase exposes its encoder, so this one cannot render.
+        // Only SwiftQL's own databases expose their encoder, so this one cannot render.
         XCTAssertThrowsError(try query.makeDescriptor()) { error in
             XCTAssertEqual(
                 error as? XLDeclaredQueryError,

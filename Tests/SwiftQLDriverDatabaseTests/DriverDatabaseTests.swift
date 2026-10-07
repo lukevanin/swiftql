@@ -282,6 +282,59 @@ final class DriverDatabaseTests: XCTestCase {
         XCTAssertEqual(capture.identity, identity)
     }
 
+    /// Code that holds any value-coding database declares its bindings and
+    /// captures without naming the driver (issue #113).
+    func testValueCodingDatabaseResolvesCapturesWithoutNamingTheDriver() throws {
+        func seenCapture(
+            on database: some XLValueCodingDatabase<XLSQLiteDialect>
+        ) throws -> XLQueryCapture<Date, String, XLSQLiteDialect> {
+            try database.queryCapture(
+                Date.self,
+                expressedAs: String.self,
+                identifiedBy: try XLQuerySlotIdentity(path: ["person", "seen"])
+            )
+        }
+        let codecDatabase = XLDriverDatabase(
+            driver: driver,
+            codingConfiguration: try XLValueCodingConfiguration(
+                registry: try XLValueCodecRegistry().registering(XLDateTextCodec.standard),
+                defaultCodecKeys: [XLDateTextCodec.standardKey]
+            )
+        )
+
+        let capture = try seenCapture(on: codecDatabase)
+
+        XCTAssertEqual(capture.identity, try XLQuerySlotIdentity(path: ["person", "seen"]))
+        XCTAssertThrowsError(
+            try seenCapture(on: database!),
+            "A database without a Date codec cannot resolve the capture."
+        )
+    }
+
+    // MARK: - Declared queries
+
+    /// A declared query read from a driver database renders with that
+    /// database's encoder, as one read from a `GRDBDatabase` does (issue
+    /// #113). It used to throw `encoderUnavailable`.
+    func testDeclaredQueryRendersWithTheDriverDatabaseEncoder() throws {
+        let query = XLDeclaredQuery(
+            database: database!,
+            name: "people",
+            cardinality: .many,
+            parameters: [],
+            rowType: DriverPerson.self,
+            statement: { self.selectPeople() }
+        )
+
+        let lowered = try query.makeDescriptor()
+
+        XCTAssertEqual(
+            lowered.descriptor.statement.sql,
+            database.encoder.makeSQL(selectPeople()).sql
+        )
+        XCTAssertEqual(lowered.resultAliases.count, 2)
+    }
+
     // MARK: - Render-once cache
 
     /// Each database renders its own cache entries, because a cached request

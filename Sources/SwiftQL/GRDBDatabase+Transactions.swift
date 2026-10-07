@@ -9,11 +9,6 @@
 
 import Foundation
 internal import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 /// `@unchecked Sendable` because sharing one value across threads and connections is this type's
@@ -30,7 +25,7 @@ extension GRDBDatabase: XLTransactionScopeReporting {
     /// still `true` after that body returns (issue #662). A generated
     /// `@SQLQueries` executor called on a scope runs on it rather than opening
     /// a nested transaction; an ended scope then throws `.scopeEscaped`.
-    var isTransactionScope: Bool {
+    package var isTransactionScope: Bool {
         driver.isPinned
     }
 }

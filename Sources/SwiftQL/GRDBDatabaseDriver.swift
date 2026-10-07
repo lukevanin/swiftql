@@ -27,24 +27,24 @@ internal import GRDBSQLite
 /// scopes have their own names, `withBlocking...`, so that they never shadow
 /// an asynchronous member: a concrete method outranks a protocol extension
 /// method of the same name, and `try await` would then quietly block a thread.
-struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
+package struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
 
-    typealias Dialect = XLSQLiteDialect
+    package typealias Dialect = XLSQLiteDialect
 
-    typealias Connection = GRDBDatabaseDriverConnection
+    package typealias Connection = GRDBDatabaseDriverConnection
 
-    let driverIdentifier = XLDriverIdentifier.grdb
+    package let driverIdentifier = XLDriverIdentifier.grdb
 
-    let databaseIdentifier: XLDatabaseIdentifier
+    package let databaseIdentifier: XLDatabaseIdentifier
 
-    let dialect: XLSQLiteDialect
+    package let dialect: XLSQLiteDialect
 
     /// GRDB's own default: ``XLTransactionKind/immediate`` for a writable
     /// database, so a second writer conflicts at `BEGIN` rather than partway
     /// through a transaction, and ``XLTransactionKind/deferred`` for a
     /// read-only one, where GRDB notes SQLite can refuse a non-deferred
     /// transaction.
-    let defaultTransactionKind: XLTransactionKind
+    package let defaultTransactionKind: XLTransactionKind
 
     /// `defaultTransactionKind` as GRDB spells it, worked out once.
     private let grdbDefaultTransactionKind: Database.TransactionKind
@@ -155,7 +155,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
         )
     }
 
-    func withBlockingReadConnection<Result>(
+    package func withBlockingReadConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -175,7 +175,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
         }
     }
 
-    func withBlockingWriteConnection<Result>(
+    package func withBlockingWriteConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -195,7 +195,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
         }
     }
 
-    func withBlockingTransaction<Result>(
+    package func withBlockingTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -231,7 +231,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
     // no thread hop beyond the one that confines a connection to its queue,
     // and none of them blocks the calling thread.
 
-    func withReadConnection<Result: Sendable>(
+    package func withReadConnection<Result: Sendable>(
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let pool = try asynchronousPool(for: .read)
@@ -245,7 +245,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
         }
     }
 
-    func withWriteConnection<Result: Sendable>(
+    package func withWriteConnection<Result: Sendable>(
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let pool = try asynchronousPool(for: .write)
@@ -259,7 +259,7 @@ struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
         }
     }
 
-    func withTransaction<Result: Sendable>(
+    package func withTransaction<Result: Sendable>(
         _ kind: XLTransactionKind,
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
@@ -577,21 +577,21 @@ enum GRDBTransactionQueueMark {
 }
 
 
-struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
+package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 
-    typealias Dialect = XLSQLiteDialect
+    package typealias Dialect = XLSQLiteDialect
 
-    typealias PhysicalStatement = GRDBPhysicalStatement
+    package typealias PhysicalStatement = GRDBPhysicalStatement
 
     /// Named rather than inferred, so the connection cannot fall back to the
     /// contract's default handle and copy every row (issue #678).
-    typealias RowHandle = GRDBRowHandle
+    package typealias RowHandle = GRDBRowHandle
 
-    let driverIdentifier: XLDriverIdentifier
+    package let driverIdentifier: XLDriverIdentifier
 
-    let databaseIdentifier: XLDatabaseIdentifier
+    package let databaseIdentifier: XLDatabaseIdentifier
 
-    let dialect: XLSQLiteDialect
+    package let dialect: XLSQLiteDialect
 
     private let connectionIdentifier = UUID()
 
@@ -609,7 +609,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         self.dialect = dialect
     }
 
-    mutating func preparePhysical(
+    package mutating func preparePhysical(
         _ validatedStatement: XLValidatedLogicalPreparedStatement
     ) throws -> GRDBPhysicalStatement {
         let statement = validatedStatement.logicalStatement
@@ -649,7 +649,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         )
     }
 
-    mutating func bind(
+    package mutating func bind(
         _ value: XLSQLiteValue,
         to key: XLBindingKey,
         in statement: GRDBPhysicalStatement
@@ -692,7 +692,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// Validates the complete logical packet against GRDB's physical
     /// placeholder table before execution. This moves missing, extra, or
     /// otherwise invalid driver arguments into the contextual bind boundary.
-    func validateBindings(in statement: GRDBPhysicalStatement) throws {
+    package func validateBindings(in statement: GRDBPhysicalStatement) throws {
         try validateOwnership(of: statement)
         try statement.statement.validateArguments(
             statementArguments(statement)
@@ -703,7 +703,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// implements that member, rather than taking the contract's default, so
     /// the value path is compiled for GRDB's handle and not called through
     /// the protocol.
-    mutating func fetchAll(
+    package mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
         var rows: [[XLSQLiteValue]] = []
@@ -715,7 +715,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     }
 
     /// The first row, without stepping later ones.
-    mutating func fetchOne(
+    package mutating func fetchOne(
         _ statement: GRDBPhysicalStatement
     ) throws -> [XLSQLiteValue]? {
         var first: [XLSQLiteValue]?
@@ -742,7 +742,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// The row is normalized with ``GRDBRowHandle/normalizeValues(into:)``,
     /// which walks GRDB's values without a per-column index check and cannot
     /// throw, so the value path costs what it did before handles existed.
-    mutating func forEachRow(
+    package mutating func forEachRow(
         _ statement: GRDBPhysicalStatement,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
@@ -755,7 +755,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 
     /// Visits each row as a ``GRDBRowHandle`` over the cursor's own row, so a
     /// reader decodes the columns it asks for and nothing else (issue #678).
-    mutating func forEachRowHandle(
+    package mutating func forEachRowHandle(
         _ statement: GRDBPhysicalStatement,
         _ body: (GRDBRowHandle) throws -> XLRowStreamControl
     ) throws {
@@ -829,7 +829,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// Lends ``withRowHandleStepper(_:_:)``'s stepper with each row
     /// normalized into values, in one reusable buffer as ``forEachRow(_:_:)``
     /// does.
-    mutating func withValuesStepper<Result>(
+    package mutating func withValuesStepper<Result>(
         _ statement: GRDBPhysicalStatement,
         _ body: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
     ) throws -> Result {
@@ -853,7 +853,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// removed on the same return or throw that ends `body`. A nested request
     /// with the same SQL then prepares its own statement instead of resetting
     /// this cursor (issue #641). See `GRDBOpenCursorStatements`.
-    mutating func withRowHandleStepper<Result>(
+    package mutating func withRowHandleStepper<Result>(
         _ statement: GRDBPhysicalStatement,
         _ body: (@escaping () throws -> GRDBRowHandle?) throws -> Result
     ) throws -> Result {
@@ -919,7 +919,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     }
 
     @discardableResult
-    mutating func execute(_ statement: GRDBPhysicalStatement) throws -> XLExecutionResult {
+    package mutating func execute(_ statement: GRDBPhysicalStatement) throws -> XLExecutionResult {
         try validateOwnership(of: statement)
         let arguments = statementArguments(statement)
         let database = database
@@ -1003,7 +1003,7 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
     ///   while a statement is active on the connection, or a preparation failure while reading a
     ///   marker.
-    func installRequiredFunctions(
+    package func installRequiredFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {
         // A marker probe prepares a statement through GRDB, so a failure
@@ -1388,9 +1388,9 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 /// value from it directly. The value comes from the same
 /// `xlDialectValue(at:of:as:)` the row reader uses for a third-party handle.
 ///
-struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
+package struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
 
-    typealias Value = XLSQLiteValue
+    package typealias Value = XLSQLiteValue
 
     private let row: Row
 
@@ -1398,11 +1398,11 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
         self.row = row
     }
 
-    var columnCount: Int {
+    package var columnCount: Int {
         row.count
     }
 
-    func value(at index: Int) throws -> XLSQLiteValue {
+    package func value(at index: Int) throws -> XLSQLiteValue {
         try checkIndex(index, expectedType: nil)
         return try uncheckedValue(at: index)
     }
@@ -1414,32 +1414,32 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
     /// Asks GRDB whether the column is `NULL` without reading its value, so
     /// an optional column that is not `NULL` copies its text or bytes once,
     /// when it is read, rather than twice.
-    func isNull(at index: Int) throws -> Bool {
+    package func isNull(at index: Int) throws -> Bool {
         try checkIndex(index, expectedType: nil)
         return row.hasNull(atIndex: index)
     }
 
-    func readInteger(at index: Int) throws -> Int {
+    package func readInteger(at index: Int) throws -> Int {
         try checkIndex(index, expectedType: "Int")
         return try XLSQLiteValueReading.integer(uncheckedValue(at: index), at: index)
     }
 
-    func readReal(at index: Int) throws -> Double {
+    package func readReal(at index: Int) throws -> Double {
         try checkIndex(index, expectedType: "Double")
         return try XLSQLiteValueReading.real(uncheckedValue(at: index), at: index)
     }
 
-    func readText(at index: Int) throws -> String {
+    package func readText(at index: Int) throws -> String {
         try checkIndex(index, expectedType: "String")
         return try XLSQLiteValueReading.text(uncheckedValue(at: index), at: index)
     }
 
-    func readBlob(at index: Int) throws -> Data {
+    package func readBlob(at index: Int) throws -> Data {
         try checkIndex(index, expectedType: "Data")
         return try XLSQLiteValueReading.blob(uncheckedValue(at: index), at: index)
     }
 
-    func dialectValue<Dialect>(
+    package func dialectValue<Dialect>(
         at index: Int,
         using _: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
@@ -1470,7 +1470,7 @@ struct GRDBRowHandle: XLRowHandle, XLStaticColumnReader {
 }
 
 
-struct GRDBPhysicalStatement {
+package struct GRDBPhysicalStatement {
 
     let logicalStatement: XLLogicalPreparedStatement
 
