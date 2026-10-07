@@ -363,3 +363,113 @@ interleaved runs, and the total size of its object files:
 The SQLite surface is the same overloads as before, one copy, so the library
 grows by the new protocol's conformances and the generic metadata of the
 dialect-carrying types.
+
+
+## Clauses and statements (issue #822)
+
+**Recorded 7 October 2026** for issue #822. Swift 6.4, macOS 26.6.2, Apple M4
+Pro. Base: `version/2.0` at `af954b8e`.
+
+The adopted design typed expressions by dialect, and left clauses and
+statements dialect-free. Issue #822 types them too, without a generic
+dialect parameter on any operator:
+
+- Every clause carries its statement's dialect: `Where<Dialect>`,
+  `From<Dialect>`, `Select<Row, Dialect>`, and so on. The initializers that
+  take an expression are declared once for each dialect, generated from the
+  templates like the operators, and take the dialect's expression protocol,
+  `any XLSQLiteExpression<Bool>` for SQLite. A clause that takes a table is
+  generic over the table and requires `T.XLModelDialect == Dialect`.
+- The result builder is generic over the dialect,
+  `XLDialectQueryExpressionBuilder<Dialect>`, and `XLQueryExpressionBuilder`
+  names SQLite's. Its one `buildExpression` takes any clause whose dialect is
+  the builder's. Each statement of the body is type-checked inside that call,
+  so the builder's dialect is the context in which the clause's initializer is
+  chosen: `Where(true)` in a second dialect's query takes that dialect's
+  initializer, and the predicate inside a `Where` is solved against one
+  dialect's protocol, as an operator's operands are.
+- The statements carry the dialect, and a statement inside another one is an
+  `any XLDialectQueryStatement<Row, Dialect>`.
+
+The prototype of #789 reported that a `Where<D>` breaks the misspelled-column
+message ("generic parameter 'D' could not be inferred"). That `Where` took its
+dialect from its expression. Here the builder supplies it, so the dialect is
+bound before the expression is solved, and the message is unchanged.
+
+### One predicate of joined comparisons
+
+`measure-shipped.sh base=<version/2.0> branch=<this branch>`, median of 7
+runs:
+
+| Body | base | branch |
+| --- | ---: | ---: |
+| 30 separate clauses | 21.6 ms | 21.5 ms (−1 %) |
+| 120 separate clauses | 68.4 ms | 68.5 ms (+0 %) |
+| 450 separate clauses | 462.4 ms | 463.4 ms (+0 %) |
+| one `Where` of 2 terms | 8.6 ms | 10.0 ms (+16 %) |
+| one `Where` of 4 terms | 10.5 ms | 11.9 ms (+14 %) |
+| one `Where` of 6 terms | 12.2 ms | 13.6 ms (+12 %) |
+| one `Where` of 8 terms | 13.7 ms | 15.2 ms (+11 %) |
+| one `Where` of 12 terms | 17.0 ms | 18.6 ms (+9 %) |
+| one `Where` of 16 terms | 20.7 ms | 22.2 ms (+7 %) |
+
+The separate-clause bodies are expressions only, which this change does not
+touch. A `Where` costs about 1.5 ms more at every length: the builder's
+`buildExpression` and the clause's dialect, once per query. The growth with
+the number of terms is the base's.
+
+The same bodies in a module that also sees the compile-fail second dialect's
+surface, median of 5:
+
+| Terms | base | branch |
+| ---: | ---: | ---: |
+| 4 | 14.9 ms | 16.1 ms |
+| 8 | 20.3 ms | 21.5 ms |
+| 12 | 25.4 ms | 26.6 ms |
+| 16 | 30.7 ms | 32.1 ms |
+
+A mistake in the last term of one predicate, wall time of one compile and the
+first error: at every length from 2 to 16 terms, the branch takes the same
+time as the base, within 0.1 s, and reports the same error. The misspelled
+column's message is byte-identical (`value of type 'GateRow.MetaNamedResult'
+has no member 'txet0'`), and so is the wrong value type's. At 16 terms both
+give up on a wrong value type in 8.6 s and 8.7 s.
+
+| Terms | misspelled column, base | branch | wrong value type, base | branch |
+| ---: | ---: | ---: | ---: | ---: |
+| 2 | 1.3 s | 1.3 s | 1.3 s | 1.3 s |
+| 4 | 1.4 s | 1.4 s | 1.4 s | 1.4 s |
+| 6 | 1.6 s | 1.6 s | 1.7 s | 1.7 s |
+| 8 | 2.3 s | 2.3 s | 2.7 s | 2.7 s |
+| 12 | 4.9 s | 5.0 s | 10.1 s | 10.1 s |
+| 16 | 16.4 s | 16.4 s | 8.6 s ‡ | 8.7 s ‡ |
+
+`measure-chains.sh`'s stand-ins model operators only, so they do not change;
+re-run on this machine, the `dialect` shape takes 12.7, 15.4, 19.1, and
+22.6 ms at 4, 8, 12, and 16 terms, and `dialect-two` 13.8, 19.2, 23.1, and
+28.9 ms.
+
+### Library build time and size
+
+Rebuilding the `SwiftQL` target after touching every source, three
+interleaved runs each, and the size of its release objects:
+
+| | base | branch |
+| --- | ---: | ---: |
+| debug build | 5.5 to 5.7 s | 5.5 to 5.8 s |
+| release build | 10.6 to 10.8 s | 10.5 to 10.7 s |
+| release object files | 10,113,352 bytes | 10,177,000 bytes (+0.6 %) |
+| release `SwiftQL.o` | 5,027,176 bytes | 5,130,176 bytes (+2.0 %) |
+
+These builds use the toolchain's newer build system, so they are not
+comparable with the table for #789 above, which used the other one.
+
+### The static field's run-time check
+
+A static row field's factories still take their expression erased, so the
+field checks its dialect with a `Mirror` walk when it is built. In a debug
+build, building a field of a column takes 1.8 µs, which the walk barely
+touches, because a column records its dialect; a field of an expression that
+joins eight terms takes 24 µs, of which the walk is 22 µs. A field is built
+when its layout is built, not per row.
+

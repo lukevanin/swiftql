@@ -723,19 +723,62 @@ let adults = sql { schema in
 ```
 
 ``XLExpression`` is the protocol every expression conforms to, whatever its
-dialect. A clause that does not compose its expression, such as `Where`,
-`OrderBy`, or a column assignment, takes an `XLExpression`, but an operator or
-a function does not: an `any XLExpression<Int>` cannot be compared or added to.
-Declare it `any XLSQLiteExpression<Int>` instead. A type of your own that
-conforms to `XLExpression` to be used as an operand conforms to
+dialect. An operator, a function, and a clause take the dialect's own protocol
+instead: an `any XLExpression<Int>` cannot be compared, added to, or passed to
+`Where`. Declare it `any XLSQLiteExpression<Int>`. A type of your own that
+conforms to `XLExpression` to be used in a query conforms to
 `XLSQLiteExpression` as well; `XLCustomType` and `XLEnum` already include it.
 
 A function that only SQLite has, such as `collate(_:)`, `regexp(_:)`,
 `glob(_:)`, `iif`, `printf(_:)`, the type casts, the JSON functions, and the
-date functions, is declared only on `XLSQLiteExpression`. Calling one on a column of a model
-declared for another dialect, or on an expression composed from one, or
-comparing that column with a SQLite column, is a compile error at the call
-site. A clause such as `Where` or `From` takes any expression or table, so it
-does not check the dialect of an expression built from Swift values alone,
-such as `"a".regexp("b")`, or of a column or table taken from another
-dialect's schema and passed to it directly.
+date functions, is declared only on `XLSQLiteExpression`. Calling one on a
+column of a model declared for another dialect, or on an expression composed
+from one, or comparing that column with a SQLite column, is a compile error at
+the call site.
+
+### Clauses and statements
+
+A statement belongs to a dialect too. `sql { }` builds a SQLite statement, and
+`sql(dialect:_:)` builds one of the dialect it names. Each clause of the body,
+`Select`, `From` and the joins, `Where`, `GroupBy`, `Having`, `OrderBy`,
+`Limit`, `Offset`, and `With`, takes only that dialect's tables, common tables,
+and expressions. So do the functional forms, such as `select(_:)`,
+`where(_:)`, and `innerJoin(_:on:)`, ``QueryBuilder``, the insert, update, and
+delete statements, and `returning(_:)`. A table, a column, or an expression of
+another dialect passed to a clause is a compile error at the clause, and the
+error names both dialects.
+
+A clause built from Swift values alone, such as `Where(true)` or `Limit(10)`,
+takes the dialect of the query it is written in, because the query's result
+builder chooses the clause's initializer. In a second dialect's query,
+`Where("a".regexp("b"))` is an error: `regexp(_:)` is SQLite's.
+
+A subquery, a common table, and a branch of a compound select take a
+statement of the containing statement's dialect, an
+``XLDialectQueryStatement``. `sql { }` returns one, and it is also an
+``XLQueryStatement``, so a query stored or run as an `any XLQueryStatement<Row>`
+keeps working. A statement stored as `any XLQueryStatement<Row>` has lost its
+dialect, so it cannot become a subquery or a branch; store it as an
+`any XLDialectQueryStatement<Row, XLSQLiteDialect>` instead. The schema-less
+`subquery { }` and `subqueryExpression { }` are SQLite's; another dialect
+writes `schema.subquery { }`.
+
+A few parts of a query take any expression, so the compiler does not check
+their dialect:
+
+- An expression node built through its public initializer, such as
+  `XLBinaryOperatorExpression(op:lhs:rhs:)`. A node belongs to every dialect,
+  so building one directly is the way to write SQL that SwiftQL does not
+  model, and it is not checked. The operators and functions build nodes
+  through their dialect's surface.
+- The value slots of a model's generated metadata: a column assignment in
+  `Setting { row in ... }` or `onConflict(_:doUpdate:)`, and the arguments of
+  `columns(...)` and `#row(...)`. The macros write these slots' types without
+  knowing which protocol is the model's dialect's.
+- The expression of a static row field, which the field factories, such as
+  ``XLStaticSelectField/intrinsic(selecting:identifiedBy:using:context:)``,
+  take erased so that a generated layout can build its fields for any dialect.
+  The field checks the expression's dialect when it is built and throws
+  ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``.
+  The layout itself belongs to its dialect, so a layout of another dialect is
+  a compile error in `Select`.

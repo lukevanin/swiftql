@@ -40,14 +40,35 @@ fi
 
 python3 "$script_directory/generate_shipped.py" "$work/generated"
 
+builds=()
+plugins=()
+for root in "${roots[@]}"; do
+    # SwiftPM's binary directory depends on the toolchain and build system,
+    # so ask for it rather than assume `.build/debug`. SwiftPM 5.9 names the
+    # macro executable `SQLMacros-tool`; newer toolchains name it after the
+    # target.
+    build="$(swift build --package-path "$root" --show-bin-path)"
+    plugin="$(
+        find "$build" -maxdepth 1 -type f \
+            \( -name 'SQLMacros-tool' -o -name 'SQLMacros' \) -perm -u+x -print |
+            head -n 1
+    )"
+    if [[ -z "$plugin" ]]; then
+        printf 'error: no SQLMacros plugin in %s; build the package first\n' "$build" >&2
+        exit 1
+    fi
+    builds+=("$build")
+    plugins+=("$plugin")
+done
+
 compile() {
-    local root="$1"
+    local index="$1"
     shift
-    local build="$root/.build/debug"
+    local root="${roots[$index]}"
     swiftc -swift-version 6 -typecheck \
-        -I "$build" \
+        -I "${builds[$index]}" \
         -I "$root/.build/checkouts/GRDB.swift/Sources/GRDBSQLite" \
-        -load-plugin-executable "$build/SQLMacros#SQLMacros" \
+        -load-plugin-executable "${plugins[$index]}#SQLMacros" \
         "$@"
 }
 
@@ -57,7 +78,7 @@ for _ in $(seq 1 "$repetitions"); do
     for body in clauses-30 clauses-120 clauses-450 chain-2 chain-4 chain-6 chain-8 chain-12 chain-16; do
         for index in "${!labels[@]}"; do
             if ! diagnostics="$(
-                compile "${roots[$index]}" -Xfrontend -debug-time-function-bodies \
+                compile "$index" -Xfrontend -debug-time-function-bodies \
                     "$work/generated/$body.swift" 2>&1
             )"; then
                 printf 'error: %s did not type-check against %s\n' "$body" "${labels[$index]}" >&2
@@ -105,7 +126,7 @@ for kind in misspelled wrong-type; do
         for index in "${!labels[@]}"; do
             start="$(python3 -c 'import time; print(time.time())')"
             message="$(
-                compile "${roots[$index]}" "$work/generated/$body.swift" 2>&1 |
+                compile "$index" "$work/generated/$body.swift" 2>&1 |
                     awk '/: error: / { sub(/.*: error: /, ""); print; exit }' || true
             )"
             end="$(python3 -c 'import time; print(time.time())')"
