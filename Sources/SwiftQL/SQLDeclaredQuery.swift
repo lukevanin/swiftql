@@ -22,8 +22,8 @@ import Foundation
 /// A database that renders its statements with an encoder a declared query
 /// can borrow (issue #113).
 ///
-/// Package. Every ``XLDriverRequestFactory`` provides one, so ``GRDBDatabase``
-/// and ``XLDriverDatabase`` both do. ``XLDeclaredQuery/init(database:name:cardinality:parameters:rowType:statement:)``
+/// Package. Every `XLDriverRequestFactory` provides one, so `GRDBDatabase`
+/// and `XLDriverDatabase` both do. `XLDeclaredQuery.init(database:...)`
 /// reads the encoder through this protocol rather than through a cast to one
 /// database type.
 ///

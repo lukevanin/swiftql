@@ -170,8 +170,8 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 ///
 public protocol XLValueCodingDatabase<Dialect>: XLDatabase {
 
-    /// The dialect statements are rendered for and values are checked
-    /// against.
+    /// The type of ``dialect``. The contextual binding and capture members
+    /// are written for `XLSQLiteDialect`.
     associatedtype Dialect: XLValueCodingDialect
 
     /// The dialect statements are rendered for and values are checked

@@ -9,8 +9,11 @@ internal import GRDBSQLite
 
 /// GRDB transport for SQLite dialect values.
 ///
-/// The driver is internal to the v1 compatibility facade. Public code depends
-/// on the adapter-neutral contracts from `SwiftQLCore`.
+/// The driver is not public API. Public code depends on the adapter-neutral
+/// contracts from `SwiftQLCore`. It is `package` rather than internal because
+/// ``GRDBDatabase`` hands it to the package `XLDriverRequestFactory`, so its
+/// connection, row handle, and physical statement types, and its witnesses
+/// of the driver contracts, are `package` too (issue #113).
 ///
 /// A driver is either pool-backed (the default: every connection access
 /// leases from the `DatabasePool`, exactly as before issue #284) or pinned to
