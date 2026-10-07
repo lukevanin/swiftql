@@ -6,6 +6,29 @@ import XCTest
 @_spi(GRDB) @testable import SwiftQL
 
 
+/// The names the static-query helpers had before issue #113, which remain as
+/// deprecated typealiases. A deprecated declaration can name deprecated
+/// symbols without a warning, and nothing uses this one, so it only proves
+/// that each old name still compiles as the type it was renamed to.
+@available(*, deprecated, message: "Compile-only check of the pre-#113 names.")
+private enum PreIssue113StaticQueryNames {
+
+    static func error(_ error: GRDBStaticQueryError) -> XLStaticQueryInvocationError {
+        error
+    }
+
+    static func argument(_ argument: GRDBStaticQueryArgument) -> XLStaticQueryArgument {
+        argument
+    }
+
+    static func builder(
+        _ builder: GRDBStaticQueryInvocationBuilder
+    ) -> XLStaticQueryInvocationBuilder {
+        builder
+    }
+}
+
+
 final class StaticQueryDescriptorGRDBTests: XCTestCase {
 
     func testDescriptorPreparedBeforeDatabaseExecutesEveryCardinality() throws {

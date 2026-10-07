@@ -721,8 +721,9 @@
   `XLDatabase` with the database's `dialect` and `codingConfiguration`.
   `GRDBDatabase` and `XLDriverDatabase` conform, and the
   `contextualBinding(_:expressedAs:...)` and `queryCapture(_:...)` members
-  they each had are now written once, on the protocol, for a SQLite
-  database. A call on either database compiles unchanged, and a function
+  they each had are now written once, on the protocol, for any dialect that
+  conforms to `XLLiteralValueDialect`. A call on either database compiles
+  unchanged, and a function
   that takes `some XLValueCodingDatabase<XLSQLiteDialect>` can make the same
   calls without naming the driver.
 

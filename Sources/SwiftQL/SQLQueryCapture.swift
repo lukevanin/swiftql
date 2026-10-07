@@ -444,18 +444,19 @@ extension XLValueCodingConfiguration {
 }
 
 
-extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
+extension XLValueCodingDatabase {
 
     /// Declares a contextual capture using this database's immutable coding
-    /// configuration. Selection is constrained by `Literal`'s SQLite storage
-    /// representation before a default or unique candidate can be inferred.
+    /// configuration. Selection is constrained by `Literal`'s storage
+    /// representation in the database's dialect before a default or unique
+    /// candidate can be inferred.
     public func queryCapture<Input, Literal>(
         _ inputType: Input.Type,
         expressedAs literalType: Literal.Type,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    ) throws -> XLQueryCapture<Input, Literal, Dialect>
     where Literal: XLLiteral {
         try codingConfiguration.queryCapture(
             inputType,
@@ -468,14 +469,14 @@ extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
     }
 
     /// Declares a contextual capture using a typed SQL expression as the
-    /// source of literal type, nullability, and SQLite storage metadata.
+    /// source of literal type, nullability, and storage metadata.
     public func queryCapture<Input, Literal>(
         _ inputType: Input.Type,
         matching expression: any XLExpression<Literal>,
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    ) throws -> XLQueryCapture<Input, Literal, Dialect>
     where Literal: XLLiteral {
         try codingConfiguration.queryCapture(
             inputType,

@@ -7,8 +7,9 @@
 //  `XLFunctionArgumentReader` (issue #683).
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560), as `GRDBRowDecoder`. It
-//  never read a GRDB type beyond the one GRDB row overload, which now lives
-//  with the GRDB driver in GRDBRequestPhaseProbe.swift (issue #113).
+//  never read a GRDB type beyond the one GRDB row overload, which only the
+//  benchmark harness calls and which now sits beside the benchmark seams in
+//  GRDBRequestPhaseProbe.swift (issue #113).
 //
 
 

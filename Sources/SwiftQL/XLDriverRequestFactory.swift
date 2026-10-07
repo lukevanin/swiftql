@@ -19,22 +19,15 @@ import Foundation
 /// their requests, write requests, prepared invocations, and static queries
 /// through one implementation, and differ only in the driver they hold.
 ///
-package protocol XLDriverRequestFactory: XLEncoderProviding {
+package protocol XLDriverRequestFactory: XLEncoderProviding, XLValueCodingDatabase
+    where Dialect == XLSQLiteDialect
+{
 
     associatedtype Driver: XLBlockingDatabaseDriver & XLObservingDatabaseDriver
         where Driver.Dialect == XLSQLiteDialect
 
     /// The driver every request this database makes runs on.
     var driver: Driver { get }
-
-    /// The encoder statements are rendered with.
-    var encoder: XLEncoder { get }
-
-    /// The dialect statements are rendered for and values are checked against.
-    var dialect: XLSQLiteDialect { get }
-
-    /// The immutable value-coding policy every request captures.
-    var codingConfiguration: XLValueCodingConfiguration { get }
 
     /// The logger every request reports to.
     var logger: XLLogger? { get }

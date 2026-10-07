@@ -170,9 +170,8 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 ///
 public protocol XLValueCodingDatabase<Dialect>: XLDatabase {
 
-    /// The type of ``dialect``. The contextual binding and capture members
-    /// are written for `XLSQLiteDialect`.
-    associatedtype Dialect: XLValueCodingDialect
+    /// The type of ``dialect``.
+    associatedtype Dialect: XLLiteralValueDialect
 
     /// The dialect statements are rendered for and values are checked
     /// against.
@@ -184,7 +183,7 @@ public protocol XLValueCodingDatabase<Dialect>: XLDatabase {
 }
 
 
-extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
+extension XLValueCodingDatabase {
 
     /// Resolves a named contextual parameter against this database's immutable
     /// coding snapshot.
@@ -195,7 +194,7 @@ extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
         nullability: XLParameterNullability = .required,
         context: XLValueCodingContext? = nil,
         selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
     where Literal: XLLiteral {
         try contextualBinding(
             valueType,
@@ -216,7 +215,7 @@ extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
         nullability: XLParameterNullability = .required,
         context: XLValueCodingContext? = nil,
         selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
     where Literal: XLLiteral {
         try contextualBinding(
             valueType,
@@ -236,7 +235,7 @@ extension XLValueCodingDatabase where Dialect == XLSQLiteDialect {
         nullability: XLParameterNullability = .required,
         context: XLValueCodingContext? = nil,
         selection: XLValueCodecSelection = XLValueCodecSelection()
-    ) throws -> XLContextualBindingReference<Value, Literal, XLSQLiteDialect>
+    ) throws -> XLContextualBindingReference<Value, Literal, Dialect>
     where Literal: XLLiteral {
         try codingConfiguration.contextualBinding(
             valueType,

@@ -20,7 +20,8 @@ extension XLDriverRequest {
     ///
     /// ## Why this exists
     ///
-    /// GRDB 7 declares an observation's fetch closure `@Sendable`, and
+    /// `XLObservingDatabaseDriver` takes an observation's fetch closure as
+    /// `@Sendable`, as GRDB 7 requires of its own, and
     /// `AsyncThrowingStream`'s `unfolding` closure is `@Sendable` too. Every
     /// value a live query carries must therefore be `Sendable`. Two of the
     /// three are, and honestly so: ``XLInvocationExecutor`` is a `Sendable`
