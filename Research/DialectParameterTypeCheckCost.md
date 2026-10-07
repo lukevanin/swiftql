@@ -473,3 +473,100 @@ touches, because a column records its dialect; a field of an expression that
 joins eight terms takes 24 µs, of which the walk is 22 µs. A field is built
 when its layout is built, not per row.
 
+
+## The macros' value slots (issue #825)
+
+**Recorded 8 October 2026** for issue #825. Swift 6.4, macOS 26.6.2, Apple M4
+Pro. Base: `version/2.0` at `3ab82d40`. The machine was shared with other
+builds throughout, so every time below is slower than the same body in the
+#822 tables above; base and branch were interleaved inside each repetition,
+so the load fell on both alike.
+
+The macros' value slots took any expression after #822: an assignment in
+`Setting { row in ... }`, the generated `MetaUpdate`, `MetaInsert`, and
+`SQLReader` initializers, `columns(...)`, and `#row(...)`. Issue #825 types
+them by the model's dialect, without a generic dialect parameter on any
+operator:
+
+- Each dialect's generated surface declares a generic typealias on its
+  dialect type, `XLAnyExpression<T> = any XLSQLiteExpression<T>` for SQLite,
+  and the macros write a slot as `SwiftQL.XLSQLiteDialect.XLAnyExpression<T>`
+  from the dialect type they already know. The typealias names the
+  existential itself, so it needs only generic typealiases and parameterized
+  existentials, not a compiler that specializes a typealias of a protocol.
+- `#row(...)` builds SQLite rows, so its declaration takes
+  `any XLSQLiteExpression<C>`.
+- A slot stores its expression erased, as before, so a read of a `Setting`
+  slot returns it wrapped in `XLTypeAffinityExpression`, which is an
+  expression of every dialect.
+
+### Type-check time
+
+`measure-shipped.sh base=<version/2.0> branch=<this branch>`, median of 9
+runs. The `setting` bodies are one `Setting` closure of 10, 40, and 120
+assignments of values, `nil`, columns, and composed expressions;
+`columns-10` passes ten composed or column arguments to `columns(...)`, and
+`row-6` six to `#row(...)`.
+
+| Body | base | branch |
+| --- | ---: | ---: |
+| 30 separate clauses | 45.7 ms | 47.3 ms (+4 %) |
+| 120 separate clauses | 137.1 ms | 140.1 ms (+2 %) |
+| 450 separate clauses | 1157.7 ms | 943.4 ms (−19 %) |
+| one `Where` of 2 terms | 18.5 ms | 19.4 ms (+5 %) |
+| one `Where` of 4 terms | 20.0 ms | 18.6 ms (−7 %) |
+| one `Where` of 6 terms | 25.7 ms | 22.2 ms (−14 %) |
+| one `Where` of 8 terms | 24.9 ms | 25.4 ms (+2 %) |
+| one `Where` of 12 terms | 32.5 ms | 31.6 ms (−3 %) |
+| one `Where` of 16 terms | 44.0 ms | 36.5 ms (−17 %) |
+| `Setting` of 10 assignments | 22.7 ms | 23.6 ms (+4 %) |
+| `Setting` of 40 assignments | 35.8 ms | 33.4 ms (−7 %) |
+| `Setting` of 120 assignments | 86.8 ms | 89.8 ms (+3 %) |
+| `columns(...)` of 10 arguments | 22.5 ms | 23.5 ms (+4 %) |
+| `#row(...)` of 6 arguments | 16.7 ms | 18.9 ms (+13 %) |
+
+The clause and predicate bodies use no value slot, and every difference in
+them is within the run-to-run spread under this load, in both directions.
+A `Setting` body grows with its assignments at the base's rate: each
+assignment is its own statement, and choosing among the three subscripts
+does not depend on the slot's existential. A first, five-run pass made after
+only the `Setting` slots were converted gave the same picture (setting-120
+112.6 ms base, 97.6 ms branch).
+
+A mistake in the last term of one predicate, user plus system CPU time of one
+compile, median of 3 (7 at 6 and 8 terms), with the same first error on both:
+
+| Terms | misspelled column, base | branch | wrong value type, base | branch |
+| ---: | ---: | ---: | ---: | ---: |
+| 6 | 1.9 s | 1.9 s | 2.0 s | 2.0 s |
+| 8 | 2.8 s | 2.8 s | 3.4 s | 3.3 s |
+| 12 | 7.3 s | 7.4 s | 12.8 s | 13.1 s |
+| 16 | 22.8 s | 22.8 s | 10.9 s ‡ | 10.8 s ‡ |
+
+‡ Both give up ("unable to type-check this expression in reasonable time").
+The misspelled column's message is byte-identical (`value of type
+'GateRow.MetaNamedResult' has no member 'txet0'`), and the type-safety gate's
+three pinned messages are unchanged. `measure-shipped.sh` times one compile
+of each by wall clock, which on this shared machine varied by up to a factor
+of two between neighbouring runs of the same file, so these were re-timed by
+CPU time and repeated.
+
+### Library build time and size
+
+Rebuilding the `SwiftQL` target after touching every source, three
+interleaved runs each, and the loaded size of the release `SwiftQL.o`. The
+object files' sizes on disk include the source paths, which differ in length
+between the two checkouts, so the sections are compared instead.
+
+| | base | branch |
+| --- | ---: | ---: |
+| debug build | 8.0 to 12.2 s | 7.3 to 13.5 s |
+| release build | 14.0 to 14.6 s | 13.3 to 14.9 s |
+| release `SwiftQL.o`, loaded sections | 1,808,056 bytes | 1,811,352 bytes (+0.2 %) |
+| release `SwiftQL.o`, `__text` | 1,087,744 bytes | 1,090,320 bytes (+0.2 %) |
+
+The library's own code grows only by SwiftQL's own `@SQLResult` models
+(`SQLScalarResult`, `SQLRow2` to `SQLRow6`), whose generated slots now wrap a
+read in `XLTypeAffinityExpression`, and by one conformance of
+`XLLegacyDynamicValueExpression`, which the generated `UpdateRequest` assigns
+through a slot.

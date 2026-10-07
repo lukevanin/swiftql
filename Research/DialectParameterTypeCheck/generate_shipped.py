@@ -11,7 +11,10 @@ Every file declares the same `@SQLTable` model, whose columns are the ones
 builder of N clauses, each one of `generate.CLAUSE_SHAPES`, as in the stand-in
 harness. The chain bodies hold a single `Where` whose predicate joins N
 comparisons with `&&`: one expression, which the type checker solves as a
-whole, unlike the separate clauses of the other bodies.
+whole, unlike the separate clauses of the other bodies. The `setting` bodies
+hold one `Setting` closure of N assignments, and `columns-10` and `row-6` one
+call of `columns(...)` and of `#row(...)`: the macros' value slots (issue
+#825).
 
 Usage: generate_shipped.py <output-directory>
 """
