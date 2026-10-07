@@ -200,10 +200,11 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     /// Finds a `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET` clause in a right-hand
     /// branch, or a right-hand branch that is itself a compound (issue #657).
     ///
-    /// The compound methods accept any `XLQueryStatement`, so that callers who
-    /// pass an erased statement keep compiling. The check therefore runs here,
-    /// and the compound reports the clause when it renders, before SQLite
-    /// prepares the statement. Only the branch's own top-level clauses are
+    /// The compound methods accept any statement of the compound's dialect,
+    /// erased to `any XLDialectQueryStatement`, so a branch's clauses are not
+    /// part of its type. The check therefore runs here, and the compound
+    /// reports the clause when it renders, before SQLite prepares the
+    /// statement. Only the branch's own top-level clauses are
     /// read: a subquery or common table inside the branch may have its own.
     ///
     /// A nested compound is rejected because SQLite groups compound operators
