@@ -474,4 +474,93 @@ final class DialectTypeParameterTests: XCTestCase {
             .returning(sqlitePerson)
         XCTAssertTrue(try sqliteSQL(built).hasSuffix(#"RETURNING "id", "name", "nickname""#))
     }
+
+    // MARK: - The macros' value slots (issue #825)
+
+    // Each value slot takes the model's dialect's expressions and Swift
+    // values. That these compile proves the second dialect's slots take its
+    // columns and composed expressions; the gate proves the refusals.
+
+    func testASettingAssignmentTakesTheModelDialect() throws {
+        let sqlite = sql { schema in
+            let person = schema.into(DialectSQLitePerson.self)
+            Update(person)
+            Setting<DialectSQLitePerson> { row in
+                row.id = person.id + 1
+                row.name = person.name
+                row.nickname = nil
+            }
+            Where(person.id == 1)
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting<DialectSecondPerson> { row in
+                row.id = person.id + 1
+                row.name = person.name
+                row.nickname = nil
+            }
+            Where(person.id == 1)
+        }
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+        XCTAssertEqual(
+            try secondSQL(second),
+            #"UPDATE "person" AS "t0" SET "id" = ("t0"."id" + 1),"name" = "t0"."name","nickname" = NULL WHERE ("t0"."id" == 1)"#
+        )
+    }
+
+    func testTheGeneratedInitializersTakeTheModelDialect() throws {
+        let sqlite = sql { schema in
+            let person = schema.into(DialectSQLitePerson.self)
+            Update(person)
+            Setting(DialectSQLitePerson.MetaUpdate(name: person.name + "!", nickname: person.nickname))
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting(DialectSecondPerson.MetaUpdate(name: person.name + "!", nickname: person.nickname))
+        }
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+
+        let name = XLNamedBindingReference<String>(name: "name")
+        let sqliteInsert = sql { schema in
+            Insert(schema.table(DialectSQLitePerson.self))
+            Values(DialectSQLitePerson.MetaInsert(id: 1, name: name, nickname: nil as String?))
+        }
+        let secondInsert = sql(dialect: FakeSecondDialect.self) { schema in
+            Insert(schema.table(DialectSecondPerson.self))
+            Values(DialectSecondPerson.MetaInsert(id: 1, name: name, nickname: nil as String?))
+        }
+        XCTAssertEqual(try secondSQL(secondInsert), try sqliteSQL(sqliteInsert))
+    }
+
+    func testColumnsTakesTheModelDialect() throws {
+        let statement = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.table(DialectSecondPerson.self)
+            Select(DialectSecondName.columns(name: person.name + "!"))
+            From(person)
+        }
+        XCTAssertEqual(
+            try secondSQL(statement),
+            #"SELECT ("t0"."name" || '!') AS "name" FROM "person" AS "t0""#
+        )
+    }
+
+    func testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect() throws {
+        var update = DialectSecondPerson.MetaUpdate()
+        XCTAssertNil(update.name)
+        update.name = "a"
+        update.nickname = nil
+        // A read of the slot is an expression of the model's dialect, so it
+        // can be assigned back.
+        let name: (any FakeSecondDialectExpression<String>)? = update.name
+        XCTAssertNotNil(name)
+        update.id = 2
+        let nickname: any FakeSecondDialectExpression<String?> = update.nickname
+        update.nickname = nickname
+        XCTAssertEqual(
+            try secondSQL(Setting<DialectSecondPerson>(update)),
+            #"SET "id" = 2,"name" = 'a',"nickname" = NULL"#
+        )
+    }
 }

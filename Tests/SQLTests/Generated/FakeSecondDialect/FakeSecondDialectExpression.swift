@@ -52,21 +52,21 @@ protocol FakeSecondDialectExpression<T>: XLExpression {
 }
 
 
-// MARK: - The dialect's name for its expression protocol
+// MARK: - The dialect's name for its expressions
 
 
 extension FakeSecondDialect {
 
     ///
-    /// The expression protocol of the SQLTests second dialect: `FakeSecondDialectExpression`.
+    /// Any expression of the SQLTests second dialect: `any FakeSecondDialectExpression<T>`.
     ///
-    /// The macros write a model's value slots, such as an assignment in
-    /// `Setting { row in ... }`, an argument of `columns(...)`, and an
-    /// argument of `#row(...)`, as `any Dialect.XLExpressionProtocol<T>`,
-    /// naming the protocol from the model's dialect type, so a slot takes only
-    /// the SQLTests second dialect expressions and Swift values (issue #825).
+    /// The macros type a model's value slots, such as an assignment in
+    /// `Setting { row in ... }` and an argument of `columns(...)`, as
+    /// `Dialect.XLAnyExpression<T>`, naming the expression protocol through
+    /// the model's dialect type, so a slot takes only the SQLTests second dialect
+    /// expressions and Swift values (issue #825).
     ///
-    typealias XLExpressionProtocol = FakeSecondDialectExpression
+    typealias XLAnyExpression<T> = any FakeSecondDialectExpression<T>
 }
 
 

@@ -837,7 +837,7 @@ final class SQLMacroExpansionTests: XCTestCase {
                 let id: Int
                 let name: String?
 
-                public static func columns(id: any SwiftQL.XLExpression<Int>, name: any SwiftQL.XLExpression<String?>) -> MetaResult {
+                public static func columns(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>, name: SwiftQL.XLSQLiteDialect.XLAnyExpression<String?>) -> MetaResult {
                         return Self.makeSQLAnonymousResult(
                             namespace: XLNamespace.table(),
                             dependency: XLSelectResultDependency(),
@@ -1480,7 +1480,7 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeColumnsFunction()
         let extensionSource = builder.makeMetaResultExtension(table: false)
 
-        XCTAssertTrue(source.contains("public static func columns(id: any SwiftQL.XLExpression<String>, result: any SwiftQL.XLExpression<Int>) -> MetaResult"))
+        XCTAssertTrue(source.contains("public static func columns(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<String>, result: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>) -> MetaResult"))
         XCTAssertTrue(source.contains("return Self.makeSQLAnonymousResult("))
         XCTAssertTrue(source.contains("namespace: XLNamespace.table(),"))
         XCTAssertTrue(source.contains("dependency: XLSelectResultDependency(),"))
@@ -1855,19 +1855,28 @@ final class MetaBuilderTests: XCTestCase {
         // and the disfavored optional-typed overload for nullable slots.
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
             )
         )
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
             )
         )
         XCTAssertTrue(source.contains("@_disfavoredOverload"))
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>"
             )
+        )
+
+        // Issue #825: a read returns the stored expression through a node
+        // that is an expression of every dialect.
+        XCTAssertTrue(
+            source.contains("_xlColumns[keyPath: keyPath].expression.map { SwiftQL.XLTypeAffinityExpression<Wrapped>(expression: $0) }")
+        )
+        XCTAssertTrue(
+            source.contains("SwiftQL.XLTypeAffinityExpression<Optional<Wrapped>>(expression: _xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>())")
         )
 
         // The slots carry "was this column assigned at all", so the SET
@@ -1883,10 +1892,10 @@ final class MetaBuilderTests: XCTestCase {
         // on the column's declared (qualified) type, and `nil` means "omit
         // this column from the statement".
         XCTAssertTrue(
-            source.contains("nickname: Optional<any XLExpression<String?>> = nil")
+            source.contains("nickname: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<String?>> = nil")
         )
         XCTAssertTrue(
-            source.contains("id: Optional<any XLExpression<Int>> = nil")
+            source.contains("id: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>> = nil")
         )
 
         // The generated expansion never needs `toNullable()` to bridge a
@@ -2113,7 +2122,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertEqual(builder.properties.map(\.name), ["id"])
     }
 
-    func test_valueSlotsTakeAnExpressionOfAnyDialect() throws {
+    func test_valueSlotsTakeTheModelDialectsExpressions() throws {
         let builder = try makeBuilder(
             """
             @SQLTable
@@ -2125,15 +2134,41 @@ final class MetaBuilderTests: XCTestCase {
         let result = builder.makeMetaResultExtension(table: true)
         let table = builder.makeMetaTableExtension()
 
-        // A projection, a row reader, an insert, and an update slot take a
-        // value as well as an expression, and do not compose it, so they keep
-        // the dialect-free `XLExpression` rather than a dialect's own
-        // expression protocol.
+        // Issue #825: a projection, a row reader, an insert, and an update
+        // slot take the model's dialect's expressions, named from the dialect
+        // type, which takes Swift values as well. The reader and the insert
+        // store what they are given erased.
+        XCTAssertTrue(result.contains("public init(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>)"))
         XCTAssertTrue(result.contains("private let id: any SwiftQL.XLExpression<Int>"))
-        XCTAssertTrue(table.contains("public init(id: any XLExpression<Int>)"))
-        XCTAssertTrue(table.contains("id: Optional<any XLExpression<Int>> = nil"))
+        XCTAssertTrue(table.contains("public init(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>)"))
+        XCTAssertTrue(table.contains("private let id: any XLExpression<Int>"))
+        XCTAssertTrue(table.contains("id: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>> = nil"))
         XCTAssertFalse(result.contains("XLSQLiteExpression"))
         XCTAssertFalse(table.contains("XLSQLiteExpression"))
+    }
+
+    func test_valueSlotsNameTheDeclaredDialectsExpressionProtocol() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(dialect: OtherDialect.self)
+            struct Order {
+                let id: Int
+                let note: String?
+            }
+            """
+        )
+        let result = builder.makeMetaResultExtension(table: true)
+        let table = builder.makeMetaTableExtension()
+        let columns = builder.makeColumnsFunction()
+
+        XCTAssertTrue(result.contains("public init(id: OtherDialect.XLAnyExpression<Int>, note: OtherDialect.XLAnyExpression<String?>)"))
+        XCTAssertTrue(columns.contains("public static func columns(id: OtherDialect.XLAnyExpression<Int>, note: OtherDialect.XLAnyExpression<String?>) -> MetaResult"))
+        XCTAssertTrue(table.contains("public init(id: OtherDialect.XLAnyExpression<Int>, note: OtherDialect.XLAnyExpression<String?>)"))
+        XCTAssertTrue(table.contains("-> Optional<OtherDialect.XLAnyExpression<Wrapped>>"))
+        XCTAssertTrue(table.contains("-> OtherDialect.XLAnyExpression<Optional<Wrapped>>"))
+        XCTAssertFalse(result.contains("XLSQLiteDialect"))
+        XCTAssertFalse(table.contains("XLSQLiteDialect"))
+        XCTAssertFalse(columns.contains("XLSQLiteDialect"))
     }
 }
 

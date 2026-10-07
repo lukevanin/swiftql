@@ -51,21 +51,21 @@ public protocol XLSQLiteExpression<T>: XLExpression {
 }
 
 
-// MARK: - The dialect's name for its expression protocol
+// MARK: - The dialect's name for its expressions
 
 
 extension XLSQLiteDialect {
 
     ///
-    /// The expression protocol of SQLite: `XLSQLiteExpression`.
+    /// Any expression of SQLite: `any XLSQLiteExpression<T>`.
     ///
-    /// The macros write a model's value slots, such as an assignment in
-    /// `Setting { row in ... }`, an argument of `columns(...)`, and an
-    /// argument of `#row(...)`, as `any Dialect.XLExpressionProtocol<T>`,
-    /// naming the protocol from the model's dialect type, so a slot takes only
-    /// SQLite expressions and Swift values (issue #825).
+    /// The macros type a model's value slots, such as an assignment in
+    /// `Setting { row in ... }` and an argument of `columns(...)`, as
+    /// `Dialect.XLAnyExpression<T>`, naming the expression protocol through
+    /// the model's dialect type, so a slot takes only SQLite
+    /// expressions and Swift values (issue #825).
     ///
-    public typealias XLExpressionProtocol = XLSQLiteExpression
+    public typealias XLAnyExpression<T> = any XLSQLiteExpression<T>
 }
 
 

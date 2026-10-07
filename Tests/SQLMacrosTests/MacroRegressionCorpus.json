@@ -667,7 +667,7 @@
       "id": "macro.dialect-model-declaration",
       "category": "dialect-parameterised-emission",
       "title": "A model declared for a dialect, and its columns typed with it",
-      "description": "Issue #789: @SQLTable(dialect:) and @SQLResult(dialect:) name the dialect a model belongs to, and default to the module-qualified SwiftQL.XLSQLiteDialect. Every generated column is XLColumnReference<Value, Dialect> or XLColumnResult<Value, Dialect>, so it is an expression of that dialect's own protocol, such as XLSQLiteExpression, and of no other. The protocols' associated type is XLModelDialect, inferred from a generated _dialect witness; Swift makes an inferred associated type a member type of the model, so the name is in SwiftQL's prefix space and does not capture a user's own type named Dialect, top-level or nested. A property named _dialect is reported. The dialect argument must be a type literal. Slots that take a value without composing it, such as columns(...), inserts, and updates, keep the dialect-free XLExpression. A schema takes only a model of its dialect, an operator does not compose two dialects, and a SQLite-only function is absent from another dialect's columns and expressions; those are compile errors, and the misspelled-column error is unchanged.",
+      "description": "Issue #789: @SQLTable(dialect:) and @SQLResult(dialect:) name the dialect a model belongs to, and default to the module-qualified SwiftQL.XLSQLiteDialect. Every generated column is XLColumnReference<Value, Dialect> or XLColumnResult<Value, Dialect>, so it is an expression of that dialect's own protocol, such as XLSQLiteExpression, and of no other. The protocols' associated type is XLModelDialect, inferred from a generated _dialect witness; Swift makes an inferred associated type a member type of the model, so the name is in SwiftQL's prefix space and does not capture a user's own type named Dialect, top-level or nested. A property named _dialect is reported. The dialect argument must be a type literal. The value slots take the model's dialect's expressions (issue #825; see macro.dialect-value-slots). A schema takes only a model of its dialect, an operator does not compose two dialects, and a SQLite-only function is absent from another dialect's columns and expressions; those are compile errors, and the misspelled-column error is unchanged.",
       "provenance": {
         "inspiration": "n/a -- recorded from this repository's own issue #789, not adapted from an external case.",
         "upstream_reference": null,
@@ -678,7 +678,7 @@
         {
           "layer": "expansion",
           "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
-          "test_case": "MetaBuilderTests.test_columnsCarryTheDefaultSQLiteDialectModuleQualified / test_dialectArgumentNamesTheDialectEveryColumnCarries / test_resultDialectArgumentNamesTheDialectEveryResultColumnCarries / test_noMemberNamedDialectIsGenerated / test_nestedTypeNamedDialectIsAccepted / test_valueSlotsTakeAnExpressionOfAnyDialect"
+          "test_case": "MetaBuilderTests.test_columnsCarryTheDefaultSQLiteDialectModuleQualified / test_dialectArgumentNamesTheDialectEveryColumnCarries / test_resultDialectArgumentNamesTheDialectEveryResultColumnCarries / test_noMemberNamedDialectIsGenerated / test_nestedTypeNamedDialectIsAccepted"
         },
         {
           "layer": "diagnostics",
@@ -699,6 +699,35 @@
           "layer": "downstream-build",
           "source_path": "scripts/ci/check-dialect-type-parameter-type-safety.sh",
           "test_case": "DialectTypeParameterValid / DialectTypeParameterMixedComparison / DialectTypeParameterMixedComposed / DialectTypeParameterSQLiteOperationOnComposed / DialectTypeParameterMisspelledColumn"
+        }
+      ]
+    },
+    {
+      "id": "macro.dialect-value-slots",
+      "category": "dialect-parameterised-emission",
+      "title": "The macros' value slots take the model's dialect's expressions",
+      "description": "Issue #825: an assignment in Setting { row in ... } (the generated MetaUpdate's key-path subscripts), the generated MetaUpdate, MetaInsert, and SQLReader initializers, and the arguments of columns(...) are typed Dialect.XLAnyExpression<T>, where Dialect is the model's dialect type and XLAnyExpression<T> is the generic typealias for any of its expression protocol that each dialect's generated surface declares on the dialect type. #row(...) builds a SQLite row and takes XLSQLiteExpression. A slot takes the dialect's columns and composed expressions and Swift values, optionals, and bindings, which are expressions of every dialect; another dialect's expression is a compile error that names both dialects. A read of a Setting slot returns the assigned expression through XLTypeAffinityExpression, an expression of every dialect.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #825, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_valueSlotsTakeTheModelDialectsExpressions / test_valueSlotsNameTheDeclaredDialectsExpressionProtocol / test_metaUpdateRoutesColumnsThroughTypedSlots"
+        },
+        {
+          "layer": "second-dialect-execution",
+          "source_path": "Tests/SQLTests/DialectTypeParameterTests.swift",
+          "test_case": "DialectTypeParameterTests.testASettingAssignmentTakesTheModelDialect / testTheGeneratedInitializersTakeTheModelDialect / testColumnsTakesTheModelDialect / testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-dialect-type-parameter-type-safety.sh",
+          "test_case": "DialectTypeParameterValid / DialectSlotSettingForeignAssignment / DialectSlotInsertForeignValue / DialectSlotColumnsForeignArgument / DialectSlotRowForeignArgument"
         }
       ]
     },
