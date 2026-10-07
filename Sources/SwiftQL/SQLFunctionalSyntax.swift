@@ -371,6 +371,15 @@ public func with<Dialect>(_ commonTables: any XLDialectCommonTable<Dialect>...) 
 }
 
 
+///
+/// Specifies one common table of a model, in the dialect of its result, so
+/// generic code that names a model's `MetaCommonTable` can pass it.
+///
+public func with<T>(_ commonTable: T) -> XLWithStatement<T.Result.XLModelDialect> where T: XLMetaCommonTable {
+    XLWithStatement(_dialectSurface: [commonTable.definition])
+}
+
+
 
 // MARK: Result
 

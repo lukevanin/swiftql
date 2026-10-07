@@ -163,3 +163,11 @@ func customFunction() {
     _ = Whisper(text: person.name) == "a"
     _ = Whisper(text: "A")
 }
+
+
+/// Generic code that names a model's common table passes it to `With`, which
+/// checks the dialect of the common table's result.
+func genericCommonTable<T>(_ type: T.Type, _ commonTable: T.MetaCommonTable) -> With<XLSQLiteDialect> where T: XLTable, T.XLModelDialect == XLSQLiteDialect {
+    _ = with(commonTable)
+    return With(commonTable)
+}

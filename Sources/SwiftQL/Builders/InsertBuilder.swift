@@ -41,7 +41,7 @@ public struct InsertBuilder<Row> {
     ///
     /// Creates an insert using a common table expression.
     ///
-    public func with<T>(_ commonTable: T) -> InsertBuilder where T: XLDialectCommonTable, Row: XLTable, T.XLModelDialect == Row.XLModelDialect {
+    public func with<T>(_ commonTable: T) -> InsertBuilder where T: XLMetaCommonTable, Row: XLTable, T.Result.XLModelDialect == Row.XLModelDialect {
         copy {
             $0.commonTables.append(commonTable.definition)
         }

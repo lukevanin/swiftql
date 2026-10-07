@@ -78,9 +78,18 @@ public struct XLDialectQueryBuilder<Row, Dialect> where Dialect: XLSQLDialect {
     ///
     /// Creates a query using a common table expression.
     ///
-    public func with<T>(_ commonTable: T) -> XLDialectQueryBuilder where T: XLDialectCommonTable, T.XLModelDialect == Dialect {
+    public func with<T>(_ commonTable: T) -> XLDialectQueryBuilder where T: XLMetaCommonTable, T.Result.XLModelDialect == Dialect {
         copy {
             $0.commonTables.append(commonTable.definition)
+        }
+    }
+
+    ///
+    /// Adds a scalar common table expression to the query.
+    ///
+    public func with<Value>(_ scalarCommonTable: XLScalarCommonTable<Value, Dialect>) -> XLDialectQueryBuilder where Value: XLLiteral {
+        copy {
+            $0.commonTables.append(scalarCommonTable.definition)
         }
     }
 

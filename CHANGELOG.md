@@ -528,7 +528,10 @@
     `any XLDialectQueryStatement<Row, Dialect>`.
   - `With`, `with(_:)`, and the builders' `with(_:)` take an
     `XLDialectCommonTable` of the statement's dialect, a protocol that the
-    macros' common tables and `XLScalarCommonTable` conform to. The
+    macros' common tables and `XLScalarCommonTable` conform to; one model's
+    common table is checked by the dialect of its result, as
+    `schema.table(_:)` checks it, so generic code can pass a model's
+    `MetaCommonTable`. The
     initializers that took a raw `XLCommonTableDependency`, such as
     `With(cte.definition)` and `XLWithStatement(_:)`, are SwiftQL's
     dialect-surface SPI: pass the common table itself. Before:
@@ -539,7 +542,12 @@
     expression. A struct that
     declares its own initializer keeps it as written; type its parameters
     `any XLSQLiteExpression<...>` to have them checked. A call that passed an
-    erased `any XLExpression<T>` passes an `any XLSQLiteExpression<T>`.
+    erased `any XLExpression<T>` passes an `any XLSQLiteExpression<T>`. The
+    macro cannot see an initializer declared in an extension, so the struct
+    gets the generated one too: an extension initializer that delegates to
+    the memberwise one with an erased argument takes an
+    `any XLSQLiteExpression<...>` instead, and one with the generated
+    initializer's signature moves into the struct body.
   - `sqlUpdate(builder:)` and `sqlInsert(builder:)` take the closure's
     statement generically and require it to be a SQLite statement, and
     `sqlCreate(builder:)` and the create forms of `sql` require the table to

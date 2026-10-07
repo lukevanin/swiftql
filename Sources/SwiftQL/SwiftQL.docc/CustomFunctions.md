@@ -256,7 +256,10 @@ model declared for another dialect is a compile error. The generated
 initializer has the memberwise initializer's access, so it is `private` when a
 property is; a function used from other files declares its initializer, as
 `HaversineDistance` does. A declared initializer is kept as written, so type
-its parameters `any XLSQLiteExpression<...>` to have the compiler check them. The `name:` argument is optional and defaults to the
+its parameters `any XLSQLiteExpression<...>` to have the compiler check them.
+The macro sees only the struct's own body: declare such an initializer there,
+not in an extension, because an extension's initializer sits beside the
+generated one. The `name:` argument is optional and defaults to the
 struct's name, so `@SQLFunction(name: "haversineDistance")` above could have
 been written as plain `@SQLFunction` and inferred `HaversineDistance` instead.
 Installing and calling the function are unaffected by whether `makeSQL` was

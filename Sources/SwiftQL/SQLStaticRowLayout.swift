@@ -56,12 +56,6 @@ where Dialect: XLValueCodingDialect {
 
     /// The dialect the layout's fields are encoded for.
     public typealias XLModelDialect = Dialect
-
-    /// The dialect the layout's fields are encoded for.
-    public var _dialect: Dialect.Type {
-        Dialect.self
-    }
-
     public let metadata: XLStaticRowMetadata
 
     let fields: [XLAnyStaticSelectField<Dialect>]

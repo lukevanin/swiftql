@@ -143,7 +143,7 @@ internal struct FunctionMetaBuilder {
             if member.decl.is(InitializerDeclSyntax.self) {
                 return true
             }
-            if conditionally, member.decl.is(VariableDeclSyntax.self) {
+            if conditionally, let variable = member.decl.as(VariableDeclSyntax.self), isStoredInstanceProperty(variable) {
                 return true
             }
             guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
@@ -155,6 +155,26 @@ internal struct FunctionMetaBuilder {
                 }
                 return declaresInitializer(in: nested, conditionally: true)
             }
+        }
+    }
+
+    ///
+    /// Whether `variable` declares a stored instance property, which the
+    /// memberwise initializer takes: not `static` or `class`, and with a
+    /// binding that is not computed.
+    ///
+    private static func isStoredInstanceProperty(_ variable: VariableDeclSyntax) -> Bool {
+        let isTypeMember = variable.modifiers.contains { modifier in
+            modifier.name.text == "static" || modifier.name.text == "class"
+        }
+        guard !isTypeMember else {
+            return false
+        }
+        return variable.bindings.contains { binding in
+            guard let accessorBlock = binding.accessorBlock else {
+                return true
+            }
+            return !StoredPropertyClassifier.isComputed(accessorBlock)
         }
     }
 

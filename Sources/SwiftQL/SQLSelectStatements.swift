@@ -348,10 +348,13 @@ public struct With<Dialect>: XLDialectClause where Dialect: XLSQLDialect {
         self.commonTables = tables.map { $0.definition }
     }
 
-    /// Specifies one common table, such as a scalar common table. The same as
-    /// the variadic form, which it precedes so that a common table of another
-    /// dialect is reported as a mismatch of the two dialects.
-    public init<T>(_ table: T) where T: XLDialectCommonTable, T.XLModelDialect == Dialect {
+    /// Specifies one common table of a model. The same as the variadic form,
+    /// which it precedes so that a common table of another dialect is
+    /// reported as a mismatch of the two dialects. It checks the dialect of
+    /// the common table's result, as `XLSchema.table(_:as:)` does, so generic
+    /// code that names a model's `MetaCommonTable` can pass it.
+    /// A scalar common table takes the variadic form.
+    public init<T>(_ table: T) where T: XLMetaCommonTable, T.Result.XLModelDialect == Dialect {
         self.commonTables = [table.definition]
     }
 
