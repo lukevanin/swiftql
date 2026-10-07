@@ -366,6 +366,40 @@ final class SQLFunctionMacroTests: XCTestCase {
         )
     }
 
+    // Issue #822: a stored property inside an `#if` clause is not an
+    // argument, so a generated initializer would leave it unset; the
+    // memberwise initializer is kept.
+    func test_propertyUnderIfConfig_keepsTheMemberwiseInitializer() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+                #if DEBUG
+                let trace: any XLExpression<Int>
+                #endif
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+                #if DEBUG
+                let trace: any XLExpression<Int>
+                #endif
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                        }
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
     // Issue #822: a setter-only modifier such as `private(set)` does not
     // narrow the memberwise initializer, so the generated one is internal.
     func test_privateSetterArgument_givesAnInternalInitializer() {

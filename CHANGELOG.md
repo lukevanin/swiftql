@@ -497,10 +497,12 @@
     XLDialectQueryStatement<Int, XLSQLiteDialect> in ... }`, or no annotation. A statement stored as
     `any XLQueryStatement<Row>` cannot become a subquery or a branch; store it
     as `any XLDialectQueryStatement<Row, XLSQLiteDialect>`.
-  - `returning(_:)` takes a projection of the statement's dialect, so it
-    follows a statement whose dialect is known. A write statement erased to
-    `any XLInsertStatement`, `any XLUpdateStatement`, or
-    `any XLDeleteStatement`, such as one `sql { }` returns, has lost it.
+  - `returning(_:)` takes a projection of the dialect of the model the
+    statement writes, so it follows a statement whose model is known, such as
+    an `any XLInsertStatement<Person>` or `InsertBuilder`'s `build()`. A write
+    statement erased without its model, the `any XLInsertStatement`,
+    `any XLUpdateStatement`, or `any XLDeleteStatement` that `sql { }`
+    returns, has lost it.
     Before: `let s = sql { schema in Insert(t); Values(row) }` then
     `s.returning(t)`. After: `insert(t).values(row).returning(t)`.
     `sqlInsert(_:)` now returns its statement's type,

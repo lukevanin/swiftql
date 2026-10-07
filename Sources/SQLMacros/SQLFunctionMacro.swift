@@ -134,11 +134,16 @@ internal struct FunctionMetaBuilder {
     ///
     /// Whether `members` declare an initializer, including one inside an `#if`
     /// clause, which the generated initializer would sit beside rather than
-    /// replace.
+    /// replace, or a stored property inside an `#if` clause, which the
+    /// arguments do not include and so the generated initializer would leave
+    /// unset.
     ///
-    private static func declaresInitializer(in members: MemberBlockItemListSyntax) -> Bool {
+    private static func declaresInitializer(in members: MemberBlockItemListSyntax, conditionally: Bool = false) -> Bool {
         members.contains { member in
             if member.decl.is(InitializerDeclSyntax.self) {
+                return true
+            }
+            if conditionally, member.decl.is(VariableDeclSyntax.self) {
                 return true
             }
             guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
@@ -148,7 +153,7 @@ internal struct FunctionMetaBuilder {
                 guard case .decls(let nested) = clause.elements else {
                     return false
                 }
-                return declaresInitializer(in: nested)
+                return declaresInitializer(in: nested, conditionally: true)
             }
         }
     }
@@ -317,7 +322,8 @@ internal struct FunctionMetaBuilder {
     /// another dialect's model; this one does not. A struct with no
     /// arguments, an argument with an initial value, or an argument typed
     /// `some ...` keeps its memberwise initializer, which this cannot replace
-    /// faithfully, and is not checked. A struct that declares an initializer,
+    /// faithfully, and is not checked; so does a struct with a property inside
+    /// an `#if` clause. A struct that declares an initializer,
     /// also inside an `#if` clause, keeps it as written: the initializer's
     /// parameter types decide what it takes. The generated initializer has
     /// the memberwise initializer's access: `private` or `fileprivate` when a

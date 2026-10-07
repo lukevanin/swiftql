@@ -472,7 +472,6 @@ public protocol XLMetaCommonTable<XLModelDialect>: XLDialectCommonTable {
     /// of a generic model's common table circular, which the compiler
     /// rejects.
     associatedtype XLModelDialect = Result.XLModelDialect
-    var definition: XLCommonTableDependency { get }
 }
 
 

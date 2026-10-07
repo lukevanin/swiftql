@@ -465,5 +465,13 @@ final class DialectTypeParameterTests: XCTestCase {
         let inserted = sqlInsert(DialectSQLitePerson(id: 1, name: "a", nickname: nil))
             .returning(XLSchema().table(DialectSQLitePerson.self))
         XCTAssertTrue(try sqliteSQL(inserted).hasSuffix(#"RETURNING "id", "name", "nickname""#))
+
+        // A statement erased with its model keeps the model's dialect, so
+        // `returning(_:)` follows `InsertBuilder`'s `build()` too.
+        let built = try InsertBuilder(insert: sqliteSchema.table(DialectSQLitePerson.self))
+            .values(DialectSQLitePerson(id: 2, name: "b", nickname: nil))
+            .build()
+            .returning(sqlitePerson)
+        XCTAssertTrue(try sqliteSQL(built).hasSuffix(#"RETURNING "id", "name", "nickname""#))
     }
 }
