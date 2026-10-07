@@ -313,10 +313,10 @@ final class DriverDatabaseTests: XCTestCase {
 
     // MARK: - Declared queries
 
-    /// A declared query read from a driver database renders with that
-    /// database's encoder, as one read from a `GRDBDatabase` does (issue
-    /// #113). It used to throw `encoderUnavailable`.
-    func testDeclaredQueryRendersWithTheDriverDatabaseEncoder() throws {
+    /// A declared query read from a driver database still cannot borrow its
+    /// encoder (issue #113): its identity would carry the generic driver
+    /// argument. Issue #802 gives declared queries a driver-neutral host.
+    func testDeclaredQueryOnADriverDatabaseHasNoEncoder() throws {
         let query = XLDeclaredQuery(
             database: database!,
             name: "people",
@@ -326,22 +326,11 @@ final class DriverDatabaseTests: XCTestCase {
             statement: { self.selectPeople() }
         )
 
-        let lowered = try query.makeDescriptor()
-
-        XCTAssertEqual(
-            lowered.descriptor.statement.sql,
-            database.encoder.makeSQL(selectPeople()).sql
-        )
-        XCTAssertEqual(lowered.resultAliases.count, 2)
-        // The id names the generic database with its driver argument, and
-        // the descriptor carries the same definition identity.
-        let expectedID = "XLDriverDatabase<SwiftQLDriverDatabaseTests.ScriptedDriver>.people"
-        XCTAssertEqual(query.id, expectedID)
-        XCTAssertEqual(lowered.id, expectedID)
-        XCTAssertEqual(
-            lowered.descriptor.identity.definitionIdentity,
-            try query.definitionIdentity()
-        )
+        XCTAssertThrowsError(try query.makeDescriptor()) { error in
+            guard case .encoderUnavailable(_, _)? = error as? XLDeclaredQueryError else {
+                return XCTFail("Expected encoderUnavailable, got \(error)")
+            }
+        }
     }
 
     // MARK: - Render-once cache

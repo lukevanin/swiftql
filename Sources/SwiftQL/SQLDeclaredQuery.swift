@@ -22,10 +22,15 @@ import Foundation
 /// A database that renders its statements with an encoder a declared query
 /// can borrow (issue #113).
 ///
-/// Package. Every `XLDriverRequestFactory` provides one, so `GRDBDatabase`
-/// and `XLDriverDatabase` both do. `XLDeclaredQuery.init(database:...)`
-/// reads the encoder through this protocol rather than through a cast to one
-/// database type.
+/// Package. `GRDBDatabase` conforms. `XLDeclaredQuery.init(database:...)`
+/// reads the encoder through this protocol rather than through a cast to the
+/// GRDB database type.
+///
+/// `XLDriverDatabase` does not conform yet. A query's identity is its
+/// database's type name, and a generic database's name carries its driver
+/// argument, module and all, so it could change when the driver moves or
+/// is private. Declared queries move to a driver-neutral, non-generic host
+/// in issue #802.
 ///
 package protocol XLEncoderProviding {
 
@@ -95,9 +100,8 @@ public struct XLDeclaredQuery {
     /// Describes one declared query read from `database`.
     ///
     /// The query renders with the database's own encoder, so its descriptor
-    /// carries the SQL that database runs. A `GRDBDatabase` or an
-    /// `XLDriverDatabase` supplies its encoder. For another database type,
-    /// use
+    /// carries the SQL that database runs. A `GRDBDatabase` supplies its
+    /// encoder. For another database type, use
     /// ``init(databaseType:encoder:name:cardinality:parameters:rowType:statement:)``.
     ///
     /// - Parameters:

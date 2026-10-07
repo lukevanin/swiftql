@@ -19,6 +19,11 @@ import Foundation
 extension GRDBDatabase: XLDriverRequestFactory {}
 
 
+/// A declared query read from a `GRDBDatabase` renders with its encoder
+/// (issue #113).
+extension GRDBDatabase: XLEncoderProviding {}
+
+
 /// Implied by the package request factory, and written out because it is
 /// public API and the factory is not (issue #113).
 extension GRDBDatabase: XLValueCodingDatabase {}

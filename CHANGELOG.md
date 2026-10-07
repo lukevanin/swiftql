@@ -727,13 +727,6 @@
   without naming the driver. Both databases gain the member type
   `XLDatabaseDialect`, the protocol's associated type.
 
-- **A declared query read from an `XLDriverDatabase` can be lowered** (issue
-  #113). `XLDeclaredQuery.init(database:...)` now takes the encoder of an
-  `XLDriverDatabase`, as it does a `GRDBDatabase`'s, so `makeDescriptor()`
-  renders the query instead of throwing
-  `XLDeclaredQueryError.encoderUnavailable`. Any other database type still
-  throws it.
-
 - **An adapter supplies its own live-query change notification** (issue
   #684).
   - `XLObservingDatabaseDriver`, in SwiftQLCore, is an optional refinement of

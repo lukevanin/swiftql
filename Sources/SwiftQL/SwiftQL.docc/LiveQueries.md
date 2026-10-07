@@ -135,8 +135,9 @@ commit on a pool reader, not inline on the writer that committed, and commits th
 refetch runs coalesce into one more fetch.
 
 ``XLRequest`` is a public protocol with external conformers. `stream()` and `streamOne()` are its
-live-query requirements (issue #684), and `GRDBRequest` implements them with a true async-native GRDB
-observation source that never routes through Combine. The `bindings:` variants have compatibility
+live-query requirements (issue #684), and SwiftQL's own requests implement them with the driver's
+observation, which for the GRDB driver is a true async-native GRDB observation source that never
+routes through Combine. The `bindings:` variants have compatibility
 defaults for an adapter without invocation packets: an empty packet observes through `stream()` or
 `streamOne()`, and any other packet fails on the first `next()` call.
 

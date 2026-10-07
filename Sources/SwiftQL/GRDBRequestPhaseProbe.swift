@@ -208,19 +208,3 @@ package final class GRDBRequestPhaseConnection {
         try body(connection.grdbDatabase)
     }
 }
-
-
-extension XLRowDecoder {
-
-    /// Decodes one GRDB row, reading each column through the GRDB driver's
-    /// row handle, as `fetchAll()` does.
-    ///
-    /// Only the benchmark harness calls it, on rows it fetched with GRDB
-    /// directly. It is the decoder's only overload that names a GRDB type, so
-    /// it sits in this file, beside the other benchmark seams, which already
-    /// imports GRDB at package level, rather than with the decoder (issue
-    /// #113).
-    package func decode(_ row: GRDB.Row) throws -> Output {
-        try decode(row: GRDBRowHandle(row: row))
-    }
-}
