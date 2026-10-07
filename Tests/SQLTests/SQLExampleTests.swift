@@ -1778,6 +1778,23 @@ extension XLDocumentationTests {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
 
+        // Expressions and dialects (issue #789): a helper that composes part
+        // of a SQLite query takes and returns SQLite expressions.
+        func isAdult(_ age: any XLSQLiteExpression<Int>) -> some XLSQLiteExpression<Bool> {
+            age >= 18
+        }
+
+        let adults = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(isAdult(person.age))
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(adults).sql,
+            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.age >= 18)"
+        )
+
         let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
         let nickname = XLNamedBindingReference<String?>(name: "nickname")
         let expression = preferredName ?? nickname ?? "Anonymous"

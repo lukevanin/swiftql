@@ -116,6 +116,7 @@ enum V2NameCollisionFixture {
     typealias Check_DialectCapabilities = DialectCapabilities
     typealias Check_DialectDescriptor = DialectDescriptor
     typealias Check_DialectEncoder = DialectEncoder
+    typealias Check_DialectExpression = DialectExpression
     typealias Check_DialectIdentifier = DialectIdentifier
     typealias Check_DialectRequirement = DialectRequirement
     typealias Check_DialectValue = DialectValue
@@ -277,9 +278,11 @@ enum V2NameCollisionFixture {
     typealias Check_SQLValueEncodingError = SQLValueEncodingError
     typealias Check_SQLVocabulary = SQLVocabulary
     typealias Check_SQLiteDialect = SQLiteDialect
+    typealias Check_SQLiteExpression = SQLiteExpression
     typealias Check_SQLiteIdentifierFormattingOptions = SQLiteIdentifierFormattingOptions
     typealias Check_SQLiteNumericDateCodec = SQLiteNumericDateCodec
     typealias Check_SQLiteNumericDateCodecError = SQLiteNumericDateCodecError
+    typealias Check_SQLiteSchema = SQLiteSchema
     typealias Check_SQLiteStorageClass = SQLiteStorageClass
     typealias Check_SQLiteValue = SQLiteValue
     typealias Check_SQLiteValueReader = SQLiteValueReader

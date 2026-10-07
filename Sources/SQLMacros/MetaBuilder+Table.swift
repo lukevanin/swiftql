@@ -85,6 +85,7 @@ extension MetaBuilder {
 
             context.line("public typealias Row = \(structName)")
             context.line("public typealias Dependency = XLEncodable & XLColumnDependency")
+            context.line(makeDialectWitness(isStatic: false))
 
             context.line("public let _table: any XLEncodable")
 
@@ -92,7 +93,7 @@ extension MetaBuilder {
             context.line("private let _dependency: XLTableDeclaration")
             
             for property in properties {
-                context.line(property.makeColumnPropertyDecl(kind: .reference))
+                context.line(property.makeColumnPropertyDecl(kind: .reference, dialect: dialectType))
             }
 
             context.block("public init(namespace: XLNamespace, dependency: XLTableDeclaration)") { context in
@@ -100,7 +101,7 @@ extension MetaBuilder {
                 context.line("_dependency = dependency")
                 context.line("_table = dependency")
                 for property in properties {
-                    context.line(property.name + " = " + property.makeInstance(kind: .reference, dependency: "dependency"))
+                    context.line(property.name + " = " + property.makeInstance(kind: .reference, dialect: dialectType, dependency: "dependency"))
                 }
             }
             

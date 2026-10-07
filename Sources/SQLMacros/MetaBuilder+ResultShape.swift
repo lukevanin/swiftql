@@ -84,7 +84,7 @@ extension MetaBuilder {
         ["_namespace: namespace", "_dependency: \(dependency)"]
             + properties.map { property in
                 property.name + ": "
-                    + property.makeInstance(kind: kind, dependency: dependency)
+                    + property.makeInstance(kind: kind, dialect: dialectType, dependency: dependency)
             }
     }
 
@@ -129,7 +129,7 @@ extension MetaBuilder {
             for (property, binding) in zip(shape.properties, columnBindings) {
                 context.line(
                     "let \(binding): any SwiftQL.XLExpression<\(property.qualifiedType)>"
-                        + " = \(property.makeInstance(kind: shape.rowColumnKind, dependency: "dependency"))"
+                        + " = \(property.makeInstance(kind: shape.rowColumnKind, dialect: dialectType, dependency: "dependency"))"
                 )
             }
             let arguments = metaFactoryArguments(
@@ -200,12 +200,13 @@ extension MetaBuilder {
             .joined(separator: ", ")
         context.block("public struct \(shape.typeName): \(conformances)") { context in
             context.line("public typealias Row = \(shape.rowType)")
+            context.line(makeDialectWitness(isStatic: false))
             context.line("public typealias RowIterator = (XLRowReader) throws -> \(shape.rowType)")
             context.line("public let _namespace: XLNamespace")
             context.line("public let _dependency: \(shape.dependencyType)")
 
             for property in shape.properties {
-                context.line(property.makeColumnPropertyDecl(kind: columnKind))
+                context.line(property.makeColumnPropertyDecl(kind: columnKind, dialect: dialectType))
             }
 
             context.line("public let _iterator: RowIterator")

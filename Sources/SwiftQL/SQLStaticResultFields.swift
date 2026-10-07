@@ -17,6 +17,10 @@ extension XLValueCodingConfiguration {
     /// Creates a required contextual result field for `dialect`. `Storage` is
     /// a type witness for the selected SQL expression's intrinsic storage
     /// carrier; no value or `sqlDefault()` call is required.
+    ///
+    /// `expression` must be an expression of `dialect`, such as a column of a
+    /// model declared for it. Any other expression throws
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``.
     public func staticResultField<Value, Storage, Dialect>(
         _ valueType: Value.Type,
         selecting expression: any XLEncodable,
@@ -46,6 +50,7 @@ extension XLValueCodingConfiguration {
         let storageExpression = try _xlStaticStorageExpression(
             expression,
             as: storageType,
+            in: Dialect.self,
             identity: identity
         )
         return XLStaticSelectField(
@@ -96,6 +101,7 @@ extension XLValueCodingConfiguration {
         let storageExpression = try _xlStaticStorageExpression(
             expression,
             as: storageType,
+            in: Dialect.self,
             identity: identity
         )
         return XLStaticSelectField(
@@ -121,6 +127,11 @@ where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
 
     /// Creates a codec-free field for an intrinsic v1 literal whose storage in
     /// `dialect` is statically known. This never calls `sqlDefault()`.
+    ///
+    /// `expression` must be an expression of `dialect`, such as a column of a
+    /// model declared for it. A column of another dialect's model throws
+    /// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``
+    /// (issue #789).
     public static func intrinsic(
         selecting expression: any XLExpression<Value>,
         identifiedBy identity: XLQuerySlotIdentity,
@@ -129,6 +140,11 @@ where Dialect: XLLiteralValueDialect, Value: XLLiteral, Storage == Value {
     ) throws -> Self {
         let storage = try _xlStaticLiteralStorage(
             Value.self,
+            in: Dialect.self,
+            identity: identity
+        )
+        let expression = try _xlDialectExpression(
+            expression,
             in: Dialect.self,
             identity: identity
         )
@@ -245,20 +261,108 @@ func _xlStaticLiteralStorage<Dialect>(
 }
 
 
-func _xlStaticStorageExpression<Storage>(
+///
+/// Retypes a selected expression to its storage carrier, in the field's
+/// dialect.
+///
+/// The configuration's field factories take the expression erased, so the
+/// dialect is checked here, at run time, rather than by the compiler: see
+/// ``_xlDialectExpression(_:in:identity:)``.
+///
+func _xlStaticStorageExpression<Storage, Dialect>(
     _ expression: any XLEncodable,
     as storageType: Storage.Type,
+    in dialect: Dialect.Type,
     identity: XLQuerySlotIdentity
-) throws -> any XLExpression<Storage> {
+) throws -> XLDialectExpression<Storage, Dialect> {
+    let typed: any XLExpression<Storage>
     if let retypable = expression as? any XLStaticStorageRetypableExpression {
-        return retypable.staticStorageExpression(as: storageType)
+        typed = retypable.staticStorageExpression(as: storageType)
     }
-    guard let typed = expression as? any XLExpression<Storage> else {
+    else if let expression = expression as? any XLExpression<Storage> {
+        typed = expression
+    }
+    else {
         throw XLStaticRowLayoutError.expressionStorageTypeMismatch(
             identity: identity,
             expectedStorageType: String(reflecting: Storage.self),
             expressionType: String(reflecting: type(of: expression))
         )
     }
-    return typed
+    return try _xlDialectExpression(typed, in: dialect, identity: identity)
+}
+
+
+///
+/// The selected expression as an expression of the field's dialect.
+///
+/// Every part of the expression that records its dialect, such as a column of
+/// a model or a capture, must record `Dialect`: an expression that holds a
+/// column of a model declared for another dialect, at any depth, throws
+/// ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``
+/// (issue #789). Any other part, such as a value, belongs to every dialect.
+///
+/// The walk reads stored properties through `Mirror`, so it does not see into
+/// a closure; a `CASE` expression, which keeps its arms in closures, records
+/// its dialect itself. A part that records the expected dialect is trusted,
+/// and the walk does not descend into it. A field is built once per layout,
+/// so the walk is not on a per-row path.
+///
+func _xlDialectExpression<Storage, Dialect>(
+    _ expression: any XLExpression<Storage>,
+    in _: Dialect.Type,
+    identity: XLQuerySlotIdentity
+) throws -> XLDialectExpression<Storage, Dialect> {
+    var visited = Set<ObjectIdentifier>()
+    if let found = _xlForeignDialect(in: expression, expected: Dialect.self, visited: &visited) {
+        throw XLStaticRowLayoutError.expressionDialectMismatch(
+            identity: identity,
+            expectedDialect: String(reflecting: Dialect.self),
+            foundDialect: String(reflecting: found),
+            expressionType: String(reflecting: type(of: expression))
+        )
+    }
+    if let expression = expression as? XLDialectExpression<Storage, Dialect> {
+        return expression
+    }
+    return XLDialectExpression(expression)
+}
+
+
+///
+/// The dialect of the first part of `value` that records a dialect other than
+/// `expected`, or `nil` when every part that records one records `expected`.
+///
+func _xlForeignDialect(
+    in value: Any,
+    expected: Any.Type,
+    visited: inout Set<ObjectIdentifier>
+) -> Any.Type? {
+    if let tagged = value as? any XLDialectTaggedExpression {
+        return tagged.expressionDialect == expected ? nil : tagged.expressionDialect
+    }
+    // A literal value, such as a string, a number, or `Data`, belongs to
+    // every dialect, and walking it would only visit its contents.
+    if value is any XLLiteral {
+        return nil
+    }
+    // A value tree cannot be cyclic; only a reference can lead back to a part
+    // already walked, so each object is walked once.
+    if type(of: value) is AnyClass {
+        let object = value as AnyObject
+        guard visited.insert(ObjectIdentifier(object)).inserted else {
+            return nil
+        }
+    }
+    var mirror: Mirror? = Mirror(reflecting: value)
+    while let current = mirror {
+        for child in current.children {
+            if let found = _xlForeignDialect(in: child.value, expected: expected, visited: &visited) {
+                return found
+            }
+        }
+        // A class's inherited stored properties are its superclass's.
+        mirror = current.superclassMirror
+    }
+    return nil
 }

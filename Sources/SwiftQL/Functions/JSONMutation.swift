@@ -14,7 +14,7 @@ import Foundation
 ///
 /// See: https://www.sqlite.org/json1.html
 ///
-extension XLExpression {
+extension XLSQLiteExpression {
 
     // MARK: - Extraction
 
@@ -34,7 +34,7 @@ extension XLExpression {
     public func jsonExtract<Value>(
         at path: XLJSONPath,
         as _: Value.Type
-    ) -> some XLExpression<Value?> where T: XLLiteral, Value: XLLiteral {
+    ) -> some XLSQLiteExpression<Value?> where T: XLLiteral, Value: XLLiteral {
         XLFunction<Value?>(name: "json_extract", parameters: [self, path])
     }
 
@@ -55,7 +55,7 @@ extension XLExpression {
         at first: XLJSONPath,
         _ second: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<String?> where T: XLLiteral {
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_extract",
             parameters: [self, first, second] + rest
@@ -81,9 +81,9 @@ extension XLExpression {
     /// document gives `NULL`.
     ///
     public func jsonInserting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_insert",
             parameters: [self] + Self.flattened([first] + rest, function: "json_insert")
@@ -97,9 +97,9 @@ extension XLExpression {
     /// A path that holds nothing is left alone.
     ///
     public func jsonReplacing(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_replace",
             parameters: [self] + Self.flattened([first] + rest, function: "json_replace")
@@ -111,9 +111,9 @@ extension XLExpression {
     /// rendering SQLite's `json_set(X, P, V, ...)`.
     ///
     public func jsonSetting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_set",
             parameters: [self] + Self.flattened([first] + rest, function: "json_set")
@@ -131,7 +131,7 @@ extension XLExpression {
     public func jsonRemoving(
         at first: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<String?> where T: XLLiteral {
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_remove",
             parameters: [self, first] + rest
@@ -147,8 +147,8 @@ extension XLExpression {
     /// replaced whole, not merged.
     ///
     public func jsonPatched(
-        with patch: any XLExpression
-    ) -> some XLExpression<String?> where T: XLLiteral {
+        with patch: any XLSQLiteExpression
+    ) -> some XLSQLiteExpression<String?> where T: XLLiteral {
         XLFunction<String?>(name: "json_patch", parameters: [self, patch])
     }
 
@@ -156,10 +156,10 @@ extension XLExpression {
     /// Flattens path/value pairs into the flat argument list SQLite takes.
     ///
     private static func flattened(
-        _ assignments: [(XLJSONPath, any XLExpression)],
+        _ assignments: [(XLJSONPath, any XLSQLiteExpression)],
         function: String
-    ) -> [any XLExpression] {
-        var parameters: [any XLExpression] = []
+    ) -> [any XLSQLiteExpression] {
+        var parameters: [any XLSQLiteExpression] = []
         parameters.reserveCapacity(assignments.count * 2)
         for assignment in assignments {
             parameters.append(assignment.0)
@@ -185,7 +185,7 @@ extension XLExpression {
 /// A `String?` document keeps the optional result. `jsonPatched(with:)` has
 /// no form here, because a `NULL` patch also gives `NULL`.
 ///
-extension XLExpression where T == String {
+extension XLSQLiteExpression where T == String {
 
     ///
     /// Adds a value at each path that does not already hold one, rendering
@@ -194,9 +194,9 @@ extension XLExpression where T == String {
     /// The document is not `NULL`, so the result is not either.
     ///
     public func jsonInserting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String> {
         XLFunction<String>(
             name: "json_insert",
             parameters: [self] + Self.flattened([first] + rest, function: "json_insert")
@@ -210,9 +210,9 @@ extension XLExpression where T == String {
     /// The document is not `NULL`, so the result is not either.
     ///
     public func jsonReplacing(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String> {
         XLFunction<String>(
             name: "json_replace",
             parameters: [self] + Self.flattened([first] + rest, function: "json_replace")
@@ -226,9 +226,9 @@ extension XLExpression where T == String {
     /// The document is not `NULL`, so the result is not either.
     ///
     public func jsonSetting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<String> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<String> {
         XLFunction<String>(
             name: "json_set",
             parameters: [self] + Self.flattened([first] + rest, function: "json_set")
@@ -247,7 +247,7 @@ extension XLExpression where T == String {
     public func jsonRemoving(
         at first: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<String> {
+    ) -> some XLSQLiteExpression<String> {
         XLFunction<String>(
             name: "json_remove",
             parameters: [self] + XLJSONRemovedPath.wrapping([first] + rest, function: "json_remove")
@@ -263,7 +263,7 @@ extension XLExpression where T == String {
 /// cannot hold, so the root path is reported as an encoding error. Every
 /// other path renders exactly as ``XLJSONPath`` does.
 ///
-struct XLJSONRemovedPath: XLExpression {
+struct XLJSONRemovedPath: XLSQLiteExpression {
 
     typealias T = String
 
@@ -274,7 +274,7 @@ struct XLJSONRemovedPath: XLExpression {
     static func wrapping(
         _ paths: [XLJSONPath],
         function: String
-    ) -> [any XLExpression] {
+    ) -> [any XLSQLiteExpression] {
         paths.map { XLJSONRemovedPath(path: $0, function: function) }
     }
 

@@ -165,3 +165,201 @@ Option 1 is measured and rejected. Option 2 is therefore the only way left, so
 as depending on #789. For the operators and the expression nodes that
 direction is right. For the scope the direction is the other way, and the two
 issues have to be sequenced together.
+
+## Re-measured on the shipped surface: one predicate of joined comparisons
+
+**Recorded 6 October 2026** for issue #789. Swift 6.4, macOS 26.6.2, Apple M4
+Pro. Base: `version/2.0` at `17743faa`.
+
+The measurement above gives every clause its own statement, and no clause holds
+more than two operators. A query's filter is usually one `Where` that joins
+several comparisons with `&&`, and the type checker solves that whole predicate
+as one expression. The harness above never measured that shape.
+
+Issue #789's prototype, on the branch `claude/789-dialect-type-parameter`,
+carries the dialect through the whole SwiftQL surface, and its test suite
+passes. `measure-shipped.sh` type-checks the same bodies against real builds of
+SwiftQL. Three builds are compared:
+
+- **base**: `version/2.0`.
+- **existential**: the surface this record recommends. Operands are
+  `any XLExpression<T, D>`, generic over the dialect, and a Swift value is a
+  separate dialect-free protocol that takes one extra overload on each side of
+  every binary operator.
+- **universal**: the same, except that a Swift value keeps its `XLExpression`
+  conformance with the dialect `XLUniversalDialect`, so users' custom types and
+  enums compile unchanged.
+
+Median of 7 runs, from `-debug-time-function-bodies`.
+
+| Body | base | existential | universal |
+| --- | ---: | ---: | ---: |
+| 30 separate clauses | 19.9 ms | 26.3 ms (+32 %) | 30.5 ms (+53 %) |
+| 120 separate clauses | 63.7 ms | 79.5 ms (+25 %) | 100.2 ms (+57 %) |
+| 450 separate clauses | 449.7 ms | 520.3 ms (+16 %) | 631.6 ms (+40 %) |
+| one `Where` of 2 terms | 7.5 ms | 10.9 ms (+46 %) | 11.2 ms (+51 %) |
+| one `Where` of 4 terms | 9.0 ms | 22.9 ms (+156 %) | 32.7 ms (+265 %) |
+| one `Where` of 6 terms | 10.5 ms | 72.4 ms (+588 %) | 129.6 ms (+1,132 %) |
+| one `Where` of 8 terms | 11.8 ms | 279.2 ms (+2,266 %) | 625.0 ms (+5,197 %) |
+
+The separate-clause bodies reproduce the result above: the existential surface
+costs +16 to +32 percent. A single predicate does not. Its cost grows
+exponentially with the number of terms.
+
+A mistake in the last term of one predicate shows the same growth, in the
+wall time of one compile:
+
+| Terms | base | existential | universal |
+| ---: | ---: | ---: | ---: |
+| 4, misspelled column | 1.3 s | 1.5 s | 1.8 s |
+| 6, misspelled column | 1.5 s | 6.1 s | 16.7 s |
+| 5, wrong value type | 1.4 s | 8.2 s | 21.5 s |
+| 6, wrong value type | 1.6 s | *unable to type-check in reasonable time* | *unable to type-check in reasonable time* |
+
+At six terms both dialect surfaces replace the error with "the compiler is
+unable to type-check this expression in reasonable time". That breaks the
+diagnostics bar of #789 for an ordinary mistake in an ordinary filter.
+
+### What causes it
+
+`measure-chains.sh` writes stand-in libraries with SwiftQL's operator counts
+and times one predicate of 4 to 16 comparisons:
+
+| Shape | 4 | 8 | 12 | 16 |
+| --- | ---: | ---: | ---: | ---: |
+| base, `any E<T>` | 12.1 ms | 13.7 ms | 16.2 ms | 18.6 ms |
+| generic, `any E<T, D>`, no universal overloads | 14.0 ms | 79.1 ms | 1,430 ms | 28,001 ms |
+| mixed, generic plus universal overloads | 18.4 ms | 262 ms | 6,855 ms | over budget |
+| generic operand types `<L: E, R: E>` | 12.8 ms | 15.1 ms | 21.8 ms | 23.0 ms |
+| generic operand types, returned as `any E<Bool, D>` † | 64.1 ms | 10,004 ms | 15,387 ms | 22,805 ms |
+| concrete `X<T, D>` struct † | 23.5 ms | 139 ms | 611 ms | 1,582 ms |
+
+† **Withdrawn.** These two rows timed the type checker's error path, not the
+chain. The chains hold optional columns, so from four terms on their type is
+`Optional<Bool>`, and these two shapes returned `Bool`. Re-measured with the
+right result type, both are as fast as the base shape; see
+[the adopted design](#the-adopted-design-one-expression-protocol-per-dialect).
+
+- The cause is the dialect generic on the operators, not the treatment of
+  Swift values. With no universal overloads at all, `any E<T, D>` operands take
+  28 seconds for 16 terms. The overloads for a Swift value multiply the cost.
+- Generic operand types solve a bare predicate in linear time. The finding
+  recorded here that they do not once the result is converted to an
+  existential is withdrawn (see † above). On the shipped surface they also
+  needed `Optional` to lose its conditional `XLExpression` conformance, which
+  otherwise made even the bare predicate exponential.
+- The finding that the concrete struct surface grows is withdrawn too (†).
+
+No shape that keeps the operators generic over the dialect, and so one copy
+of them, kept a joined predicate within the budget of this record on the
+shipped surface.
+
+## The adopted design: one expression protocol per dialect
+
+**Recorded 6 October 2026** for issue #789. Swift 6.4, macOS 26.6.2, Apple M4
+Pro. Base: `version/2.0` at `17743faa`; the expression surface is unchanged
+on `version/2.0` since.
+
+The owner chose design (b): concrete, non-generic operators for each dialect.
+Each dialect has its own expression protocol, `XLSQLiteExpression` for SQLite,
+and its own copy of every operator and function that composes expressions,
+taking `any XLSQLiteExpression<T>` and returning `some XLSQLiteExpression<R>`.
+The copies are generated from one set of templates
+(`scripts/dialect-surface/`).
+
+- A column conforms where its model's dialect is that dialect:
+  `extension XLColumnReference: XLSQLiteExpression where Dialect == XLSQLiteDialect`.
+- A Swift value, an optional of one, and a named binding conform for every
+  dialect. An enum and an `XLCustomType` conform for SQLite, so a user's
+  custom type keeps compiling: `XLCustomType` and `XLEnum` include
+  `XLSQLiteExpression`. For another dialect the type declares that dialect's
+  protocol too, because a protocol cannot be made to refine another from
+  outside.
+- A node such as `XLBinaryOperatorExpression<T>` conforms for every dialect.
+  The opaque result is what keeps a composed expression in one dialect: the
+  result of a second dialect's `==` is `some SecondExpression<Bool>`, which is
+  not known to be a SQLite expression.
+
+The operand is the dialect's own protocol because that is what measured best.
+The alternative kept the prototype's `any XLExpression<T, XLSQLiteDialect>`
+operand, non-generic, and gave each operator two more disfavoured overloads
+per variant so that a Swift value, whose dialect is a universal marker, can
+stand on either side. In a stand-in of the same size (not kept in the
+repository) it cost about three times the base on a 16-term chain, and seven
+to nine times the base on the error path of a wrong value type at 6 and 8
+terms. The protocol form costs what the base costs, below.
+
+### Stand-ins: one predicate of joined comparisons
+
+`measure-chains.sh`, with the `-ret` and `concrete` rows corrected to return
+`Optional<Bool>`:
+
+| Shape | 4 | 8 | 12 | 16 |
+| --- | ---: | ---: | ---: | ---: |
+| base | 16.6 ms | 26.3 ms | 22.9 ms | 27.7 ms |
+| generic | 17.8 ms | 89.3 ms | 1,631 ms | 32,986 ms |
+| mixed | 23.9 ms | 302 ms | 7,819 ms | 14,189 ms |
+| operands | 17.3 ms | 18.3 ms | 29.1 ms | 30.0 ms |
+| operands-ret | 21.7 ms | 17.1 ms | 22.0 ms | 28.7 ms |
+| concrete | 14.6 ms | 15.7 ms | 20.2 ms | 18.8 ms |
+| **dialect** (adopted) | 19.6 ms | 19.9 ms | 48.9 ms | 24.5 ms |
+| **dialect-ret** | 13.9 ms | 16.4 ms | 21.2 ms | 24.9 ms |
+| **dialect-two** (two dialects visible) | 14.9 ms | 19.4 ms | 24.9 ms | 31.0 ms |
+
+Single runs; a row's variation between lengths is noise of a few
+milliseconds. The adopted shape is linear, and stays so when a module sees a
+second dialect's operators too.
+
+### The shipped surface
+
+`measure-shipped.sh base=<version/2.0> b=<this branch>`, median of 7 runs:
+
+| Body | base | b |
+| --- | ---: | ---: |
+| 30 separate clauses | 29.8 ms | 31.0 ms (+4 %) |
+| 120 separate clauses | 83.4 ms | 100.3 ms (+20 %) |
+| 450 separate clauses | 685.5 ms | 657.3 ms (−4 %) |
+| one `Where` of 2 terms | 9.5 ms | 10.6 ms (+12 %) |
+| one `Where` of 4 terms | 12.6 ms | 15.6 ms (+23 %) |
+| one `Where` of 6 terms | 12.8 ms | 14.3 ms (+12 %) |
+| one `Where` of 8 terms | 14.5 ms | 19.6 ms (+35 %) |
+| one `Where` of 12 terms | 19.4 ms | 25.5 ms (+31 %) |
+| one `Where` of 16 terms | 21.9 ms | 23.8 ms (+9 %) |
+
+The 450-clause body is within the budget of #799 (+16 to +24 percent). A
+joined predicate costs a few milliseconds more than the base and grows with
+the base, linearly; the prototype's 8-term predicate took 279 ms.
+
+A mistake in the last term of one predicate, wall time of one compile and the
+first error:
+
+| Terms | misspelled column, base | b | wrong value type, base | b |
+| ---: | ---: | ---: | ---: | ---: |
+| 2 | 1.3 s | 1.4 s | 1.9 s | 1.9 s |
+| 4 | 1.4 s | 1.4 s | 1.8 s | 2.0 s |
+| 6 | 1.5 s | 1.7 s | 2.2 s | 2.4 s |
+| 8 | 2.3 s | 2.6 s | 3.8 s | 4.3 s |
+| 12 | 5.4 s | 7.4 s | 13.9 s | 14.3 s |
+| 16 | 26.1 s | 25.9 s | 12.1 s ‡ | 12.8 s ‡ |
+
+Every row reports the real error, and the same one as the base: the
+misspelled column's message is byte-identical, and the wrong value type's
+differs only in the printed column type,
+`XLColumnReference<Int, XLSQLiteDialect>`. ‡ At 16 terms the base already
+gives up on a wrong value type with "unable to type-check this expression in
+reasonable time", and b gives up the same way at the same cost.
+
+### Library build time and size
+
+Rebuilding the `SwiftQL` target after touching every source, median of three
+interleaved runs, and the total size of its object files:
+
+| | base | b |
+| --- | ---: | ---: |
+| debug build | 10.9 s | 11.7 s (+7 %) |
+| release build | 16.4 s | 17.4 s (+6 %) |
+| release object files | 15,595,936 bytes | 15,827,312 bytes (+1.5 %) |
+
+The SQLite surface is the same overloads as before, one copy, so the library
+grows by the new protocol's conformances and the generic metadata of the
+dialect-carrying types.

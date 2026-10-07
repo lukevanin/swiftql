@@ -135,7 +135,7 @@ final class XLNumericPrefixOperatorTests: XLSyntaxTestCase {
 
 
     func testPrefixOperators_IntegerLiteralExpression_StillRenderSQL() {
-        let operand: any XLExpression<Int> = 12
+        let operand: any XLSQLiteExpression<Int> = 12
         assertRenders(-operand, as: "-(12)")
         assertRenders(+operand, as: "+(12)")
         assertRenders(~operand, as: "~(12)")

@@ -71,6 +71,12 @@ jobs:
       - name: Check source coverage target membership
         run: python3 scripts/ci/check-source-target-membership.py
 
+      # Each dialect's operators and functions are generated from one set of
+      # templates (issue #789). Fails when a template or dialects.json changed
+      # and the checked-in output was not regenerated, or the reverse.
+      - name: Check the generated dialect surface
+        run: python3 scripts/dialect-surface/generate.py --check
+
       - name: Run Swift compatibility workflow fixtures
         run: python3 scripts/ci/test-swift-compatibility-workflow.py
 
@@ -660,6 +666,12 @@ jobs:
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-dialect-parameterised-macro-type-safety.sh
+
+      - name: Check dialect type parameter type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-dialect-type-parameter-type-safety.sh
 
       - name: Report SQLite runtime through GRDB
         env:

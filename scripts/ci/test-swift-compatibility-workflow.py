@@ -190,6 +190,11 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
             compatibility,
         )
+        self.assertIn("Check dialect type parameter type safety", compatibility)
+        self.assertIn(
+            "scripts/ci/check-dialect-type-parameter-type-safety.sh",
+            compatibility,
+        )
         self.assertIn("Verify declared-query discovery end to end", compatibility)
         self.assertIn(
             "IntegrationTests/DeclaredQueryRegistryFixture/verify.sh", compatibility
@@ -451,6 +456,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         membership_check = "python3 scripts/ci/check-source-target-membership.py"
         self.assertIn(membership_check, release_tooling)
         self.assertNotIn(membership_check, compatibility)
+
+        # The generated dialect surface needs only Python, so it is checked
+        # against its templates on pull requests in the same job (#789).
+        surface_check = "python3 scripts/dialect-surface/generate.py --check"
+        self.assertIn("Check the generated dialect surface", release_tooling)
+        self.assertIn(surface_check, release_tooling)
 
     def test_documentation_runs_cancel_superseded_pull_request_runs(
         self,

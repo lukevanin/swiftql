@@ -8,6 +8,14 @@
 import Foundation
 
 
+// Each builder carries the dialect of the query it belongs to, and is an
+// expression of that dialect only. The functions that start and extend a case
+// expression take that dialect's expressions, so each dialect's surface
+// declares them, from scripts/dialect-surface/Templates/CaseWhenThen.swift.template
+// (issue #789). They call the underscored primitives here, which take any
+// expression and are not meant to be called directly.
+
+
 // MARK: - Constant Case-When-Then expression
 
 ///
@@ -52,23 +60,19 @@ private struct ConstantCaseComponents {
 /// expression returns the value of the `then` expression for the first condition that matches the case
 /// statement.
 ///
-public struct ConstantCase<T> {
-    
+public struct ConstantCase<T, Dialect> {
+
     private let condition: any XLExpression<T>
-    
-    fileprivate init(condition: any XLExpression<T>) {
+
+    /// Starts a case expression of `Dialect` on `condition`, which must be an
+    /// expression of `Dialect`. Used by the generated `switchCase(_:)`.
+    public init(_dialectSurfaceCondition condition: any XLExpression<T>) {
         self.condition = condition
     }
-    
-    ///
-    /// Defines a condition that is matches against the term in the case statement.
-    ///
-    /// - Returns: Complete case/when/then expression.
-    ///
-    /// The case statement evaluates to the `then` result when the condition matches the term in the
-    /// case statement.
-    ///
-    public func when<U>(_ condition: any XLExpression<T>, then result: any XLExpression<U>) -> ConstantCaseWhenThen<T, U> {
+
+    /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
+    /// which takes only expressions of `Dialect`.
+    public func _when<U>(_ condition: any XLExpression<T>, then result: any XLExpression<U>) -> ConstantCaseWhenThen<T, U, Dialect> {
         ConstantCaseWhenThen(
             components: ConstantCaseComponents(condition: self.condition),
             condition: condition,
@@ -88,7 +92,7 @@ public struct ConstantCase<T> {
 /// expression evaluates to the result defined in the `else` expression. If an `else` expression is not
 /// defined and no `when` conditions match the case term then the case expression evaluates to `nil`.
 ///
-public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
+public struct ConstantCaseWhenThen<Condition, Result, Dialect>: XLExpression {
     
     public typealias T = Optional<Result>
     
@@ -101,22 +105,15 @@ public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
         }
     }
     
-    ///
-    /// Defines a condition that is matches against the term in the case statement.
-    ///
-    /// - Returns: Complete case/when/then expression.
-    ///
-    /// The case statement evaluates to the `then` result when the condition matches the term in the
-    /// case statement.
-    ///
-    public func when(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> ConstantCaseWhenThen<Condition, Result> {
+    /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
+    /// which takes only expressions of `Dialect`.
+    public func _when(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> ConstantCaseWhenThen<Condition, Result, Dialect> {
         ConstantCaseWhenThen(components: components, condition: condition, result: result)
     }
-    
-    ///
-    /// Defines a fallback result that is used when no `when` condition matches the case term.
-    ///
-    public func `else`(_ result: any XLExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result> {
+
+    /// Adds the `ELSE` result. Used by the generated `else(_:)`, which takes
+    /// only an expression of `Dialect`.
+    public func _else(_ result: any XLExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result, Dialect> {
         ConstantCaseWhenThenElse(components: components, result: result)
     }
     
@@ -126,7 +123,7 @@ public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
 }
 
 
-public struct ConstantCaseWhenThenElse<Condition, Result>: XLExpression {
+public struct ConstantCaseWhenThenElse<Condition, Result, Dialect>: XLExpression {
     
     public typealias T = Result
 
@@ -141,11 +138,6 @@ public struct ConstantCaseWhenThenElse<Condition, Result>: XLExpression {
     public func makeSQL(context: inout XLBuilder) {
         components.makeSQL(context: &context)
     }
-}
-
-
-public func switchCase<T>(_ condition: any XLExpression<T>) -> ConstantCase<T> {
-    ConstantCase(condition: condition)
 }
 
 
@@ -176,28 +168,42 @@ private struct VariableCaseComponents {
 }
 
 
-public struct VariableCaseWhenThen<Result>: XLExpression {
+public struct VariableCaseWhenThen<Result, Dialect>: XLExpression {
 
     public typealias T = Optional<Result>
 
     private let components: VariableCaseComponents
-    
+
     fileprivate init(components: VariableCaseComponents, condition: any XLExpression, result: any XLExpression) {
         self.components = components.appending { context in
             context.unaryPrefix("WHEN", expression: condition.makeSQL)
             context.unaryPrefix("THEN", expression: result.makeSQL)
         }
     }
-    
-    public func when<Condition>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> where Condition: XLBoolean {
+
+    /// Starts a case expression of `Dialect` with its first arm, whose
+    /// expressions must be of `Dialect`. Used by the generated `when(_:then:)`.
+    public init<Condition>(_dialectSurfaceCondition condition: any XLExpression<Condition>, then result: any XLExpression<Result>) where Condition: XLBoolean {
+        self.init(
+            components: VariableCaseComponents(),
+            condition: condition,
+            result: result
+        )
+    }
+
+    /// Adds a `WHEN ... THEN` arm. Used by the generated `when(_:then:)`,
+    /// which takes only expressions of `Dialect`.
+    public func _when<Condition>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result, Dialect> where Condition: XLBoolean {
         VariableCaseWhenThen(
             components: components,
             condition: condition,
             result: result
         )
     }
-    
-    public func `else`(_ result: any XLExpression<Result>) -> some XLExpression<Result> {
+
+    /// Adds the `ELSE` result. Used by the generated `else(_:)`, which takes
+    /// only an expression of `Dialect`.
+    public func _else(_ result: any XLExpression<Result>) -> VariableCaseElse<Result, Dialect> {
         VariableCaseElse(components: components, result: result)
     }
     
@@ -207,7 +213,7 @@ public struct VariableCaseWhenThen<Result>: XLExpression {
 }
 
 
-public struct VariableCaseElse<Result>: XLExpression {
+public struct VariableCaseElse<Result, Dialect>: XLExpression {
     
     public typealias T = Result
 
@@ -224,11 +230,3 @@ public struct VariableCaseElse<Result>: XLExpression {
     }
 }
 
-
-public func when<Condition, Result>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> where Condition: XLBoolean {
-    VariableCaseWhenThen(
-        components: VariableCaseComponents(),
-        condition: condition,
-        result: result
-    )
-}

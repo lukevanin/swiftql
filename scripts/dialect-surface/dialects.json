@@ -1,0 +1,32 @@
+{
+    "dialects": [
+        {
+            "DialectName": "SQLite",
+            "Dialect": "XLSQLiteDialect",
+            "Expression": "XLSQLiteExpression",
+            "filePrefix": "SQLite",
+            "output": "Sources/SwiftQL/Dialects/SQLite/Generated",
+            "access": "public"
+        },
+        {
+            "DialectName": "the SQLTests second dialect",
+            "Dialect": "FakeSecondDialect",
+            "Expression": "FakeSecondDialectExpression",
+            "filePrefix": "FakeSecondDialect",
+            "output": "Tests/SQLTests/Generated/FakeSecondDialect",
+            "imports": ["SwiftQL"],
+            "access": "internal",
+            "disfavored": true
+        },
+        {
+            "DialectName": "the compile-fail second dialect",
+            "Dialect": "CompileFailSecondDialect",
+            "Expression": "CompileFailSecondDialectExpression",
+            "filePrefix": "CompileFailSecondDialect",
+            "output": "Tests/CompileFail/Support/Generated/CompileFailSecondDialect",
+            "imports": ["SwiftQL"],
+            "access": "internal",
+            "disfavored": true
+        }
+    ]
+}

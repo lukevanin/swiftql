@@ -33,6 +33,24 @@
 public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros", type: "SQLTableMacro")
 
 ///
+/// Defines the `@SQLTable(dialect:)` macro.
+///
+/// Issue #789: the same as `@SQLTable`, with the dialect the model belongs to
+/// named as `MyDialect.self`. Without the argument the dialect is
+/// `XLSQLiteDialect`.
+///
+/// Every column of the model carries the dialect, so every expression built
+/// from the model does too, and an operation the dialect does not have is a
+/// compile error on it. A schema takes the model only when the schema is of
+/// the same dialect. A model that two dialects need is declared once for each:
+/// a model maps to one database's types, and translating between databases
+/// belongs above SwiftQL.
+///
+@attached(member, names: arbitrary)
+@attached(extension, conformances: XLResult, XLTable, Sendable, names: arbitrary)
+public macro SQLTable<Dialect: XLSQLDialect>(name: String? = nil, dialect: Dialect.Type) = #externalMacro(module: "SQLMacros", type: "SQLTableMacro")
+
+///
 /// Defines the `@SQLResult` macro.
 ///
 /// ## Concurrency
@@ -44,6 +62,17 @@ public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros",
 @attached(member, names: arbitrary)
 @attached(extension, conformances: XLResult, Sendable, names: arbitrary)
 public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultMacro")
+
+///
+/// Defines the `@SQLResult(dialect:)` macro.
+///
+/// Issue #789: the same as `@SQLResult`, with the dialect the result belongs
+/// to named as `MyDialect.self`. Without the argument the dialect is
+/// `XLSQLiteDialect`. See ``SQLTable(name:dialect:)``.
+///
+@attached(member, names: arbitrary)
+@attached(extension, conformances: XLResult, Sendable, names: arbitrary)
+public macro SQLResult<Dialect: XLSQLDialect>(dialect: Dialect.Type) = #externalMacro(module: "SQLMacros", type: "SQLResultMacro")
 
 ///
 /// Defines the `@SQLCodec` macro.
@@ -173,7 +202,8 @@ public macro SQLBindings<Dialect: XLLiteralValueDialect>(dialect: Dialect.Type) 
 /// Defines the `@SQLFunction` macro.
 ///
 /// Attach to a struct which conforms to `XLCustomFunction` and declares one stored property per
-/// SQL argument, each typed as `any XLExpression<...>` (or `some XLExpression<...>`). The macro
+/// SQL argument, each typed as `any XLExpression<...>` (or `some XLExpression<...>`, or
+/// `any XLSQLiteExpression<...>` to take only a SQLite expression). The macro
 /// generates the `XLCustomFunctionDefinition` and `makeSQL(context:)` boilerplate from those
 /// properties, in declaration order. Conformance to `XLCustomFunction` and `execute(reader:)` are
 /// still written by hand.

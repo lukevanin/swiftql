@@ -459,7 +459,7 @@ private struct TestScalarLayout<Value>: XLRecursiveCommonTableReferenceLayout wh
 /// self-reference primitives, but pinning the reference table alias so the
 /// rendered SQL is deterministic in the render test.
 private struct TestCompositeLayout<Row>: XLRecursiveCommonTableReferenceLayout where Row: XLResult {
-    let schema: XLSchema
+    let schema: XLSchema<Row.XLModelDialect>
     let commonTableNamespace: XLNamespace
     let tableAlias: XLName
 
@@ -481,9 +481,11 @@ private struct TestCompositeLayout<Row>: XLRecursiveCommonTableReferenceLayout w
 private struct TestScalarReference<Value>: XLMetaNamedResult where Value: XLLiteral {
     typealias Row = Value
 
+    var _dialect: XLSQLiteDialect.Type { XLSQLiteDialect.self }
+
     let _namespace: XLNamespace
     let _dependency: XLNamedTableDeclaration
-    let value: XLColumnReference<Value>
+    let value: XLColumnReference<Value, XLSQLiteDialect>
 
     init(cteAlias: XLName, tableAlias: XLName, columnAlias: XLName) {
         let commonTable = XLCommonTableDependency(

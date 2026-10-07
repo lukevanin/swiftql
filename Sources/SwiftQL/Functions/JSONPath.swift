@@ -61,7 +61,7 @@ import Foundation
 ///
 /// See: https://www.sqlite.org/json1.html#path_arguments
 ///
-public struct XLJSONPath: XLExpression, Hashable, Sendable, CustomStringConvertible {
+public struct XLJSONPath: XLSQLiteExpression, Hashable, Sendable, CustomStringConvertible {
 
     public typealias T = String
 

@@ -692,3 +692,50 @@ Date comparison and arithmetic reuse the ordinary operators. Text time values
 compare with `<`, `<=`, `>`, `>=`, `==`, and `!=`, because ISO-8601 text sorts 
 chronologically; subtracting two `julianDay` expressions with `-` yields the 
 number of days between two moments.
+
+## Expressions and dialects
+
+Every expression belongs to a dialect. A column belongs to the dialect of the
+model that declares it: SQLite, unless the model names another with
+`@SQLTable(dialect:)` or `@SQLResult(dialect:)`. An operator or a function
+returns an expression of its operands' dialect. A Swift value, an optional of
+one, and a named binding are written the same way in every dialect, so each is
+an expression of every dialect. An enum and an ``XLCustomType`` are SQLite
+expressions; to use one in another dialect's query, conform it to that
+dialect's expression protocol as well.
+
+Each dialect has its own expression protocol, and SQLite's is
+``XLSQLiteExpression``. The operators and functions take and return it, so a
+helper that composes part of a SQLite query does too:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+func isAdult(_ age: any XLSQLiteExpression<Int>) -> some XLSQLiteExpression<Bool> {
+    age >= 18
+}
+
+let adults = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(isAdult(person.age))
+}
+```
+
+``XLExpression`` is the protocol every expression conforms to, whatever its
+dialect. A clause that does not compose its expression, such as `Where`,
+`OrderBy`, or a column assignment, takes an `XLExpression`, but an operator or
+a function does not: an `any XLExpression<Int>` cannot be compared or added to.
+Declare it `any XLSQLiteExpression<Int>` instead. A type of your own that
+conforms to `XLExpression` to be used as an operand conforms to
+`XLSQLiteExpression` as well; `XLCustomType` and `XLEnum` already include it.
+
+A function that only SQLite has, such as `collate(_:)`, `regexp(_:)`,
+`glob(_:)`, `iif`, `printf(_:)`, the type casts, the JSON functions, and the
+date functions, is declared only on `XLSQLiteExpression`. Calling one on a column of a model
+declared for another dialect, or on an expression composed from one, or
+comparing that column with a SQLite column, is a compile error at the call
+site. A clause such as `Where` or `From` takes any expression or table, so it
+does not check the dialect of an expression built from Swift values alone,
+such as `"a".regexp("b")`, or of a column or table taken from another
+dialect's schema and passed to it directly.

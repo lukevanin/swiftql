@@ -74,8 +74,8 @@ final class StaticColumnDispatchTests: XCTestCase {
         XCTAssertEqual(reader.unconstrainedReads, [])
     }
 
-    private func column<T>(_ alias: XLName) -> XLColumnResult<T> where T: XLLiteral {
-        XLColumnResult<T>(dependency: XLSelectResultDependency(), as: alias)
+    private func column<T>(_ alias: XLName) -> XLColumnResult<T, XLSQLiteDialect> where T: XLLiteral {
+        XLColumnResult<T, XLSQLiteDialect>(dependency: XLSelectResultDependency(), as: alias)
     }
 }
 

@@ -16,7 +16,7 @@ public protocol XLTableStatement: XLQueryComponent {
 ///
 /// Returns a statement that selects rows matching the expression returned by the provided builder.
 ///
-public func sqlQuery<Row>(builder: (XLSchema) -> some XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
+public func sqlQuery<Row>(builder: (XLSQLiteSchema) -> some XLQueryStatement<Row>) -> any XLQueryStatement<Row> {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -25,7 +25,7 @@ public func sqlQuery<Row>(builder: (XLSchema) -> some XLQueryStatement<Row>) -> 
 ///
 /// Returns a statement that updates a row using the expression returned by the provided builder.
 ///
-public func sqlUpdate<Row>(builder: (XLSchema) -> some XLUpdateStatement<Row>) -> any XLUpdateStatement<Row> {
+public func sqlUpdate<Row>(builder: (XLSQLiteSchema) -> some XLUpdateStatement<Row>) -> any XLUpdateStatement<Row> {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -34,7 +34,7 @@ public func sqlUpdate<Row>(builder: (XLSchema) -> some XLUpdateStatement<Row>) -
 ///
 /// Returns a statement that inserts a row using the expression returned by the provided builder.
 ///
-public func sqlInsert<Row>(builder: (XLSchema) -> some XLInsertStatement<Row>) -> any XLInsertStatement<Row> {
+public func sqlInsert<Row>(builder: (XLSQLiteSchema) -> some XLInsertStatement<Row>) -> any XLInsertStatement<Row> {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -43,7 +43,7 @@ public func sqlInsert<Row>(builder: (XLSchema) -> some XLInsertStatement<Row>) -
 ///
 /// Returns a statement that inserts a row into an `SQLTable`.
 ///
-public func sqlInsert<Row>(_ row: Row) -> any XLInsertStatement where Row: XLTable, Row.MetaNamedResult.Row == Row, Row.MetaInsert.Row == Row {
+public func sqlInsert<Row>(_ row: Row) -> any XLInsertStatement where Row: XLTable, Row.XLModelDialect == XLSQLiteDialect, Row.MetaNamedResult.Row == Row, Row.MetaInsert.Row == Row {
     let schema = XLSchema()
     let table = schema.table(Row.self)
     return insert(table).values(Row.MetaInsert(row))
@@ -53,7 +53,7 @@ public func sqlInsert<Row>(_ row: Row) -> any XLInsertStatement where Row: XLTab
 ///
 /// Returns a statement that creates a table using the expression returned by the provided builder.
 ///
-public func sqlCreate<Row>(builder: (XLSchema) -> some XLCreateStatement<Row>) -> any XLCreateStatement<Row> {
+public func sqlCreate<Row>(builder: (XLSQLiteSchema) -> some XLCreateStatement<Row>) -> any XLCreateStatement<Row> {
     let schema = XLSchema()
     return builder(schema)
 }
@@ -62,7 +62,7 @@ public func sqlCreate<Row>(builder: (XLSchema) -> some XLCreateStatement<Row>) -
 ///
 /// Returns a statement that creates a given `SQLTable`.
 ///
-public func sqlCreate<T>(_ table: T.Type) -> any XLCreateStatement<T> where T: XLTable, T.MetaCreate.Table == T {
+public func sqlCreate<T>(_ table: T.Type) -> any XLCreateStatement<T> where T: XLTable, T.XLModelDialect == XLSQLiteDialect, T.MetaCreate.Table == T {
     let schema = XLSchema()
     let table = schema.create(T.self)
     return create(table)
@@ -72,7 +72,21 @@ public func sqlCreate<T>(_ table: T.Type) -> any XLCreateStatement<T> where T: X
 // MARK: With (common table expression)
 
 
-public struct XLSchema {
+///
+/// The scope of one statement, in which its tables, common tables, and
+/// bindings are named.
+///
+/// `Dialect` is the dialect of the statement. A table, a common table, or a
+/// subquery joins the scope only when its model is declared for that dialect:
+/// `table(_:as:)` requires `T.XLModelDialect == Dialect`. Every column of the model
+/// carries the dialect, so every expression composed in the statement does
+/// too (issue #789).
+///
+/// A SQLite statement's scope is ``XLSQLiteSchema``, and `XLSchema()` creates
+/// one. Another dialect's scope is created with ``init(dialect:)``, and the
+/// `sql(dialect:)` entry point passes one to its builder.
+///
+public struct XLSchema<Dialect> where Dialect: XLSQLDialect {
 
     let commonTableNamespace: XLNamespace
 
@@ -81,9 +95,9 @@ public struct XLSchema {
     let parameterNamespace: XLNamespace
 
     ///
-    /// Creates a schema for a top-level statement.
+    /// Creates a schema for a top-level statement in `dialect`.
     ///
-    public init() {
+    public init(dialect: Dialect.Type) {
         commonTableNamespace = XLNamespace.common()
         tableNamespace = XLNamespace.table()
         parameterNamespace = XLNamespace.parameter()
@@ -125,7 +139,7 @@ public struct XLSchema {
     ///
     /// Constructs common table expression using a select query that returns an `SQLTable`.
     ///
-    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLTable {
+    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLTable, T.XLModelDialect == Dialect {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement, materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
@@ -142,7 +156,7 @@ public struct XLSchema {
     ///   ``XLCommonTableMaterialization/unspecified``.
     /// - Parameter statement: Builds the common table's select query.
     ///
-    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
@@ -157,14 +171,14 @@ public struct XLSchema {
     /// alias alone through a value-semantic ``XLRecursiveCommonTableDraft``; no
     /// mutable completion cell is involved.
     ///
-    public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         makeRecursiveCommonTable(T.self, alias: alias, materialization: materialization, body: statement)
     }
 
     ///
     /// Constructs a recursive common table expression using a select query that returns an `SQLResult`.
     ///
-    public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         makeRecursiveCommonTable(T.self, alias: alias, materialization: materialization, body: statement)
     }
 
@@ -181,7 +195,7 @@ public struct XLSchema {
         alias: XLName?,
         materialization: XLCommonTableMaterialization,
         body: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>
-    ) -> T.MetaCommonTable where T: XLResult {
+    ) -> T.MetaCommonTable where T: XLResult, T.XLModelDialect == Dialect {
         let reservedAlias = commonTableNamespace.makeAlias(alias: alias)
         let bodySchema = XLSchema(parent: self)
         var draft = XLRecursiveCommonTableDraft(
@@ -200,7 +214,11 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLTable`.
     ///
-    public func table<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNamedResult where T: XLTable {
+    /// The table's model must be declared for this schema's dialect. A model
+    /// declared for another dialect is a compile error here, which names both
+    /// dialects.
+    ///
+    public func table<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -209,7 +227,7 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLResult`.
     ///
-    public func table<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
+    public func table<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNamedResult where T: XLMetaCommonTable, T.Result.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -218,7 +236,7 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLTable` that can resolve to `NULL`.
     ///
-    public func nullableTable<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNullableNamedResult where T: XLTable {
+    public func nullableTable<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNullableNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -227,7 +245,7 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLResult` that can resolve to `NULL`.
     ///
-    public func nullableTable<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNullableNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
+    public func nullableTable<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNullableNamedResult where T: XLMetaCommonTable, T.Result.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -241,7 +259,7 @@ public struct XLSchema {
     /// resolve to the values of the candidate row that triggered the conflict,
     /// for example `row.value = excluded.value`.
     ///
-    public func excluded<T>(_ table: T.Type) -> T.MetaNamedResult where T: XLTable {
+    public func excluded<T>(_ table: T.Type) -> T.MetaNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         return T.makeSQLNamedResult(
             namespace: tableNamespace,
             dependency: XLExcludedTableDependency()
@@ -251,7 +269,7 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLTable` that is the subject of a write operation.
     ///
-    public func into<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaWritableTable where T: XLTable {
+    public func into<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaWritableTable where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLInsert(namespace: tableNamespace, dependency: dependency)
@@ -260,7 +278,7 @@ public struct XLSchema {
     ///
     /// Creates a reference to an `SQLTable` that is used in a `From` clause in an `Insert` statement.
     ///
-    public func from<T>(as alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable {
+    public func from<T>(as alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLUpdateFromTableDependency(alias: alias, statement: statement(schema))
@@ -276,7 +294,7 @@ public struct XLSchema {
     /// The body receives a schema nested in this one (see
     /// ``init(parent:)``).
     ///
-    public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult {
+    public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -289,7 +307,7 @@ public struct XLSchema {
     /// The alias and the body schema are derived from this schema, as for
     /// ``subquery(alias:_:)``.
     ///
-    public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+    public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
         return T.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
@@ -300,25 +318,45 @@ public struct XLSchema {
     /// nested in this one, so its aliases and bindings do not collide with the
     /// enclosing statement.
     ///
-    public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
-        XLSubquery(statement: statement(XLSchema(parent: self)))
+    public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> XLDialectExpression<Optional<T>, Dialect> where T: XLLiteral {
+        XLDialectExpression(XLSubquery<T>(statement: statement(XLSchema(parent: self))))
     }
 
     ///
     /// Constructs a scalar subquery in this schema whose inner statement is
     /// already nullable, so the two sources of NULL collapse into one.
     ///
-    public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-        XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self)))
+    public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> XLDialectExpression<Optional<Wrapped>, Dialect> where Wrapped: XLLiteral {
+        XLDialectExpression(XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self))))
     }
 
     ///
     /// Creates a reference to a table that is used in a Create statement.
     ///
-    public func create<T>(_ table: T.Type) -> T.MetaCreate where T: XLTable {
+    public func create<T>(_ table: T.Type) -> T.MetaCreate where T: XLTable, T.XLModelDialect == Dialect {
         return T.makeSQLCreate()
     }
 }
+
+
+extension XLSchema where Dialect == XLSQLiteDialect {
+
+    ///
+    /// Creates a schema for a top-level SQLite statement.
+    ///
+    public init() {
+        self.init(dialect: XLSQLiteDialect.self)
+    }
+}
+
+
+///
+/// The scope of a SQLite statement.
+///
+/// SQLite code that names the schema's type, such as a helper that takes one,
+/// writes `XLSQLiteSchema` where v1 code wrote `XLSchema`.
+///
+public typealias XLSQLiteSchema = XLSchema<XLSQLiteDialect>
 
 
 
@@ -370,7 +408,7 @@ public func result<T>(_ iterator: @escaping (XLRowReader) -> T) -> T.MetaResult 
 ///   aliases and bindings restart. Use ``XLSchema/subquery(alias:_:)`` to
 ///   derive them from the enclosing schema, or name the subquery explicitly.
 ///
-public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult {
+public func subquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -391,7 +429,7 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 ///   `subquery(alias:_:)` function does. Use ``XLSchema/nullableSubquery(alias:_:)``
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
-public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -408,7 +446,7 @@ public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) ->
 ///   generated `Nullable` companion. Use ``nullableSubquery(alias:_:)``.
 ///
 @available(*, deprecated, message: "Use nullableSubquery(alias:_:); this overload cannot be selected because no select function produces a statement over a Nullable row type.")
-public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableNamedResult where T: XLMetaNullable, T.Basis: XLResult {
+public func subquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableNamedResult where T: XLMetaNullable, T.Basis: XLResult, T.Basis.XLModelDialect == XLSQLiteDialect {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
     let alias = newNamespace.makeAlias(alias: alias)
@@ -425,17 +463,17 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 ///   Use the schema method `XLSchema.subquery(_:)`, or the form whose closure
 ///   takes no schema, to use names from the enclosing schema.
 ///
-public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+public func subquery<T>(_ statement: (XLSQLiteSchema) -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery(statement: statement(schema))
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement(schema)))
 }
 
 
 ///
 /// Constructs a subquery with a select query statement that returns a scalar value.
 ///
-public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
-    return XLSubquery(statement: statement())
+public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLSQLiteExpression<Optional<T>> where T: XLLiteral {
+    return XLDialectExpression<Optional<T>, XLSQLiteDialect>(XLSubquery<T>(statement: statement()))
 }
 
 
@@ -451,14 +489,14 @@ public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLEx
 ///   Use the schema method `XLSchema.subquery(_:)`, or the form whose closure
 ///   takes no schema, to use names from the enclosing schema.
 ///
-public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+public func subquery<Wrapped>(_ statement: (XLSQLiteSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
-    return XLSubquery<Wrapped>(statement: statement(schema))
+    return XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement(schema)))
 }
 
 
-public func subquery<Wrapped>(_ statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
-    XLSubquery<Wrapped>(statement: statement())
+public func subquery<Wrapped>(_ statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLSQLiteExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    XLDialectExpression<Optional<Wrapped>, XLSQLiteDialect>(XLSubquery<Wrapped>(statement: statement()))
 }
 
 

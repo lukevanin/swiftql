@@ -264,7 +264,7 @@ final class XLExecutionTests: XCTestCase {
     }
 
     func testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions() throws {
-        let literal: any XLExpression<Int> = 12
+        let literal: any XLSQLiteExpression<Int> = 12
         let literalStatement = sql { _ in
             Select(~literal)
         }
@@ -704,7 +704,7 @@ final class XLExecutionTests: XCTestCase {
         let probe = XLNamedBindingReference<Int>(name: "probe")
 
         func evaluate(
-            _ build: (any XLExpression<Int>) -> any XLExpression<Bool>,
+            _ build: (any XLSQLiteExpression<Int>) -> any XLSQLiteExpression<Bool>,
             probeValue: Int
         ) throws -> Bool? {
             let statement = sql { _ in Select(build(probe)) }
@@ -878,7 +878,7 @@ final class XLExecutionTests: XCTestCase {
         let probe = XLNamedBindingReference<Int?>(name: "probe")
 
         func evaluate(
-            _ build: (XLNamedBindingReference<Int?>) -> any XLExpression<Optional<Bool>>,
+            _ build: (XLNamedBindingReference<Int?>) -> any XLSQLiteExpression<Optional<Bool>>,
             probeValue: Int?
         ) throws -> Bool?? {
             let statement = sql { _ in Select(build(probe)) }

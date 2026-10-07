@@ -8,35 +8,14 @@
 import Foundation
 
 
-// MARK: - Unary plus
-
-
-public prefix func +<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: Numeric {
-    XLUnaryOperatorExpression(op: "+", operand: operand)
-}
-
-public prefix func +<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
-    XLUnaryOperatorExpression(op: "+", operand: operand)
-}
-
-
-// MARK: - Negate
-
-
-public prefix func -<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: Numeric {
-    XLUnaryOperatorExpression(op: "-", operand: operand)
-}
-
-public prefix func -<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
-    XLUnaryOperatorExpression(op: "-", operand: operand)
-}
-
-
 // MARK: - Standard library numeric operands
 
 
-// `Int` and `Double` conform to `XLExpression`, so a plain `Int` or `Double`
-// operand also matches the generic operators above. Swift 5.9 and Swift 6.4
+// `Int` and `Double` are expressions of every dialect, so a plain `Int` or
+// `Double` operand also matches each dialect's generic prefix operators,
+// which scripts/dialect-surface generates from
+// Templates/NumericOperators.swift.template and
+// Templates/IntegerOperators.swift.template (issue #789). Swift 5.9 and Swift 6.4
 // still pick the standard library operator for such an operand, but Swift 6.3
 // picks SwiftQL's, and `let x = -someInt` stops compiling in every file that
 // imports SwiftQL (issue #771). These exact-match overloads restore `Int` and
@@ -56,4 +35,11 @@ public prefix func -(operand: Int) -> Int {
 
 public prefix func +(operand: Double) -> Double {
     operand
+}
+
+// Keeps `~someInt` typed as `Int` on Swift 6.3. The comment above explains
+// why the exact-match overload is needed (issue #771).
+
+public prefix func ~(operand: Int) -> Int {
+    operand ^ -1
 }

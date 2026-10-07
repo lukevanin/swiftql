@@ -8,7 +8,18 @@
 import Foundation
 
 
-public typealias XLCustomType = XLExpression & XLBindable & XLLiteral
+///
+/// A custom scalar type: a Swift value that binds to, reads from, and renders
+/// into SQL.
+///
+/// A custom type is a value, so it is an operand in a SQLite query, as an
+/// ``XLSQLiteExpression``, like `String` or `Int` (issue #789). A type that
+/// conforms to `XLExpression`, `XLBindable`, and `XLLiteral` separately,
+/// rather than to this alias, conforms to `XLSQLiteExpression` itself. A type
+/// used in another dialect's query conforms to that dialect's expression
+/// protocol as well.
+///
+public typealias XLCustomType = XLExpression & XLBindable & XLLiteral & XLSQLiteExpression
 
 
 // MARK: - Expressions
@@ -18,6 +29,14 @@ public typealias XLCustomType = XLExpression & XLBindable & XLLiteral
 /// An SQL expression.
 ///
 /// An expression evaluates to a value of a known type defined by the associated type `T`.
+///
+/// `XLExpression` does not say which dialect the expression belongs to. A
+/// clause that takes an expression without composing it, such as `Where`,
+/// `OrderBy`, or a column assignment, accepts any `XLExpression`. Operators and
+/// functions compose expressions, so they take and return a dialect's own
+/// expression protocol, such as ``XLSQLiteExpression``: a column of a model
+/// declared for one dialect does not compose with another dialect's
+/// expressions (issue #789).
 ///
 public protocol XLExpression<T>: XLEncodable {
     associatedtype T
@@ -173,7 +192,12 @@ public protocol XLComparable: XLEquatable {
 ///
 /// Expression that refers to a table column.
 ///
-public struct XLColumnReference<T>: XLExpression {
+/// `Dialect` is the dialect of the model that declares the column, which names
+/// it with `@SQLTable(dialect:)` or `@SQLResult(dialect:)`. The column is an
+/// expression of that dialect only, such as an ``XLSQLiteExpression`` for a
+/// SQLite model (issue #789).
+///
+public struct XLColumnReference<T, Dialect>: XLExpression {
     
     public var alias: XLName
     
@@ -199,7 +223,9 @@ public struct XLColumnReference<T>: XLExpression {
 ///
 /// Expression that refers to a column in a result, such as the list of columns in a select statement.
 ///
-public struct XLColumnResult<T>: XLExpression {
+/// `Dialect` is the dialect of the `@SQLResult` model that declares the column.
+///
+public struct XLColumnResult<T, Dialect>: XLExpression {
     
     public var alias: XLName
     
@@ -229,20 +255,41 @@ public protocol XLStaticStorageRetypableExpression {
 }
 
 
+// Each column also has a concrete overload, which keeps the column's dialect,
+// so the retyped column composes with that dialect's expressions, such as a
+// capture (issue #789). The protocol's erased witness is disfavoured, so a
+// call that either overload satisfies takes the concrete one.
+
 extension XLColumnReference: XLStaticStorageRetypableExpression {
+    @_disfavoredOverload
+    public func staticStorageExpression<Storage>(
+        as storageType: Storage.Type
+    ) -> any XLExpression<Storage> {
+        staticStorageExpression(as: storageType) as XLColumnReference<Storage, Dialect>
+    }
+
+    /// This column, typed as `Storage`, in the column's dialect.
     public func staticStorageExpression<Storage>(
         as _: Storage.Type
-    ) -> any XLExpression<Storage> {
-        XLColumnReference<Storage>(dependency: dependency, as: alias)
+    ) -> XLColumnReference<Storage, Dialect> {
+        XLColumnReference<Storage, Dialect>(dependency: dependency, as: alias)
     }
 }
 
 
 extension XLColumnResult: XLStaticStorageRetypableExpression {
+    @_disfavoredOverload
+    public func staticStorageExpression<Storage>(
+        as storageType: Storage.Type
+    ) -> any XLExpression<Storage> {
+        staticStorageExpression(as: storageType) as XLColumnResult<Storage, Dialect>
+    }
+
+    /// This column, typed as `Storage`, in the column's dialect.
     public func staticStorageExpression<Storage>(
         as _: Storage.Type
-    ) -> any XLExpression<Storage> {
-        XLColumnResult<Storage>(dependency: dependency, as: alias)
+    ) -> XLColumnResult<Storage, Dialect> {
+        XLColumnResult<Storage, Dialect>(dependency: dependency, as: alias)
     }
 }
 
@@ -453,7 +500,11 @@ extension XLFunction: XLNamedFunction {
 /// The `XLEnum` protocol provides default implementations for most of the required methods which can
 /// be overridden as required. Reading an unknown stored raw value throws `XLColumnReadError`.
 ///
-public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
+/// An enum is a value, so it is an operand in a SQLite query, as an
+/// ``XLSQLiteExpression`` (issue #789). An enum used in another dialect's
+/// query conforms to that dialect's expression protocol as well.
+///
+public protocol XLEnum: XLLiteral, XLExpression, XLSQLiteExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     
 }
 
@@ -479,22 +530,6 @@ extension XLEnum {
         RawValue.wrapSQL(context: &context) { context in
             rawValue.makeSQL(context: &context)
         }
-    }
-}
-
-
-extension XLExpression {
-    
-    public func toRawValue() -> some XLExpression<Int> where T: XLEnum, T.RawValue == Int {
-        XLTypeAffinityExpression(expression: self)
-    }
-    
-    public func toRawValue() -> some XLExpression<Double> where T: XLEnum, T.RawValue == Double {
-        XLTypeAffinityExpression(expression: self)
-    }
-    
-    public func toRawValue() -> some XLExpression<String> where T: XLEnum, T.RawValue == String {
-        XLTypeAffinityExpression(expression: self)
     }
 }
 
@@ -553,17 +588,6 @@ extension Optional: XLLiteral where Wrapped: XLLiteral {
     
     public static func wrapSQL(context: inout XLBuilder, builder: (inout XLBuilder) -> Void) {
         Wrapped.wrapSQL(context: &context, builder: builder)
-    }
-}
-
-
-extension XLExpression {
-    
-    ///
-    /// Cast a non-null expression to an optional value expression. 
-    ///
-    public func toNullable() -> some XLExpression<Optional<T>> {
-        XLTypeAffinityExpression(expression: self)
     }
 }
 

@@ -38,7 +38,7 @@ final class XLSyntaxOperatorTests: XLSyntaxTestCase {
 
 
     func testBitwiseNotOperator_IntegerLiteralExpression() {
-        let operand: any XLExpression<Int> = 12
+        let operand: any XLSQLiteExpression<Int> = 12
         let expression = ~operand
         assertRenders(expression, as: "~(12)")
     }

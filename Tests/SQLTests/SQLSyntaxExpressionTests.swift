@@ -225,7 +225,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         // A searched CASE without an ELSE evaluates to NULL when no condition
         // matches, so the expression type is the optional of the result type.
         let _: any XLExpression<Int?> = expression
-        XCTAssertTrue(VariableCaseWhenThen<Int>.T.self == Int?.self)
+        XCTAssertTrue(VariableCaseWhenThen<Int, XLSQLiteDialect>.T.self == Int?.self)
         assertRenders(expression, as: "(CASE WHEN (:x == 12) THEN 42 END)")
     }
 

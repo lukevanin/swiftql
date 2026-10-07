@@ -17,7 +17,7 @@ final class StaticRowMacroHygieneTests: XCTestCase {
             String,
             XLSQLiteDialect
         >.intrinsic(
-            selecting: XLColumnResult<String>(
+            selecting: XLColumnResult<String, XLSQLiteDialect>(
                 dependency: XLSelectResultDependency(),
                 as: "reader"
             ),
@@ -30,7 +30,7 @@ final class StaticRowMacroHygieneTests: XCTestCase {
             Int,
             XLSQLiteDialect
         >.intrinsic(
-            selecting: XLColumnResult<Int>(
+            selecting: XLColumnResult<Int, XLSQLiteDialect>(
                 dependency: XLSelectResultDependency(),
                 as: "row"
             ),

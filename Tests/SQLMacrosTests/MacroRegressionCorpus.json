@@ -607,8 +607,8 @@
     {
       "id": "macro.dialect-parameterised-emission",
       "category": "dialect-parameterised-emission",
-      "title": "One model declared once, built against two dialects",
-      "description": "Issue #687: the generated @SQLCodec staticResultField member is generic over an XLLiteralValueDialect instead of naming XLSQLiteDialect, and @SQLQuery, @SQLQueries, and @SQLBindings take an optional dialect: argument that names the dialect their invocation packet is encoded for, SQLite when absent. A container supplies its dialect to every specification. A fake second dialect with its own value model builds, encodes, and decodes the same @SQLTable model through the same generated members as SQLite, and an @SQLBindings packet encodes for it. The model declaration and the call sites are unchanged.",
+      "title": "One model's static layout built against two dialects",
+      "description": "Issue #687: the generated @SQLCodec staticResultField member is generic over an XLLiteralValueDialect instead of naming XLSQLiteDialect, and @SQLQuery, @SQLQueries, and @SQLBindings take an optional dialect: argument that names the dialect their invocation packet is encoded for, SQLite when absent. A container supplies its dialect to every specification. A fake second dialect with its own value model builds, encodes, and decodes the same @SQLTable model through the same generated members as SQLite, and an @SQLBindings packet encodes for it. The layout's call sites are unchanged. Since issue #789 a query selects the columns of a model declared for its dialect, so the second dialect's layout selects the columns of a second declaration of the table (see macro.dialect-model-declaration).",
       "provenance": {
         "inspiration": "n/a -- recorded from this repository's own issue #687 and the dialect surface separation note, not adapted from an external case.",
         "upstream_reference": null,
@@ -660,6 +660,45 @@
           "layer": "downstream-build",
           "source_path": "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
           "test_case": "DialectParameterisedValid"
+        }
+      ]
+    },
+    {
+      "id": "macro.dialect-model-declaration",
+      "category": "dialect-parameterised-emission",
+      "title": "A model declared for a dialect, and its columns typed with it",
+      "description": "Issue #789: @SQLTable(dialect:) and @SQLResult(dialect:) name the dialect a model belongs to, and default to the module-qualified SwiftQL.XLSQLiteDialect. Every generated column is XLColumnReference<Value, Dialect> or XLColumnResult<Value, Dialect>, so it is an expression of that dialect's own protocol, such as XLSQLiteExpression, and of no other. The protocols' associated type is XLModelDialect, inferred from a generated _dialect witness; Swift makes an inferred associated type a member type of the model, so the name is in SwiftQL's prefix space and does not capture a user's own type named Dialect, top-level or nested. A property named _dialect is reported. The dialect argument must be a type literal. Slots that take a value without composing it, such as columns(...), inserts, and updates, keep the dialect-free XLExpression. A schema takes only a model of its dialect, an operator does not compose two dialects, and a SQLite-only function is absent from another dialect's columns and expressions; those are compile errors, and the misspelled-column error is unchanged.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #789, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_columnsCarryTheDefaultSQLiteDialectModuleQualified / test_dialectArgumentNamesTheDialectEveryColumnCarries / test_resultDialectArgumentNamesTheDialectEveryResultColumnCarries / test_noMemberNamedDialectIsGenerated / test_nestedTypeNamedDialectIsAccepted / test_valueSlotsTakeAnExpressionOfAnyDialect"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_dialectArgumentNotATypeLiteral_emitsError / test_dialectWitnessPropertyName_emitsError / test_nestedModelDialectType_emitsError / test_modelDialectPropertyName_emitsError"
+        },
+        {
+          "layer": "second-dialect-execution",
+          "source_path": "Tests/SQLTests/DialectTypeParameterTests.swift",
+          "test_case": "DialectTypeParameterTests.testTheSameQueryBodyRendersForBothDialects / testEveryColumnAndComposedExpressionIsOfTheModelDialect / testAStaticFieldRefusesAColumnOfAnotherDialect"
+        },
+        {
+          "layer": "compile-and-render",
+          "source_path": "Tests/SQLTests/DialectNameCaptureTests.swift",
+          "test_case": "DialectNameCaptureTests.testAPropertyOfTheUsersOwnDialectTypeKeepsItsType / testANestedTypeNamedDialectIsTheModelsOwn"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-dialect-type-parameter-type-safety.sh",
+          "test_case": "DialectTypeParameterValid / DialectTypeParameterMixedComparison / DialectTypeParameterMixedComposed / DialectTypeParameterSQLiteOperationOnComposed / DialectTypeParameterMisspelledColumn"
         }
       ]
     },

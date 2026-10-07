@@ -19,7 +19,7 @@ import Foundation
 ///
 /// - Returns: `false` if the `operand` is `true`, or `true` if the `operand` is `false`.
 ///
-public prefix func !(operand: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public prefix func !(operand: any {{Expression}}<Bool>) -> some {{Expression}}<Bool> {
     XLPrefixOperatorExpression(op: "NOT", operand: operand)
 }
 
@@ -31,7 +31,7 @@ public prefix func !(operand: any XLExpression<Bool>) -> some XLExpression<Bool>
 ///
 /// - Returns: `nil` if the `operand` is `nil`, or `false` if the `operand` is `true`, or `true` if the `operand` is `false`.
 ///
-public prefix func !(operand: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public prefix func !(operand: any {{Expression}}<Optional<Bool>>) -> some {{Expression}}<Optional<Bool>> {
     XLPrefixOperatorExpression(op: "NOT", operand: operand)
 }
 
@@ -42,28 +42,28 @@ public prefix func !(operand: any XLExpression<Optional<Bool>>) -> some XLExpres
 ///
 /// Performs a boolean AND operation on two boolean expressions.
 ///
-public func &&(lhs: any XLExpression<Bool>, rhs: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public func &&(lhs: any {{Expression}}<Bool>, rhs: any {{Expression}}<Bool>) -> some {{Expression}}<Bool> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on a boolean expression and an optional boolean expression.
 ///
-public func &&(lhs: any XLExpression<Bool>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func &&(lhs: any {{Expression}}<Bool>, rhs: any {{Expression}}<Optional<Bool>>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on an optional boolean expression and a boolean expression.
 ///
-public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Bool>) -> some XLExpression<Optional<Bool>> {
+public func &&(lhs: any {{Expression}}<Optional<Bool>>, rhs: any {{Expression}}<Bool>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
 ///
 /// Performs a boolean AND operation on two optional boolean expressions.
 ///
-public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func &&(lhs: any {{Expression}}<Optional<Bool>>, rhs: any {{Expression}}<Optional<Bool>>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "AND", lhs: lhs, rhs: rhs)
 }
 
@@ -71,18 +71,18 @@ public func &&(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Opti
 // MARK: - OR
 
 
-public func ||(lhs: any XLExpression<Bool>, rhs: any XLExpression<Bool>) -> some XLExpression<Bool> {
+public func ||(lhs: any {{Expression}}<Bool>, rhs: any {{Expression}}<Bool>) -> some {{Expression}}<Bool> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public func ||(lhs: any XLExpression<Bool>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public func ||(lhs: any {{Expression}}<Bool>, rhs: any {{Expression}}<Optional<Bool>>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public func ||(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Bool>) -> some XLExpression<Optional<Bool>> {
+public func ||(lhs: any {{Expression}}<Optional<Bool>>, rhs: any {{Expression}}<Bool>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }
 
-public  func ||(lhs: any XLExpression<Optional<Bool>>, rhs: any XLExpression<Optional<Bool>>) -> some XLExpression<Optional<Bool>> {
+public  func ||(lhs: any {{Expression}}<Optional<Bool>>, rhs: any {{Expression}}<Optional<Bool>>) -> some {{Expression}}<Optional<Bool>> {
     XLBinaryOperatorExpression(op: "OR", lhs: lhs, rhs: rhs)
 }

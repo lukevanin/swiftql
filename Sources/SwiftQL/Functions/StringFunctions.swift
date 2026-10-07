@@ -91,9 +91,9 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
 }
 
 
-private struct XLCollationExpression<T>: XLExpression {
+private struct XLCollationExpression<T>: XLSQLiteExpression {
 
-    let operand: any XLExpression
+    let operand: any XLSQLiteExpression
 
     let collation: XLCollation
 
@@ -114,13 +114,13 @@ private struct XLCollationExpression<T>: XLExpression {
 }
 
 
-extension XLExpression {
+extension XLSQLiteExpression {
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<String> where T == String {
+    public func collate(_ collation: XLCollation) -> some XLSQLiteExpression<String> where T == String {
         XLCollationExpression<String>(operand: self, collation: collation)
     }
     
-    public func collate(_ collation: XLCollation) -> some XLExpression<Optional<String>> where T == Optional<String> {
+    public func collate(_ collation: XLCollation) -> some XLSQLiteExpression<Optional<String>> where T == Optional<String> {
         XLCollationExpression<Optional<String>>(
             operand: self,
             collation: collation
@@ -130,26 +130,26 @@ extension XLExpression {
 
 
 @available(*, deprecated, message: "Use format.printf(...) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: any XLExpression ...) -> some XLExpression<String> {
+public func printf(format: String, _ parameters: any XLSQLiteExpression ...) -> some XLSQLiteExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
 @available(*, deprecated, message: "Use format.printf(_:) instead. printf(format:_:) will be removed in SwiftQL 2.")
-public func printf(format: String, _ parameters: [any XLExpression]) -> some XLExpression<String> {
+public func printf(format: String, _ parameters: [any XLSQLiteExpression]) -> some XLSQLiteExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
-extension XLExpression where T == String {
+extension XLSQLiteExpression where T == String {
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: any XLExpression...) -> some XLExpression<String> {
+    public func printf(_ parameters: any XLSQLiteExpression...) -> some XLSQLiteExpression<String> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 
     /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
-    public func printf(_ parameters: [any XLExpression]) -> some XLExpression<String> {
+    public func printf(_ parameters: [any XLSQLiteExpression]) -> some XLSQLiteExpression<String> {
         XLFunction(name: "printf", parameters: [self] + parameters)
     }
 }

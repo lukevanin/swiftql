@@ -40,10 +40,12 @@ public enum SQLFunctionMacroError: Error, CustomStringConvertible, LocalizedErro
 /// `definition` and `makeSQL(context:)` members from them.
 ///
 /// Every stored property becomes one positional SQL function argument, in declaration order. Each
-/// property must be typed as an `XLExpression` (spelled `any XLExpression<...>`, `some
-/// XLExpression<...>`, or a module-qualified equivalent) so that its `.makeSQL` method can be
-/// referenced directly from the generated code; any other stored property is reported as a
-/// diagnostic instead of silently producing code which fails to compile.
+/// property must be typed as an `XLExpression` or an `XLSQLiteExpression` (spelled
+/// `any XLExpression<...>`, `some XLExpression<...>`, `any XLSQLiteExpression<...>`, or a
+/// module-qualified equivalent) so that its `.makeSQL` method can be referenced directly from the
+/// generated code; any other stored property is reported as a diagnostic instead of silently
+/// producing code which fails to compile. A custom function runs inside SQLite, and an
+/// `XLSQLiteExpression` argument takes only a SQLite expression (issue #789).
 ///
 internal struct FunctionMetaBuilder {
 
@@ -178,7 +180,7 @@ internal struct FunctionMetaBuilder {
             guard isExpressionType(annotation.type) else {
                 report(
                     annotation.type, id: "unsupported-argument-type",
-                    "Property '\(name)' must be typed as 'any XLExpression<...>' (or 'some XLExpression<...>') to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
+                    "Property '\(name)' must be typed as 'any XLExpression<...>' or 'any XLSQLiteExpression<...>' (or the 'some' form of either) to be used as a function argument. Found '\(annotation.type.trimmedDescription)'."
                 )
                 continue
             }
@@ -200,13 +202,23 @@ internal struct FunctionMetaBuilder {
             return isExpressionType(existential.constraint)
         }
         if let identifier = type.as(IdentifierTypeSyntax.self) {
-            return identifier.name.text == "XLExpression"
+            return expressionTypeNames.contains(identifier.name.text)
         }
         if let member = type.as(MemberTypeSyntax.self) {
-            return member.name.text == "XLExpression"
+            return expressionTypeNames.contains(member.name.text)
         }
         return false
     }
+
+    ///
+    /// The expression protocols a property may name: `XLExpression`, which takes an expression
+    /// of any dialect, and `XLSQLiteExpression`, which takes only a SQLite expression
+    /// (issue #789).
+    ///
+    private static let expressionTypeNames: Set<String> = [
+        "XLExpression",
+        "XLSQLiteExpression",
+    ]
 
     // MARK: - Generation
 

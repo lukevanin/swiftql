@@ -13,21 +13,21 @@ import Foundation
 /// `document ->> path`.
 ///
 /// The two operators select the same element and differ only in what they
-/// return. See ``XLExpression/jsonElement(at:)`` and
-/// ``XLExpression/jsonValue(at:as:)``.
+/// return. See ``XLSQLiteExpression/jsonElement(at:)`` and
+/// ``XLSQLiteExpression/jsonValue(at:as:)``.
 ///
-struct XLJSONSelectionExpression<T>: XLExpression {
+struct XLJSONSelectionExpression<T>: XLSQLiteExpression {
 
     private let symbol: String
 
-    private let document: any XLExpression
+    private let document: any XLSQLiteExpression
 
-    private let path: any XLExpression
+    private let path: any XLSQLiteExpression
 
     init(
         symbol: String,
-        document: any XLExpression,
-        path: any XLExpression
+        document: any XLSQLiteExpression,
+        path: any XLSQLiteExpression
     ) {
         self.symbol = symbol
         self.document = document
@@ -66,7 +66,7 @@ struct XLJSONSelectionExpression<T>: XLExpression {
 /// key, and it composes, so the shorthand would be a second way to write what
 /// the path type covers.
 ///
-extension XLExpression {
+extension XLSQLiteExpression {
 
     ///
     /// Selects the element at `path` and returns it as JSON text, rendering
@@ -79,7 +79,7 @@ extension XLExpression {
     ///
     /// Use ``jsonValue(at:as:)`` to read an element as a SQL value instead.
     ///
-    public func jsonElement(at path: XLJSONPath) -> some XLExpression<String?>
+    public func jsonElement(at path: XLJSONPath) -> some XLSQLiteExpression<String?>
     where T: XLLiteral {
         XLJSONSelectionExpression<String?>(
             symbol: "->",
@@ -103,7 +103,7 @@ extension XLExpression {
     public func jsonValue<Value>(
         at path: XLJSONPath,
         as _: Value.Type
-    ) -> some XLExpression<Value?> where T: XLLiteral, Value: XLLiteral {
+    ) -> some XLSQLiteExpression<Value?> where T: XLLiteral, Value: XLLiteral {
         XLJSONSelectionExpression<Value?>(
             symbol: "->>",
             document: self,

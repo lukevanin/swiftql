@@ -1,0 +1,48 @@
+//
+//  EquatableExpressionOperators.swift
+//  
+//
+//  Created by Luke Van In on 2023/08/04.
+//
+
+import Foundation
+
+
+// MARK: - Equality
+
+
+public func ==<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<Bool> where T: XLEquatable {
+    XLComparisonExpression(.equal, lhs: lhs, rhs: rhs)
+}
+
+public func ==<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<Bool>> where T: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+public func ==<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Bool>> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+public func ==<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Bool>> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeEqual, lhs: lhs, rhs: rhs)
+}
+
+
+// MARK: - Inequality
+
+
+public func !=<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<T>) -> some {{Expression}}<Bool> where T: XLEquatable {
+    XLComparisonExpression(.notEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<T>(lhs: any {{Expression}}<T>, rhs: any {{Expression}}<Optional<T>>) -> some {{Expression}}<Optional<Bool>> where T: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Wrapped>) -> some {{Expression}}<Optional<Bool>> where Wrapped: XLEquatable {
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}
+
+public func !=<Wrapped>(lhs: any {{Expression}}<Optional<Wrapped>>, rhs: any {{Expression}}<Optional<Wrapped>>) -> some {{Expression}}<Optional<Bool>> where Wrapped: XLEquatable{
+    XLComparisonExpression(.nullSafeNotEqual, lhs: lhs, rhs: rhs)
+}

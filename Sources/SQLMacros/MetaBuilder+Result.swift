@@ -18,7 +18,9 @@ extension MetaBuilder {
     func makeMetaResultExtension(table: Bool) -> String {
         var context = CodeWriter()
         context.block("extension \(structName): XLResult") { context in
-            
+
+            context.line(makeDialectWitness(isStatic: true))
+
             makeCommonMeta(context: &context, table: table)
         }
         return context.build()

@@ -4643,8 +4643,8 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.sumOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "sumOrNull"
           ]
@@ -4758,8 +4758,8 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.sumOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "sumOrNull"
           ]
@@ -8222,84 +8222,84 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.average",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.average",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "average"
           ]
         },
         {
-          "symbol": "XLExpression.averageOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.averageOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "averageOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.count",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.count",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "count"
           ]
         },
         {
-          "symbol": "XLExpression.groupConcat",
+          "symbol": "XLSQLiteExpression.groupConcat",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
           "source_tokens": [
             "groupConcat"
           ]
         },
         {
-          "symbol": "XLExpression.groupConcatOrNull",
+          "symbol": "XLSQLiteExpression.groupConcatOrNull",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
           "source_tokens": [
             "groupConcatOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.max",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.max",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "max"
           ]
         },
         {
-          "symbol": "XLExpression.maxOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.maxOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "maxOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.min",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.min",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "min"
           ]
         },
         {
-          "symbol": "XLExpression.minOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.minOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "minOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.sum",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.sum",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "sum"
           ]
         },
         {
-          "symbol": "XLExpression.sumOrNull",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "symbol": "XLSQLiteExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "sumOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.total",
+          "symbol": "XLSQLiteExpression.total",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
           "source_tokens": [
             "total"
@@ -8354,22 +8354,22 @@
           ]
         },
         {
-          "symbol": "XLExpression.coalesce",
-          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "symbol": "XLSQLiteExpression.coalesce",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteOptionalOperators.swift",
           "source_tokens": [
             "coalesce"
           ]
         },
         {
           "symbol": "switchCase",
-          "source_path": "Sources/SwiftQL/SQLCaseWhenThen.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteCaseWhenThen.swift",
           "source_tokens": [
             "switchCase"
           ]
         },
         {
           "symbol": "when",
-          "source_path": "Sources/SwiftQL/SQLCaseWhenThen.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteCaseWhenThen.swift",
           "source_tokens": [
             "when"
           ]
@@ -8413,8 +8413,8 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.isBetween/isNotBetween",
-          "source_path": "Sources/SwiftQL/Operators/BetweenOperator.swift",
+          "symbol": "XLSQLiteExpression.isBetween/isNotBetween",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteBetweenOperator.swift",
           "source_tokens": [
             "isBetween",
             "isNotBetween"
@@ -8422,28 +8422,28 @@
         },
         {
           "symbol": "prefix ~",
-          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteIntegerOperators.swift",
           "source_tokens": [
             "~"
           ]
         },
         {
           "symbol": "infix ==",
-          "source_path": "Sources/SwiftQL/Operators/EquatableExpressionOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteEquatableExpressionOperators.swift",
           "source_tokens": [
             "=="
           ]
         },
         {
           "symbol": "infix integer +",
-          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteIntegerOperators.swift",
           "source_tokens": [
             "+"
           ]
         },
         {
-          "symbol": "XLExpression.in(_ expressions:)",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.in(_ expressions:)",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "in"
           ]
@@ -8456,23 +8456,23 @@
           ]
         },
         {
-          "symbol": "XLExpression.isNull/notNull",
-          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "symbol": "XLSQLiteExpression.isNull/notNull",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteOptionalOperators.swift",
           "source_tokens": [
             "isNull",
             "notNull"
           ]
         },
         {
-          "symbol": "infix text + and XLExpression.like",
-          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "symbol": "infix text + and XLSQLiteExpression.like",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteTextOperators.swift",
           "source_tokens": [
             "+",
             "like"
           ]
         },
         {
-          "symbol": "XLCollation and XLExpression.collate",
+          "symbol": "XLCollation and XLSQLiteExpression.collate",
           "source_path": "Sources/SwiftQL/Functions/StringFunctions.swift",
           "source_tokens": [
             "XLCollation",
@@ -8593,7 +8593,7 @@
           ]
         },
         {
-          "symbol": "XLExpression.toUnixTimestamp",
+          "symbol": "XLSQLiteExpression.toUnixTimestamp",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "toUnixTimestamp"
@@ -8655,105 +8655,105 @@
           ]
         },
         {
-          "symbol": "XLExpression.date(_:)",
+          "symbol": "XLSQLiteExpression.date(_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "date"
           ]
         },
         {
-          "symbol": "XLExpression.time(_:)",
+          "symbol": "XLSQLiteExpression.time(_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "time"
           ]
         },
         {
-          "symbol": "XLExpression.datetime(_:)",
+          "symbol": "XLSQLiteExpression.datetime(_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "datetime"
           ]
         },
         {
-          "symbol": "XLExpression.julianDay(_:)",
+          "symbol": "XLSQLiteExpression.julianDay(_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "julianDay"
           ]
         },
         {
-          "symbol": "XLExpression.unixEpoch(_:)",
+          "symbol": "XLSQLiteExpression.unixEpoch(_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "unixEpoch"
           ]
         },
         {
-          "symbol": "XLExpression.strftime(_:_:)",
+          "symbol": "XLSQLiteExpression.strftime(_:_:)",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "strftime"
           ]
         },
         {
-          "symbol": "XLExpression.year()",
+          "symbol": "XLSQLiteExpression.year()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "year"
           ]
         },
         {
-          "symbol": "XLExpression.month()",
+          "symbol": "XLSQLiteExpression.month()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "month"
           ]
         },
         {
-          "symbol": "XLExpression.day()",
+          "symbol": "XLSQLiteExpression.day()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "day"
           ]
         },
         {
-          "symbol": "XLExpression.hour()",
+          "symbol": "XLSQLiteExpression.hour()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "hour"
           ]
         },
         {
-          "symbol": "XLExpression.minute()",
+          "symbol": "XLSQLiteExpression.minute()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "minute"
           ]
         },
         {
-          "symbol": "XLExpression.second()",
+          "symbol": "XLSQLiteExpression.second()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "second"
           ]
         },
         {
-          "symbol": "XLExpression.dayOfYear()",
+          "symbol": "XLSQLiteExpression.dayOfYear()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "dayOfYear"
           ]
         },
         {
-          "symbol": "XLExpression.dayOfWeek()",
+          "symbol": "XLSQLiteExpression.dayOfWeek()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "dayOfWeek"
           ]
         },
         {
-          "symbol": "XLExpression.weekOfYear()",
+          "symbol": "XLSQLiteExpression.weekOfYear()",
           "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
           "source_tokens": [
             "weekOfYear"
@@ -8817,112 +8817,112 @@
           ]
         },
         {
-          "symbol": "XLExpression.minifiedJSON",
+          "symbol": "XLSQLiteExpression.minifiedJSON",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "minifiedJSON"
           ]
         },
         {
-          "symbol": "XLExpression.prettyJSON",
+          "symbol": "XLSQLiteExpression.prettyJSON",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "prettyJSON"
           ]
         },
         {
-          "symbol": "XLExpression.jsonQuoted",
+          "symbol": "XLSQLiteExpression.jsonQuoted",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "jsonQuoted"
           ]
         },
         {
-          "symbol": "XLExpression.jsonType",
+          "symbol": "XLSQLiteExpression.jsonType",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "jsonType"
           ]
         },
         {
-          "symbol": "XLExpression.jsonErrorPosition",
+          "symbol": "XLSQLiteExpression.jsonErrorPosition",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "jsonErrorPosition"
           ]
         },
         {
-          "symbol": "XLExpression.validJSONOrNull",
+          "symbol": "XLSQLiteExpression.validJSONOrNull",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "validJSONOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.validJSONOrJSONBOrNull",
+          "symbol": "XLSQLiteExpression.validJSONOrJSONBOrNull",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "validJSONOrJSONBOrNull"
           ]
         },
         {
-          "symbol": "XLExpression.jsonArrayLength",
+          "symbol": "XLSQLiteExpression.jsonArrayLength",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "jsonArrayLength"
           ]
         },
         {
-          "symbol": "XLExpression.validJSON",
+          "symbol": "XLSQLiteExpression.validJSON",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
             "validJSON"
           ]
         },
         {
-          "symbol": "XLExpression.jsonExtract",
+          "symbol": "XLSQLiteExpression.jsonExtract",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonExtract"
           ]
         },
         {
-          "symbol": "XLExpression.jsonInserting",
+          "symbol": "XLSQLiteExpression.jsonInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonReplacing",
+          "symbol": "XLSQLiteExpression.jsonReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonReplacing"
           ]
         },
         {
-          "symbol": "XLExpression.jsonSetting",
+          "symbol": "XLSQLiteExpression.jsonSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonRemoving",
+          "symbol": "XLSQLiteExpression.jsonRemoving",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonRemoving"
           ]
         },
         {
-          "symbol": "XLExpression.jsonPatched",
+          "symbol": "XLSQLiteExpression.jsonPatched",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonPatched"
           ]
         },
         {
-          "symbol": "XLExpression.jsonGroupArray",
+          "symbol": "XLSQLiteExpression.jsonGroupArray",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
           "source_tokens": [
             "jsonGroupArray"
@@ -8986,56 +8986,56 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.jsonInserting",
+          "symbol": "XLSQLiteExpression.jsonInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonReplacing",
+          "symbol": "XLSQLiteExpression.jsonReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonReplacing"
           ]
         },
         {
-          "symbol": "XLExpression.jsonSetting",
+          "symbol": "XLSQLiteExpression.jsonSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonRemoving",
+          "symbol": "XLSQLiteExpression.jsonRemoving",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonRemoving"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbInserting",
+          "symbol": "XLSQLiteExpression.jsonbInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbReplacing",
+          "symbol": "XLSQLiteExpression.jsonbReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbReplacing"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbSetting",
+          "symbol": "XLSQLiteExpression.jsonbSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbRemoving",
+          "symbol": "XLSQLiteExpression.jsonbRemoving",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbRemoving"
@@ -9088,14 +9088,14 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.jsonElement",
+          "symbol": "XLSQLiteExpression.jsonElement",
           "source_path": "Sources/SwiftQL/Operators/JSONOperators.swift",
           "source_tokens": [
             "jsonElement"
           ]
         },
         {
-          "symbol": "XLExpression.jsonValue",
+          "symbol": "XLSQLiteExpression.jsonValue",
           "source_path": "Sources/SwiftQL/Operators/JSONOperators.swift",
           "source_tokens": [
             "jsonValue"
@@ -9192,21 +9192,21 @@
           ]
         },
         {
-          "symbol": "XLExpression.jsonSetting",
+          "symbol": "XLSQLiteExpression.jsonSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbSetting",
+          "symbol": "XLSQLiteExpression.jsonbSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonGroupArray",
+          "symbol": "XLSQLiteExpression.jsonGroupArray",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
           "source_tokens": [
             "jsonGroupArray"
@@ -9227,28 +9227,28 @@
           ]
         },
         {
-          "symbol": "XLExpression.jsonInserting",
+          "symbol": "XLSQLiteExpression.jsonInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonReplacing",
+          "symbol": "XLSQLiteExpression.jsonReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
           "source_tokens": [
             "jsonReplacing"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbInserting",
+          "symbol": "XLSQLiteExpression.jsonbInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbReplacing",
+          "symbol": "XLSQLiteExpression.jsonbReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbReplacing"
@@ -9269,7 +9269,7 @@
           ]
         },
         {
-          "symbol": "XLExpression.jsonbGroupArray",
+          "symbol": "XLSQLiteExpression.jsonbGroupArray",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbGroupArray"
@@ -9322,56 +9322,56 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.minifiedJSONB",
+          "symbol": "XLSQLiteExpression.minifiedJSONB",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "minifiedJSONB"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbExtract",
+          "symbol": "XLSQLiteExpression.jsonbExtract",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbExtract"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbInserting",
+          "symbol": "XLSQLiteExpression.jsonbInserting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbInserting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbReplacing",
+          "symbol": "XLSQLiteExpression.jsonbReplacing",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbReplacing"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbSetting",
+          "symbol": "XLSQLiteExpression.jsonbSetting",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbSetting"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbRemoving",
+          "symbol": "XLSQLiteExpression.jsonbRemoving",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbRemoving"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbPatched",
+          "symbol": "XLSQLiteExpression.jsonbPatched",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbPatched"
           ]
         },
         {
-          "symbol": "XLExpression.jsonbGroupArray",
+          "symbol": "XLSQLiteExpression.jsonbGroupArray",
           "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
           "source_tokens": [
             "jsonbGroupArray"
@@ -9433,8 +9433,8 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.like(_:escape:)",
-          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "symbol": "XLSQLiteExpression.like(_:escape:)",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteTextOperators.swift",
           "source_tokens": [
             "like"
           ]
@@ -9483,8 +9483,8 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.notIn",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.notIn",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "notIn"
           ]
@@ -9531,15 +9531,15 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.in",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.in",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "in"
           ]
         },
         {
-          "symbol": "XLExpression.notIn",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.notIn",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "notIn"
           ]
@@ -9581,22 +9581,22 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.abs",
-          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "symbol": "XLSQLiteExpression.abs",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteNumericFunctions.swift",
           "source_tokens": [
             "abs"
           ]
         },
         {
-          "symbol": "XLExpression.rounded",
-          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "symbol": "XLSQLiteExpression.rounded",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteNumericFunctions.swift",
           "source_tokens": [
             "rounded"
           ]
         },
         {
-          "symbol": "XLExpression.floor",
-          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "symbol": "XLSQLiteExpression.floor",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteNumericFunctions.swift",
           "source_tokens": [
             "floor"
           ]
@@ -9656,7 +9656,7 @@
       "public_api": [
         {
           "symbol": "Boolean expression operators (!, &&, ||)",
-          "source_path": "Sources/SwiftQL/Operators/BooleanOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteBooleanOperators.swift",
           "source_tokens": [
             "!",
             "&&",
@@ -9665,7 +9665,7 @@
         },
         {
           "symbol": "Comparable expression operators (<, <=, >, >=)",
-          "source_path": "Sources/SwiftQL/Operators/ComparableExpressionOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteComparableExpressionOperators.swift",
           "source_tokens": [
             "<",
             "<=",
@@ -9675,7 +9675,7 @@
         },
         {
           "symbol": "Remaining equality and inequality overloads (==, !=)",
-          "source_path": "Sources/SwiftQL/Operators/EquatableExpressionOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteEquatableExpressionOperators.swift",
           "source_tokens": [
             "==",
             "!="
@@ -9683,7 +9683,7 @@
         },
         {
           "symbol": "Remaining integer operators and optional overloads (-, *, /, %)",
-          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteIntegerOperators.swift",
           "source_tokens": [
             "-",
             "*",
@@ -9700,15 +9700,15 @@
           ]
         },
         {
-          "symbol": "XLExpression.??",
-          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "symbol": "XLSQLiteExpression.??",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteOptionalOperators.swift",
           "source_tokens": [
             "??"
           ]
         },
         {
           "symbol": "Floating-point expression operators (+, -, *, /)",
-          "source_path": "Sources/SwiftQL/Operators/RealOperators.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteRealOperators.swift",
           "source_tokens": [
             "+",
             "-",
@@ -9717,11 +9717,17 @@
           ]
         },
         {
-          "symbol": "XLExpression.glob and optional text +/like/glob overloads (+, like, glob)",
-          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "symbol": "XLSQLiteExpression.glob and optional text +/like/glob overloads (+, like, glob)",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteTextOperators.swift",
           "source_tokens": [
             "+",
-            "like",
+            "like"
+          ]
+        },
+        {
+          "symbol": "XLSQLiteExpression.glob and optional text +/like/glob overloads (+, like, glob)",
+          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "source_tokens": [
             "glob"
           ]
         }
@@ -9776,7 +9782,7 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.regexp",
+          "symbol": "XLSQLiteExpression.regexp",
           "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
           "source_tokens": [
             "regexp"
@@ -9885,35 +9891,35 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.cast",
+          "symbol": "XLSQLiteExpression.cast",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
             "cast"
           ]
         },
         {
-          "symbol": "XLExpression.toData",
+          "symbol": "XLSQLiteExpression.toData",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
             "toData"
           ]
         },
         {
-          "symbol": "XLExpression.toDouble",
+          "symbol": "XLSQLiteExpression.toDouble",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
             "toDouble"
           ]
         },
         {
-          "symbol": "XLExpression.toInt",
+          "symbol": "XLSQLiteExpression.toInt",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
             "toInt"
           ]
         },
         {
-          "symbol": "XLExpression.toString",
+          "symbol": "XLSQLiteExpression.toString",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
             "toString"
@@ -10169,7 +10175,7 @@
         },
         {
           "symbol": "count",
-          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteAggregateFunctions.swift",
           "source_tokens": [
             "count"
           ]
@@ -10348,15 +10354,15 @@
           ]
         },
         {
-          "symbol": "XLExpression.in(expression:)",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.in(expression:)",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "in"
           ]
         },
         {
-          "symbol": "XLExpression.in(_ table:)",
-          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "symbol": "XLSQLiteExpression.in(_ table:)",
+          "source_path": "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteInOperator.swift",
           "source_tokens": [
             "in"
           ]

@@ -286,6 +286,20 @@ public struct XLInValueExpression<T>: XLExpression {
         self.negated = negated
     }
     
+    ///
+    /// - Parameter lhs: Expression tested for membership.
+    /// - Parameter list: The candidate values, rendered as a comma-separated
+    ///   list.
+    /// - Parameter negated: Renders `NOT IN` instead of `IN`.
+    ///
+    public init(lhs: any XLExpression, list: [any XLExpression], negated: Bool = false) {
+        self.init(
+            lhs: lhs,
+            rhs: XLCompoundExpression<Any>(separator: .list, expressions: list),
+            negated: negated
+        )
+    }
+    
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(

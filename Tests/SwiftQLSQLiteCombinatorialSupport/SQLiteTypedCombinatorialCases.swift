@@ -2119,7 +2119,7 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func orderSource(
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         sourceID: String
     ) -> C191Order.MetaNamedResult {
         switch sourceID {
@@ -2139,7 +2139,7 @@ public enum SQLiteTypedCombinatorialCases {
 
     private static func completeSelect<Row>(
         select: XLQuerySelectStatement<Row>,
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String,
         predicate: (any XLExpression<Bool>)?,
@@ -2286,7 +2286,7 @@ public enum SQLiteTypedCombinatorialCases {
 
     private static func joined<Row>(
         _ table: XLQueryTableStatement<Row>,
-        schema: XLSchema,
+        schema: XLSQLiteSchema,
         orders: C191Order.MetaNamedResult,
         joinID: String
     ) -> XLQueryTableStatement<Row> {
@@ -2335,7 +2335,7 @@ public enum SQLiteTypedCombinatorialCases {
                 [.init(key: .named("repeated_employee_id"), value: .integer(5))]
             )
         case "empty-in":
-            let values: [any XLExpression<Int>] = []
+            let values: [any XLSQLiteExpression<Int>] = []
             return (orders.orderID.in(values), [])
         case "in-list":
             return (orders.orderID.in([10_248, 10_249, 10_250]), [])
@@ -2555,7 +2555,7 @@ public enum SQLiteTypedCombinatorialCases {
     }
 
     private static func integerSequence(
-        in schema: XLSchema
+        in schema: XLSQLiteSchema
     ) -> C191IntegerRow.MetaCommonTable {
         schema.recursiveCommonTableExpression(
             C191IntegerRow.self,

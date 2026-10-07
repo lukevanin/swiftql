@@ -10,6 +10,7 @@
       "name": "SwiftQL",
       "source_root": "Sources/SwiftQL",
       "allowed_uninstrumented_sources": [
+        "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteExpression.swift",
         "Sources/SwiftQL/SQL.swift",
         "Sources/SwiftQL/SQLRowMacro.swift",
         "Sources/SwiftQL/SQLRowResult.swift",

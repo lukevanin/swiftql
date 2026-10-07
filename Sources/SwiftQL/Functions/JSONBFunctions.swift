@@ -25,14 +25,14 @@ import Foundation
 /// keep their own result types. `json_valid` is the exception to reading
 /// JSONB directly: without a JSONB flag it reports false for every JSONB
 /// blob, so check a JSONB value with
-/// ``XLExpression/validJSONOrJSONBOrNull()``. That was confirmed against
+/// ``XLSQLiteExpression/validJSONOrJSONBOrNull()``. That was confirmed against
 /// `pragma function_list` on SQLite 3.51.0, which lists eleven `jsonb_`
 /// functions and no `jsonb_type`, `jsonb_valid`, `jsonb_array_length`,
 /// `jsonb_quote`, `jsonb_error_position`, or `jsonb_pretty`.
 ///
 /// See: https://www.sqlite.org/json1.html#jsonb
 ///
-extension XLExpression {
+extension XLSQLiteExpression {
 
     ///
     /// Converts the input to JSONB, rendering SQLite's `jsonb(X)`.
@@ -41,7 +41,7 @@ extension XLExpression {
     ///
     /// Needs SQLite 3.45.0 or later.
     ///
-    public func minifiedJSONB() -> some XLExpression<Data?> where T: XLLiteral {
+    public func minifiedJSONB() -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(name: "jsonb", parameters: [self])
     }
 
@@ -62,7 +62,7 @@ extension XLExpression {
     public func jsonbExtract<Value>(
         at path: XLJSONPath,
         as _: Value.Type
-    ) -> some XLExpression<Value?> where T: XLLiteral, Value: XLLiteral {
+    ) -> some XLSQLiteExpression<Value?> where T: XLLiteral, Value: XLLiteral {
         XLFunction<Value?>(name: "jsonb_extract", parameters: [self, path])
     }
 
@@ -80,7 +80,7 @@ extension XLExpression {
         at first: XLJSONPath,
         _ second: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(
             name: "jsonb_extract",
             parameters: [self, first, second] + rest
@@ -94,9 +94,9 @@ extension XLExpression {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbInserting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(
             name: "jsonb_insert",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_insert")
@@ -110,9 +110,9 @@ extension XLExpression {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbReplacing(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(
             name: "jsonb_replace",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_replace")
@@ -126,9 +126,9 @@ extension XLExpression {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbSetting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(
             name: "jsonb_set",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_set")
@@ -144,7 +144,7 @@ extension XLExpression {
     public func jsonbRemoving(
         at first: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(
             name: "jsonb_remove",
             parameters: [self, first] + rest
@@ -158,8 +158,8 @@ extension XLExpression {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbPatched(
-        with patch: any XLExpression
-    ) -> some XLExpression<Data?> where T: XLLiteral {
+        with patch: any XLSQLiteExpression
+    ) -> some XLSQLiteExpression<Data?> where T: XLLiteral {
         XLFunction<Data?>(name: "jsonb_patch", parameters: [self, patch])
     }
 
@@ -179,7 +179,7 @@ extension XLExpression {
     ///
     public func jsonbGroupArray(
         distinct: Bool = false
-    ) -> some XLExpression<Data> where T: XLLiteral {
+    ) -> some XLSQLiteExpression<Data> where T: XLLiteral {
         XLFunction<Data>(
             name: "jsonb_group_array",
             distinct: distinct,
@@ -191,10 +191,10 @@ extension XLExpression {
     /// Flattens path/value pairs into the flat argument list SQLite takes.
     ///
     private static func flattenedJSONBAssignments(
-        _ assignments: [(XLJSONPath, any XLExpression)],
+        _ assignments: [(XLJSONPath, any XLSQLiteExpression)],
         function: String
-    ) -> [any XLExpression] {
-        var parameters: [any XLExpression] = []
+    ) -> [any XLSQLiteExpression] {
+        var parameters: [any XLSQLiteExpression] = []
         parameters.reserveCapacity(assignments.count * 2)
         for assignment in assignments {
             parameters.append(assignment.0)
@@ -220,7 +220,7 @@ extension XLExpression {
 ///
 /// Needs SQLite 3.45.0 or later.
 ///
-extension XLExpression where T == Data {
+extension XLSQLiteExpression where T == Data {
 
     ///
     /// Adds a value at each path that does not already hold one, rendering
@@ -229,9 +229,9 @@ extension XLExpression where T == Data {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbInserting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data> {
         XLFunction<Data>(
             name: "jsonb_insert",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_insert")
@@ -245,9 +245,9 @@ extension XLExpression where T == Data {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbReplacing(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data> {
         XLFunction<Data>(
             name: "jsonb_replace",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_replace")
@@ -261,9 +261,9 @@ extension XLExpression where T == Data {
     /// Needs SQLite 3.45.0 or later.
     ///
     public func jsonbSetting(
-        _ first: (XLJSONPath, any XLExpression),
-        _ rest: (XLJSONPath, any XLExpression)...
-    ) -> some XLExpression<Data> {
+        _ first: (XLJSONPath, any XLSQLiteExpression),
+        _ rest: (XLJSONPath, any XLSQLiteExpression)...
+    ) -> some XLSQLiteExpression<Data> {
         XLFunction<Data>(
             name: "jsonb_set",
             parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_set")
@@ -283,7 +283,7 @@ extension XLExpression where T == Data {
     public func jsonbRemoving(
         at first: XLJSONPath,
         _ rest: XLJSONPath...
-    ) -> some XLExpression<Data> {
+    ) -> some XLSQLiteExpression<Data> {
         XLFunction<Data>(
             name: "jsonb_remove",
             parameters: [self] + XLJSONRemovedPath.wrapping([first] + rest, function: "jsonb_remove")
@@ -298,7 +298,7 @@ extension XLExpression where T == Data {
 ///
 /// Needs SQLite 3.45.0 or later.
 ///
-public func jsonbArray(_ elements: any XLExpression...) -> some XLExpression<Data> {
+public func jsonbArray(_ elements: any XLSQLiteExpression...) -> some XLSQLiteExpression<Data> {
     jsonbArray(elements)
 }
 
@@ -309,7 +309,7 @@ public func jsonbArray(_ elements: any XLExpression...) -> some XLExpression<Dat
 ///
 /// Needs SQLite 3.45.0 or later.
 ///
-public func jsonbArray(_ elements: [any XLExpression]) -> some XLExpression<Data> {
+public func jsonbArray(_ elements: [any XLSQLiteExpression]) -> some XLSQLiteExpression<Data> {
     XLFunction<Data>(
         name: "jsonb_array",
         parameters: XLJSONValueArgument.wrapping(elements, function: "jsonb_array")
@@ -328,8 +328,8 @@ public func jsonbArray(_ elements: [any XLExpression]) -> some XLExpression<Data
 /// Needs SQLite 3.45.0 or later.
 ///
 public func jsonbObject(
-    _ members: (any XLExpression<String>, any XLExpression)...
-) -> some XLExpression<Data> {
+    _ members: (any XLSQLiteExpression<String>, any XLSQLiteExpression)...
+) -> some XLSQLiteExpression<Data> {
     jsonbObject(members)
 }
 
@@ -341,9 +341,9 @@ public func jsonbObject(
 /// Needs SQLite 3.45.0 or later.
 ///
 public func jsonbObject(
-    _ members: [(any XLExpression<String>, any XLExpression)]
-) -> some XLExpression<Data> {
-    var parameters: [any XLExpression] = []
+    _ members: [(any XLSQLiteExpression<String>, any XLSQLiteExpression)]
+) -> some XLSQLiteExpression<Data> {
+    var parameters: [any XLSQLiteExpression] = []
     parameters.reserveCapacity(members.count * 2)
     for member in members {
         parameters.append(member.0)
@@ -364,9 +364,9 @@ public func jsonbObject(
 /// Needs SQLite 3.45.0 or later.
 ///
 public func jsonbGroupObject(
-    name: any XLExpression<String>,
-    value: any XLExpression
-) -> some XLExpression<Data> {
+    name: any XLSQLiteExpression<String>,
+    value: any XLSQLiteExpression
+) -> some XLSQLiteExpression<Data> {
     XLFunction<Data>(
         name: "jsonb_group_object",
         parameters: [

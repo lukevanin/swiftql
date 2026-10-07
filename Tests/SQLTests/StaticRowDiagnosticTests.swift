@@ -187,7 +187,7 @@ final class StaticRowDiagnosticTests: XCTestCase {
                 Int,
                 XLSQLiteDialect
             >.intrinsic(
-                selecting: XLColumnResult<Int>(
+                selecting: XLColumnResult<Int, XLSQLiteDialect>(
                     dependency: XLSelectResultDependency(),
                     as: "leading"
                 ),
@@ -203,7 +203,7 @@ final class StaticRowDiagnosticTests: XCTestCase {
         identity: XLQuerySlotIdentity
     ) throws -> XLStaticSelectField<String, String, XLSQLiteDialect> {
         try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
-            selecting: XLColumnResult<String>(
+            selecting: XLColumnResult<String, XLSQLiteDialect>(
                 dependency: XLSelectResultDependency(),
                 as: "value"
             ),

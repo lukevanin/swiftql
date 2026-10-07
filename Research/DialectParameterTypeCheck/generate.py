@@ -698,6 +698,16 @@ def write_query(kind, clauses, path):
 
 
 def main():
+    # The harness restates the surface as it was before issue #789, when the
+    # operators were hand-written in Sources/SwiftQL/Operators on
+    # `XLExpression`. They are generated per dialect since, so reading this
+    # checkout would measure an almost empty surface.
+    if not os.path.isfile(os.path.join(OPERATOR_DIR, "EquatableExpressionOperators.swift")):
+        sys.exit(
+            "generate.py reads the operator surface from before issue #789. "
+            "Run measure.sh from a checkout of version/2.0 at 52c3d256, the "
+            "record's base; measure-shipped.sh measures the current surface."
+        )
     declarations = read_declarations()
     members = read_members()
     output = os.path.join(ROOT, "generated")

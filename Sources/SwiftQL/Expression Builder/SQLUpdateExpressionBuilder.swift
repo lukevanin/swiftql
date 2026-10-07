@@ -55,7 +55,7 @@ extension XLSchema {
     ///
     /// Constructs a select query for a From expression in an Update statement.
     ///
-    public func fromExpression<T>(as alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable {
+    public func fromExpression<T>(as alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable, T.XLModelDialect == Dialect {
         let alias = tableNamespace.makeAlias(alias: alias)
         let schema = XLSchema(parent: self)
         let dependency = XLUpdateFromTableDependency(alias: alias, statement: statement(schema))
@@ -66,9 +66,20 @@ extension XLSchema {
 
 
 ///
-/// Constructs an Update statement.
+/// Constructs a SQLite Update statement.
 ///
-public func sql(@XLUpdateExpressionBuilder builder: (XLSchema) -> any XLUpdateStatement) -> any XLUpdateStatement {
+public func sql(@XLUpdateExpressionBuilder builder: (XLSQLiteSchema) -> any XLUpdateStatement) -> any XLUpdateStatement {
     let schema = XLSchema()
+    return builder(schema)
+}
+
+///
+/// Constructs an Update statement in `dialect`.
+///
+/// The builder receives a schema of `dialect`, which accepts only models
+/// declared for it (issue #789).
+///
+public func sql<Dialect>(dialect: Dialect.Type, @XLUpdateExpressionBuilder builder: (XLSchema<Dialect>) -> any XLUpdateStatement) -> any XLUpdateStatement {
+    let schema = XLSchema(dialect: dialect)
     return builder(schema)
 }

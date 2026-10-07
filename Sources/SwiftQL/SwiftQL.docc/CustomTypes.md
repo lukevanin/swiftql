@@ -802,8 +802,12 @@ combination of them and select each explicitly per property.
 ## Legacy `XLCustomType` wrappers
 
 For existing v1 code, a custom scalar value satisfies the `XLCustomType`
-protocol composition (`XLExpression`, `XLBindable`, and `XLLiteral`). It can also
-adopt these marker protocols to opt into operators:
+protocol composition (`XLExpression`, `XLBindable`, `XLLiteral`, and
+``XLSQLiteExpression``). The operators and functions take SQLite expressions,
+so a type that adopts the protocols one by one instead of the composition
+adopts `XLSQLiteExpression` as well; a type used in another dialect's query
+adopts that dialect's expression protocol too. It can also adopt these marker
+protocols to opt into operators:
 
 - `XLEquatable`: Enables equality expressions such as `==` and `!=`.
 - `XLComparable`: Refines `XLEquatable` and also enables `<`, `>`, `<=`, and `>=`.
