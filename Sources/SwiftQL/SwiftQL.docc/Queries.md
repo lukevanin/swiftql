@@ -237,6 +237,12 @@ let query = sql { schema in
 > descriptive names, or once the projection is reused across more than one
 > query.
 
+`#row`'s row types are SQLite results, so `#row` takes SQLite expressions: a
+SQLite model's columns, the expressions composed from them, and Swift values.
+A query in another dialect declares its projection with
+`@SQLResult(dialect:)` and calls the model's `columns(...)`, which takes that
+dialect's expressions.
+
 > Important: `#row`'s two-to-six column shapes (`SQLRow2`...`SQLRow6`) require
 > Swift 6.1 or later. On the pinned Swift 5.9.2 and Swift 6.0 compatibility
 > cells, decoding a result type with 2 or more generic parameters through
