@@ -14,9 +14,15 @@
 //
 //  The refusals -- a SQLite-only operation on a second-dialect column or
 //  composed expression, an operator across two dialects, a foreign model in a
-//  schema -- are compile errors, so they are proven by
+//  schema, and (issue #822) a clause or statement of another dialect -- are
+//  compile errors, so they are proven by
 //  `scripts/ci/check-dialect-type-parameter-type-safety.sh`, which also pins
 //  the text of the errors for three ordinary mistakes.
+//
+//  Issue #822: every clause and statement carries its dialect. The tests at
+//  the end write each statement shape for both dialects and check that they
+//  render alike; that they compile at all proves that a clause of values
+//  takes its query's dialect, and that each statement has the dialect's type.
 //
 
 import Foundation
@@ -326,5 +332,132 @@ final class DialectTypeParameterTests: XCTestCase {
         )
         let encoder = XLDialectEncoder(dialect: XLSQLiteDialect())
         XCTAssertNil(encoder.makeSQL(jsonArray(field.expression)).valueEncodingError)
+    }
+
+    // MARK: - Clauses and statements (issue #822)
+
+    /// Fails to compile, rather than at run time, if `statement` is not a
+    /// statement of the second dialect.
+    private func assertSecondStatement<Row>(_ statement: any XLDialectQueryStatement<Row, FakeSecondDialect>) {
+    }
+
+    func testAClauseOfValuesTakesTheDialectOfItsQuery() throws {
+        let sqlite = sql { schema in
+            let person = schema.table(DialectSQLitePerson.self)
+            Select(person)
+            From(person)
+            Where(true)
+            GroupBy(person.id)
+            Having(true)
+            OrderBy(Ascending(expression: 1))
+            Limit(10)
+            Offset(2)
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.table(DialectSecondPerson.self)
+            Select(person)
+            From(person)
+            Where(true)
+            GroupBy(person.id)
+            Having(true)
+            OrderBy(Ascending(expression: 1))
+            Limit(10)
+            Offset(2)
+        }
+        assertSecondStatement(second)
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+    }
+
+    func testJoinsCompoundsAndCommonTablesRenderInBothDialects() throws {
+        let sqlite = sql { schema in
+            let names = schema.commonTableExpression { schema in
+                let person = schema.table(DialectSQLitePerson.self)
+                Select(person)
+                From(person)
+            }
+            With(names)
+            let person = schema.table(DialectSQLitePerson.self)
+            let other = schema.nullableTable(names)
+            Select(person.id)
+            From(person)
+            Join.Left(other, on: other.id == person.id)
+            Union()
+            Select(1)
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let names = schema.commonTableExpression { schema in
+                let person = schema.table(DialectSecondPerson.self)
+                Select(person)
+                From(person)
+            }
+            With(names)
+            let person = schema.table(DialectSecondPerson.self)
+            let other = schema.nullableTable(names)
+            Select(person.id)
+            From(person)
+            Join.Left(other, on: other.id == person.id)
+            Union()
+            Select(1)
+        }
+        assertSecondStatement(second)
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+    }
+
+    func testTheFunctionalFormCarriesTheDialect() throws {
+        let sqliteSchema = XLSchema()
+        let sqlitePerson = sqliteSchema.table(DialectSQLitePerson.self)
+        let sqlite = select(sqlitePerson)
+            .from(sqlitePerson)
+            .where(sqlitePerson.id > 1)
+            .orderBy(sqlitePerson.name.descending())
+            .limit(5)
+            .offset(1)
+        let secondSchema = XLSchema(dialect: FakeSecondDialect.self)
+        let secondPerson = secondSchema.table(DialectSecondPerson.self)
+        let second = select(secondPerson)
+            .from(secondPerson)
+            .where(secondPerson.id > 1)
+            .orderBy(secondPerson.name.descending())
+            .limit(5)
+            .offset(1)
+        assertSecondStatement(second)
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+
+        let sqliteBuilder = try QueryBuilder(select: sqlitePerson)
+            .from(sqlitePerson)
+            .and(sqlitePerson.id > 1)
+            .limit(5)
+            .build()
+        let secondBuilder = try XLDialectQueryBuilder(select: secondPerson)
+            .from(secondPerson)
+            .and(secondPerson.id > 1)
+            .limit(5)
+            .build()
+        assertSecondStatement(secondBuilder)
+        XCTAssertEqual(try secondSQL(secondBuilder), try sqliteSQL(sqliteBuilder))
+    }
+
+    func testWriteStatementsTakeTheDialectOfTheirTable() throws {
+        let sqlite = sql { schema in
+            Delete(schema.into(DialectSQLitePerson.self))
+            Where(true)
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            Delete(schema.into(DialectSecondPerson.self))
+            Where(true)
+        }
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+
+        let sqliteSchema = XLSchema()
+        let sqlitePerson = sqliteSchema.table(DialectSQLitePerson.self)
+        let sqliteReturning = delete(sqliteSchema.into(DialectSQLitePerson.self))
+            .where(sqlitePerson.id == 1)
+            .returning(sqlitePerson)
+        let secondSchema = XLSchema(dialect: FakeSecondDialect.self)
+        let secondPerson = secondSchema.table(DialectSecondPerson.self)
+        let secondReturning = delete(secondSchema.into(DialectSecondPerson.self))
+            .where(secondPerson.id == 1)
+            .returning(secondPerson)
+        XCTAssertEqual(try secondSQL(secondReturning), try sqliteSQL(sqliteReturning))
     }
 }

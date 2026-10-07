@@ -1,7 +1,7 @@
 import SwiftQL
 
 func rejectWhereAfterOrderBy(
-    query: XLQueryTableStatement<Int>,
+    query: XLQueryTableStatement<Int, XLSQLiteDialect>,
     value: XLNamedBindingReference<Int>,
     predicate: XLNamedBindingReference<Bool>
 ) {
