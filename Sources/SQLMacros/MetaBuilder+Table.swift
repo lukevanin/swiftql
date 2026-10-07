@@ -121,7 +121,7 @@ extension MetaBuilder {
             // Discrete parameters.
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any XLExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): \(dialectExpressionType(property.qualifiedType))")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {
@@ -190,9 +190,13 @@ extension MetaBuilder {
 
             context.line("public var _xlColumns: Columns")
 
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
+            // Issue #825: an assignment takes the model's dialect's
+            // expressions. The slot stores the expression erased, so a read
+            // returns it through a node that is an expression of every
+            // dialect.
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].expression")
+                    context.line("_xlColumns[keyPath: keyPath].expression.map { SwiftQL.XLTypeAffinityExpression<Wrapped>(expression: $0) }")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -202,9 +206,9 @@ extension MetaBuilder {
             // For a nullable column, `nil` assigned through this overload
             // means SQL NULL. Leaving the column out of the statement is what
             // never assigning it does.
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].expression")
+                    context.line("_xlColumns[keyPath: keyPath].expression.map { SwiftQL.XLTypeAffinityExpression<Wrapped>(expression: $0) }")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -216,9 +220,9 @@ extension MetaBuilder {
             // overload instead of being ambiguous. An expression whose type
             // is `Wrapped?` only matches this overload, so it still applies.
             context.line("@_disfavoredOverload")
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>()")
+                    context.line("SwiftQL.XLTypeAffinityExpression<Optional<Wrapped>>(expression: _xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>())")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")
@@ -232,7 +236,7 @@ extension MetaBuilder {
             if !properties.isEmpty {
                 var parameters: [String] = []
                 for property in properties {
-                    parameters.append("\(property.name): Optional<any XLExpression<\(property.qualifiedType)>> = nil")
+                    parameters.append("\(property.name): Optional<\(dialectExpressionType(property.qualifiedType))> = nil")
                 }
                 // A `nil` argument here means "leave this column out of the
                 // statement", matching every other column and this

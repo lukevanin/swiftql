@@ -52,6 +52,24 @@ protocol CompileFailSecondDialectExpression<T>: XLExpression {
 }
 
 
+// MARK: - The dialect's name for its expression protocol
+
+
+extension CompileFailSecondDialect {
+
+    ///
+    /// The expression protocol of the compile-fail second dialect: `CompileFailSecondDialectExpression`.
+    ///
+    /// The macros write a model's value slots, such as an assignment in
+    /// `Setting { row in ... }`, an argument of `columns(...)`, and an
+    /// argument of `#row(...)`, as `any Dialect.XLExpressionProtocol<T>`,
+    /// naming the protocol from the model's dialect type, so a slot takes only
+    /// the compile-fail second dialect expressions and Swift values (issue #825).
+    ///
+    typealias XLExpressionProtocol = CompileFailSecondDialectExpression
+}
+
+
 // MARK: - Columns and dialect-encoded values
 
 
@@ -93,6 +111,9 @@ extension Optional: CompileFailSecondDialectExpression where Wrapped: CompileFai
 }
 
 extension XLNamedBindingReference: CompileFailSecondDialectExpression {
+}
+
+extension XLLegacyDynamicValueExpression: CompileFailSecondDialectExpression {
 }
 
 extension XLAllColumns: CompileFailSecondDialectExpression {

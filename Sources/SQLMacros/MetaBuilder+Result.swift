@@ -119,9 +119,13 @@ extension MetaBuilder {
                 context.line("private let \(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
             }
 
+            // Issue #825: the reader's columns are what the row selects, so
+            // they take the model's dialect's expressions. They are stored
+            // erased, as `staticColumn` reads them, so a read does not box
+            // them again (issue #353).
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): \(dialectExpressionType(property.qualifiedType))")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {

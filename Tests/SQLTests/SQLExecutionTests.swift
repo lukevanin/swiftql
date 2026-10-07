@@ -2320,13 +2320,13 @@ final class XLExecutionTests: XCTestCase {
             // fresh `(schema: XLSchema) in` parameter, which opens a new
             // namespace restarting at `t0` and would shadow `driver`'s own
             // alias instead of correlating against it.
-            let sumExpression: any XLExpression<Int?> = subqueryExpression {
+            let sumExpression: any XLSQLiteExpression<Int?> = subqueryExpression {
                 let t = schema.table(TestTable.self)
                 Select(t.value.sumOrNull())
                 From(t)
                 Where(t.id == driver.id)
             }
-            let firstValueExpression: any XLExpression<Int?> = subqueryExpression {
+            let firstValueExpression: any XLSQLiteExpression<Int?> = subqueryExpression {
                 let d = schema.table(TestNullablesTable.self)
                 Select(d.value)
                 From(d)
@@ -2336,7 +2336,7 @@ final class XLExecutionTests: XCTestCase {
             // this observably distinguishes "a row containing NULL" (count
             // 1) from "no row" (count 0) even though firstValue decodes to
             // nil in both cases.
-            let detailRowExistsExpression: any XLExpression<Bool?> = subqueryExpression {
+            let detailRowExistsExpression: any XLSQLiteExpression<Bool?> = subqueryExpression {
                 let d = schema.table(TestNullablesTable.self)
                 Select(d.id.count() > 0)
                 From(d)

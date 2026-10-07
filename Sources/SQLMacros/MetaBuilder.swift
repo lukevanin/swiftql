@@ -73,6 +73,24 @@ internal struct MetaBuilder {
         return "\(modifier) _dialect: \(dialectType).Type { \(dialectType).self }"
     }
 
+    ///
+    /// The type of a value slot of `valueType`: an assignment in
+    /// `Setting { row in ... }`, an argument of `columns(...)` or of the
+    /// generated initializers that take expressions (issue #825).
+    ///
+    /// The slot takes the model's dialect's expressions, and Swift values,
+    /// which are expressions of every dialect. Each dialect's generated
+    /// surface names its expression protocol on the dialect type as
+    /// `XLExpressionProtocol`, so the macro reaches the protocol from the
+    /// dialect type it already writes, and the error for another dialect's
+    /// expression names both dialects. The name is a member of the dialect
+    /// type and in SwiftQL's prefix space, so it captures no type of the
+    /// user's own (issue #700).
+    ///
+    func dialectExpressionType(_ valueType: String) -> String {
+        "any \(dialectType).XLExpressionProtocol<\(valueType)>"
+    }
+
     var properties: [MetaProperty] { model.properties }
 
     var optionalProperties: [MetaProperty] { model.optionalProperties }

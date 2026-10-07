@@ -437,7 +437,7 @@ enum JobState: String, XLEnum {
 ///
 /// Subtracts two dates and returns the number of seconds difference.
 ///
-func -(lhs: any SwiftQL.XLExpression<Date>, rhs: any SwiftQL.XLExpression<Date>) -> some SwiftQL.XLExpression<TimeInterval> {
+func -(lhs: any SwiftQL.XLSQLiteExpression<Date>, rhs: any SwiftQL.XLSQLiteExpression<Date>) -> some SwiftQL.XLSQLiteExpression<TimeInterval> {
     XLBinaryOperatorExpression<Int>(op: "-", lhs: lhs, rhs: rhs).toDouble()
 }
 
