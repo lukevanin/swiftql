@@ -717,15 +717,15 @@
     it too.
 
 - **Code that holds any SwiftQL database can declare its captures** (issue
-  #113). The new `XLValueCodingDatabase<Dialect>` protocol refines
-  `XLDatabase` with the database's `dialect` and `codingConfiguration`.
-  `GRDBDatabase` and `XLDriverDatabase` conform, and the
-  `contextualBinding(_:expressedAs:...)` and `queryCapture(_:...)` members
-  they each had are now written once, on the protocol, for any dialect that
-  conforms to `XLLiteralValueDialect`. A call on either database compiles
-  unchanged, and a function
-  that takes `some XLValueCodingDatabase<XLSQLiteDialect>` can make the same
-  calls without naming the driver.
+  #113). The new `XLValueCodingDatabase` protocol refines `XLDatabase` with
+  the database's `dialect` and `codingConfiguration`. `GRDBDatabase` and
+  `XLDriverDatabase` conform, and the `contextualBinding(_:expressedAs:...)`
+  and `queryCapture(_:...)` members they each had are now written once, on
+  the protocol, for any dialect that conforms to `XLLiteralValueDialect`. A
+  call on either database compiles unchanged, and a function that takes
+  `some XLValueCodingDatabase<XLSQLiteDialect>` can make the same calls
+  without naming the driver. Both databases gain the member type
+  `XLDatabaseDialect`, the protocol's associated type.
 
 - **A declared query read from an `XLDriverDatabase` can be lowered** (issue
   #113). `XLDeclaredQuery.init(database:...)` now takes the encoder of an

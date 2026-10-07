@@ -19,6 +19,8 @@ import Foundation
 extension GRDBDatabase: XLDriverRequestFactory {}
 
 
+/// Implied by the package request factory, and written out because it is
+/// public API and the factory is not (issue #113).
 extension GRDBDatabase: XLValueCodingDatabase {}
 
 

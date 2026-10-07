@@ -9,7 +9,7 @@
 //  eager fetch, lazy result set, and live query -- are three different things
 //  that happened to live in one 500-line struct, and are now three files.
 //  Generic over the driver since issue #682. Its GRDB specialisation,
-//  `GRDBRequest`, is declared with the GRDB driver (issue #113).
+//  `GRDBRequest`, is declared in GRDBDatabase+Requests.swift (issue #113).
 //
 
 import Foundation

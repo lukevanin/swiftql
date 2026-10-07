@@ -20,7 +20,7 @@ import Foundation
 /// through one implementation, and differ only in the driver they hold.
 ///
 package protocol XLDriverRequestFactory: XLEncoderProviding, XLValueCodingDatabase
-    where Dialect == XLSQLiteDialect
+    where XLDatabaseDialect == XLSQLiteDialect
 {
 
     associatedtype Driver: XLBlockingDatabaseDriver & XLObservingDatabaseDriver

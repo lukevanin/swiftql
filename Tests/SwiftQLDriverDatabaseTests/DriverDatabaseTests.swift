@@ -333,6 +333,15 @@ final class DriverDatabaseTests: XCTestCase {
             database.encoder.makeSQL(selectPeople()).sql
         )
         XCTAssertEqual(lowered.resultAliases.count, 2)
+        // The id names the generic database with its driver argument, and
+        // the descriptor carries the same definition identity.
+        let expectedID = "XLDriverDatabase<SwiftQLDriverDatabaseTests.ScriptedDriver>.people"
+        XCTAssertEqual(query.id, expectedID)
+        XCTAssertEqual(lowered.id, expectedID)
+        XCTAssertEqual(
+            lowered.descriptor.identity.definitionIdentity,
+            try query.definitionIdentity()
+        )
     }
 
     // MARK: - Render-once cache

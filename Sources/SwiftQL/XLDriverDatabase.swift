@@ -191,7 +191,9 @@ extension XLDriverDatabase: XLDriverRequestFactory {}
 
 /// Contextual bindings and query captures resolve against this database's
 /// coding snapshot through the members ``XLValueCodingDatabase`` provides,
-/// which ``GRDBDatabase`` shares (issue #113).
+/// which ``GRDBDatabase`` shares (issue #113). The package request factory
+/// already implies this conformance; it is written out because it is public
+/// API, and the factory is not.
 extension XLDriverDatabase: XLValueCodingDatabase {}
 
 

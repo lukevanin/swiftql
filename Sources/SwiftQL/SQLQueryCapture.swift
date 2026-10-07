@@ -456,7 +456,7 @@ extension XLValueCodingDatabase {
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, Dialect>
+    ) throws -> XLQueryCapture<Input, Literal, XLDatabaseDialect>
     where Literal: XLLiteral {
         try codingConfiguration.queryCapture(
             inputType,
@@ -476,7 +476,7 @@ extension XLValueCodingDatabase {
         identifiedBy identity: XLQuerySlotIdentity,
         context: XLValueCodingContext? = nil,
         selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, Dialect>
+    ) throws -> XLQueryCapture<Input, Literal, XLDatabaseDialect>
     where Literal: XLLiteral {
         try codingConfiguration.queryCapture(
             inputType,
