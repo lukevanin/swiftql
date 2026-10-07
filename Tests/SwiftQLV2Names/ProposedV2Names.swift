@@ -46,7 +46,7 @@
 //  Deprecated types are not carried into v2, so they have no alias either,
 //  and the fixture does not name them.
 //
-//  deprecated: JoinKind (use Join.Kind)
+//  deprecated: JoinKind (use XLJoinOperator)
 //  deprecated: XLFromCommonTableDependency (use XLFromTableDependency)
 //
 

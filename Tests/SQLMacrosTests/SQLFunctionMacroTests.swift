@@ -251,7 +251,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                init(first: any XLSQLiteExpression<Int>, second: any XLSQLiteExpression<String>) {
+                init(first: any XLSQLiteExpression<Int>, second: any SwiftQL.XLSQLiteExpression<String>) {
                         self.first = first
                         self.second = second
                   }
@@ -366,6 +366,37 @@ final class SQLFunctionMacroTests: XCTestCase {
         )
     }
 
+    // Issue #822: a setter-only modifier such as `private(set)` does not
+    // narrow the memberwise initializer, so the generated one is internal.
+    func test_privateSetterArgument_givesAnInternalInitializer() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                private(set) var value: any XLExpression<Int>
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                private(set) var value: any XLExpression<Int>
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                        }
+                  }
+
+                init(value: any XLSQLiteExpression<Int>) {
+                        self.value = value
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
     // Issue #822: an argument with an initial value is optional in the
     // memberwise initializer, which the generated one cannot reproduce, so
     // the memberwise initializer is kept.
@@ -414,7 +445,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                init(value: any XLSQLiteExpression<Int>) {
+                init(value: any SwiftQL.XLSQLiteExpression<Int>) {
                         self.value = value
                   }
             }

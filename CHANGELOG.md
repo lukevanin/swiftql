@@ -468,8 +468,10 @@
     types, and `XLWithStatement<Dialect>`. A clause written in a result
     builder or a statement built with `select(_:)` infers it. Code that names
     one adds the dialect. Before: `XLQueryTableStatement<Person>`. After:
-    `XLQueryTableStatement<Person, XLSQLiteDialect>`. `Join.Kind` is now
-    `XLJoinOperator`, and `Join.Kind` names it.
+    `XLQueryTableStatement<Person, XLSQLiteDialect>`. A join's kind is the
+    new `XLJoinOperator`, which `Join<Dialect>.Kind` names; a bare `Join.Kind`
+    no longer names a type, because `Join` is generic. Before:
+    `Join.Kind.allCases`. After: `XLJoinOperator.allCases`.
   - A clause takes its dialect's expression protocol, as the operators do. A
     stored `any XLExpression<Bool>` passed to `Where`, or `any XLExpression`
     passed to `GroupBy`, `Limit`, or `QueryBuilder.and(_:)`, becomes

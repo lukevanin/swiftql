@@ -118,7 +118,7 @@ extension XLDialectQueryBuilder where Dialect == CompileFailSecondDialect {
     ///
     @_disfavoredOverload
     func and(_ condition: any CompileFailSecondDialectExpression<Bool>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("AND", condition: condition)
+        _dialectSurfaceAnd(condition)
     }
 
     ///
@@ -128,7 +128,7 @@ extension XLDialectQueryBuilder where Dialect == CompileFailSecondDialect {
     ///
     @_disfavoredOverload
     func and(_ condition: any CompileFailSecondDialectExpression<Optional<Bool>>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("AND", condition: condition)
+        _dialectSurfaceAnd(condition)
     }
 
     ///
@@ -141,7 +141,7 @@ extension XLDialectQueryBuilder where Dialect == CompileFailSecondDialect {
     ///
     @_disfavoredOverload
     func or(_ condition: any CompileFailSecondDialectExpression<Bool>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("OR", condition: condition)
+        _dialectSurfaceOr(condition)
     }
 
     ///
@@ -151,7 +151,7 @@ extension XLDialectQueryBuilder where Dialect == CompileFailSecondDialect {
     ///
     @_disfavoredOverload
     func or(_ condition: any CompileFailSecondDialectExpression<Optional<Bool>>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("OR", condition: condition)
+        _dialectSurfaceOr(condition)
     }
 
     ///

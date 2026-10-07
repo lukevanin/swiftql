@@ -48,11 +48,14 @@ for root in "${roots[@]}"; do
     # macro executable `SQLMacros-tool`; newer toolchains name it after the
     # target.
     build="$(swift build --package-path "$root" --show-bin-path)"
-    plugin="$(
-        find "$build" -maxdepth 1 -type f \
-            \( -name 'SQLMacros-tool' -o -name 'SQLMacros' \) -perm -u+x -print |
-            head -n 1
-    )"
+    plugin=""
+    if [[ -d "$build" ]]; then
+        plugin="$(
+            find "$build" -maxdepth 1 -type f \
+                \( -name 'SQLMacros-tool' -o -name 'SQLMacros' \) -perm -u+x -print |
+                head -n 1
+        )"
+    fi
     if [[ -z "$plugin" ]]; then
         printf 'error: no SQLMacros plugin in %s; build the package first\n' "$build" >&2
         exit 1

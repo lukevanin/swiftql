@@ -46,6 +46,15 @@ extension XLKeywordPrefixedClause {
 }
 
 
+///
+/// A clause that SQLite applies to a whole compound select when it follows
+/// the last branch, `ORDER BY`, `LIMIT`, and `OFFSET`, and so does not accept
+/// in a branch that follows a compound operator (issue #657).
+///
+protocol XLCompoundTrailingClause: XLKeywordPrefixedClause {
+}
+
+
 // MARK: - Where
 
 
@@ -137,6 +146,11 @@ public struct Descending<Dialect>: XLOrderingTerm where Dialect: XLSQLDialect {
     public static func buildBlock<Dialect>(_ components: any XLOrderingTerm<Dialect>...) -> any XLEncodable {
         XLEncodableList(separator: .list, expressions: components)
     }
+
+    /// An empty list, which names no dialect.
+    public static func buildBlock() -> any XLEncodable {
+        XLEncodableList(separator: .list, expressions: [any XLEncodable]())
+    }
 }
 
 
@@ -145,7 +159,7 @@ public struct Descending<Dialect>: XLOrderingTerm where Dialect: XLSQLDialect {
 ///
 /// Its terms order by expressions of `Dialect`, the statement's dialect.
 ///
-public struct OrderBy<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
+public struct OrderBy<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
     static var sqlKeyword: String { "ORDER BY" }
 
@@ -170,7 +184,7 @@ public struct OrderBy<Dialect>: XLKeywordPrefixedClause, XLDialectClause where D
 ///
 /// Limit clause.
 ///
-public struct Limit<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
+public struct Limit<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
     static var sqlKeyword: String { "LIMIT" }
 
@@ -196,7 +210,7 @@ public struct Limit<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dia
 ///
 /// Offset clause.
 ///
-public struct Offset<Dialect>: XLKeywordPrefixedClause, XLDialectClause where Dialect: XLSQLDialect {
+public struct Offset<Dialect>: XLCompoundTrailingClause, XLDialectClause where Dialect: XLSQLDialect {
 
     static var sqlKeyword: String { "OFFSET" }
 

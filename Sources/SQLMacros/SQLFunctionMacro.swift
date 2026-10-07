@@ -178,9 +178,12 @@ internal struct FunctionMetaBuilder {
 
         // A private or fileprivate property narrows the memberwise
         // initializer to the same access, and the generated initializer
-        // follows it. A setter-only modifier such as `private(set)` narrows
-        // it too.
+        // follows it. A setter-only modifier such as `private(set)` does
+        // not narrow it.
         let access = variable.modifiers.compactMap { modifier -> FunctionArgument.Access? in
+            guard modifier.detail == nil else {
+                return nil
+            }
             switch modifier.name.text {
             case "private":
                 return .private
@@ -257,18 +260,18 @@ internal struct FunctionMetaBuilder {
         else {
             return nil
         }
+        // A module-qualified property type keeps its qualifier, so a client
+        // that qualifies its types to avoid a clash is not exposed to one.
         let constraint = existential.constraint
-        let genericArguments: String
         if let identifier = constraint.as(IdentifierTypeSyntax.self) {
-            genericArguments = identifier.genericArgumentClause?.trimmedDescription ?? ""
+            let genericArguments = identifier.genericArgumentClause?.trimmedDescription ?? ""
+            return "any XLSQLiteExpression\(genericArguments)"
         }
-        else if let member = constraint.as(MemberTypeSyntax.self) {
-            genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
+        if let member = constraint.as(MemberTypeSyntax.self) {
+            let genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
+            return "any \(member.baseType.trimmedDescription).XLSQLiteExpression\(genericArguments)"
         }
-        else {
-            return nil
-        }
-        return "any XLSQLiteExpression\(genericArguments)"
+        return nil
     }
 
     ///

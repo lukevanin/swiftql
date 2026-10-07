@@ -466,6 +466,11 @@ public protocol XLMetaNullableNamedResult: XLEncodable, XLDialectBound {
 public protocol XLMetaCommonTable<XLModelDialect>: XLDialectCommonTable {
     associatedtype Result: XLResult
     /// The dialect of the common table's result, and so of its statement.
+    ///
+    /// The macros' common tables take the default. It is not required to
+    /// equal `Result.XLModelDialect`: that requirement makes the conformance
+    /// of a generic model's common table circular, which the compiler
+    /// rejects.
     associatedtype XLModelDialect = Result.XLModelDialect
     var definition: XLCommonTableDependency { get }
 }

@@ -105,7 +105,7 @@ extension XLDialectQueryBuilder where Dialect == XLSQLiteDialect {
     /// a grouped expression and pass it as one term for another grouping.
     ///
     public func and(_ condition: any XLSQLiteExpression<Bool>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("AND", condition: condition)
+        _dialectSurfaceAnd(condition)
     }
 
     ///
@@ -114,7 +114,7 @@ extension XLDialectQueryBuilder where Dialect == XLSQLiteDialect {
     /// Terms fold in call order, as for the non-optional overload.
     ///
     public func and(_ condition: any XLSQLiteExpression<Optional<Bool>>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("AND", condition: condition)
+        _dialectSurfaceAnd(condition)
     }
 
     ///
@@ -126,7 +126,7 @@ extension XLDialectQueryBuilder where Dialect == XLSQLiteDialect {
     /// `(a AND b)`.
     ///
     public func or(_ condition: any XLSQLiteExpression<Bool>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("OR", condition: condition)
+        _dialectSurfaceOr(condition)
     }
 
     ///
@@ -135,7 +135,7 @@ extension XLDialectQueryBuilder where Dialect == XLSQLiteDialect {
     /// Terms fold in call order, as for the non-optional overload.
     ///
     public func or(_ condition: any XLSQLiteExpression<Optional<Bool>>) -> XLDialectQueryBuilder {
-        _dialectSurfaceWhereTerm("OR", condition: condition)
+        _dialectSurfaceOr(condition)
     }
 
     ///

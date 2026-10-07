@@ -169,13 +169,24 @@ public struct XLDialectQueryBuilder<Row, Dialect> where Dialect: XLSQLDialect {
     }
 
     ///
-    /// Adds a where term that belongs to `Dialect`, joined by `op` (`AND` or
-    /// `OR`). Used by the generated `and(_:)` and `or(_:)`.
+    /// Adds a where term that belongs to `Dialect`, joined by `AND`. Used by
+    /// the generated `and(_:)`.
     ///
     @_spi(XLDialectSurface)
-    public func _dialectSurfaceWhereTerm(_ op: String, condition: any XLExpression) -> XLDialectQueryBuilder {
+    public func _dialectSurfaceAnd(_ condition: any XLExpression) -> XLDialectQueryBuilder {
         copy {
-            $0.whereTerms.append((op: op, condition: condition))
+            $0.whereTerms.append((op: "AND", condition: condition))
+        }
+    }
+
+    ///
+    /// Adds a where term that belongs to `Dialect`, joined by `OR`. Used by
+    /// the generated `or(_:)`.
+    ///
+    @_spi(XLDialectSurface)
+    public func _dialectSurfaceOr(_ condition: any XLExpression) -> XLDialectQueryBuilder {
+        copy {
+            $0.whereTerms.append((op: "OR", condition: condition))
         }
     }
 

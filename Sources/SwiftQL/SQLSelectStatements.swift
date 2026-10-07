@@ -221,12 +221,10 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
                 return nested.operatorKeyword
             }
             // `ORDER BY`, `LIMIT`, and `OFFSET` are generic over the
-            // dialect, so they are recognised by their keyword.
-            if let clause = component as? any XLKeywordPrefixedClause {
-                let keyword = type(of: clause).sqlKeyword
-                if keyword == "ORDER BY" || keyword == "LIMIT" || keyword == "OFFSET" {
-                    return keyword
-                }
+            // dialect, so they are recognised by a protocol rather than by
+            // their types.
+            if let clause = component as? any XLCompoundTrailingClause {
+                return type(of: clause).sqlKeyword
             }
         }
         return nil
