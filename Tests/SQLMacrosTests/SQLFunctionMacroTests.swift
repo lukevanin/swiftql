@@ -118,6 +118,10 @@ final class SQLFunctionMacroTests: XCTestCase {
                             context.listItem(expression: value.makeSQL)
                         }
                   }
+
+                fileprivate init(value: any XLSQLiteExpression<Int?>) {
+                        self.value = value
+                  }
             }
             """,
             macros: makeTestMacros()
@@ -152,6 +156,13 @@ final class SQLFunctionMacroTests: XCTestCase {
                             context.listItem(expression: toLongitude.makeSQL)
                         }
                   }
+
+                fileprivate init(fromLatitude: any XLSQLiteExpression<Double>, fromLongitude: any XLSQLiteExpression<Double>, toLatitude: any XLSQLiteExpression<Double>, toLongitude: any XLSQLiteExpression<Double>) {
+                        self.fromLatitude = fromLatitude
+                        self.fromLongitude = fromLongitude
+                        self.toLatitude = toLatitude
+                        self.toLongitude = toLongitude
+                  }
             }
             """,
             macros: makeTestMacros()
@@ -176,6 +187,10 @@ final class SQLFunctionMacroTests: XCTestCase {
                         context.simpleFunction(name: Self.definition.name) { context in
                             context.listItem(expression: value.makeSQL)
                         }
+                  }
+
+                fileprivate init(value: any XLSQLiteExpression<Int>) {
+                        self.value = value
                   }
             }
             """,
@@ -210,7 +225,9 @@ final class SQLFunctionMacroTests: XCTestCase {
 
     // Issue #789: an argument that takes an expression of any dialect is typed
     // as `XLExpression`; one that takes only a SQLite expression names
-    // `XLSQLiteExpression`. Both are accepted.
+    // `XLSQLiteExpression`. Both are accepted. Issue #822: the generated
+    // initializer takes both as SQLite expressions, because a custom function
+    // runs inside SQLite.
     func test_dialectFreeAndSQLiteExpressionTypes_areAccepted() {
         assertMacroExpansion(
             """
@@ -231,6 +248,74 @@ final class SQLFunctionMacroTests: XCTestCase {
                         context.simpleFunction(name: Self.definition.name) { context in
                             context.listItem(expression: first.makeSQL)
                             context.listItem(expression: second.makeSQL)
+                        }
+                  }
+
+                init(first: any XLSQLiteExpression<Int>, second: any XLSQLiteExpression<String>) {
+                        self.first = first
+                        self.second = second
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    // Issue #822: a declared initializer is kept as written, and none is
+    // generated beside it.
+    func test_declaredInitializer_isKeptAndNoneIsGenerated() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+
+                init(_ value: any XLSQLiteExpression<Int>) {
+                    self.value = value
+                }
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                let value: any XLExpression<Int>
+
+                init(_ value: any XLSQLiteExpression<Int>) {
+                    self.value = value
+                }
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                        }
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    // Issue #822: an argument with an initial value is optional in the
+    // memberwise initializer, which the generated one cannot reproduce, so
+    // the memberwise initializer is kept.
+    func test_argumentWithInitialValue_keepsTheMemberwiseInitializer() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                var value: any XLExpression<Int> = 1
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                var value: any XLExpression<Int> = 1
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 1)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
                         }
                   }
             }
@@ -257,6 +342,10 @@ final class SQLFunctionMacroTests: XCTestCase {
                         context.simpleFunction(name: Self.definition.name) { context in
                             context.listItem(expression: value.makeSQL)
                         }
+                  }
+
+                init(value: any XLSQLiteExpression<Int>) {
+                        self.value = value
                   }
             }
             """,

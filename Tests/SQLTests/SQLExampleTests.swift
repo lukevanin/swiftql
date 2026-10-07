@@ -527,10 +527,10 @@ public struct HaversineDistance: XLCustomFunction {
     private let toLongitude: any SwiftQL.XLExpression
     
     init(
-        fromLatitude: any SwiftQL.XLExpression<Double>,
-        fromLongitude: any SwiftQL.XLExpression<Double>,
-        toLatitude: any SwiftQL.XLExpression<Double>,
-        toLongitude: any SwiftQL.XLExpression<Double>
+        fromLatitude: any SwiftQL.XLSQLiteExpression<Double>,
+        fromLongitude: any SwiftQL.XLSQLiteExpression<Double>,
+        toLatitude: any SwiftQL.XLSQLiteExpression<Double>,
+        toLongitude: any SwiftQL.XLSQLiteExpression<Double>
     ) {
         self.fromLatitude = fromLatitude
         self.fromLongitude = fromLongitude
