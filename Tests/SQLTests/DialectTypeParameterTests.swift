@@ -655,16 +655,32 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertNotNil(update.id)
         update.id = update.id
         XCTAssertEqual(
-            try secondSQL(Setting<DialectHandWrittenPerson>(update)),
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(update)),
             #"SET "id" = 7,"nickname" = NULL"#
+        )
+        // A nullable column's slot, written directly, reads back through
+        // either overload, and the optional-typed read of a column assigned
+        // through the wrapped-type overload copies it.
+        var nullable = DialectHandWrittenPerson.MetaUpdate()
+        nullable._xlColumns.nickname.expression = _xlLegacyValueExpression("x")
+        nullable.nickname = nullable.nickname
+        let copied: any HandWrittenExpression<String?> = nullable.nickname
+        nullable.nickname = copied
+        XCTAssertEqual(
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(nullable)),
+            #"SET "nickname" = 'x'"#
         )
         // So does the update the generated request makes.
         var fromRequest = DialectHandWrittenPerson.UpdateRequest(id: 9).makeUpdate()
         fromRequest.id = fromRequest.id
         XCTAssertEqual(
-            try secondSQL(Setting<DialectHandWrittenPerson>(fromRequest)),
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(fromRequest)),
             #"SET "id" = 9"#
         )
+    }
+
+    private func handWrittenSQL(_ statement: any XLEncodable) throws -> String {
+        try XLDialectEncoder(dialect: HandWrittenDialect()).makeValidatedSQL(statement).sql
     }
 
     func testColumnsTakesTheModelDialect() throws {

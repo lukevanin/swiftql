@@ -208,7 +208,8 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// It is `nil` when the column was never assigned, was assigned `NULL`, or
     /// was assigned an optional-typed expression, which is not an expression
     /// of the wrapped type: reading it as one would let a value that can be
-    /// `NULL` be assigned to a column that cannot. Read the column through
+    /// `NULL` be assigned to a column that cannot. So assigning this read
+    /// back sets the column to `NULL` (issue #828); read the column through
     /// its optional-typed overload to copy it.
     ///
     public func _xlReadExpression<ExpressionType>(

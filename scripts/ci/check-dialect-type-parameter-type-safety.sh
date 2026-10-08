@@ -294,19 +294,33 @@ for fixture in "${expansion_refusal_fixtures[@]}"; do
         printf 'error: a fixture that must not type-check did: %s\n' "$fixture" >&2
         exit 1
     fi
-    # Every error must be in a macro expansion that the fixture's own code
-    # originates, so a mistake elsewhere in the fixture is not taken for the
-    # refusal.
-    if awk -v fixture="$fixture" '
-        index($0, fixture ":") == 1 && /: error:/ { found = 1 }
-        END { exit found ? 0 : 1 }
-    ' "$diagnostic_log"; then
+    plain_log="$(sed 's/\x1b\[[0-9;]*m//g' "$diagnostic_log")"
+    # Every error must be in a macro expansion, not in the fixture or a
+    # support file, so a mistake elsewhere is not taken for the refusal.
+    stray_errors="$(
+        printf '%s\n' "$plain_log" |
+            grep -E '^[^ |`].*: error:' |
+            grep -Ev '^macro expansion ' || true
+    )"
+    if [[ -n "$stray_errors" ]]; then
         printf 'error: fixture failed outside a macro expansion: %s\n' "$fixture" >&2
         cat "$diagnostic_log" >&2
         exit 1
     fi
-    if ! grep -Fq "$fixture:" "$diagnostic_log"; then
-        printf 'error: no error originates in fixture: %s\n' "$fixture" >&2
+    # The expansion must be one the fixture's own code originates.
+    if ! printf '%s\n' "$plain_log" |
+        grep -Fq "$fixture:" ||
+        ! printf '%s\n' "$plain_log" |
+        grep -Fq 'note: expanded code originates here'; then
+        printf 'error: no expansion error originates in fixture: %s\n' "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+    # The error is at the generated conversion whose name states the
+    # requirement, which the compiler shows with the error.
+    if ! printf '%s\n' "$plain_log" |
+        grep -Fq 'private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression'; then
+        printf 'error: refusal is not at the generated conversion: %s\n' "$fixture" >&2
         cat "$diagnostic_log" >&2
         exit 1
     fi
@@ -317,7 +331,7 @@ for fixture in "${expansion_refusal_fixtures[@]}"; do
         printf 'error: expected an expected-names comment in %s\n' "$fixture" >&2
         exit 1
     fi
-    error_text="$(grep -E '^macro expansion .*: error:' "$diagnostic_log" || true)"
+    error_text="$(printf '%s\n' "$plain_log" | grep -E '^macro expansion .*: error:' || true)"
     if [[ -z "$error_text" ]]; then
         printf 'error: no error in a macro expansion: %s\n' "$fixture" >&2
         cat "$diagnostic_log" >&2

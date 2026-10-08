@@ -626,10 +626,11 @@
     `extension MyDialect { public typealias XLAnyExpression<T> = any XLExpression<T> }`
     keeps its slots taking any expression, as before. It is `public` when the
     dialect's models are, because their generated members name it. A
-    hand-written expression protocol includes `XLTypeAffinityExpression`,
-    as a generated one does: a read of a slot returns a value of no dialect
-    inside it, and a model of a dialect whose protocol leaves it out does not
-    compile.
+    hand-written expression protocol includes `XLTypeAffinityExpression` for
+    every value type, with no `where` clause, as a generated one does: a read
+    of a slot returns a value of no dialect inside it, and a model of a
+    dialect whose protocol leaves it out, or conforms it only conditionally,
+    does not compile.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression itself, as the model's
     dialect's expression type. A value written to the slot directly, which is
