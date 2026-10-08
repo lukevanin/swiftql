@@ -192,11 +192,11 @@ extension MetaBuilder {
 
             // Issue #825: an assignment takes the model's dialect's
             // expressions. The slot stores the expression erased, so a read
-            // returns it as an expression of the model's dialect, which the
-            // slot builds.
+            // casts it back to the dialect's expression type, which the
+            // getter names.
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(in: \(dialectType).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -208,7 +208,7 @@ extension MetaBuilder {
             // never assigning it does.
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(in: \(dialectType).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -222,7 +222,7 @@ extension MetaBuilder {
             context.line("@_disfavoredOverload")
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(in: \(dialectType).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: \(dialectExpressionType("Optional<Wrapped>")).self)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")

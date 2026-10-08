@@ -49,19 +49,49 @@ public struct XLColumnUpdate<Wrapped> {
     }
 
     ///
-    /// The assigned expression, as an expression of `dialect`, or `nil` when
-    /// the column was never assigned.
+    /// The assigned expression as `ExpressionType`, the model's dialect's
+    /// expression type, or `nil` when the column was never assigned.
     ///
     /// A generated `MetaUpdate`'s slot takes only its model's dialect's
     /// expressions (issue #825) and stores the one it is given erased, so a
-    /// read returns it as an expression of the model's dialect, which the
-    /// generated code names. Assigning the read back stores that expression,
-    /// and the next read returns it rather than wrapping it a second time.
-    /// It is not part of the API a caller writes against.
+    /// read casts it back and returns the assigned expression itself. A value
+    /// written to the slot directly, such as the one the generated
+    /// `UpdateRequest` writes, is no dialect's expression, and reads as an
+    /// `XLTypeAffinityExpression` of it, which is every dialect's. It is not
+    /// part of the API a caller writes against.
     ///
-    public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
-        expression.map { XLDialectExpression<Wrapped, Dialect>.reading($0) }
+    public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
+        expression.map { _xlSlotRead($0, of: Wrapped.self, as: type) }
     }
+}
+
+
+///
+/// `expression`, read from a generated `MetaUpdate` slot, as `ExpressionType`,
+/// the model's dialect's expression type of `T` (issue #825).
+///
+/// An expression the slot's setter took is one of `ExpressionType` already,
+/// so the read returns it as it is: its type, its dialect record, and what a
+/// run-time check sees inside it are unchanged, and a read assigned back is
+/// not wrapped. Anything else, such as a value written to the slot directly or
+/// an optional-typed expression read as the column's wrapped type, is wrapped
+/// in an ``XLTypeAffinityExpression`` of `T`, which is an expression of every
+/// dialect and records none, so a run-time dialect check walks into it.
+///
+func _xlSlotRead<T, ExpressionType>(
+    _ expression: any XLExpression,
+    of _: T.Type,
+    as type: ExpressionType.Type
+) -> ExpressionType {
+    if let typed = expression as? ExpressionType {
+        return typed
+    }
+    guard let wrapped = XLTypeAffinityExpression<T>(expression: expression) as? ExpressionType else {
+        preconditionFailure(
+            "\(ExpressionType.self) does not take XLTypeAffinityExpression; a dialect's expression protocol must include the expression nodes its generated surface conforms"
+        )
+    }
+    return wrapped
 }
 
 
@@ -169,34 +199,42 @@ public struct XLNullableColumnUpdate<Wrapped> {
     }
 
     ///
-    /// The assigned expression as an expression of `dialect` of the column's
-    /// wrapped type, for a generated `MetaUpdate`'s read of the slot (issue
-    /// #825), or `nil` when the column was never assigned or was assigned
-    /// `NULL`. See ``XLColumnUpdate/_xlReadExpression(in:)``.
+    /// The assigned expression as `ExpressionType`, the model's dialect's
+    /// expression type of the column's wrapped type, for a generated
+    /// `MetaUpdate`'s read of the slot (issue #825), or `nil` when the column
+    /// was never assigned or was assigned `NULL`. See
+    /// ``XLColumnUpdate/_xlReadExpression(as:)``.
     ///
-    /// A column assigned an optional-typed expression reads as that
-    /// expression, so assigning the read back through the wrapped-type
-    /// overload, the one Swift prefers, copies it rather than setting the
-    /// column to `NULL`. Both render the same SQL; only the Swift type
-    /// differs.
+    /// A column assigned an optional-typed expression, other than `NULL`,
+    /// reads as that expression, so assigning the read back through the
+    /// wrapped-type overload, the one Swift prefers, copies it rather than
+    /// setting the column to `NULL`. Both render the same SQL, but the read's
+    /// Swift type is the wrapped type while its value can be `NULL`, so
+    /// assigning it to a column that is not nullable can write `NULL`, which
+    /// the database refuses.
     ///
-    public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
+    public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
         if let wrappedExpression {
-            return XLDialectExpression<Wrapped, Dialect>.reading(wrappedExpression)
+            return _xlSlotRead(wrappedExpression, of: Wrapped.self, as: type)
         }
-        return storedExpression.map { XLDialectExpression<Wrapped, Dialect>.reading($0) }
+        guard let storedExpression, !(storedExpression is XLNullExpression<Wrapped>) else {
+            return nil
+        }
+        return _xlSlotRead(storedExpression, of: Wrapped.self, as: type)
     }
 
     ///
-    /// ``optionalExpression`` as an expression of `dialect`, or `NULL` when it
-    /// is `nil`, for a generated `MetaUpdate`'s read of the slot as an
-    /// optional-typed expression (issue #825). A column never assigned also
-    /// reads as `NULL`, so assigning that read back adds the column to the
-    /// statement as `NULL`.
+    /// ``optionalExpression`` as `ExpressionType`, or `NULL` when it is `nil`,
+    /// for a generated `MetaUpdate`'s read of the slot as an optional-typed
+    /// expression (issue #825). A column never assigned also reads as `NULL`,
+    /// so assigning that read back adds the column to the statement as
+    /// `NULL`.
     ///
-    public func _xlReadOptionalExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Optional<Wrapped>, Dialect> {
-        XLDialectExpression<Optional<Wrapped>, Dialect>.reading(
-            optionalExpression ?? XLNullExpression<Wrapped>()
+    public func _xlReadOptionalExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType {
+        _xlSlotRead(
+            optionalExpression ?? XLNullExpression<Wrapped>(),
+            of: Optional<Wrapped>.self,
+            as: type
         )
     }
 }

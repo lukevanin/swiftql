@@ -497,7 +497,7 @@ operator:
 - `#row(...)` builds SQLite rows, so its declaration takes
   `any XLSQLiteExpression<C>`.
 - A slot stores its expression erased, as before, so a read of a `Setting`
-  slot returns it as an `XLDialectExpression` of the model's dialect.
+  slot casts it back to the dialect's expression type.
 
 ### Type-check time
 
@@ -567,5 +567,6 @@ between the two checkouts, so the sections are compared instead.
 These numbers are from the first version of this change, whose generated
 slots wrapped a read in `XLTypeAffinityExpression` themselves and which made
 `XLLegacyDynamicValueExpression` an expression of every dialect. The review
-moved the read into the column slots, as one generic accessor, and dropped
-that conformance; neither adds code per model.
+moved the read into the column slots, as one generic accessor that casts the
+stored expression back, and dropped that conformance; neither adds code per
+model.

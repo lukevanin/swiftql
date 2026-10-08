@@ -535,6 +535,10 @@ final class DialectTypeParameterTests: XCTestCase {
     }
 
     func testAReadOfANullableSlotCopiesAnOptionalTypedAssignment() throws {
+        var update = DialectSecondPerson.MetaUpdate()
+        update.nickname = XLNullExpression<String>()
+        // `NULL` reads as `nil`, not as a non-optional expression.
+        XCTAssertNil(update.nickname)
         let statement = sql(dialect: FakeSecondDialect.self) { schema in
             let person = schema.into(DialectSecondPerson.self)
             Update(person)
@@ -608,14 +612,22 @@ final class DialectTypeParameterTests: XCTestCase {
         // it again.
         update.name = update.name
         update.name = update.name
-        let reread = try XCTUnwrap(update._xlColumns.name._xlReadExpression(in: FakeSecondDialect.self))
-        XCTAssertFalse(Mirror(reflecting: reread).children.first?.value is XLDialectExpression<String, FakeSecondDialect>)
+        // A read returns the assigned value itself.
+        XCTAssertTrue(update._xlColumns.name.expression is String)
         for _ in 0 ..< 2 {
             let optional: any FakeSecondDialectExpression<String?> = update.nickname
             update.nickname = optional
         }
-        let rereadOptional = update._xlColumns.nickname._xlReadOptionalExpression(in: FakeSecondDialect.self)
-        XCTAssertFalse(Mirror(reflecting: rereadOptional).children.first?.value is XLDialectExpression<String?, FakeSecondDialect>)
+        XCTAssertTrue(update._xlColumns.nickname.optionalExpression is XLNullExpression<String>)
+        // A value written to the slot directly is no dialect's expression, so
+        // it reads through a node of every dialect, once.
+        update._xlColumns.id.expression = _xlLegacyValueExpression(3)
+        update.id = update.id
+        update.id = update.id
+        let id = try XCTUnwrap(update._xlColumns.id.expression)
+        XCTAssertTrue(id is XLTypeAffinityExpression<Int>)
+        XCTAssertTrue(Mirror(reflecting: id).children.first?.value is XLLegacyDynamicValueExpression<Int>)
+        update.id = 2
         // `XLNullExpression` is a node of every dialect, so it assigns to a
         // nullable slot of either.
         update.nickname = XLNullExpression<String>()

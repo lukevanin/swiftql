@@ -611,12 +611,14 @@
     keeps its slots taking any expression, as before. It is `public` when the
     dialect's models are, because their generated members name it.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
-    assigned, returns the assigned expression as an expression of the model's
-    dialect, an `XLDialectExpression<T, Dialect>`, rather than the erased
-    expression itself. Assigning it back does not wrap it again. A nullable
-    column assigned an optional-typed expression, such as another nullable
+    assigned, returns the assigned expression itself, as the model's
+    dialect's expression type. A value written to the slot directly, which is
+    no dialect's expression, reads wrapped in `XLTypeAffinityExpression`, and
+    assigning a read back does not wrap it again. A nullable column assigned
+    an optional-typed expression other than `NULL`, such as another nullable
     column, reads as that expression, so `row.nickname = row.nickname`
-    copies it; before, the read was `nil` and the assignment set `NULL`.
+    copies it; before, the read was `nil` and the assignment set `NULL`. Its
+    Swift type is then the wrapped type while its value can be `NULL`.
   - `XLLegacyDynamicValueExpression`, the value wrapper behind
     `_xlLegacyValueExpression(_:)` and the generated `UpdateRequest`, is an
     expression of no dialect, so it cannot be assigned through a slot. The

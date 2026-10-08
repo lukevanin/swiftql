@@ -305,10 +305,8 @@ func _xlStaticStorageExpression<Storage, Dialect>(
 /// The walk reads stored properties through `Mirror`, so it does not see into
 /// a closure; a `CASE` expression, which keeps its arms in closures, records
 /// its dialect itself. A part that records the expected dialect is trusted,
-/// and the walk does not descend into it, except a value read back from a
-/// generated `MetaUpdate` slot, which records its model's dialect without
-/// having checked it (issue #825). A field is built once per layout, so the
-/// walk is not on a per-row path.
+/// and the walk does not descend into it. A field is built once per layout,
+/// so the walk is not on a per-row path.
 ///
 func _xlDialectExpression<Storage, Dialect>(
     _ expression: any XLExpression<Storage>,
@@ -324,7 +322,10 @@ func _xlDialectExpression<Storage, Dialect>(
             expressionType: String(reflecting: type(of: expression))
         )
     }
-    return XLDialectExpression<Storage, Dialect>.wrapping(expression, verified: true)
+    if let expression = expression as? XLDialectExpression<Storage, Dialect> {
+        return expression
+    }
+    return XLDialectExpression(expression)
 }
 
 
@@ -337,12 +338,6 @@ func _xlForeignDialect(
     expected: Any.Type,
     visited: inout Set<ObjectIdentifier>
 ) -> Any.Type? {
-    // A slot's read records its model's dialect without having checked what
-    // it holds, so the walk looks inside it (issue #825).
-    if let unverified = value as? any XLUnverifiedDialectExpression,
-       let wrapped = unverified.unverifiedExpression {
-        return _xlForeignDialect(in: wrapped, expected: expected, visited: &visited)
-    }
     if let tagged = value as? any XLDialectTaggedExpression {
         return tagged.expressionDialect == expected ? nil : tagged.expressionDialect
     }
