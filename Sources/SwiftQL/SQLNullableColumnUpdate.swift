@@ -60,7 +60,7 @@ public struct XLColumnUpdate<Wrapped> {
     /// It is not part of the API a caller writes against.
     ///
     public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
-        expression.map(XLDialectExpression<Wrapped, Dialect>.reading)
+        expression.map { XLDialectExpression<Wrapped, Dialect>.reading($0) }
     }
 }
 
@@ -169,18 +169,30 @@ public struct XLNullableColumnUpdate<Wrapped> {
     }
 
     ///
-    /// ``expression`` as an expression of `dialect`, for a generated
-    /// `MetaUpdate`'s read of the slot (issue #825). See
-    /// ``XLColumnUpdate/_xlReadExpression(in:)``.
+    /// The assigned expression as an expression of `dialect` of the column's
+    /// wrapped type, for a generated `MetaUpdate`'s read of the slot (issue
+    /// #825), or `nil` when the column was never assigned or was assigned
+    /// `NULL`. See ``XLColumnUpdate/_xlReadExpression(in:)``.
+    ///
+    /// A column assigned an optional-typed expression reads as that
+    /// expression, so assigning the read back through the wrapped-type
+    /// overload, the one Swift prefers, copies it rather than setting the
+    /// column to `NULL`. Both render the same SQL; only the Swift type
+    /// differs.
     ///
     public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
-        expression.map(XLDialectExpression<Wrapped, Dialect>.reading)
+        if let wrappedExpression {
+            return XLDialectExpression<Wrapped, Dialect>.reading(wrappedExpression)
+        }
+        return storedExpression.map { XLDialectExpression<Wrapped, Dialect>.reading($0) }
     }
 
     ///
     /// ``optionalExpression`` as an expression of `dialect`, or `NULL` when it
     /// is `nil`, for a generated `MetaUpdate`'s read of the slot as an
-    /// optional-typed expression (issue #825).
+    /// optional-typed expression (issue #825). A column never assigned also
+    /// reads as `NULL`, so assigning that read back adds the column to the
+    /// statement as `NULL`.
     ///
     public func _xlReadOptionalExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Optional<Wrapped>, Dialect> {
         XLDialectExpression<Optional<Wrapped>, Dialect>.reading(

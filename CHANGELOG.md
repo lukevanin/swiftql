@@ -613,7 +613,10 @@
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression as an expression of the model's
     dialect, an `XLDialectExpression<T, Dialect>`, rather than the erased
-    expression itself. Assigning it back does not wrap it again.
+    expression itself. Assigning it back does not wrap it again. A nullable
+    column assigned an optional-typed expression, such as another nullable
+    column, reads as that expression, so `row.nickname = row.nickname`
+    copies it; before, the read was `nil` and the assignment set `NULL`.
   - `XLLegacyDynamicValueExpression`, the value wrapper behind
     `_xlLegacyValueExpression(_:)` and the generated `UpdateRequest`, is an
     expression of no dialect, so it cannot be assigned through a slot. The

@@ -79,9 +79,11 @@ compile() {
 # BODIES narrows the run to some of the bodies, such as `BODIES="setting-40
 # chain-12"`; by default every body is measured. The `setting`, `columns`, and
 # `row` bodies measure the macros' value slots (issue #825).
+bodies=()
 if [[ -n "${BODIES:-}" ]]; then
     read -r -a bodies <<<"$BODIES"
-else
+fi
+if [[ "${#bodies[@]}" -eq 0 ]]; then
     bodies=(
         clauses-30 clauses-120 clauses-450
         chain-2 chain-4 chain-6 chain-8 chain-12 chain-16

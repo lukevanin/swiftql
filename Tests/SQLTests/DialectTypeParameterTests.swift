@@ -534,6 +534,52 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertEqual(try secondSQL(secondInsert), try sqliteSQL(sqliteInsert))
     }
 
+    func testAReadOfANullableSlotCopiesAnOptionalTypedAssignment() throws {
+        let statement = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting<DialectSecondPerson> { row in
+                row.nickname = person.nickname
+                // The read is the optional-typed column, not `nil`, so
+                // assigning it back copies it rather than setting `NULL`.
+                row.nickname = row.nickname
+            }
+        }
+        XCTAssertEqual(
+            try secondSQL(statement),
+            #"UPDATE "person" AS "t0" SET "nickname" = "t0"."nickname""#
+        )
+    }
+
+    func testAStaticFieldWalksIntoASlotRead() throws {
+        // A node built through its public initializer takes any expression,
+        // so a SQLite slot can hold a second-dialect column inside one. The
+        // read records SQLite without having checked that, so a static field
+        // walks into it and refuses the column.
+        let second = XLSchema(dialect: FakeSecondDialect.self).table(DialectSecondPerson.self)
+        var update = DialectSQLitePerson.MetaUpdate()
+        update.name = XLBinaryOperatorExpression<String>(op: "||", lhs: second.name, rhs: "x")
+        let read: any XLSQLiteExpression<String> = try XCTUnwrap(update.name)
+        let identity = try XLQuerySlotIdentity(path: ["dialect", "name"])
+        XCTAssertThrowsError(
+            try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: read,
+                identifiedBy: identity
+            )
+        ) { error in
+            guard case XLStaticRowLayoutError.expressionDialectMismatch = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
+        // A read of a SQLite column is accepted.
+        let sqlite = XLSchema().table(DialectSQLitePerson.self)
+        update.name = sqlite.name
+        _ = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+            selecting: try XCTUnwrap(update.name),
+            identifiedBy: identity
+        )
+    }
+
     func testColumnsTakesTheModelDialect() throws {
         let statement = sql(dialect: FakeSecondDialect.self) { schema in
             let person = schema.table(DialectSecondPerson.self)
