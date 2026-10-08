@@ -49,6 +49,12 @@ internal enum MetaModelParser {
         if let diagnostic = dialect.diagnostic {
             diagnostics.report(diagnostic)
         }
+        reportGenericModelDialect(
+            node: node,
+            dialectType: dialect.dialectType,
+            declaration: declaration,
+            diagnostics: &diagnostics
+        )
 
         // Collect the properties from the struct definition.
         let properties = collectProperties(
@@ -65,6 +71,36 @@ internal enum MetaModelParser {
             genericParameterNames: declaration.genericParameterClause?
                 .parameters.map { $0.name.text } ?? [],
             properties: properties
+        )
+    }
+
+    ///
+    /// Reports a `dialect:` argument that names one of the model's own generic
+    /// parameters (issue #825).
+    ///
+    /// The model's value slots take its dialect's expressions, which the
+    /// generated code names as `Dialect.XLAnyExpression<T>`, a typealias each
+    /// concrete dialect's surface declares. A generic parameter has no such
+    /// member, so without this the error would appear inside the expansion.
+    ///
+    private static func reportGenericModelDialect(
+        node: AttributeSyntax,
+        dialectType: String,
+        declaration: StructDeclSyntax,
+        diagnostics: inout MacroDiagnosticCollector
+    ) {
+        guard
+            let parameters = declaration.genericParameterClause?.parameters,
+            parameters.contains(where: { $0.name.text == dialectType }),
+            case let .argumentList(arguments) = node.arguments,
+            let argument = arguments.first(where: { $0.label?.text == "dialect" })
+        else {
+            return
+        }
+        diagnostics.report(
+            argument.expression,
+            id: "generic-model-dialect",
+            "A model's dialect must be a dialect type, not the generic parameter '\(dialectType)'. The model's value slots take that dialect's expressions. Declare the model once for each dialect."
         )
     }
 

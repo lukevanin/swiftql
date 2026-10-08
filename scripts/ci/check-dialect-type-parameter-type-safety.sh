@@ -16,8 +16,9 @@
 # another dialect, another dialect's column in a write statement's `Where`,
 # a table of another dialect in `QueryBuilder`, and another dialect's column
 # as an argument of a custom function. The macros' value slots take only the
-# model's dialect (issue #825): an assignment in `Setting`, a value of the
-# generated `MetaInsert`, an argument of `columns(...)`, and an argument of
+# model's dialect (issue #825): an assignment in `Setting`, to a column and
+# to a nullable column, a value of the generated `MetaUpdate` and
+# `MetaInsert`, an argument of `columns(...)`, and an argument of
 # `#row(...)`, which builds a SQLite row. Each refusal's error must contain the names
 # its fixture lists after `expected-names:`, so a reader can see which
 # dialects met. The errors for three ordinary mistakes are pinned to their
@@ -71,6 +72,8 @@ refusal_fixtures=(
     "$source_root/Tests/CompileFail/DialectClauseQueryBuilderForeignTable.swift"
     "$source_root/Tests/CompileFail/DialectClauseCustomFunctionForeignArgument.swift"
     "$source_root/Tests/CompileFail/DialectSlotSettingForeignAssignment.swift"
+    "$source_root/Tests/CompileFail/DialectSlotSettingForeignNullable.swift"
+    "$source_root/Tests/CompileFail/DialectSlotUpdateForeignValue.swift"
     "$source_root/Tests/CompileFail/DialectSlotInsertForeignValue.swift"
     "$source_root/Tests/CompileFail/DialectSlotColumnsForeignArgument.swift"
     "$source_root/Tests/CompileFail/DialectSlotRowForeignArgument.swift"

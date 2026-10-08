@@ -770,6 +770,30 @@ final class SQLMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    func test_genericModelDialect_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable(dialect: D.self)
+            struct Gauge<D: XLSQLDialect> {
+                var id: Int
+            }
+            """,
+            expandedSource: """
+            struct Gauge<D: XLSQLDialect> {
+                var id: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "A model's dialect must be a dialect type, not the generic parameter 'D'. The model's value slots take that dialect's expressions. Declare the model once for each dialect.",
+                    line: 1,
+                    column: 20
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
     func test_modelDialectPropertyName_emitsError() {
         assertMacroExpansion(
             """

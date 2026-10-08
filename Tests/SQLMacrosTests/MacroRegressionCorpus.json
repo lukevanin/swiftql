@@ -706,7 +706,7 @@
       "id": "macro.dialect-value-slots",
       "category": "dialect-parameterised-emission",
       "title": "The macros' value slots take the model's dialect's expressions",
-      "description": "Issue #825: an assignment in Setting { row in ... } (the generated MetaUpdate's key-path subscripts), the generated MetaUpdate, MetaInsert, and SQLReader initializers, and the arguments of columns(...) are typed Dialect.XLAnyExpression<T>, where Dialect is the model's dialect type and XLAnyExpression<T> is the generic typealias for any of its expression protocol that each dialect's generated surface declares on the dialect type. #row(...) builds a SQLite row and takes XLSQLiteExpression. A slot takes the dialect's columns and composed expressions and Swift values, optionals, and bindings, which are expressions of every dialect; another dialect's expression is a compile error that names both dialects. A read of a Setting slot casts the stored expression back to the model's dialect's expression type, so it returns the assigned expression itself; a value written to the slot directly reads wrapped in XLTypeAffinityExpression, once.",
+      "description": "Issue #825: an assignment in Setting { row in ... } (the generated MetaUpdate's key-path subscripts), the generated MetaUpdate, MetaInsert, and SQLReader initializers, and the arguments of columns(...) are typed Dialect.XLAnyExpression<T>, where Dialect is the model's dialect type and XLAnyExpression<T> is the generic typealias for any of its expression protocol that each dialect's generated surface declares on the dialect type. #row(...) builds a SQLite row and takes XLSQLiteExpression. A slot takes the dialect's columns and composed expressions and Swift values, optionals, and bindings, which are expressions of every dialect; another dialect's expression is a compile error that names both dialects. A read of a Setting slot casts the stored expression back to the model's dialect's expression type, so it returns the assigned expression itself; a value written to the slot directly reads wrapped in XLTypeAffinityExpression, once. A model whose dialect argument names one of its own generic parameters is reported. A dialect with no generated surface declares XLAnyExpression<T> as any XLExpression<T> itself, which leaves its slots unchecked.",
       "provenance": {
         "inspiration": "n/a -- recorded from this repository's own issue #825, not adapted from an external case.",
         "upstream_reference": null,
@@ -720,14 +720,24 @@
           "test_case": "MetaBuilderTests.test_valueSlotsTakeTheModelDialectsExpressions / test_valueSlotsNameTheDeclaredDialectsExpressionProtocol / test_metaUpdateRoutesColumnsThroughTypedSlots"
         },
         {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_genericModelDialect_emitsError"
+        },
+        {
           "layer": "second-dialect-execution",
           "source_path": "Tests/SQLTests/DialectTypeParameterTests.swift",
-          "test_case": "DialectTypeParameterTests.testASettingAssignmentTakesTheModelDialect / testTheGeneratedInitializersTakeTheModelDialect / testColumnsTakesTheModelDialect / testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect"
+          "test_case": "DialectTypeParameterTests.testASettingAssignmentTakesTheModelDialect / testTheGeneratedInitializersTakeTheModelDialect / testColumnsTakesTheModelDialect / testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect / testAReadOfANullableSlotKeepsItsOptionalType / testAStaticFieldWalksIntoASlotRead"
         },
         {
           "layer": "downstream-build",
           "source_path": "scripts/ci/check-dialect-type-parameter-type-safety.sh",
-          "test_case": "DialectTypeParameterValid / DialectSlotSettingForeignAssignment / DialectSlotInsertForeignValue / DialectSlotColumnsForeignArgument / DialectSlotRowForeignArgument"
+          "test_case": "DialectTypeParameterValid / DialectSlotSettingForeignAssignment / DialectSlotSettingForeignNullable / DialectSlotUpdateForeignValue / DialectSlotInsertForeignValue / DialectSlotColumnsForeignArgument / DialectSlotRowForeignArgument"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-dialect-parameterised-macro-type-safety.sh",
+          "test_case": "DialectParameterisedValid"
         }
       ]
     },

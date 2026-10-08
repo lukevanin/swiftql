@@ -534,7 +534,7 @@ final class DialectTypeParameterTests: XCTestCase {
         XCTAssertEqual(try secondSQL(secondInsert), try sqliteSQL(sqliteInsert))
     }
 
-    func testAReadOfANullableSlotCopiesAnOptionalTypedAssignment() throws {
+    func testAReadOfANullableSlotKeepsItsOptionalType() throws {
         var update = DialectSecondPerson.MetaUpdate()
         update.nickname = XLNullExpression<String>()
         // `NULL` reads as `nil`, not as a non-optional expression.
@@ -544,9 +544,11 @@ final class DialectTypeParameterTests: XCTestCase {
             Update(person)
             Setting<DialectSecondPerson> { row in
                 row.nickname = person.nickname
-                // The read is the optional-typed column, not `nil`, so
-                // assigning it back copies it rather than setting `NULL`.
-                row.nickname = row.nickname
+                // An optional-typed assignment is not a wrapped-type
+                // expression, so it reads as one only through the
+                // optional-typed overload, which copies it.
+                let nickname: any FakeSecondDialectExpression<String?> = row.nickname
+                row.nickname = nickname
             }
         }
         XCTAssertEqual(

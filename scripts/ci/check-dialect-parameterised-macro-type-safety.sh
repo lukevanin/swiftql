@@ -5,8 +5,9 @@
 # for a second dialect through the same generated members. A field built for
 # one dialect cannot join another dialect's layout, and a layout built for one
 # dialect cannot prepare a query on a database of another; each error names
-# both dialects. The fixtures use macros, so the standalone compiler loads
-# SwiftQL's macro plugin.
+# both dialects. A model of a dialect with no generated surface compiles once
+# the dialect declares `XLAnyExpression` itself (issue #825). The fixtures use
+# macros, so the standalone compiler loads SwiftQL's macro plugin.
 
 set -euo pipefail
 

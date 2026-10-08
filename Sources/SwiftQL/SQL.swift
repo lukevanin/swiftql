@@ -53,7 +53,11 @@ public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros",
 /// dialect without a generated surface declares it itself, as
 /// `public typealias XLAnyExpression<T> = any XLExpression<T>`, which leaves
 /// its models' slots unchecked; without it the generated code reports that
-/// `XLAnyExpression` is not a member type of the dialect.
+/// `XLAnyExpression` is not a member type of the dialect. A hand-written
+/// expression protocol includes `XLTypeAffinityExpression` and
+/// `XLNullExpression`, as a generated one does, because a read of a nullable
+/// slot returns them. The dialect is a dialect type: a generic parameter of
+/// the model has no `XLAnyExpression`, and the macro reports it.
 ///
 @attached(member, names: arbitrary)
 @attached(extension, conformances: XLResult, XLTable, Sendable, names: arbitrary)

@@ -57,3 +57,17 @@ func bothDialects(configuration: XLValueCodingConfiguration) throws {
         .bindings(in: .empty)
     _ = packet
 }
+
+
+// Issue #825: a model of a dialect with no generated surface compiles once the
+// dialect declares `XLAnyExpression` itself, and its slots take any
+// expression.
+func bareDialectSlots(note: String?) {
+    var update = BareDialectFixtureGauge.MetaUpdate()
+    update.id = 1
+    update.note = note
+    update.note = nil
+    _ = BareDialectFixtureGauge.MetaInsert(id: 1, note: note)
+    _ = BareDialectFixtureGauge.columns(id: 1, note: note)
+    _ = Setting<BareDialectFixtureGauge>(update)
+}

@@ -57,11 +57,12 @@ public struct XLColumnUpdate<Wrapped> {
     /// read casts it back and returns the assigned expression itself. A value
     /// written to the slot directly, such as the one the generated
     /// `UpdateRequest` writes, is no dialect's expression, and reads as an
-    /// `XLTypeAffinityExpression` of it, which is every dialect's. It is not
-    /// part of the API a caller writes against.
+    /// `XLTypeAffinityExpression` of it, which is every dialect's, or as `nil`
+    /// when the dialect's expression protocol does not include that node. It
+    /// is not part of the API a caller writes against.
     ///
     public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
-        expression.map { _xlSlotRead($0, of: Wrapped.self, as: type) }
+        expression.flatMap { _xlSlotRead($0, of: Wrapped.self, as: type) }
     }
 }
 
@@ -73,25 +74,21 @@ public struct XLColumnUpdate<Wrapped> {
 /// An expression the slot's setter took is one of `ExpressionType` already,
 /// so the read returns it as it is: its type, its dialect record, and what a
 /// run-time check sees inside it are unchanged, and a read assigned back is
-/// not wrapped. Anything else, such as a value written to the slot directly or
-/// an optional-typed expression read as the column's wrapped type, is wrapped
-/// in an ``XLTypeAffinityExpression`` of `T`, which is an expression of every
-/// dialect and records none, so a run-time dialect check walks into it.
+/// not wrapped. A value written to the slot directly is wrapped in an
+/// ``XLTypeAffinityExpression`` of `T`, which is an expression of every
+/// generated dialect and records none, so a run-time dialect check walks into
+/// it. The result is `nil` only for a dialect whose expression protocol was
+/// not generated and does not include that node.
 ///
 func _xlSlotRead<T, ExpressionType>(
     _ expression: any XLExpression,
     of _: T.Type,
     as type: ExpressionType.Type
-) -> ExpressionType {
+) -> ExpressionType? {
     if let typed = expression as? ExpressionType {
         return typed
     }
-    guard let wrapped = XLTypeAffinityExpression<T>(expression: expression) as? ExpressionType else {
-        preconditionFailure(
-            "\(ExpressionType.self) does not take XLTypeAffinityExpression; a dialect's expression protocol must include the expression nodes its generated surface conforms"
-        )
-    }
-    return wrapped
+    return XLTypeAffinityExpression<T>(expression: expression) as? ExpressionType
 }
 
 
@@ -199,28 +196,19 @@ public struct XLNullableColumnUpdate<Wrapped> {
     }
 
     ///
-    /// The assigned expression as `ExpressionType`, the model's dialect's
-    /// expression type of the column's wrapped type, for a generated
-    /// `MetaUpdate`'s read of the slot (issue #825), or `nil` when the column
-    /// was never assigned or was assigned `NULL`. See
-    /// ``XLColumnUpdate/_xlReadExpression(as:)``.
+    /// ``expression`` as `ExpressionType`, the model's dialect's expression
+    /// type of the column's wrapped type, for a generated `MetaUpdate`'s read
+    /// of the slot (issue #825). See ``XLColumnUpdate/_xlReadExpression(as:)``.
     ///
-    /// A column assigned an optional-typed expression, other than `NULL`,
-    /// reads as that expression, so assigning the read back through the
-    /// wrapped-type overload, the one Swift prefers, copies it rather than
-    /// setting the column to `NULL`. Both render the same SQL, but the read's
-    /// Swift type is the wrapped type while its value can be `NULL`, so
-    /// assigning it to a column that is not nullable can write `NULL`, which
-    /// the database refuses.
+    /// It is `nil` when the column was never assigned, was assigned `NULL`, or
+    /// was assigned an optional-typed expression, which is not an expression
+    /// of the wrapped type: reading it as one would let a value that can be
+    /// `NULL` be assigned to a column that cannot. So assigning this read back
+    /// sets the column to `NULL`; read the column through its optional-typed
+    /// overload to copy it.
     ///
     public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
-        if let wrappedExpression {
-            return _xlSlotRead(wrappedExpression, of: Wrapped.self, as: type)
-        }
-        guard let storedExpression, !(storedExpression is XLNullExpression<Wrapped>) else {
-            return nil
-        }
-        return _xlSlotRead(storedExpression, of: Wrapped.self, as: type)
+        expression.flatMap { _xlSlotRead($0, of: Wrapped.self, as: type) }
     }
 
     ///
@@ -230,11 +218,21 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// so assigning that read back adds the column to the statement as
     /// `NULL`.
     ///
+    /// The overload's type is not optional, so a dialect whose expression
+    /// protocol was not generated must include `XLNullExpression` and
+    /// `XLTypeAffinityExpression`, as every generated one does, or the read
+    /// stops the program.
+    ///
     public func _xlReadOptionalExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType {
-        _xlSlotRead(
+        guard let read = _xlSlotRead(
             optionalExpression ?? XLNullExpression<Wrapped>(),
             of: Optional<Wrapped>.self,
             as: type
-        )
+        ) else {
+            preconditionFailure(
+                "\(ExpressionType.self) does not include XLNullExpression and XLTypeAffinityExpression, which a read of a nullable Setting slot returns. Generate the dialect's surface from scripts/dialect-surface, or declare XLAnyExpression<T> as any XLExpression<T>."
+            )
+        }
+        return read
     }
 }

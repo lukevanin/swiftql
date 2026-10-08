@@ -61,3 +61,33 @@ struct SecondDialectFixtureGauge {
     var id: Int
     var code: String
 }
+
+/// A dialect with no generated surface, such as one used only for static row
+/// layouts (issue #825). It declares the type its models' value slots take
+/// itself, as the macros' documentation says, which leaves the slots
+/// unchecked. Nothing here runs.
+struct CompileFailBareDialect: XLSQLDialect {
+    typealias Value = CompileFailSecondDialectValue
+
+    let descriptor = XLDialectDescriptor(
+        identity: XLDialectIdentifier(rawValue: "compile-fail.bare")
+    )
+
+    func makeFormatter() -> XLiteFormatter { XLiteFormatter() }
+    func makeVocabulary() -> XLiteVocabulary { XLiteVocabulary() }
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner { XLitePlaceholderAssigner() }
+    func formatIdentifier(_ identifier: String) -> String { identifier }
+    func formatQualifiedIdentifier(_ components: [String]) -> String { components.joined(separator: ".") }
+    func formatPlaceholder(_ placeholder: XLBindingPlaceholder) -> String { "?" }
+}
+
+extension CompileFailBareDialect {
+    typealias XLAnyExpression<T> = any XLExpression<T>
+}
+
+/// A model of the dialect with no generated surface.
+@SQLTable(name: "DialectFixtureGauge", dialect: CompileFailBareDialect.self)
+struct BareDialectFixtureGauge {
+    var id: Int
+    var note: String?
+}

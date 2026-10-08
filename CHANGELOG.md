@@ -614,11 +614,15 @@
     assigned, returns the assigned expression itself, as the model's
     dialect's expression type. A value written to the slot directly, which is
     no dialect's expression, reads wrapped in `XLTypeAffinityExpression`, and
-    assigning a read back does not wrap it again. A nullable column assigned
-    an optional-typed expression other than `NULL`, such as another nullable
-    column, reads as that expression, so `row.nickname = row.nickname`
-    copies it; before, the read was `nil` and the assignment set `NULL`. Its
-    Swift type is then the wrapped type while its value can be `NULL`.
+    assigning a read back does not wrap it again. As before, a nullable
+    column assigned an optional-typed expression reads as `nil` through the
+    wrapped-type overload Swift prefers, so `row.nickname = row.nickname`
+    sets it to `NULL`; read it as `let n: any XLSQLiteExpression<String?> =
+    row.nickname` to copy it.
+  - A model's dialect is a concrete dialect type. A model whose `dialect:`
+    argument names one of its own generic parameters, which compiled before,
+    is reported by the macro: its value slots cannot name a generic
+    dialect's expressions. Declare the model once for each dialect.
   - `XLLegacyDynamicValueExpression`, the value wrapper behind
     `_xlLegacyValueExpression(_:)` and the generated `UpdateRequest`, is an
     expression of no dialect, so it cannot be assigned through a slot. The
