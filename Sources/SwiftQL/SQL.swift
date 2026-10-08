@@ -46,6 +46,22 @@ public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros",
 /// a model maps to one database's types, and translating between databases
 /// belongs above SwiftQL.
 ///
+/// The model's value slots, such as an assignment in `Setting { row in ... }`
+/// and the arguments of `columns(...)`, take the dialect's expressions, which
+/// the generated code names as `Dialect.XLAnyExpression<T>` (issue #825). The
+/// dialect's generated surface declares that typealias on the dialect type. A
+/// dialect without a generated surface declares it itself, as
+/// `public typealias XLAnyExpression<T> = any XLExpression<T>`, which leaves
+/// its models' slots unchecked; without it the generated code reports that
+/// `XLAnyExpression` is not a member type of the dialect. A hand-written
+/// expression protocol includes `XLTypeAffinityExpression` for every value
+/// type, with no `where` clause, as a generated one does, because a read of a
+/// slot returns a value of no dialect inside it; without it the model reports
+/// that `XLTypeAffinityExpression` is not convertible to, or does not
+/// conform to, the dialect's protocol. The dialect is a dialect
+/// type: a generic parameter of the model has no `XLAnyExpression`, and the
+/// macro reports it.
+///
 @attached(member, names: arbitrary)
 @attached(extension, conformances: XLResult, XLTable, Sendable, names: arbitrary)
 public macro SQLTable<Dialect: XLSQLDialect>(name: String? = nil, dialect: Dialect.Type) = #externalMacro(module: "SQLMacros", type: "SQLTableMacro")

@@ -763,6 +763,22 @@ dialect, so it cannot become a subquery or a branch; store it as an
 `subquery { }` and `subqueryExpression { }` are SQLite's; another dialect
 writes `schema.subquery { }`.
 
+The value slots of a model's generated metadata take the model's dialect's
+expressions: a column assignment in `Setting { row in ... }` or
+`onConflict(_:doUpdate:)`, the arguments of `columns(...)`, and the
+arguments of the generated `MetaInsert(...)` and `MetaUpdate(...)`
+initializers. A slot takes a `Bool`, `Int`, `Double`, `String`, or `Data`
+value, an optional of one, or a named binding as well, because those are
+expressions of every dialect. An enum or a custom type is a SQLite expression
+through `XLEnum` and `XLCustomType`; a model of another dialect takes one once
+it conforms to that dialect's protocol too. `#row(...)` builds a
+SQLite row, so it takes SQLite expressions. The macros name the dialect's
+protocol from the model's dialect type, through the `XLAnyExpression<T>`
+typealias each dialect's generated surface declares on its dialect type, such
+as `XLSQLiteDialect.XLAnyExpression<T>` for `any XLSQLiteExpression<T>`.
+Another dialect's expression in a slot is a compile error that names both
+dialects.
+
 A few parts of a query take any expression, so the compiler does not check
 their dialect:
 
@@ -771,10 +787,6 @@ their dialect:
   so building one directly is the way to write SQL that SwiftQL does not
   model, and it is not checked. The operators and functions build nodes
   through their dialect's surface.
-- The value slots of a model's generated metadata: a column assignment in
-  `Setting { row in ... }` or `onConflict(_:doUpdate:)`, and the arguments of
-  `columns(...)` and `#row(...)`. The macros write these slots' types without
-  knowing which protocol is the model's dialect's.
 - The expression of a static row field, which the field factories, such as
   ``XLStaticSelectField/intrinsic(selecting:identifiedBy:using:context:)``,
   take erased so that a generated layout can build its fields for any dialect.

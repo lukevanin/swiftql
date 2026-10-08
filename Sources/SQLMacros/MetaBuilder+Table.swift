@@ -121,7 +121,7 @@ extension MetaBuilder {
             // Discrete parameters.
             var parameters: [String] = []
             for property in properties {
-                parameters.append("\(property.name): any XLExpression<\(property.qualifiedType)>")
+                parameters.append("\(property.name): \(dialectExpressionType(property.qualifiedType))")
             }
             context.block("public init(\(parameters.joined(separator: ", ")))") { context in
                 for property in properties {
@@ -190,10 +190,24 @@ extension MetaBuilder {
 
             context.line("public var _xlColumns: Columns")
 
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
-                context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].expression")
-                }
+            // Issue #825: an assignment takes the model's dialect's
+            // expressions. The slot stores the expression erased, so a read
+            // casts it back to the dialect's expression type, which the
+            // getter names. A value of no dialect, written to the slot
+            // directly, reads inside an `XLTypeAffinityExpression`, which this
+            // function converts with an `as` coercion: it compiles only when
+            // the dialect's expression protocol includes that node, so a
+            // dialect that does not is one compile error here, under a name
+            // that states the requirement, rather than a read that fails.
+            // The coercion is spelled `as` because the compiler's message for
+            // a plain return of the wrong type is "failed to produce
+            // diagnostic".
+            context.block("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> \(dialectExpressionType("Wrapped"))") { context in
+                context.line("return expression as \(dialectExpressionType("Wrapped"))")
+            }
+
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
+                emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
                 }
@@ -202,10 +216,8 @@ extension MetaBuilder {
             // For a nullable column, `nil` assigned through this overload
             // means SQL NULL. Leaving the column out of the statement is what
             // never assigning it does.
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
-                context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].expression")
-                }
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
+                emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
                 }
@@ -216,10 +228,8 @@ extension MetaBuilder {
             // overload instead of being ambiguous. An expression whose type
             // is `Wrapped?` only matches this overload, so it still applies.
             context.line("@_disfavoredOverload")
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>") { context in
-                context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>()")
-                }
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
+                emitSlotRead(read: "_xlReadOptionalExpression", untyped: "_xlReadUntypedOptionalExpression", valueType: "Optional<Wrapped>", isOptional: true, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")
                 }
@@ -232,7 +242,7 @@ extension MetaBuilder {
             if !properties.isEmpty {
                 var parameters: [String] = []
                 for property in properties {
-                    parameters.append("\(property.name): Optional<any XLExpression<\(property.qualifiedType)>> = nil")
+                    parameters.append("\(property.name): Optional<\(dialectExpressionType(property.qualifiedType))> = nil")
                 }
                 // A `nil` argument here means "leave this column out of the
                 // statement", matching every other column and this
@@ -323,12 +333,16 @@ extension MetaBuilder {
                 else {
                     context.line("var output = MetaUpdate()")
                     // The value here is always the column's wrapped type, so
-                    // it routes through MetaUpdate's wrapped-type assignment
-                    // for nullable and non-nullable columns alike -- no
-                    // `toNullable()` lift is needed.
+                    // it is the wrapped-type expression of nullable and
+                    // non-nullable columns alike -- no `toNullable()` lift is
+                    // needed. It is written to the slot directly rather than
+                    // through the subscript, which takes only the dialect's
+                    // expressions (issue #825): the value may be of a type
+                    // only a contextual codec encodes, which fails when the
+                    // statement is built (issue #651).
                     for property in mutableProperties {
                         context.block("if let value = \(property.name)") { context in
-                            context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value)")
+                            context.line("output._xlColumns.\(property.name).expression = SwiftQL._xlLegacyValueExpression(value)")
                         }
                     }
                     context.line("return output")
@@ -345,6 +359,43 @@ extension MetaBuilder {
         }
     }
     
+    ///
+    /// Emits a `MetaUpdate` subscript's getter (issue #825): the stored
+    /// expression cast back to the dialect's expression type, or, for a value
+    /// of no dialect, that value inside an `XLTypeAffinityExpression`,
+    /// converted by the generated `_xlDialectExpressionMustInclude...`
+    /// function.
+    ///
+    /// The getter is statements that call the conversion. A closure, or a
+    /// reference to the static function as a value, captures a generic
+    /// model's metatypes, which Swift 6.3 warns about on Linux
+    /// (SendableMetatypes) and the warnings gate refuses.
+    ///
+    private func emitSlotRead(
+        read: String,
+        untyped: String,
+        valueType: String,
+        isOptional: Bool,
+        into context: inout CodeWriter
+    ) {
+        let conversion = "Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression"
+        context.block("get") { context in
+            context.line("let slot = _xlColumns[keyPath: keyPath]")
+            context.block("if let typed = slot.\(read)(as: \(dialectExpressionType(valueType)).self)") { context in
+                context.line("return typed")
+            }
+            if isOptional {
+                context.line("return \(conversion)(slot.\(untyped))")
+            }
+            else {
+                context.block("guard let untyped = slot.\(untyped) else") { context in
+                    context.line("return nil")
+                }
+                context.line("return \(conversion)(untyped)")
+            }
+        }
+    }
+
     private func makeCreate(context: inout CodeWriter) {
         
         context.block("public struct MetaCreate: XLMetaCreate") { context in

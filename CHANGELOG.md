@@ -566,13 +566,91 @@
     be declared for the schema's dialect.
   - Some parts of a query still take any expression, and are not checked
     against the dialect by the compiler: an expression node built through its
-    public initializer; the value slots of a model's generated metadata, which
-    are a column assignment in `Setting { row in ... }` and the arguments of
-    `columns(...)` and `#row(...)`, because the macros cannot name a dialect's
-    expression protocol from the model's dialect type; and a static row
-    field's expression, which the field factories take erased so that a
-    generated layout can build its fields for any dialect, and which the field
-    checks when it is built, throwing `expressionDialectMismatch`.
+    public initializer, and a static row field's expression, which the field
+    factories take erased so that a generated layout can build its fields for
+    any dialect, and which the field checks when it is built, throwing
+    `expressionDialectMismatch`. The value slots of a model's generated
+    metadata are checked; see the next entry (issue #825).
+- **The macros' value slots take only the model's dialect** (issue #825). An
+  assignment in `Setting { row in ... }` (and so in `set(_:)` and
+  `onConflict(_:doUpdate:)`), the arguments of the generated
+  `MetaUpdate(...)`, `MetaInsert(...)`, and `SQLReader(...)` initializers, and
+  the arguments of `columns(...)` take the model's dialect's expressions:
+  its columns, the expressions composed from them, and the values that are
+  expressions of every dialect: `Bool`, `Int`, `Double`, `String`, `Data`,
+  an optional of one, `nil`, and a named binding. An enum or a custom type is
+  a SQLite expression through `XLEnum` and `XLCustomType`, so a model of
+  another dialect takes one only once it conforms to that dialect's protocol
+  as well, as #789 requires of an operand, such as
+  `extension JobState: PostgreSQLExpression {}`.
+  `#row(...)` builds a SQLite row, so its arguments take SQLite expressions.
+  Another dialect's column or expression in one of these slots is a compile
+  error at the slot that names both dialects. A SQLite model's slots are
+  written as before; what changes is code that passes them an erased
+  expression.
+  - A value typed `any XLExpression<T>` or `some XLExpression<T>` passed to a
+    slot becomes the dialect's expression, as #789 did for operators and
+    #822 for clauses. Without the change the slot reports that the argument
+    "does not conform to expected type 'XLSQLiteExpression'". Before:
+
+    ```swift
+    func duration(_ start: any XLExpression<Date>, _ end: any XLExpression<Date>) -> some XLExpression<Double> { ... }
+    let stored: any XLExpression<Int?> = subqueryExpression { ... }
+    EventDuration.columns(name: event.name, duration: duration(event.startDate, event.endDate))
+    Setting<Totals> { row in row.total = stored }
+    ```
+
+    After:
+
+    ```swift
+    func duration(_ start: any XLSQLiteExpression<Date>, _ end: any XLSQLiteExpression<Date>) -> some XLSQLiteExpression<Double> { ... }
+    let stored: any XLSQLiteExpression<Int?> = subqueryExpression { ... }
+    EventDuration.columns(name: event.name, duration: duration(event.startDate, event.endDate))
+    Setting<Totals> { row in row.total = stored }
+    ```
+
+    A type of your own passed to a slot conforms to `XLSQLiteExpression`, as
+    it already must to be an operand. So does a generic value: a helper that
+    passes a `V: XLLiteral & XLExpression` value to a slot, to `#row(...)`,
+    or to a `Setting` assignment adds `XLSQLiteExpression` to its constraint.
+    Before: `func insert<V: XLLiteral & XLExpression>(_ value: V) -> GenericTable<V>.MetaInsert where V.T == V`.
+    After: `func insert<V: XLLiteral & XLSQLiteExpression>(_ value: V) -> GenericTable<V>.MetaInsert where V.T == V`.
+  - The macros name the dialect's protocol from the model's dialect type, as
+    `SwiftQL.XLSQLiteDialect.XLAnyExpression<T>`: each dialect's generated
+    surface declares `XLAnyExpression<T>`, a typealias for
+    `any` its expression protocol, on the dialect type. A dialect declared
+    outside SwiftQL regenerates its surface from the templates to get it; a
+    model of a dialect without it reports "'XLAnyExpression' is not a member
+    type of ...". A dialect with no generated surface, which declares models
+    only for static row layouts (issue #687), declares the typealias itself;
+    `extension MyDialect { public typealias XLAnyExpression<T> = any XLExpression<T> }`
+    keeps its slots taking any expression, as before. It is `public` when the
+    dialect's models are, because their generated members name it. A
+    hand-written expression protocol includes `XLTypeAffinityExpression` for
+    every value type, with no `where` clause, as a generated one does: a read
+    of a slot returns a value of no dialect inside it, and a model of a
+    dialect whose protocol leaves it out, or conforms it only conditionally,
+    does not compile.
+  - Reading a slot in a `Setting` closure, such as `row.name` after it is
+    assigned, returns the assigned expression itself, as the model's
+    dialect's expression type. A value written to the slot directly, which is
+    no dialect's expression, reads wrapped in `XLTypeAffinityExpression`, and
+    assigning a read back does not wrap it again. As before, a nullable
+    column assigned an optional-typed expression reads as `nil` through the
+    wrapped-type overload Swift prefers, so `row.nickname = row.nickname`
+    sets it to `NULL`; read it as `let n: any XLSQLiteExpression<String?> =
+    row.nickname` to copy it.
+  - A model's dialect is a concrete dialect type. A model whose `dialect:`
+    argument names one of its own generic parameters, which compiled before,
+    is reported by the macro: its value slots cannot name a generic
+    dialect's expressions. Declare the model once for each dialect.
+  - `XLLegacyDynamicValueExpression`, the value wrapper behind
+    `_xlLegacyValueExpression(_:)` and the generated `UpdateRequest`, is an
+    expression of no dialect, so it cannot be assigned through a slot. The
+    generated `makeUpdate()` writes it to the column's slot directly. Assign
+    the value itself, or a named binding, instead.
+  - `XLNullExpression` is an expression of every dialect, as the other
+    expression nodes are, so it can still be assigned to a nullable slot.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
   (issue #677), so a connection outside SwiftQL keeps compiling. See "A
   connection's statement cache can be observed and warmed" under "Added".
@@ -673,6 +751,19 @@
     a join, and `QueryBuilder`, another dialect's subquery, compound branch,
     and common table, another dialect's `RETURNING` projection and write
     condition, and another dialect's column as a custom function's argument.
+
+- **The macros' value slots check the dialect** (issue #825). See "The
+  macros' value slots take only the model's dialect" under "Migration".
+  - Each dialect's generated surface declares `XLAnyExpression<T>` on its
+    dialect type, `any` its expression protocol, from the `Expression`
+    template in `scripts/dialect-surface/Templates`.
+    `XLSQLiteDialect.XLAnyExpression<T>` is `any XLSQLiteExpression<T>`.
+  - `scripts/ci/check-dialect-type-parameter-type-safety.sh` refuses another
+    dialect's expression assigned in `Setting` to a column and to a nullable
+    column, passed to `MetaUpdate(...)`, to `MetaInsert(...)`, and to
+    `columns(...)`, and a second dialect's column passed to `#row(...)`. It
+    also refuses a model of a dialect whose hand-written expression protocol
+    does not include `XLTypeAffinityExpression`.
 
 - **A connection's statement cache can be observed and warmed** (issue
   #677). A driver does not have to cache statements; one that does can let

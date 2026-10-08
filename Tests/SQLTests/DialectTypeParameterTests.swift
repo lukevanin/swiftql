@@ -77,6 +77,56 @@ struct DialectSecondName: Equatable {
 }
 
 
+/// A dialect whose expression protocol is written by hand rather than
+/// generated (issue #825). It includes `XLTypeAffinityExpression`, which a
+/// model's `Setting` slot needs for its reads, and leaves out the other nodes,
+/// `XLNullExpression` among them. Without `XLTypeAffinityExpression` the model
+/// does not compile; the type-safety gate proves that.
+struct HandWrittenDialect: XLSQLDialect {
+    typealias Value = FakeSecondDialectValue
+
+    let descriptor = XLDialectDescriptor(
+        identity: XLDialectIdentifier(rawValue: "swiftql.tests.hand-written")
+    )
+
+    func makeFormatter() -> XLiteFormatter { XLiteFormatter() }
+    func makeVocabulary() -> XLiteVocabulary { XLiteVocabulary() }
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner { XLitePlaceholderAssigner() }
+    func formatIdentifier(_ identifier: String) -> String { XLSQLiteDialect().formatIdentifier(identifier) }
+    func formatQualifiedIdentifier(_ components: [String]) -> String { XLSQLiteDialect().formatQualifiedIdentifier(components) }
+    func formatPlaceholder(_ placeholder: XLBindingPlaceholder) -> String { XLSQLiteDialect().formatPlaceholder(placeholder) }
+}
+
+protocol HandWrittenExpression<T>: XLExpression {
+}
+
+extension HandWrittenDialect {
+    typealias XLAnyExpression<T> = any HandWrittenExpression<T>
+}
+
+extension XLColumnReference: HandWrittenExpression where Dialect == HandWrittenDialect {
+}
+
+extension Int: HandWrittenExpression {
+}
+
+extension String: HandWrittenExpression {
+}
+
+extension Optional: HandWrittenExpression where Wrapped: HandWrittenExpression {
+}
+
+extension XLTypeAffinityExpression: HandWrittenExpression {
+}
+
+/// A model of the hand-written dialect.
+@SQLTable(name: "person", dialect: HandWrittenDialect.self)
+struct DialectHandWrittenPerson: Equatable {
+    var id: Int
+    var nickname: String?
+}
+
+
 final class DialectTypeParameterTests: XCTestCase {
 
     private func sqliteSQL(_ statement: any XLEncodable) throws -> String {
@@ -473,5 +523,216 @@ final class DialectTypeParameterTests: XCTestCase {
             .build()
             .returning(sqlitePerson)
         XCTAssertTrue(try sqliteSQL(built).hasSuffix(#"RETURNING "id", "name", "nickname""#))
+    }
+
+    // MARK: - The macros' value slots (issue #825)
+
+    // Each value slot takes the model's dialect's expressions and Swift
+    // values. That these compile proves the second dialect's slots take its
+    // columns and composed expressions; the gate proves the refusals.
+
+    func testASettingAssignmentTakesTheModelDialect() throws {
+        let sqlite = sql { schema in
+            let person = schema.into(DialectSQLitePerson.self)
+            Update(person)
+            Setting<DialectSQLitePerson> { row in
+                row.id = person.id + 1
+                row.name = person.name
+                row.nickname = nil
+            }
+            Where(person.id == 1)
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting<DialectSecondPerson> { row in
+                row.id = person.id + 1
+                row.name = person.name
+                row.nickname = nil
+            }
+            Where(person.id == 1)
+        }
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+        XCTAssertEqual(
+            try secondSQL(second),
+            #"UPDATE "person" AS "t0" SET "id" = ("t0"."id" + 1),"name" = "t0"."name","nickname" = NULL WHERE ("t0"."id" == 1)"#
+        )
+    }
+
+    func testTheGeneratedInitializersTakeTheModelDialect() throws {
+        let sqlite = sql { schema in
+            let person = schema.into(DialectSQLitePerson.self)
+            Update(person)
+            Setting(DialectSQLitePerson.MetaUpdate(name: person.name + "!", nickname: person.nickname))
+        }
+        let second = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting(DialectSecondPerson.MetaUpdate(name: person.name + "!", nickname: person.nickname))
+        }
+        XCTAssertEqual(try secondSQL(second), try sqliteSQL(sqlite))
+
+        let name = XLNamedBindingReference<String>(name: "name")
+        let sqliteInsert = sql { schema in
+            Insert(schema.table(DialectSQLitePerson.self))
+            Values(DialectSQLitePerson.MetaInsert(id: 1, name: name, nickname: nil as String?))
+        }
+        let secondInsert = sql(dialect: FakeSecondDialect.self) { schema in
+            Insert(schema.table(DialectSecondPerson.self))
+            Values(DialectSecondPerson.MetaInsert(id: 1, name: name, nickname: nil as String?))
+        }
+        XCTAssertEqual(try secondSQL(secondInsert), try sqliteSQL(sqliteInsert))
+    }
+
+    func testAReadOfANullableSlotKeepsItsOptionalType() throws {
+        var update = DialectSecondPerson.MetaUpdate()
+        update.nickname = XLNullExpression<String>()
+        // `NULL` reads as `nil`, not as a non-optional expression.
+        XCTAssertNil(update.nickname)
+        let statement = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.into(DialectSecondPerson.self)
+            Update(person)
+            Setting<DialectSecondPerson> { row in
+                row.nickname = person.nickname
+                // An optional-typed assignment is not a wrapped-type
+                // expression, so it reads as one only through the
+                // optional-typed overload, which copies it.
+                let nickname: any FakeSecondDialectExpression<String?> = row.nickname
+                row.nickname = nickname
+            }
+        }
+        XCTAssertEqual(
+            try secondSQL(statement),
+            #"UPDATE "person" AS "t0" SET "nickname" = "t0"."nickname""#
+        )
+    }
+
+    func testAStaticFieldWalksIntoASlotRead() throws {
+        // A node built through its public initializer takes any expression,
+        // so a SQLite slot can hold a second-dialect column inside one. The
+        // read records SQLite without having checked that, so a static field
+        // walks into it and refuses the column.
+        let second = XLSchema(dialect: FakeSecondDialect.self).table(DialectSecondPerson.self)
+        var update = DialectSQLitePerson.MetaUpdate()
+        update.name = XLBinaryOperatorExpression<String>(op: "||", lhs: second.name, rhs: "x")
+        let read: any XLSQLiteExpression<String> = try XCTUnwrap(update.name)
+        let identity = try XLQuerySlotIdentity(path: ["dialect", "name"])
+        XCTAssertThrowsError(
+            try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: read,
+                identifiedBy: identity
+            )
+        ) { error in
+            guard case XLStaticRowLayoutError.expressionDialectMismatch = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
+        // A read of a SQLite column is accepted.
+        let sqlite = XLSchema().table(DialectSQLitePerson.self)
+        update.name = sqlite.name
+        _ = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+            selecting: try XCTUnwrap(update.name),
+            identifiedBy: identity
+        )
+    }
+
+    func testAHandWrittenDialectsSlotsReadEveryValueTheyHold() throws {
+        // Before the fix, a protocol without `XLNullExpression` and
+        // `XLTypeAffinityExpression` stopped the program on the first read
+        // below, and one without `XLTypeAffinityExpression` read a value
+        // written to a slot directly as `nil`. The model now does not compile
+        // without `XLTypeAffinityExpression`, and with it every read returns
+        // the value the slot holds.
+        var update = DialectHandWrittenPerson.MetaUpdate()
+        // A nullable column never assigned reads as `NULL` through its
+        // optional-typed overload, although the protocol has no
+        // `XLNullExpression`.
+        let unassigned: any HandWrittenExpression<String?> = update.nickname
+        update.nickname = unassigned
+        // A value written to the slot directly, as `UpdateRequest` writes
+        // one, reads back and assigns back without losing it.
+        update._xlColumns.id.expression = _xlLegacyValueExpression(7)
+        XCTAssertNotNil(update.id)
+        update.id = update.id
+        XCTAssertEqual(
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(update)),
+            #"SET "id" = 7,"nickname" = NULL"#
+        )
+        // A nullable column's slot, written directly, reads back through
+        // either overload, and the optional-typed read of a column assigned
+        // through the wrapped-type overload copies it.
+        var nullable = DialectHandWrittenPerson.MetaUpdate()
+        nullable._xlColumns.nickname.expression = _xlLegacyValueExpression("x")
+        nullable.nickname = nullable.nickname
+        let copied: any HandWrittenExpression<String?> = nullable.nickname
+        nullable.nickname = copied
+        XCTAssertEqual(
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(nullable)),
+            #"SET "nickname" = 'x'"#
+        )
+        // So does the update the generated request makes.
+        var fromRequest = DialectHandWrittenPerson.UpdateRequest(id: 9).makeUpdate()
+        fromRequest.id = fromRequest.id
+        XCTAssertEqual(
+            try handWrittenSQL(Setting<DialectHandWrittenPerson>(fromRequest)),
+            #"SET "id" = 9"#
+        )
+    }
+
+    private func handWrittenSQL(_ statement: any XLEncodable) throws -> String {
+        try XLDialectEncoder(dialect: HandWrittenDialect()).makeValidatedSQL(statement).sql
+    }
+
+    func testColumnsTakesTheModelDialect() throws {
+        let statement = sql(dialect: FakeSecondDialect.self) { schema in
+            let person = schema.table(DialectSecondPerson.self)
+            Select(DialectSecondName.columns(name: person.name + "!"))
+            From(person)
+        }
+        XCTAssertEqual(
+            try secondSQL(statement),
+            #"SELECT ("t0"."name" || '!') AS "name" FROM "person" AS "t0""#
+        )
+    }
+
+    func testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect() throws {
+        var update = DialectSecondPerson.MetaUpdate()
+        XCTAssertNil(update.name)
+        update.name = "a"
+        update.nickname = nil
+        // A read of the slot is an expression of the model's dialect, so it
+        // can be assigned back.
+        let name: (any FakeSecondDialectExpression<String>)? = update.name
+        XCTAssertNotNil(name)
+        update.id = 2
+        let nickname: any FakeSecondDialectExpression<String?> = update.nickname
+        update.nickname = nickname
+        // Assigning a read back keeps the node it read rather than wrapping
+        // it again.
+        update.name = update.name
+        update.name = update.name
+        // A read returns the assigned value itself.
+        XCTAssertTrue(update._xlColumns.name.expression is String)
+        for _ in 0 ..< 2 {
+            let optional: any FakeSecondDialectExpression<String?> = update.nickname
+            update.nickname = optional
+        }
+        XCTAssertTrue(update._xlColumns.nickname.optionalExpression is XLNullExpression<String>)
+        // A value written to the slot directly is no dialect's expression, so
+        // it reads through a node of every dialect, once.
+        update._xlColumns.id.expression = _xlLegacyValueExpression(3)
+        update.id = update.id
+        update.id = update.id
+        let id = try XCTUnwrap(update._xlColumns.id.expression)
+        XCTAssertTrue(id is XLTypeAffinityExpression<Int>)
+        XCTAssertTrue(Mirror(reflecting: id).children.first?.value is XLLegacyDynamicValueExpression<Int>)
+        update.id = 2
+        // `XLNullExpression` is a node of every dialect, so it assigns to a
+        // nullable slot of either.
+        update.nickname = XLNullExpression<String>()
+        XCTAssertEqual(
+            try secondSQL(Setting<DialectSecondPerson>(update)),
+            #"SET "id" = 2,"name" = 'a',"nickname" = NULL"#
+        )
     }
 }

@@ -145,6 +145,53 @@ func secondDialectStatements(name: String) {
 }
 
 
+// Issue #825: the macros' value slots take the model's dialect's expressions
+// and Swift values, in a module that sees both surfaces.
+
+func sqliteValueSlots(name: String, nickname: String?) {
+    _ = sql { schema in
+        let target = schema.into(DialectPerson.self)
+        Update(target)
+        Setting<DialectPerson> { row in
+            row.name = name
+            row.nickname = nickname
+            row.age = target.age + 1
+            row.id = 1
+        }
+    }
+    _ = sql { schema in
+        let target = schema.into(DialectPerson.self)
+        Update(target)
+        Setting(DialectPerson.MetaUpdate(name: target.name + "!", nickname: nil))
+    }
+    _ = DialectPerson.MetaInsert(id: 1, name: name, nickname: nickname, age: 2)
+    let person = XLSchema().table(DialectPerson.self)
+    _ = DialectPerson.columns(id: person.id + 1, name: person.name, nickname: person.nickname, age: 3)
+    _ = #row(person.name + "!")
+}
+
+func secondDialectValueSlots(name: String, nickname: String?) {
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        let target = schema.into(SecondDialectPerson.self)
+        Update(target)
+        Setting<SecondDialectPerson> { row in
+            row.name = name
+            row.nickname = nickname
+            row.age = target.age + 1
+            row.id = 1
+        }
+    }
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        let target = schema.into(SecondDialectPerson.self)
+        Update(target)
+        Setting(SecondDialectPerson.MetaUpdate(name: target.name + "!", nickname: nil))
+    }
+    _ = SecondDialectPerson.MetaInsert(id: 1, name: name, nickname: nickname, age: 2)
+    let person = XLSchema(dialect: CompileFailSecondDialect.self).table(SecondDialectPerson.self)
+    _ = SecondDialectPerson.columns(id: person.id + 1, name: person.name, nickname: person.nickname, age: 3)
+}
+
+
 /// A custom function runs inside SQLite; the initializer `@SQLFunction`
 /// generates takes SQLite expressions.
 @SQLFunction(name: "whisper")

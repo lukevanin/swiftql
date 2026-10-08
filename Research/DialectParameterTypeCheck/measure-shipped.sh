@@ -10,9 +10,10 @@
 #       <label>=<package-root> [<label>=<package-root> ...]
 #
 # Each package root must already be built (`swift build --target SwiftQL`).
-# REPETITIONS sets the number of runs per body (default 15). The work
-# directory is a new temporary directory; nothing is written into the
-# repository.
+# REPETITIONS sets the number of runs per body (default 15), BODIES the
+# bodies to time (default all), and SKIP_MISTAKES=1 skips the error-path
+# compiles. The work directory is a new temporary directory; nothing is
+# written into the repository.
 #
 # For every body the script reports the median time of the function body from
 # `-debug-time-function-bodies`. The roots are interleaved inside each
@@ -75,10 +76,32 @@ compile() {
         "$@"
 }
 
+# BODIES narrows the run to some of the bodies, such as `BODIES="setting-40
+# chain-12"`; by default every body is measured. The `setting`, `columns`, and
+# `row` bodies measure the macros' value slots (issue #825).
+bodies=()
+if [[ -n "${BODIES:-}" ]]; then
+    read -r -a bodies <<<"$BODIES"
+fi
+if [[ "${#bodies[@]}" -eq 0 ]]; then
+    bodies=(
+        clauses-30 clauses-120 clauses-450
+        chain-2 chain-4 chain-6 chain-8 chain-12 chain-16
+        setting-10 setting-40 setting-120 columns-10 row-6
+    )
+fi
+for body in "${bodies[@]}"; do
+    if [[ ! -f "$work/generated/$body.swift" ]]; then
+        printf 'error: no body named %s; generate_shipped.py writes:\n' "$body" >&2
+        (cd "$work/generated" && ls -- *.swift | sed 's/\.swift$//') >&2
+        exit 2
+    fi
+done
+
 printf '== type-check time of one query body (median of %s) ==\n' "$repetitions"
 : >"$work/raw.txt"
 for _ in $(seq 1 "$repetitions"); do
-    for body in clauses-30 clauses-120 clauses-450 chain-2 chain-4 chain-6 chain-8 chain-12 chain-16; do
+    for body in "${bodies[@]}"; do
         for index in "${!labels[@]}"; do
             if ! diagnostics="$(
                 compile "$index" -Xfrontend -debug-time-function-bodies \
@@ -121,6 +144,11 @@ for body in bodies:
             cells.append(f"{median:.1f} ms ({(median - base) / base * 100:+.0f} %)")
     print(f"| {body} | " + " | ".join(cells) + " |")
 EOF
+
+if [[ "${SKIP_MISTAKES:-0}" == 1 ]]; then
+    printf '\nwork directory: %s\n' "$work"
+    exit 0
+fi
 
 printf '\n== a mistake in the last term of one && chain (wall time, first error) ==\n'
 for kind in misspelled wrong-type; do

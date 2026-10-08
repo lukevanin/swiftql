@@ -52,6 +52,24 @@ protocol FakeSecondDialectExpression<T>: XLExpression {
 }
 
 
+// MARK: - The dialect's name for its expressions
+
+
+extension FakeSecondDialect {
+
+    ///
+    /// Any expression of the SQLTests second dialect: `any FakeSecondDialectExpression<T>`.
+    ///
+    /// The macros type a model's value slots, such as an assignment in
+    /// `Setting { row in ... }` and an argument of `columns(...)`, as
+    /// `Dialect.XLAnyExpression<T>`, naming the expression protocol through
+    /// the model's dialect type, so a slot takes only the SQLTests second dialect
+    /// expressions and Swift values (issue #825).
+    ///
+    typealias XLAnyExpression<T> = any FakeSecondDialectExpression<T>
+}
+
+
 // MARK: - Columns and dialect-encoded values
 
 
@@ -152,4 +170,7 @@ extension XLLikeEscapeExpression: FakeSecondDialectExpression {
 }
 
 extension XLBetweenExpression: FakeSecondDialectExpression {
+}
+
+extension XLNullExpression: FakeSecondDialectExpression {
 }

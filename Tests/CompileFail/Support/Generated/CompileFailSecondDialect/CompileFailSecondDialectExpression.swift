@@ -52,6 +52,24 @@ protocol CompileFailSecondDialectExpression<T>: XLExpression {
 }
 
 
+// MARK: - The dialect's name for its expressions
+
+
+extension CompileFailSecondDialect {
+
+    ///
+    /// Any expression of the compile-fail second dialect: `any CompileFailSecondDialectExpression<T>`.
+    ///
+    /// The macros type a model's value slots, such as an assignment in
+    /// `Setting { row in ... }` and an argument of `columns(...)`, as
+    /// `Dialect.XLAnyExpression<T>`, naming the expression protocol through
+    /// the model's dialect type, so a slot takes only the compile-fail second dialect
+    /// expressions and Swift values (issue #825).
+    ///
+    typealias XLAnyExpression<T> = any CompileFailSecondDialectExpression<T>
+}
+
+
 // MARK: - Columns and dialect-encoded values
 
 
@@ -152,4 +170,7 @@ extension XLLikeEscapeExpression: CompileFailSecondDialectExpression {
 }
 
 extension XLBetweenExpression: CompileFailSecondDialectExpression {
+}
+
+extension XLNullExpression: CompileFailSecondDialectExpression {
 }

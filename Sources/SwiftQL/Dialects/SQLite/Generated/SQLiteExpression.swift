@@ -51,6 +51,24 @@ public protocol XLSQLiteExpression<T>: XLExpression {
 }
 
 
+// MARK: - The dialect's name for its expressions
+
+
+extension XLSQLiteDialect {
+
+    ///
+    /// Any expression of SQLite: `any XLSQLiteExpression<T>`.
+    ///
+    /// The macros type a model's value slots, such as an assignment in
+    /// `Setting { row in ... }` and an argument of `columns(...)`, as
+    /// `Dialect.XLAnyExpression<T>`, naming the expression protocol through
+    /// the model's dialect type, so a slot takes only SQLite
+    /// expressions and Swift values (issue #825).
+    ///
+    public typealias XLAnyExpression<T> = any XLSQLiteExpression<T>
+}
+
+
 // MARK: - Columns and dialect-encoded values
 
 
@@ -151,4 +169,7 @@ extension XLLikeEscapeExpression: XLSQLiteExpression {
 }
 
 extension XLBetweenExpression: XLSQLiteExpression {
+}
+
+extension XLNullExpression: XLSQLiteExpression {
 }
