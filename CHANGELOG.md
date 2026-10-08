@@ -246,8 +246,10 @@
   `GRDBStaticQueryArgument` is `XLStaticQueryArgument`, and
   `GRDBStaticQueryInvocationBuilder` is `XLStaticQueryInvocationBuilder`.
   The old names remain as deprecated typealiases, so source that names them
-  compiles, with a warning that offers the rename. Their module-qualified
-  names change, for example in `String(reflecting:)`. The error is not named
+  compiles, with a warning that offers the rename. The runtime type names
+  change, for example in `String(reflecting:)`, in `type(of:)`, and in the
+  `NSError` domain a thrown error bridges to, so logging or matching keyed on
+  `GRDBStaticQueryError` must move to the new name. The error is not named
   `XLStaticQueryError`, because SwiftQLCore already has an error of that
   name: it reports a descriptor that is invalid before any database is
   involved.

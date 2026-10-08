@@ -24,8 +24,8 @@ extension GRDBDatabase: XLDriverRequestFactory {}
 extension GRDBDatabase: XLEncoderProviding {}
 
 
-/// Implied by the package request factory, and written out because it is
-/// public API and the factory is not (issue #113).
+/// The request factory implies this conformance too; it is stated here so
+/// that a reader of this type sees it (issue #113).
 extension GRDBDatabase: XLValueCodingDatabase {}
 
 
