@@ -88,6 +88,13 @@ else
         setting-10 setting-40 setting-120 columns-10 row-6
     )
 fi
+for body in "${bodies[@]}"; do
+    if [[ ! -f "$work/generated/$body.swift" ]]; then
+        printf 'error: no body named %s; generate_shipped.py writes:\n' "$body" >&2
+        (cd "$work/generated" && ls -- *.swift | sed 's/\.swift$//') >&2
+        exit 2
+    fi
+done
 
 printf '== type-check time of one query body (median of %s) ==\n' "$repetitions"
 : >"$work/raw.txt"

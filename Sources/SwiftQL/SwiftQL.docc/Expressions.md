@@ -767,8 +767,11 @@ The value slots of a model's generated metadata take the model's dialect's
 expressions: a column assignment in `Setting { row in ... }` or
 `onConflict(_:doUpdate:)`, the arguments of `columns(...)`, and the
 arguments of the generated `MetaInsert(...)` and `MetaUpdate(...)`
-initializers. A slot takes a Swift value, an optional, or a named binding as
-well, because those are expressions of every dialect. `#row(...)` builds a
+initializers. A slot takes a `Bool`, `Int`, `Double`, `String`, or `Data`
+value, an optional of one, or a named binding as well, because those are
+expressions of every dialect. An enum or a custom type is a SQLite expression
+through `XLEnum` and `XLCustomType`; a model of another dialect takes one once
+it conforms to that dialect's protocol too. `#row(...)` builds a
 SQLite row, so it takes SQLite expressions. The macros name the dialect's
 protocol from the model's dialect type, through the `XLAnyExpression<T>`
 typealias each dialect's generated surface declares on its dialect type, such

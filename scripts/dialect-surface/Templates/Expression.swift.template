@@ -111,9 +111,6 @@ extension Optional: {{Expression}} where Wrapped: {{Expression}} {
 extension XLNamedBindingReference: {{Expression}} {
 }
 
-extension XLLegacyDynamicValueExpression: {{Expression}} {
-}
-
 extension XLAllColumns: {{Expression}} {
 }
 
@@ -171,4 +168,7 @@ extension XLLikeEscapeExpression: {{Expression}} {
 }
 
 extension XLBetweenExpression: {{Expression}} {
+}
+
+extension XLNullExpression: {{Expression}} {
 }

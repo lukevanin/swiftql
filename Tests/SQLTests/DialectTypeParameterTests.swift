@@ -558,6 +558,16 @@ final class DialectTypeParameterTests: XCTestCase {
         update.id = 2
         let nickname: any FakeSecondDialectExpression<String?> = update.nickname
         update.nickname = nickname
+        // Assigning a read back keeps the node it read rather than wrapping
+        // it again.
+        update.name = update.name
+        update.name = update.name
+        let reread = try XCTUnwrap(update._xlColumns.name._xlReadExpression)
+        let wrapped = Mirror(reflecting: reread).children.first?.value
+        XCTAssertFalse(wrapped is XLTypeAffinityExpression<String>)
+        // `XLNullExpression` is a node of every dialect, so it assigns to a
+        // nullable slot of either.
+        update.nickname = XLNullExpression<String>()
         XCTAssertEqual(
             try secondSQL(Setting<DialectSecondPerson>(update)),
             #"SET "id" = 2,"name" = 'a',"nickname" = NULL"#

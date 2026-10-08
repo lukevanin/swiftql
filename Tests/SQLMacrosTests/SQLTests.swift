@@ -1817,7 +1817,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("var output = entity"))
         XCTAssertTrue(source.contains("output.id = value"))
         XCTAssertTrue(source.contains("var output = MetaUpdate()"))
-        XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
+        XCTAssertTrue(source.contains("output._xlColumns.id.expression = SwiftQL._xlLegacyValueExpression(value)"))
     }
 
     // MetaUpdate routes column assignment through key-path member lookup over
@@ -1871,12 +1871,12 @@ final class MetaBuilderTests: XCTestCase {
         )
 
         // Issue #825: a read returns the stored expression through a node
-        // that is an expression of every dialect.
+        // that is an expression of every dialect, which the slot builds.
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath].expression.map { SwiftQL.XLTypeAffinityExpression<Wrapped>(expression: $0) }")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression")
         )
         XCTAssertTrue(
-            source.contains("SwiftQL.XLTypeAffinityExpression<Optional<Wrapped>>(expression: _xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>())")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression")
         )
 
         // The slots carry "was this column assigned at all", so the SET

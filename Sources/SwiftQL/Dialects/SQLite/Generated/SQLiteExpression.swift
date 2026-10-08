@@ -112,9 +112,6 @@ extension Optional: XLSQLiteExpression where Wrapped: XLSQLiteExpression {
 extension XLNamedBindingReference: XLSQLiteExpression {
 }
 
-extension XLLegacyDynamicValueExpression: XLSQLiteExpression {
-}
-
 extension XLAllColumns: XLSQLiteExpression {
 }
 
@@ -172,4 +169,7 @@ extension XLLikeEscapeExpression: XLSQLiteExpression {
 }
 
 extension XLBetweenExpression: XLSQLiteExpression {
+}
+
+extension XLNullExpression: XLSQLiteExpression {
 }

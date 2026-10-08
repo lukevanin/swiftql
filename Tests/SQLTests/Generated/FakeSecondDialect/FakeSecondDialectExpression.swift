@@ -113,9 +113,6 @@ extension Optional: FakeSecondDialectExpression where Wrapped: FakeSecondDialect
 extension XLNamedBindingReference: FakeSecondDialectExpression {
 }
 
-extension XLLegacyDynamicValueExpression: FakeSecondDialectExpression {
-}
-
 extension XLAllColumns: FakeSecondDialectExpression {
 }
 
@@ -173,4 +170,7 @@ extension XLLikeEscapeExpression: FakeSecondDialectExpression {
 }
 
 extension XLBetweenExpression: FakeSecondDialectExpression {
+}
+
+extension XLNullExpression: FakeSecondDialectExpression {
 }

@@ -113,9 +113,6 @@ extension Optional: CompileFailSecondDialectExpression where Wrapped: CompileFai
 extension XLNamedBindingReference: CompileFailSecondDialectExpression {
 }
 
-extension XLLegacyDynamicValueExpression: CompileFailSecondDialectExpression {
-}
-
 extension XLAllColumns: CompileFailSecondDialectExpression {
 }
 
@@ -173,4 +170,7 @@ extension XLLikeEscapeExpression: CompileFailSecondDialectExpression {
 }
 
 extension XLBetweenExpression: CompileFailSecondDialectExpression {
+}
+
+extension XLNullExpression: CompileFailSecondDialectExpression {
 }

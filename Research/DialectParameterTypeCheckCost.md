@@ -567,6 +567,8 @@ between the two checkouts, so the sections are compared instead.
 
 The library's own code grows only by SwiftQL's own `@SQLResult` models
 (`SQLScalarResult`, `SQLRow2` to `SQLRow6`), whose generated slots now wrap a
-read in `XLTypeAffinityExpression`, and by one conformance of
-`XLLegacyDynamicValueExpression`, which the generated `UpdateRequest` assigns
-through a slot.
+read in `XLTypeAffinityExpression`, and by the conformance of
+`XLLegacyDynamicValueExpression`, which the first version of this change
+added. The review moved the read into the column slots and dropped that
+conformance, which can only shrink the library; the numbers above are from
+before it.

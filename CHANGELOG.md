@@ -564,8 +564,13 @@
   `onConflict(_:doUpdate:)`), the arguments of the generated
   `MetaUpdate(...)`, `MetaInsert(...)`, and `SQLReader(...)` initializers, and
   the arguments of `columns(...)` take the model's dialect's expressions:
-  its columns, the expressions composed from them, and Swift values,
-  optionals, and named bindings, which are expressions of every dialect.
+  its columns, the expressions composed from them, and the values that are
+  expressions of every dialect: `Bool`, `Int`, `Double`, `String`, `Data`,
+  an optional of one, `nil`, and a named binding. An enum or a custom type is
+  a SQLite expression through `XLEnum` and `XLCustomType`, so a model of
+  another dialect takes one only once it conforms to that dialect's protocol
+  as well, as #789 requires of an operand, such as
+  `extension JobState: PostgreSQLExpression {}`.
   `#row(...)` builds a SQLite row, so its arguments take SQLite expressions.
   Another dialect's column or expression in one of these slots is a compile
   error at the slot that names both dialects. A SQLite model's slots are
@@ -602,12 +607,15 @@
     model of a dialect without it reports "'XLAnyExpression' is not a member
     type of ...". A dialect with no generated surface, which declares models
     only for static row layouts (issue #687), declares the typealias itself;
-    `extension MyDialect { typealias XLAnyExpression<T> = any XLExpression<T> }`
-    keeps its slots taking any expression, as before.
+    `extension MyDialect { public typealias XLAnyExpression<T> = any XLExpression<T> }`
+    keeps its slots taking any expression, as before. It is `public` when the
+    dialect's models are, because their generated members name it.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression as an expression of the model's
     dialect, wrapped in `XLTypeAffinityExpression`, rather than the erased
-    expression itself.
+    expression itself. Assigning it back does not wrap it again.
+  - `XLNullExpression` is an expression of every dialect, as the other
+    expression nodes are, so it can still be assigned to a nullable slot.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
   (issue #677), so a connection outside SwiftQL keeps compiling. See "A
   connection's statement cache can be observed and warmed" under "Added".
