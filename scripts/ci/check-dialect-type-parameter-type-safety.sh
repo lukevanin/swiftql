@@ -19,7 +19,9 @@
 # model's dialect (issue #825): an assignment in `Setting`, to a column and
 # to a nullable column, a value of the generated `MetaUpdate` and
 # `MetaInsert`, an argument of `columns(...)`, and an argument of
-# `#row(...)`, which builds a SQLite row. Each refusal's error must contain the names
+# `#row(...)`, which builds a SQLite row; and a model of a dialect whose
+# hand-written expression protocol does not include `XLTypeAffinityExpression`,
+# which a slot's read needs. Each refusal's error must contain the names
 # its fixture lists after `expected-names:`, so a reader can see which
 # dialects met. The errors for three ordinary mistakes are pinned to their
 # exact text: a misspelled column, which must be byte-identical to the error
@@ -77,6 +79,14 @@ refusal_fixtures=(
     "$source_root/Tests/CompileFail/DialectSlotInsertForeignValue.swift"
     "$source_root/Tests/CompileFail/DialectSlotColumnsForeignArgument.swift"
     "$source_root/Tests/CompileFail/DialectSlotRowForeignArgument.swift"
+)
+# A requirement on a dialect that the macros' expansion checks (issue #825):
+# the fixture must fail inside the expansion of a model it declares, and that
+# error must contain each name in its `expected-names` comment. Its error is
+# in the expansion, not on a line of the fixture, so it carries no
+# `expected-error` marker.
+expansion_refusal_fixtures=(
+    "$source_root/Tests/CompileFail/DialectSlotHandWrittenProtocolWithoutTypeAffinity.swift"
 )
 # An ordinary mistake: the error text must be exactly the fixture's
 # `expected-message`, which pins the message the issue says must not change.
@@ -277,6 +287,50 @@ for fixture in "${pinned_fixtures[@]}"; do
         exit 1
     fi
     printf '%s: %s\n' "$(basename "$fixture")" "$actual_message"
+done
+
+for fixture in "${expansion_refusal_fixtures[@]}"; do
+    if "${compiler[@]}" "${support_files[@]}" "$fixture" >"$diagnostic_log" 2>&1; then
+        printf 'error: a fixture that must not type-check did: %s\n' "$fixture" >&2
+        exit 1
+    fi
+    # Every error must be in a macro expansion that the fixture's own code
+    # originates, so a mistake elsewhere in the fixture is not taken for the
+    # refusal.
+    if awk -v fixture="$fixture" '
+        index($0, fixture ":") == 1 && /: error:/ { found = 1 }
+        END { exit found ? 0 : 1 }
+    ' "$diagnostic_log"; then
+        printf 'error: fixture failed outside a macro expansion: %s\n' "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+    if ! grep -Fq "$fixture:" "$diagnostic_log"; then
+        printf 'error: no error originates in fixture: %s\n' "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+    expected_names="$(
+        awk -F'// expected-names: ' '/\/\/ expected-names: / { print $2; exit }' "$fixture"
+    )"
+    if [[ -z "$expected_names" ]]; then
+        printf 'error: expected an expected-names comment in %s\n' "$fixture" >&2
+        exit 1
+    fi
+    error_text="$(grep -E '^macro expansion .*: error:' "$diagnostic_log" || true)"
+    if [[ -z "$error_text" ]]; then
+        printf 'error: no error in a macro expansion: %s\n' "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
+    for name in $expected_names; do
+        if [[ "$error_text" != *"$name"* ]]; then
+            printf 'error: refusal does not name %s: %s\n' "$name" "$fixture" >&2
+            cat "$diagnostic_log" >&2
+            exit 1
+        fi
+    done
+    printf '%s\n' "$error_text"
 done
 
 printf 'SWIFTQL_DIALECT_TYPE_PARAMETER_TYPE_SAFETY PASS\n'

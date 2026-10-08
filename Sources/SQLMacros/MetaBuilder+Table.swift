@@ -193,10 +193,20 @@ extension MetaBuilder {
             // Issue #825: an assignment takes the model's dialect's
             // expressions. The slot stores the expression erased, so a read
             // casts it back to the dialect's expression type, which the
-            // getter names.
+            // getter names. A value of no dialect, written to the slot
+            // directly, reads inside an `XLTypeAffinityExpression`, converted
+            // by this function: it compiles only when the dialect's
+            // expression protocol includes that node, so a dialect that does
+            // not is a compile error here rather than a read that fails.
+            context.block("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> \(dialectExpressionType("Wrapped"))") { context in
+                // An explicit coercion: the compiler's message for a plain
+                // return of the wrong type is "failed to produce diagnostic".
+                context.line("return expression as \(dialectExpressionType("Wrapped"))")
+            }
+
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -208,7 +218,7 @@ extension MetaBuilder {
             // never assigning it does.
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -222,7 +232,7 @@ extension MetaBuilder {
             context.line("@_disfavoredOverload")
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
                 context.block("get") { context in
-                    context.line("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: \(dialectExpressionType("Optional<Wrapped>")).self)")
+                    context.line("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: \(dialectExpressionType("Optional<Wrapped>")).self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
                 }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")

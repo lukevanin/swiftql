@@ -77,6 +77,56 @@ struct DialectSecondName: Equatable {
 }
 
 
+/// A dialect whose expression protocol is written by hand rather than
+/// generated (issue #825). It includes `XLTypeAffinityExpression`, which a
+/// model's `Setting` slot needs for its reads, and leaves out the other nodes,
+/// `XLNullExpression` among them. Without `XLTypeAffinityExpression` the model
+/// does not compile; the type-safety gate proves that.
+struct HandWrittenDialect: XLSQLDialect {
+    typealias Value = FakeSecondDialectValue
+
+    let descriptor = XLDialectDescriptor(
+        identity: XLDialectIdentifier(rawValue: "swiftql.tests.hand-written")
+    )
+
+    func makeFormatter() -> XLiteFormatter { XLiteFormatter() }
+    func makeVocabulary() -> XLiteVocabulary { XLiteVocabulary() }
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner { XLitePlaceholderAssigner() }
+    func formatIdentifier(_ identifier: String) -> String { XLSQLiteDialect().formatIdentifier(identifier) }
+    func formatQualifiedIdentifier(_ components: [String]) -> String { XLSQLiteDialect().formatQualifiedIdentifier(components) }
+    func formatPlaceholder(_ placeholder: XLBindingPlaceholder) -> String { XLSQLiteDialect().formatPlaceholder(placeholder) }
+}
+
+protocol HandWrittenExpression<T>: XLExpression {
+}
+
+extension HandWrittenDialect {
+    typealias XLAnyExpression<T> = any HandWrittenExpression<T>
+}
+
+extension XLColumnReference: HandWrittenExpression where Dialect == HandWrittenDialect {
+}
+
+extension Int: HandWrittenExpression {
+}
+
+extension String: HandWrittenExpression {
+}
+
+extension Optional: HandWrittenExpression where Wrapped: HandWrittenExpression {
+}
+
+extension XLTypeAffinityExpression: HandWrittenExpression {
+}
+
+/// A model of the hand-written dialect.
+@SQLTable(name: "person", dialect: HandWrittenDialect.self)
+struct DialectHandWrittenPerson: Equatable {
+    var id: Int
+    var nickname: String?
+}
+
+
 final class DialectTypeParameterTests: XCTestCase {
 
     private func sqliteSQL(_ statement: any XLEncodable) throws -> String {
@@ -583,6 +633,37 @@ final class DialectTypeParameterTests: XCTestCase {
         _ = try XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
             selecting: try XCTUnwrap(update.name),
             identifiedBy: identity
+        )
+    }
+
+    func testAHandWrittenDialectsSlotsReadEveryValueTheyHold() throws {
+        // Before the fix, a protocol without `XLNullExpression` and
+        // `XLTypeAffinityExpression` stopped the program on the first read
+        // below, and one without `XLTypeAffinityExpression` read a value
+        // written to a slot directly as `nil`. The model now does not compile
+        // without `XLTypeAffinityExpression`, and with it every read returns
+        // the value the slot holds.
+        var update = DialectHandWrittenPerson.MetaUpdate()
+        // A nullable column never assigned reads as `NULL` through its
+        // optional-typed overload, although the protocol has no
+        // `XLNullExpression`.
+        let unassigned: any HandWrittenExpression<String?> = update.nickname
+        update.nickname = unassigned
+        // A value written to the slot directly, as `UpdateRequest` writes
+        // one, reads back and assigns back without losing it.
+        update._xlColumns.id.expression = _xlLegacyValueExpression(7)
+        XCTAssertNotNil(update.id)
+        update.id = update.id
+        XCTAssertEqual(
+            try secondSQL(Setting<DialectHandWrittenPerson>(update)),
+            #"SET "id" = 7,"nickname" = NULL"#
+        )
+        // So does the update the generated request makes.
+        var fromRequest = DialectHandWrittenPerson.UpdateRequest(id: 9).makeUpdate()
+        fromRequest.id = fromRequest.id
+        XCTAssertEqual(
+            try secondSQL(Setting<DialectHandWrittenPerson>(fromRequest)),
+            #"SET "id" = 9"#
         )
     }
 

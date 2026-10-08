@@ -1897,10 +1897,15 @@ final class MetaBuilderTests: XCTestCase {
         // Issue #825: a read casts the stored expression back to the model's
         // dialect's expression type.
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
         )
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
+        )
+        // A value of no dialect reads through a conversion the compiler
+        // checks against the dialect's expression type.
+        XCTAssertTrue(
+            source.contains("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
         )
 
         // The slots carry "was this column assigned at all", so the SET
