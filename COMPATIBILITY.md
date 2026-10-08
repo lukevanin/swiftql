@@ -79,7 +79,7 @@ resolved version. GRDB 7 also stops re-exporting the SQLite C module from
 `import GRDB`, so every target that calls a `sqlite3_*` function declares the
 `GRDBSQLite` product and imports the module. GRDB 7 requires `Sendable`
 observation and function closures as well, which SwiftQL satisfies rather than
-suppresses: see `Sources/SwiftQL/GRDBLiveQueryRowDecoding.swift` for the one
+suppresses: see `Sources/SwiftQL/XLDriverRequest+RowDecoding.swift` for the one
 remaining seam and why it is there. The measured break list is in
 [Research/GRDB7Evaluation.md](Research/GRDB7Evaluation.md).
 

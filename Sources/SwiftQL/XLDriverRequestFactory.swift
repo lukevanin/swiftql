@@ -3,8 +3,8 @@
 //  SwiftQL
 //
 //  Turning a SwiftQL statement into something a driver executes: the request
-//  factories and the prepared-invocation seams, shared by `GRDBDatabase` and
-//  `XLDriverDatabase` (issue #682).
+//  factories and the prepared-invocation seams, shared by every database over
+//  a SQLite driver (issue #682).
 //
 //  Moved out of GRDBDatabase+Requests.swift, which now forwards to it.
 //
@@ -15,11 +15,13 @@ import Foundation
 ///
 /// A database that renders statements for one driver (issue #682).
 ///
-/// Internal. ``GRDBDatabase`` and ``XLDriverDatabase`` conform, so both build
+/// Package. ``GRDBDatabase`` and ``XLDriverDatabase`` conform, so both build
 /// their requests, write requests, prepared invocations, and static queries
 /// through one implementation, and differ only in the driver they hold.
 ///
-protocol XLDriverRequestFactory {
+package protocol XLDriverRequestFactory: XLValueCodingDatabase
+    where XLDatabaseDialect == XLSQLiteDialect
+{
 
     associatedtype Driver: XLBlockingDatabaseDriver & XLObservingDatabaseDriver
         where Driver.Dialect == XLSQLiteDialect
@@ -29,12 +31,6 @@ protocol XLDriverRequestFactory {
 
     /// The encoder statements are rendered with.
     var encoder: XLEncoder { get }
-
-    /// The dialect statements are rendered for and values are checked against.
-    var dialect: XLSQLiteDialect { get }
-
-    /// The immutable value-coding policy every request captures.
-    var codingConfiguration: XLValueCodingConfiguration { get }
 
     /// The logger every request reports to.
     var logger: XLLogger? { get }

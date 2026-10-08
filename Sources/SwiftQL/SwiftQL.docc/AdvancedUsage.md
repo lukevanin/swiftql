@@ -94,6 +94,12 @@ Its dialect must be `XLSQLiteDialect`. ``XLDriverDatabase`` conforms to
 ``XLDatabase`` but not yet to ``XLTransactionalDatabase``: a portable way for a
 driver to pin one connection for a transaction scope is issue #808.
 
+Both databases conform to ``XLValueCodingDatabase``, which gives them one
+implementation of `contextualBinding(_:expressedAs:...)` and
+`queryCapture(_:...)` (issue #113). Code that declares contextual bindings or
+captures can take `some XLValueCodingDatabase<XLSQLiteDialect>` and work with
+either database without naming its driver.
+
 ## Opening a GRDB database without GRDB
 
 Opening a ``GRDBDatabase``, registering functions and collations on a

@@ -76,6 +76,8 @@ SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
 # proves what a client of SwiftQL's public API needs, so it may not reach
 # SwiftQL's internals, whose GRDB-typed values it could then use without an
 # import (issue #702). The driver tests need `@testable` and keep it.
+# The target is also built without package access (issue #113), so the
+# compiler hides SwiftQL's `package` symbols from it.
 ROOT_FORBIDDEN_PATTERNS = {
     "Tests/SwiftQLGRDBFreeClientTests": (
         (

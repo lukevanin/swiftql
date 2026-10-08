@@ -94,12 +94,12 @@ public func _xlWithDeclaredQueryScope<Database: XLTransactionalDatabase, Result>
 ///
 /// Reports whether a database value is a transaction scope (issue #662).
 ///
-/// Internal. An adapter whose `withTransaction(_:)` hands its body another
+/// Package. An adapter whose `withTransaction(_:)` hands its body another
 /// value of the same database type conforms, so a generated executor called
 /// on that scope can join the open transaction. See
 /// `_xlWithDeclaredQueryScope(_:_:)`.
 ///
-protocol XLTransactionScopeReporting {
+package protocol XLTransactionScopeReporting {
 
     /// `true` when this value is the scope of an open (or ended) transaction,
     /// not a database that can open one.

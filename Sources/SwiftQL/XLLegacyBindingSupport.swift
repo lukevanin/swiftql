@@ -1,5 +1,5 @@
 //
-//  GRDBLegacyBindingSupport.swift
+//  XLLegacyBindingSupport.swift
 //  SwiftQL
 //
 //  The pieces the v1 mutable `set(parameter:value:)` facade needs, shared by

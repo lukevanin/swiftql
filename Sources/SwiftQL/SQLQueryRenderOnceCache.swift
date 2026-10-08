@@ -85,7 +85,7 @@ public struct XLPreparedQueryCacheKey: Hashable, Sendable {
 /// gets a copy bound to the scope's connection.
 ///
 /// Retention trade-off: for the GRDB adapter, a cached `XLRequest` retains its
-/// `GRDBInvocationExecutor` → `GRDBDatabaseDriver` → `DatabasePool` chain. Since
+/// `XLInvocationExecutor` → `GRDBDatabaseDriver` → `DatabasePool` chain. Since
 /// the macro emits one cache as a `static` peer per declaration, invoking a
 /// declared query keeps that database pool alive for the process lifetime, even
 /// if every other reference to the owning database is released. This mirrors an
@@ -178,13 +178,13 @@ public final class XLRenderOnceCache<Row: Sendable>: @unchecked Sendable {
 /// Binds a render-once cache entry to the database that is calling (issue
 /// #642).
 ///
-/// Internal. An adapter whose cached requests close over one connection
+/// Package. An adapter whose cached requests close over one connection
 /// conforms, so a transaction scope can share its database's entry without
 /// the entry ever running on the wrong connection. ``XLRenderOnceCache`` calls
 /// it on every request it returns; an adapter that does not conform gets the
 /// cached request unchanged.
 ///
-protocol XLRenderOnceRequestBinding {
+package protocol XLRenderOnceRequestBinding {
 
     /// `request`, bound to this database. Must render nothing.
     func bindRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row>

@@ -100,8 +100,8 @@ final class XLFieldReaderTests: XCTestCase {
         }
     }
 
-    func testGRDBRowDecoderResetsScopedStateAfterFailure() throws {
-        let decoder = GRDBRowDecoder(reader: SingleIntegerRowReader())
+    func testRowDecoderResetsScopedStateAfterFailure() throws {
+        let decoder = XLRowDecoder(reader: SingleIntegerRowReader())
 
         XCTAssertThrowsError(try decoder.decode(values: [.text("invalid")]))
         XCTAssertEqual(try decoder.decode(values: [.integer(42)]), 42)

@@ -1,8 +1,24 @@
+//
+//  XLStaticQuery.swift
+//  SwiftQL
+//
+//  Static query descriptors prepared against a database and invoked with
+//  per-call arguments, on any driver (issue #682).
+//
+//  Formerly GRDBStaticQuery.swift. Its helpers were named for GRDB but never
+//  used it; they take `XL` names, and the `GRDB` names remain as deprecated
+//  typealiases in GRDBDatabase+Requests.swift (issue #113).
+//
+
 import Foundation
 
 
-/// Failures while preparing or executing a static query through GRDB.
-public enum GRDBStaticQueryError: Error, Equatable, Sendable, LocalizedError {
+/// Failures while preparing or executing a static query.
+///
+/// Formerly `GRDBStaticQueryError`, which remains as a deprecated typealias
+/// (issue #113). SwiftQLCore's `XLStaticQueryError` is a different type: it
+/// reports a descriptor that is invalid before any database is involved.
+public enum XLStaticQueryInvocationError: Error, Equatable, Sendable, LocalizedError {
 
     case operationCardinalityMismatch(
         identity: XLQueryIdentity,
@@ -150,22 +166,22 @@ private extension XLQueryCardinality {
 /// argument are released. Applying it is synchronous and copies only the
 /// encoded dialect value into a fresh packet. The prepared query never stores
 /// the argument or its source value.
-public struct GRDBStaticQueryArgument {
+public struct XLStaticQueryArgument {
 
     private let applyValue: (
-        inout GRDBStaticQueryInvocationBuilder
+        inout XLStaticQueryInvocationBuilder
     ) throws -> Void
 
     fileprivate init(
         applyValue: @escaping (
-            inout GRDBStaticQueryInvocationBuilder
+            inout XLStaticQueryInvocationBuilder
         ) throws -> Void
     ) {
         self.applyValue = applyValue
     }
 
     fileprivate func apply(
-        to builder: inout GRDBStaticQueryInvocationBuilder
+        to builder: inout XLStaticQueryInvocationBuilder
     ) throws {
         try applyValue(&builder)
     }
@@ -175,8 +191,8 @@ public struct GRDBStaticQueryArgument {
 extension XLQueryCapture where Dialect == XLSQLiteDialect {
 
     /// Pairs a required invocation value with this value-free capture.
-    public func argument(_ value: Input) -> GRDBStaticQueryArgument {
-        GRDBStaticQueryArgument { builder in
+    public func argument(_ value: Input) -> XLStaticQueryArgument {
+        XLStaticQueryArgument { builder in
             try builder.bind(value, to: self)
         }
     }
@@ -185,9 +201,9 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
     /// `nil` remains a present SQL `NULL` argument.
     public func argument<Wrapped>(
         _ value: Input?
-    ) -> GRDBStaticQueryArgument
+    ) -> XLStaticQueryArgument
     where Literal == Wrapped?, Wrapped: XLLiteral {
-        GRDBStaticQueryArgument { builder in
+        XLStaticQueryArgument { builder in
             try builder.bind(value, to: self)
         }
     }
@@ -198,7 +214,7 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
 ///
 /// Builders are created only by `XLPreparedStaticQuery.makeInvocationBindings`.
 /// They own a fresh packet and never mutate the prepared handle.
-public struct GRDBStaticQueryInvocationBuilder {
+public struct XLStaticQueryInvocationBuilder {
 
     private let query: XLPreparedStaticQuery
 
@@ -287,8 +303,8 @@ public struct GRDBStaticQueryInvocationBuilder {
 /// The handle retains the database's immutable coding configuration so typed
 /// parameter and result codecs can be resolved from the same snapshot. Its raw
 /// executor never retains a connection-owned SQLite statement. It does not
-/// name its driver (issue #682), so ``GRDBDatabase`` and ``XLDriverDatabase``
-/// prepare the same type.
+/// name its driver (issue #682), so every database, ``XLDriverDatabase``
+/// among them, prepares the same type.
 public struct XLPreparedStaticQuery: Sendable {
 
     public let descriptor: XLStaticQueryDescriptor
@@ -324,16 +340,16 @@ public struct XLPreparedStaticQuery: Sendable {
     /// The builder resolves contextual codecs only from this prepared handle's
     /// snapshotted configuration. Values and packets are local to this call.
     public func makeInvocationBindings(
-        _ build: (inout GRDBStaticQueryInvocationBuilder) throws -> Void
+        _ build: (inout XLStaticQueryInvocationBuilder) throws -> Void
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
-        var builder = GRDBStaticQueryInvocationBuilder(query: self)
+        var builder = XLStaticQueryInvocationBuilder(query: self)
         try build(&builder)
         return try builder.completedPacket()
     }
 
     /// Builds one fresh packet from immutable per-call capture arguments.
     public func makeInvocationBindings(
-        _ arguments: GRDBStaticQueryArgument...
+        _ arguments: XLStaticQueryArgument...
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         try makeInvocationBindings(arguments: arguments)
     }
@@ -343,7 +359,7 @@ public struct XLPreparedStaticQuery: Sendable {
     /// Application order does not affect the completed packet: bindings are
     /// canonicalized by the renderer-assigned logical parameter order.
     public func makeInvocationBindings(
-        arguments: [GRDBStaticQueryArgument]
+        arguments: [XLStaticQueryArgument]
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         try makeInvocationBindings { builder in
             for argument in arguments {
@@ -361,13 +377,13 @@ public struct XLPreparedStaticQuery: Sendable {
         guard let metadata = descriptor.parameters.first(where: {
             $0.identity == identity
         }) else {
-            throw GRDBStaticQueryError.parameterNotFound(
+            throw XLStaticQueryInvocationError.parameterNotFound(
                 identity: descriptor.identity,
                 parameter: identity
             )
         }
         guard let expected = metadata.slot.codecIdentity else {
-            throw GRDBStaticQueryError.parameterHasNoContextualCodec(
+            throw XLStaticQueryInvocationError.parameterHasNoContextualCodec(
                 identity: descriptor.identity,
                 parameter: identity
             )
@@ -409,13 +425,13 @@ public struct XLPreparedStaticQuery: Sendable {
         guard let slot = descriptor.results.slots.first(where: {
             $0.identity == identity
         }) else {
-            throw GRDBStaticQueryError.resultNotFound(
+            throw XLStaticQueryInvocationError.resultNotFound(
                 identity: descriptor.identity,
                 result: identity
             )
         }
         guard let expected = slot.codecIdentity else {
-            throw GRDBStaticQueryError.resultHasNoContextualCodec(
+            throw XLStaticQueryInvocationError.resultHasNoContextualCodec(
                 identity: descriptor.identity,
                 result: identity
             )
@@ -427,7 +443,7 @@ public struct XLPreparedStaticQuery: Sendable {
             selection: XLValueCodecSelection(explicitCodecKey: expected.key)
         )
         guard codec.identity == expected else {
-            throw GRDBStaticQueryError.resultCodecIdentityMismatch(
+            throw XLStaticQueryInvocationError.resultCodecIdentityMismatch(
                 identity: descriptor.identity,
                 slot: slot,
                 expected: expected,
@@ -450,7 +466,7 @@ public struct XLPreparedStaticQuery: Sendable {
         guard let metadata = descriptor.parameters.first(where: {
             $0.identity == capture.identity
         }) else {
-            throw GRDBStaticQueryError.parameterNotFound(
+            throw XLStaticQueryInvocationError.parameterNotFound(
                 identity: descriptor.identity,
                 parameter: capture.identity
             )
@@ -488,7 +504,7 @@ public struct XLPreparedStaticQuery: Sendable {
             bindings: validatedBindings(bindings)
         )
         guard rows.count == 1, let row = rows.first else {
-            throw GRDBStaticQueryError.rowCountMismatch(
+            throw XLStaticQueryInvocationError.rowCountMismatch(
                 identity: descriptor.identity,
                 cardinality: .exactlyOne,
                 actual: rows.count
@@ -507,7 +523,7 @@ public struct XLPreparedStaticQuery: Sendable {
             bindings: validatedBindings(bindings)
         )
         guard rows.count <= 1 else {
-            throw GRDBStaticQueryError.rowCountMismatch(
+            throw XLStaticQueryInvocationError.rowCountMismatch(
                 identity: descriptor.identity,
                 cardinality: .zeroOrOne,
                 actual: rows.count
@@ -553,7 +569,7 @@ public struct XLPreparedStaticQuery: Sendable {
         _ expected: XLQueryCardinality
     ) throws {
         guard descriptor.cardinality == expected else {
-            throw GRDBStaticQueryError.operationCardinalityMismatch(
+            throw XLStaticQueryInvocationError.operationCardinalityMismatch(
                 identity: descriptor.identity,
                 expected: expected,
                 actual: descriptor.cardinality
@@ -562,7 +578,7 @@ public struct XLPreparedStaticQuery: Sendable {
     }
 
     /// Validates the descriptor's complete parameter contract before the raw
-    /// GRDB invocation performs its own driver-facing checks. This is required
+    /// invocation performs its own driver-facing checks. This is required
     /// for intrinsic parameters whose slots intentionally have no contextual
     /// codec identity but still declare an exact dialect storage mapping.
     private func validatedBindings(
@@ -594,7 +610,7 @@ public struct XLPreparedStaticQuery: Sendable {
                 for: binding.value
             )
             guard actualStorage == parameter.storageIdentifier else {
-                throw GRDBStaticQueryError.parameterStorageMismatch(
+                throw XLStaticQueryInvocationError.parameterStorageMismatch(
                     identity: descriptor.identity,
                     parameter: parameter,
                     actual: actualStorage
@@ -610,7 +626,7 @@ public struct XLPreparedStaticQuery: Sendable {
     ) throws {
         let slots = descriptor.results.slots
         guard row.count == slots.count else {
-            throw GRDBStaticQueryError.resultColumnCountMismatch(
+            throw XLStaticQueryInvocationError.resultColumnCountMismatch(
                 identity: descriptor.identity,
                 row: rowIndex,
                 expected: slots.count,
@@ -621,7 +637,7 @@ public struct XLPreparedStaticQuery: Sendable {
         for (slot, value) in zip(slots, row) {
             if dialect.isNull(value) {
                 guard slot.nullability == .nullable else {
-                    throw GRDBStaticQueryError.nullForRequiredResult(
+                    throw XLStaticQueryInvocationError.nullForRequiredResult(
                         identity: descriptor.identity,
                         slot: slot
                     )
@@ -630,7 +646,7 @@ public struct XLPreparedStaticQuery: Sendable {
             }
             let actualStorage = dialect.stableStorageIdentifier(for: value)
             guard actualStorage == slot.storageIdentifier else {
-                throw GRDBStaticQueryError.resultStorageMismatch(
+                throw XLStaticQueryInvocationError.resultStorageMismatch(
                     identity: descriptor.identity,
                     slot: slot,
                     actual: actualStorage
@@ -676,19 +692,19 @@ public struct XLPreparedTypedStaticQuery<Row> {
     }
 
     public func makeInvocationBindings(
-        _ build: (inout GRDBStaticQueryInvocationBuilder) throws -> Void
+        _ build: (inout XLStaticQueryInvocationBuilder) throws -> Void
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         try query.makeInvocationBindings(build)
     }
 
     public func makeInvocationBindings(
-        _ arguments: GRDBStaticQueryArgument...
+        _ arguments: XLStaticQueryArgument...
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         try query.makeInvocationBindings(arguments: arguments)
     }
 
     public func makeInvocationBindings(
-        arguments: [GRDBStaticQueryArgument]
+        arguments: [XLStaticQueryArgument]
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         try query.makeInvocationBindings(arguments: arguments)
     }
@@ -723,25 +739,3 @@ public struct XLPreparedTypedStaticQuery<Row> {
     }
 }
 
-
-/// The name this handle had before it stopped naming its driver (issue #682).
-public typealias GRDBPreparedStaticQuery = XLPreparedStaticQuery
-
-
-/// The name this handle had before it stopped naming its driver (issue #682).
-public typealias GRDBPreparedTypedStaticQuery<Row> = XLPreparedTypedStaticQuery<Row>
-
-
-extension GRDBDatabase {
-
-    /// Prepares a typed static query only after its generated row layout has
-    /// been proven equal to the descriptor's complete result metadata.
-    public func prepareInvocation<Row>(
-        with definition: XLTypedStaticQueryDescriptor<
-            Row,
-            XLSQLiteDialect
-        >
-    ) throws -> XLPreparedTypedStaticQuery<Row> {
-        try makePreparedTypedStaticQuery(with: definition)
-    }
-}

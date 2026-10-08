@@ -38,7 +38,7 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 /// A single-pass, connection-scoped, lazily-decoded query result.
 ///
 /// `next()` performs at most one additional SQLite step and typed decode per
-/// call. For a true streaming implementation (`GRDBRequest`'s override, used
+/// call. For a true streaming implementation (`XLDriverRequest`'s override, used
 /// for ordinary non-`RETURNING` statements), no row is fetched or decoded
 /// before the first call to `next()`, and stopping early -- an early
 /// `return`, `break`, or thrown error from the ``XLRequest/withResultSet(_:)``
@@ -48,7 +48,7 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 /// implementations decode eagerly instead, while still exposing the same
 /// single-pass `next()` surface: the protocol-extension compatibility
 /// default for `XLRequest` conformers that predate this API (which calls
-/// `fetchAll()` under the hood), and `GRDBRequest`'s own `RETURNING`
+/// `fetchAll()` under the hood), and `XLDriverRequest`'s own `RETURNING`
 /// exception (see "Scope lifetime and connection occupancy" below) --
 /// callers of `withResultSet(_:)` should not assume lazy stepping unless they
 /// know which implementation backs a given request.
@@ -80,7 +80,7 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 /// or the pinned connection of an enclosing transaction -- for its *entire*
 /// duration, not just while a `next()` call is in flight; avoid slow,
 /// unrelated work between `next()` calls, since it keeps that connection or
-/// snapshot occupied the whole time. `GRDBRequest`'s one exception is a
+/// snapshot occupied the whole time. `XLDriverRequest`'s one exception is a
 /// `RETURNING` statement: because the statement's write must complete
 /// atomically regardless of how many rows the caller ends up consuming, the
 /// write transaction runs and fully decodes its rows *before* `operation`

@@ -190,21 +190,13 @@ final class XLObservedValues<Value: Sendable>: @unchecked Sendable {
 
 /// A driver that can tell, before observing, that it cannot observe at all (issue #682).
 ///
-/// Internal. The GRDB driver conforms: a driver pinned to a transaction scope has no pool to
+/// Package. The GRDB driver conforms: a driver pinned to a transaction scope has no pool to
 /// observe. ``XLDriverRequest``'s publish preflight asks it, so the check stays with the driver
 /// while the preflight serves every request.
-protocol XLLiveQueryAvailability {
+package protocol XLLiveQueryAvailability {
 
     /// Why this driver cannot observe, or `nil` when it can.
     var liveQueryUnavailableError: Error? { get }
-}
-
-
-extension GRDBDatabaseDriver: XLLiveQueryAvailability {
-
-    var liveQueryUnavailableError: Error? {
-        databasePool == nil ? XLTransactionScopeError.liveQueriesUnsupportedInTransaction : nil
-    }
 }
 
 
@@ -214,7 +206,7 @@ extension XLDriverRequest: XLLivePublishPreflight {
     /// demand (issue #684): a `RETURNING` statement, and, for a member without a packet, bindings
     /// set through `set(parameter:value:)` that do not form a valid packet, on every driver; and a
     /// driver that reports, through `XLLiveQueryAvailability`, that it cannot observe at all, such
-    /// as a GRDB driver pinned to a transaction scope. The stream members report each of these on
+    /// as a driver pinned to a transaction scope. The stream members report each of these on
     /// first iteration.
     ///
     /// These are pure, already-computed structural checks, not observation, retry, or decoding

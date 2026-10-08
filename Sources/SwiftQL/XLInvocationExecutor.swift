@@ -10,10 +10,6 @@
 import Foundation
 
 
-/// The GRDB specialisation every GRDB-backed path builds on.
-typealias GRDBInvocationExecutor = XLInvocationExecutor<GRDBDatabaseDriver>
-
-
 /// Immutable, Sendable execution seam between prepared logical statements and
 /// the connections a driver lends (issue #682). Typed row decoding remains
 /// outside this value because the legacy row-reader graph is not Sendable.
@@ -310,7 +306,7 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     /// arguments. When a value fails to bind, `statement` keeps the values
     /// bound before it.
     ///
-    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
+    /// Internal rather than private so that the benchmark's phase probe can
     /// time this exact binding step on its own (issue #670).
     func bind(
         packet: XLValidatedSQLitePacket,
@@ -377,8 +373,8 @@ extension XLInvocationExecutor: XLPreparedValueInvocation {}
 /// Static, database-independent query identity and typed result metadata are
 /// layered on top by the descriptor API rather than captured here.
 ///
-/// The handle does not name its driver (issue #682), so ``GRDBDatabase`` and
-/// ``XLDriverDatabase`` prepare the same type.
+/// The handle does not name its driver (issue #682), so every database,
+/// ``XLDriverDatabase`` among them, prepares the same type.
 public struct XLPreparedInvocation: Sendable {
 
     private let executor: any XLPreparedValueInvocation
@@ -426,7 +422,3 @@ public struct XLPreparedInvocation: Sendable {
         try executor.execute(bindings: bindings)
     }
 }
-
-
-/// The name this handle had before it stopped naming its driver (issue #682).
-public typealias GRDBPreparedInvocation = XLPreparedInvocation

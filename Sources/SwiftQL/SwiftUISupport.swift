@@ -38,8 +38,8 @@ import OpenCombine
 /// deallocated. Every delivered value is applied on the main thread.
 /// ``XLRequest/publish()`` delivers on the main queue for every request
 /// (issue #684), so each value is applied at once, with no second hop
-/// (issue #652). For a GRDB-backed request, the underlying fetch runs on a
-/// database reader.
+/// (issue #652). The underlying fetch runs wherever the request's driver runs
+/// it: on a database reader, for the GRDB driver.
 ///
 public final class XLQueryObserver<Row>: ObservableObject {
 

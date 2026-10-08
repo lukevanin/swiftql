@@ -40,7 +40,7 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
 
     private let executor: GRDBInvocationExecutor
 
-    private let bindings: GRDBLegacyBindingAccumulator
+    private let bindings: XLLegacyBindingAccumulator
 
     private let reader: (any XLRowReadable<Output>)?
 
@@ -59,7 +59,7 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
         self.usesWriteConnection = request.requiresWriteConnection
     }
 
-    /// Decodes normalized rows through ``GRDBRowDecoder/decode(values:)``.
+    /// Decodes normalized rows through ``XLRowDecoder/decode(values:)``.
     ///
     /// `fetchAll()` reads each column from the cursor's row handle instead
     /// (issue #678), through the same row reader and literal decoders, so
@@ -68,7 +68,7 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
         guard let reader else {
             return []
         }
-        let decoder = GRDBRowDecoder(reader: reader)
+        let decoder = XLRowDecoder(reader: reader)
         var decoded: [Output] = []
         decoded.reserveCapacity(rows.count)
         for values in rows {
@@ -137,13 +137,13 @@ package final class GRDBRequestPhaseConnection {
 
     private let executor: GRDBInvocationExecutor
 
-    private let bindings: GRDBLegacyBindingAccumulator
+    private let bindings: XLLegacyBindingAccumulator
 
     private var connection: GRDBDatabaseDriverConnection
 
     init(
         executor: GRDBInvocationExecutor,
-        bindings: GRDBLegacyBindingAccumulator,
+        bindings: XLLegacyBindingAccumulator,
         connection: GRDBDatabaseDriverConnection
     ) {
         self.executor = executor

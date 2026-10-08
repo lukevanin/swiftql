@@ -226,7 +226,7 @@ mode. Four points differ from the sections above.
    typed row must be produced inside a `Sendable` region wherever the decode is
    placed. The observation now fetches raw `[XLSQLiteValue]` rows and carries
    only the `Sendable` executor and logger, and one narrow, documented seam
-   (`Sources/SwiftQL/GRDBLiveQueryRowDecoding.swift`) crosses the row reader
+   (`Sources/SwiftQL/XLDriverRequest+RowDecoding.swift`) crosses the row reader
    into that region. Making the reader itself `Sendable` was measured and
    rejected: it requires `XLEncodable`, `XLColumnDependency`, the statement
    component structs, and the mutable `XLNamespace` alias allocator to be

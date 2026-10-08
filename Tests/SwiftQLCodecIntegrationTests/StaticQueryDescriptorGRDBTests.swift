@@ -6,6 +6,29 @@ import XCTest
 @_spi(GRDB) @testable import SwiftQL
 
 
+/// The names the static-query helpers had before issue #113, which remain as
+/// deprecated typealiases. A deprecated declaration can name deprecated
+/// symbols without a warning, and nothing uses this one, so it only proves
+/// that each old name still compiles as the type it was renamed to.
+@available(*, deprecated, message: "Compile-only check of the pre-#113 names.")
+private enum PreIssue113StaticQueryNames {
+
+    static func error(_ error: GRDBStaticQueryError) -> XLStaticQueryInvocationError {
+        error
+    }
+
+    static func argument(_ argument: GRDBStaticQueryArgument) -> XLStaticQueryArgument {
+        argument
+    }
+
+    static func builder(
+        _ builder: GRDBStaticQueryInvocationBuilder
+    ) -> XLStaticQueryInvocationBuilder {
+        builder
+    }
+}
+
+
 final class StaticQueryDescriptorGRDBTests: XCTestCase {
 
     func testDescriptorPreparedBeforeDatabaseExecutesEveryCardinality() throws {
@@ -91,7 +114,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             )
         ) { error in
             guard case .rowCountMismatch(_, .zeroOrOne, 2) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected zero-or-one overflow, received \(error)")
             }
         }
@@ -124,7 +147,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
                 )
             ) { error in
                 guard case .rowCountMismatch(_, .exactlyOne, let actualCount) =
-                    error as? GRDBStaticQueryError else {
+                    error as? XLStaticQueryInvocationError else {
                     return XCTFail("Expected exactly-one row-count failure, received \(error)")
                 }
                 XCTAssertEqual(actualCount, expectedCount)
@@ -135,7 +158,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try many.fetchExactlyOneValues(bindings: emptyBindings)
         ) { error in
             guard case .operationCardinalityMismatch(_, .exactlyOne, .many) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected cardinality mismatch, received \(error)")
             }
         }
@@ -245,7 +268,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try emptyFixture.database.prepareInvocation(with: resultOnly)
         ) { error in
             guard case .resultCodecUnavailable? =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected unavailable result codec, received \(error)")
             }
         }
@@ -358,7 +381,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
                 _,
                 let parameter,
                 let actual
-            ) = error as? GRDBStaticQueryError else {
+            ) = error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected intrinsic storage mismatch, received \(error)")
             }
             XCTAssertEqual(parameter.identity, parameterIdentity)
@@ -461,7 +484,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             guard case .unsupportedParameterStorage(
                 let identity,
                 let parameter
-            ) = error as? GRDBStaticQueryError else {
+            ) = error as? XLStaticQueryInvocationError else {
                 return XCTFail(
                     "Expected unsupported parameter storage, received \(error)"
                 )
@@ -474,7 +497,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try fixture.database.prepareInvocation(with: emptyManyDescriptor)
         ) { error in
             guard case .unsupportedResultStorage(let identity, let slot) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail(
                     "Expected unsupported result storage, received \(error)"
                 )
@@ -527,7 +550,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try nullPrepared.fetchExactlyOneValues(bindings: emptyBindings)
         ) { error in
             guard case .nullForRequiredResult(_, let slot) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected required-result NULL failure, received \(error)")
             }
             XCTAssertEqual(slot.identity, contract.resultIdentity)
@@ -540,7 +563,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try storagePrepared.fetchExactlyOneValues(bindings: emptyBindings)
         ) { error in
             guard case .resultStorageMismatch(_, let slot, let actual) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected result storage failure, received \(error)")
             }
             XCTAssertEqual(slot.identity, contract.resultIdentity)
@@ -554,7 +577,7 @@ final class StaticQueryDescriptorGRDBTests: XCTestCase {
             try columnsPrepared.fetchExactlyOneValues(bindings: emptyBindings)
         ) { error in
             guard case .resultColumnCountMismatch(_, 0, 1, 2) =
-                error as? GRDBStaticQueryError else {
+                error as? XLStaticQueryInvocationError else {
                 return XCTFail("Expected result column-count failure, received \(error)")
             }
         }

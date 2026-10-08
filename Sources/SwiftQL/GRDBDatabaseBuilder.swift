@@ -9,11 +9,6 @@
 
 import Foundation
 internal import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 /// Configures a GRDB-backed SwiftQL database before its connection pool is created.

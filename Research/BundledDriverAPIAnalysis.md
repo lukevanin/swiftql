@@ -238,7 +238,7 @@ duplication SQLite already lives with.
 
 Minimal impact, and this is the part that argues *for* bundling. `GRDBStaticQuery`
 never touches `PhysicalStatement`: it builds an `XLInvocationBindings` packet
-([GRDBStaticQuery.swift:326](../Sources/SwiftQL/GRDBStaticQuery.swift#L326)) and
+(GRDBStaticQuery.swift:326 at the time, now [XLStaticQuery.swift](../Sources/SwiftQL/XLStaticQuery.swift)) and
 hands it to `GRDBPreparedInvocation.fetchAllValues` / `forEachValueRow` /
 `execute`
 ([GRDBDatabaseDriver.swift:501-529](../Sources/SwiftQL/GRDBDatabaseDriver.swift#L501)).

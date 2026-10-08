@@ -241,6 +241,18 @@
   `GRDBPreparedStaticQuery`, and `GRDBPreparedTypedStaticQuery<Row>` remain as
   typealiases, so source that names them compiles unchanged. Their
   module-qualified names change, for example in `String(reflecting:)`.
+- **The static-query helpers no longer name GRDB** (issue #113), which they
+  never used. `GRDBStaticQueryError` is now `XLStaticQueryInvocationError`,
+  `GRDBStaticQueryArgument` is `XLStaticQueryArgument`, and
+  `GRDBStaticQueryInvocationBuilder` is `XLStaticQueryInvocationBuilder`.
+  The old names remain as deprecated typealiases, so source that names them
+  compiles, with a warning that offers the rename. The runtime type names
+  change, for example in `String(reflecting:)`, in `type(of:)`, and in the
+  `NSError` domain a thrown error bridges to, so logging or matching keyed on
+  `GRDBStaticQueryError` must move to the new name. The error is not named
+  `XLStaticQueryError`, because SwiftQLCore already has an error of that
+  name: it reports a descriptor that is invalid before any database is
+  involved.
 - **`XLDatabaseDriverConnection` has three new requirements, each with a
   default** (issue #682), so a connection outside SwiftQL keeps compiling.
   - `forEachRow(_:_:)` visits result rows one at a time, and
@@ -705,6 +717,17 @@
   - `GRDBDatabase` keeps its public surface. Its live-query retry policy now
     travels with its driver, so the GRDB driver's `observe(_:fetch:)` applies
     it too.
+
+- **Code that holds any SwiftQL database can declare its captures** (issue
+  #113). The new `XLValueCodingDatabase` protocol refines `XLDatabase` with
+  the database's `dialect` and `codingConfiguration`. `GRDBDatabase` and
+  `XLDriverDatabase` conform, and the `contextualBinding(_:expressedAs:...)`
+  and `queryCapture(_:...)` members they each had are now written once, on
+  the protocol, for any dialect that conforms to `XLLiteralValueDialect`. A
+  call on either database compiles unchanged, and a function that takes
+  `some XLValueCodingDatabase<XLSQLiteDialect>` can make the same calls
+  without naming the driver. Both databases gain the member type
+  `XLDatabaseDialect`, the protocol's associated type.
 
 - **An adapter supplies its own live-query change notification** (issue
   #684).
