@@ -76,22 +76,13 @@ SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
 # proves what a client of SwiftQL's public API needs, so it may not reach
 # SwiftQL's internals, whose GRDB-typed values it could then use without an
 # import (issue #702). The driver tests need `@testable` and keep it.
-# The GRDB driver's types and `GRDBDatabase.driver` are `package` (issue
-# #113), which every target in the package can reach without `@testable`,
-# so the client target may not name them either.
+# The target is also built without package access (issue #113), so the
+# compiler hides SwiftQL's `package` symbols from it.
 ROOT_FORBIDDEN_PATTERNS = {
     "Tests/SwiftQLGRDBFreeClientTests": (
         (
             re.compile(r"@testable[ \t]+(?:[A-Za-z_@()]+[ \t]+)*import[ \t]+SwiftQL\b(?!Core)"),
             "forbidden testable SwiftQL import",
-        ),
-        (
-            re.compile(
-                r"\bGRDB(?:DatabaseDriver|DatabaseDriverConnection|RowHandle"
-                r"|PhysicalStatement|RequestPhaseProbe|RequestPhaseConnection)\b"
-                r"|\.driver\b"
-            ),
-            "forbidden package GRDB driver reference",
         ),
     ),
 }

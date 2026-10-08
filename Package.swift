@@ -377,6 +377,10 @@ let package = Package(
         .testTarget(
             name: "SwiftQLGRDBFreeClientTests",
             dependencies: ["SwiftQL"],
+            // Issue #113: the GRDB driver's types are `package`. Without
+            // package access, the compiler hides every `package` symbol from
+            // this target, so it still sees only SwiftQL's public API.
+            packageAccess: false,
             swiftSettings: [.enableUpcomingFeature("MemberImportVisibility")]
         ),
 

@@ -44,7 +44,7 @@ extension XLDriverRequestFactory {
     /// parameter layout, on a static descriptor's parameters, and on its
     /// results. Each reports it in a different taxonomy -- the first as an
     /// `XLInvocationBindingError` returned rather than thrown, the second as
-    /// the same error thrown, the third as a `XLStaticQueryInvocationError` naming the
+    /// the same error thrown, the third as an `XLStaticQueryInvocationError` naming the
     /// descriptor -- which is why they were three copies (issue #561). The
     /// answer is shared; only the reporting differs.
     ///
