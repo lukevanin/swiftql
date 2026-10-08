@@ -97,7 +97,7 @@ recommendation.
 | Contract | [SQLDatabaseDriver.swift](../Sources/SwiftQLCore/SQLDatabaseDriver.swift) | 327 | **Redesign.** 9 protocol requirements + 9 extension helpers; the `PhysicalStatement` non-`Sendable` invariant is invalidated (§3) |
 | Driver adapter | [GRDBDatabaseDriver.swift](../Sources/SwiftQL/GRDBDatabaseDriver.swift) | 900 | Mixed. Scope methods redesigned; `GRDBInvocationExecutor` mechanical; reentrancy tracker **redesign** (§4) |
 | Request layer | [GRDBSQLDatabase.swift](../Sources/SwiftQL/GRDBSQLDatabase.swift) | 1,313 | Mostly mechanical, except `publisher(fetch:)` which **cannot** go async (§2c) |
-| Static queries | [GRDBStaticQuery.swift](../Sources/SwiftQL/GRDBStaticQuery.swift) | 748 | Mechanical — 8 public entry points |
+| Static queries | GRDBStaticQuery.swift (now [XLStaticQuery.swift](../Sources/SwiftQL/XLStaticQuery.swift)) | 748 | Mechanical — 8 public entry points |
 | Public protocols | [SQLDatabase.swift](../Sources/SwiftQL/SQLDatabase.swift) | — | **Source break.** `XLRequest` (5 fetch methods), `XLWriteRequest` (2) |
 | Transaction scope | [SQLTransactionScope.swift](../Sources/SwiftQL/SQLTransactionScope.swift) | — | `XLTransactionalDatabase.withTransaction` + its 3-case error enum |
 | Publishers | [GRDBOpenCombineValuePublisher.swift](../Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift), [GRDBLiveQueryRetryPolicy.swift](../Sources/SwiftQL/GRDBLiveQueryRetryPolicy.swift) | 343 | **Blocked** (§2c) |

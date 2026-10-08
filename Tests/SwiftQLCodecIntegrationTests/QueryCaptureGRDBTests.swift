@@ -272,6 +272,43 @@ final class QueryCaptureGRDBTests: XCTestCase {
         XCTAssertEqual(prepared.parameterLayout.count, 3)
     }
 
+    /// `GRDBDatabase` declares its captures through `XLValueCodingDatabase`,
+    /// so code generic over that protocol reaches the same codec (issue #113).
+    func testValueCodingDatabaseDeclaresTheSameCaptureAsTheGRDBDatabase() throws {
+        func dateCapture(
+            on database: some XLValueCodingDatabase<XLSQLiteDialect>
+        ) throws -> XLQueryCapture<Date, String, XLSQLiteDialect> {
+            try database.queryCapture(
+                Date.self,
+                expressedAs: String.self,
+                identifiedBy: XLQuerySlotIdentity(path: ["generic", "date"])
+            )
+        }
+        let codecs = makeContextualCodecs()
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(codecs.dateText)
+        )
+        let fixture = try makeQueryCaptureDatabase(configuration: configuration)
+        defer { fixture.tearDown() }
+
+        let generic = try dateCapture(on: fixture.database)
+        let concrete = try fixture.database.queryCapture(
+            Date.self,
+            expressedAs: String.self,
+            identifiedBy: XLQuerySlotIdentity(path: ["generic", "date"])
+        )
+
+        XCTAssertEqual(generic.identity, concrete.identity)
+        XCTAssertEqual(
+            generic.declaration.codecIdentity?.key,
+            codecs.dateText.identity.key
+        )
+        XCTAssertEqual(
+            generic.declaration.codecIdentity?.key,
+            concrete.declaration.codecIdentity?.key
+        )
+    }
+
     func testTypedColumnCaptureExecutesWithFreshImmutableArguments() throws {
         let codecs = makeContextualCodecs()
         let configuration = try XLValueCodingConfiguration(
@@ -381,7 +418,7 @@ final class QueryCaptureGRDBTests: XCTestCase {
             try $0.bind(1, to: missing)
         }) { error in
             guard case .parameterNotFound(_, let identity) =
-                    error as? GRDBStaticQueryError else {
+                    error as? XLStaticQueryInvocationError else {
                 return XCTFail("Unexpected error: \(error)")
             }
             XCTAssertEqual(identity, missing.identity)

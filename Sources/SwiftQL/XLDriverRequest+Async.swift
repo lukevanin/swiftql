@@ -6,7 +6,8 @@
 //  since issue #682. Each fetch
 //  validates its packet as the synchronous fetch does, then runs the same
 //  per-connection work inside the driver's asynchronous scope (#676), so the
-//  calling task suspends on GRDB's queue instead of blocking its thread.
+//  calling task suspends on the driver's executor (on GRDB's queue, for the
+//  GRDB driver) instead of blocking its thread.
 //
 
 import Foundation

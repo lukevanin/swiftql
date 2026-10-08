@@ -444,51 +444,6 @@ extension XLValueCodingConfiguration {
 }
 
 
-extension GRDBDatabase {
-
-    /// Declares a contextual capture using this database's immutable coding
-    /// configuration. Selection is constrained by `Literal`'s SQLite storage
-    /// representation before a default or unique candidate can be inferred.
-    public func queryCapture<Input, Literal>(
-        _ inputType: Input.Type,
-        expressedAs literalType: Literal.Type,
-        identifiedBy identity: XLQuerySlotIdentity,
-        context: XLValueCodingContext? = nil,
-        selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try codingConfiguration.queryCapture(
-            inputType,
-            expressedAs: literalType,
-            identifiedBy: identity,
-            using: dialect,
-            context: context,
-            selection: selection
-        )
-    }
-
-    /// Declares a contextual capture using a typed SQL expression as the
-    /// source of literal type, nullability, and SQLite storage metadata.
-    public func queryCapture<Input, Literal>(
-        _ inputType: Input.Type,
-        matching expression: any XLExpression<Literal>,
-        identifiedBy identity: XLQuerySlotIdentity,
-        context: XLValueCodingContext? = nil,
-        selection: XLQueryCodecSelection = .inferred
-    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
-    where Literal: XLLiteral {
-        try codingConfiguration.queryCapture(
-            inputType,
-            matching: expression,
-            identifiedBy: identity,
-            using: dialect,
-            context: context,
-            selection: selection
-        )
-    }
-}
-
-
 private func _xlLiteralNullability(_ type: Any.Type) -> XLParameterNullability {
     type is any _XLOptionalLiteralType.Type ? .nullable : .required
 }

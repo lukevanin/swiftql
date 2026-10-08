@@ -44,13 +44,13 @@ extension XLDriverRequestFactory {
     /// parameter layout, on a static descriptor's parameters, and on its
     /// results. Each reports it in a different taxonomy -- the first as an
     /// `XLInvocationBindingError` returned rather than thrown, the second as
-    /// the same error thrown, the third as a `GRDBStaticQueryError` naming the
+    /// the same error thrown, the third as an `XLStaticQueryInvocationError` naming the
     /// descriptor -- which is why they were three copies (issue #561). The
     /// answer is shared; only the reporting differs.
     ///
     func codecResolutionFailure(
         for codecIdentity: XLValueCodecIdentity?
-    ) -> GRDBCodecResolutionFailure? {
+    ) -> XLCodecResolutionFailure? {
         guard let expected = codecIdentity else {
             return nil
         }
@@ -99,7 +99,7 @@ extension XLDriverRequestFactory {
             guard XLSQLiteStorageClass(
                 rawValue: parameter.storageIdentifier.rawValue
             ) != nil else {
-                throw GRDBStaticQueryError.unsupportedParameterStorage(
+                throw XLStaticQueryInvocationError.unsupportedParameterStorage(
                     identity: descriptor.identity,
                     parameter: parameter
                 )
@@ -110,7 +110,7 @@ extension XLDriverRequestFactory {
             guard XLSQLiteStorageClass(
                 rawValue: slot.storageIdentifier.rawValue
             ) != nil else {
-                throw GRDBStaticQueryError.unsupportedResultStorage(
+                throw XLStaticQueryInvocationError.unsupportedResultStorage(
                     identity: descriptor.identity,
                     slot: slot
                 )

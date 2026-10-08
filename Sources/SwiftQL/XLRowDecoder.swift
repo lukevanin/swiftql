@@ -1,37 +1,28 @@
 //
-//  GRDBValueAdapters.swift
+//  XLRowDecoder.swift
 //  SwiftQL
 //
-//  Reading GRDB values back as SwiftQL sees them: the row decoder every fetch
-//  path decodes through, from a row handle or from values. A custom function's arguments are read by
+//  The row decoder every fetch path decodes through, from a row handle or
+//  from values. A custom function's arguments are read by
 //  `XLFunctionArgumentReader` (issue #683).
 //
-//  Split out of GRDBSQLDatabase.swift (issue #560).
+//  Split out of GRDBSQLDatabase.swift (issue #560), as `GRDBRowDecoder`. It
+//  never read a GRDB type beyond the one GRDB row overload, which only the
+//  benchmark harness calls and which now lives in GRDBRowDecoding.swift
+//  (issue #113).
 //
 
-import Foundation
-package import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
-
-/// Package-scoped decoding seam shared by the GRDB adapter and performance harness.
+/// Package-scoped decoding seam shared by every driver's requests and the performance harness.
 ///
-/// Keeping the adapter and sequential column reader behind this type lets benchmarks exercise the
-/// production decoding path without exposing GRDB implementation details as public SwiftQL API.
-package struct GRDBRowDecoder<Output> {
+/// Keeping the sequential column reader behind this type lets benchmarks exercise the production
+/// decoding path without exposing a driver's implementation details as public SwiftQL API.
+package struct XLRowDecoder<Output> {
 
     private let reader: any XLRowReadable<Output>
 
     package init(reader: any XLRowReadable<Output>) {
         self.reader = reader
-    }
-
-    package func decode(_ row: GRDB.Row) throws -> Output {
-        try decode(row: GRDBRowHandle(row: row))
     }
 
     package func decode(values: [XLSQLiteValue]) throws -> Output {
@@ -55,7 +46,7 @@ package struct GRDBRowDecoder<Output> {
         where Handle: XLRowHandle, Handle.Value == XLSQLiteValue
     {
         // A metatype comparison, so a connection with its own handle, such
-        // as GRDB's, pays no dynamic cast per row.
+        // as the GRDB driver's, pays no dynamic cast per row.
         if Handle.self == XLValuesRowHandle<XLSQLiteValue>.self,
            let valuesRow = row as? XLValuesRowHandle<XLSQLiteValue> {
             return try decode(values: valuesRow.values)

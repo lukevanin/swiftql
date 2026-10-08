@@ -19,6 +19,27 @@ import Foundation
 
 
 ///
+/// A database that renders its statements with an encoder a declared query
+/// can borrow (issue #113).
+///
+/// Package. `GRDBDatabase` conforms. `XLDeclaredQuery.init(database:...)`
+/// reads the encoder through this protocol rather than through a cast to the
+/// GRDB database type.
+///
+/// `XLDriverDatabase` does not conform yet. A query's identity is its
+/// database's type name, and a generic database's name carries its driver
+/// argument, module and all, so it could change when the driver moves or
+/// is private. Declared queries move to a driver-neutral, non-generic host
+/// in issue #802.
+///
+package protocol XLEncoderProviding {
+
+    /// The encoder the database renders its statements with.
+    var encoder: XLEncoder { get }
+}
+
+
+///
 /// One named parameter of a declared query, as its declaration spells it.
 ///
 /// The generated code passes the parameter's Swift type, so the runtime can
@@ -101,7 +122,7 @@ public struct XLDeclaredQuery {
     ) {
         self.init(
             databaseTypeName: Self.qualifiedTypeName(of: Database.self),
-            optionalEncoder: (database as? GRDBDatabase)?.encoder,
+            optionalEncoder: (database as? any XLEncoderProviding)?.encoder,
             name: name,
             cardinality: cardinality,
             parameters: parameters,

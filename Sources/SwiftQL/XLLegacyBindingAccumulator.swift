@@ -1,10 +1,10 @@
 //
-//  GRDBLegacyBindingAccumulator.swift
+//  XLLegacyBindingAccumulator.swift
 //  SwiftQL
 //
 //  The v1 mutable `set(parameter:value:)` facade, in one place (issue #561).
 //
-//  `GRDBRequest` and `GRDBWriteRequest` carried verbatim-identical copies of
+//  The read and write requests carried verbatim-identical copies of
 //  it -- the two `set` overloads and the `bindValue` that backs them, about
 //  seventy lines including the trap on an unexpected error type. The two
 //  request kinds have nothing else in common, so nothing would have caught the
@@ -22,7 +22,7 @@
 /// is the one that describes what went wrong, and reporting the rest would bury
 /// it.
 ///
-struct GRDBLegacyBindingAccumulator {
+struct XLLegacyBindingAccumulator {
 
     /// The bindings set so far.
     private(set) var bindings: XLInvocationBindings<XLSQLiteValue>

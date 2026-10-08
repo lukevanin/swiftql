@@ -312,7 +312,7 @@ public final class SwiftQLBenchmarkRunner {
             )
         }
 
-        let decoder = GRDBRowDecoder(reader: decodingStatement)
+        let decoder = XLRowDecoder(reader: decodingStatement)
         let decodedFixture = try capturedRows.map { try decoder.decode($0) }
         guard decodedFixture == expectedDecodedRows else {
             throw BenchmarkError.decoding(
@@ -346,7 +346,7 @@ public final class SwiftQLBenchmarkRunner {
 
         let decoding = try BenchmarkSampler(configuration: configuration).measure(
             notes: [
-                "Decodes the complete captured result set through the production GRDBRowAdapter, XLColumnValuesRowReader, and GRDBRowDecoder path.",
+                "Decodes the complete captured result set through the production GRDBRowHandle, XLColumnValuesRowReader, and XLRowDecoder path.",
                 "Includes decoded-output array allocation; captured GRDB rows, SQL execution, semantic verification, checksumming, and result destruction are outside the timestamp.",
             ],
             operation: {
@@ -843,7 +843,7 @@ public final class SwiftQLBenchmarkRunner {
 
             let binding = try BenchmarkSampler(configuration: configuration).measure(
                 notes: [
-                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the connection's cached statement, binds the validated values, and validates GRDB's arguments: the GRDBInvocationExecutor calls that fetchAll() makes.",
+                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the connection's cached statement, binds the validated values, and validates GRDB's arguments: the XLInvocationExecutor calls that fetchAll() makes.",
                     "Runs inside one already-open read access; request construction, rendering, and connection access are excluded.",
                 ],
                 operation: {
@@ -900,7 +900,7 @@ public final class SwiftQLBenchmarkRunner {
 
         let decoding = try BenchmarkSampler(configuration: configuration).measure(
             notes: [
-                "Decodes the complete result, materialized once before sampling, through GRDBRowDecoder.decode(values:), the per-row decode of fetchOne() and live queries; fetchAll() reads each column from the cursor's row handle instead (issue #678).",
+                "Decodes the complete result, materialized once before sampling, through XLRowDecoder.decode(values:), the per-row decode of fetchOne() and live queries; fetchAll() reads each column from the cursor's row handle instead (issue #678).",
                 "Includes decoded-output array allocation; SQL execution and column materialization are excluded.",
             ],
             operation: {
@@ -978,7 +978,7 @@ public final class SwiftQLBenchmarkRunner {
 
             let binding = try BenchmarkSampler(configuration: configuration).measure(
                 notes: [
-                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the writer's cached statement, binds the validated values, and validates GRDB's arguments: the GRDBInvocationExecutor calls that execute() makes.",
+                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the writer's cached statement, binds the validated values, and validates GRDB's arguments: the XLInvocationExecutor calls that execute() makes.",
                     "Runs inside one already-open writer access; request construction, rendering, connection access, and the transaction are excluded.",
                 ],
                 operation: {

@@ -22,7 +22,7 @@ import Foundation
 /// capture, retry, decoding, and buffering (issue #291's bound-1 "newest wins" policy) all come from
 /// the `AsyncThrowingStream` `stream()`/`stream(bindings:)` returns. This type owns only one
 /// consumer `Task` per instance and the main-actor state that `Task` publishes into -- it never calls
-/// `publish()`, never observes GRDB/`DatabasePool`/`NotificationCenter` directly, and never
+/// `publish()`, never observes a driver or `NotificationCenter` directly, and never
 /// reimplements retry, buffering, or binding-capture logic. See <doc:LiveQueries>, "SwiftUI /
 /// Observation (issue #97)", for the full picture alongside the `for try await` and Combine surfaces.
 ///
@@ -40,7 +40,7 @@ import Foundation
 /// ```
 ///
 /// Observation starts immediately on initialization -- exactly like `stream()`'s first `next()` call
-/// starting the underlying GRDB observation as soon as this type's own consumer `Task` begins pulling
+/// starting the driver's underlying observation as soon as this type's own consumer `Task` begins pulling
 /// from it -- and stops deterministically when this instance is deallocated or ``stop()`` is called
 /// explicitly, whichever happens first. Every result and error is applied to ``rows``/``isLoading``/
 /// ``error`` on the main actor, so SwiftUI can read them directly from view code without extra
@@ -88,8 +88,9 @@ public final class XLObservableQuery<Row: Sendable>: @unchecked Sendable {
 
     /// Cancels the underlying observation when this instance is released, exactly like dropping a
     /// Combine `Cancellable`: cancelling the owned consumer `Task` here reaches `stream()`'s own
-    /// `withTaskCancellationHandler`-based cancellation (`GRDBLiveQueryAsyncBridge`), which tears down
-    /// the GRDB observation and any pending retry backoff -- no further fetch happens afterward.
+    /// `withTaskCancellationHandler`-based cancellation (on the GRDB driver, `GRDBLiveQueryAsyncBridge`),
+    /// which tears down the driver's observation and any pending retry backoff -- no further fetch
+    /// happens afterward.
     deinit {
         task?.cancel()
     }

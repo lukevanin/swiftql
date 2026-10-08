@@ -8,11 +8,25 @@
 //
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
+//  The `GRDB` names of the driver-generic request types are declared here too,
+//  with the GRDB adapter, so no driver-generic file names a GRDB type (issue
+//  #113).
+//
 
 import Foundation
 
 
 extension GRDBDatabase: XLDriverRequestFactory {}
+
+
+/// A declared query read from a `GRDBDatabase` renders with its encoder
+/// (issue #113).
+extension GRDBDatabase: XLEncoderProviding {}
+
+
+/// The request factory implies this conformance too; it is stated here so
+/// that a reader of this type sees it (issue #113).
+extension GRDBDatabase: XLValueCodingDatabase {}
 
 
 extension GRDBDatabase {
@@ -62,6 +76,17 @@ extension GRDBDatabase {
     ) throws -> XLPreparedStaticQuery {
         try makePreparedStaticQuery(with: descriptor)
     }
+
+    /// Prepares a typed static query only after its generated row layout has
+    /// been proven equal to the descriptor's complete result metadata.
+    public func prepareInvocation<Row>(
+        with definition: XLTypedStaticQueryDescriptor<
+            Row,
+            XLSQLiteDialect
+        >
+    ) throws -> XLPreparedTypedStaticQuery<Row> {
+        try makePreparedTypedStaticQuery(with: definition)
+    }
     
     public func makeRequest<Row: Sendable>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
         makeReturningRequest(with: statement)
@@ -83,3 +108,44 @@ extension GRDBDatabase {
         makeWriteRequest(with: statement)
     }
 }
+
+
+// MARK: - GRDB names
+
+/// The GRDB specialisation of the read request that ``GRDBDatabase`` makes.
+typealias GRDBRequest<Row: Sendable> = XLDriverRequest<GRDBDatabaseDriver, Row>
+
+
+/// The GRDB specialisation of the write request that ``GRDBDatabase`` makes.
+typealias GRDBWriteRequest = XLDriverWriteRequest<GRDBDatabaseDriver>
+
+
+/// The GRDB specialisation every GRDB-backed path builds on.
+typealias GRDBInvocationExecutor = XLInvocationExecutor<GRDBDatabaseDriver>
+
+
+/// The name this handle had before it stopped naming its driver (issue #682).
+public typealias GRDBPreparedInvocation = XLPreparedInvocation
+
+
+/// The name this handle had before it stopped naming its driver (issue #682).
+public typealias GRDBPreparedStaticQuery = XLPreparedStaticQuery
+
+
+/// The name this handle had before it stopped naming its driver (issue #682).
+public typealias GRDBPreparedTypedStaticQuery<Row> = XLPreparedTypedStaticQuery<Row>
+
+
+/// The name this error had before it stopped naming GRDB (issue #113).
+@available(*, deprecated, renamed: "XLStaticQueryInvocationError")
+public typealias GRDBStaticQueryError = XLStaticQueryInvocationError
+
+
+/// The name this argument had before it stopped naming GRDB (issue #113).
+@available(*, deprecated, renamed: "XLStaticQueryArgument")
+public typealias GRDBStaticQueryArgument = XLStaticQueryArgument
+
+
+/// The name this builder had before it stopped naming GRDB (issue #113).
+@available(*, deprecated, renamed: "XLStaticQueryInvocationBuilder")
+public typealias GRDBStaticQueryInvocationBuilder = XLStaticQueryInvocationBuilder

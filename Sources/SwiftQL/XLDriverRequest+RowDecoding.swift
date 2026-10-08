@@ -1,31 +1,36 @@
 //
-//  GRDBLiveQueryRowDecoding.swift
+//  XLDriverRequest+RowDecoding.swift
 //  SwiftQL
 //
 //  The one concurrency seam between a live-query observation and the v1 row
 //  reader graph (issue #792).
+//
+//  Formerly GRDBLiveQueryRowDecoding.swift. It never used GRDB, and what it
+//  declared on the `GRDBRequest` typealias already applied to every driver's
+//  request (issue #113).
 //
 
 import Foundation
 import SwiftQLCore
 
 
-extension GRDBRequest {
+extension XLDriverRequest {
 
     /// A `@Sendable` function that turns one raw row into a `Row`.
     ///
     /// ## Why this exists
     ///
-    /// GRDB 7 declares an observation's fetch closure `@Sendable`, and
+    /// `XLObservingDatabaseDriver` takes an observation's fetch closure as
+    /// `@Sendable`, as GRDB 7 requires of its own, and
     /// `AsyncThrowingStream`'s `unfolding` closure is `@Sendable` too. Every
     /// value a live query carries must therefore be `Sendable`. Two of the
-    /// three are, and honestly so: ``GRDBInvocationExecutor`` is a `Sendable`
+    /// three are, and honestly so: ``XLInvocationExecutor`` is a `Sendable`
     /// struct, and ``XLLogger`` now states the concurrency safety that SwiftQL
     /// has always needed from it. The third is the row reader.
     ///
     /// The reader arrives as `any XLRowReadable<Row>`, and in practice it is
-    /// the statement itself (see `GRDBDatabase.makeRequest(with:)`). Making
-    /// that type `Sendable` means making the whole statement DSL `Sendable`:
+    /// the statement itself (see `XLDriverRequestFactory.makeQueryRequest(with:)`).
+    /// Making that type `Sendable` means making the whole statement DSL `Sendable`:
     /// `XLEncodable`, `XLColumnDependency`, the statement component structs,
     /// and the mutable `XLNamespace` alias allocator. That is a large public
     /// API change, and it is not this issue's work.
@@ -62,7 +67,7 @@ extension GRDBRequest {
     /// calls it from several reader connections, so this adds no requirement
     /// that was not there. It does change which thread runs the decode.
     func sendableRowDecode() -> @Sendable ([XLSQLiteValue]) throws -> Row {
-        let rowDecoder = GRDBRowDecoder(reader: reader)
+        let rowDecoder = XLRowDecoder(reader: reader)
         return unsafeBitCast(
             rowDecoder.decode(values:) as ([XLSQLiteValue]) throws -> Row,
             to: (@Sendable ([XLSQLiteValue]) throws -> Row).self

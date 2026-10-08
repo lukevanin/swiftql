@@ -10,11 +10,6 @@
 
 import Foundation
 internal import GRDB
-#if canImport(Combine)
-import Combine
-#else
-import OpenCombine
-#endif
 
 
 /// Everything a ``GRDBDatabase`` is configured with beyond the connection pool
@@ -79,7 +74,7 @@ public struct GRDBDatabase: XLDatabase {
     /// Stable identity of the database transport used by this adapter.
     public let driverIdentifier: XLDriverIdentifier
 
-    let driver: GRDBDatabaseDriver
+    package let driver: GRDBDatabaseDriver
 
     /// The database identifier render-once cache entries are keyed by: this
     /// database's own driver identifier, which a transaction scope copies from
@@ -87,7 +82,7 @@ public struct GRDBDatabase: XLDatabase {
     /// one (issue #642).
     let renderCacheIdentifier: XLDatabaseIdentifier
     
-    let logger: XLLogger?
+    package let logger: XLLogger?
 
     /// Opens a GRDB-backed SQLite database.
     ///
@@ -273,7 +268,7 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
     /// -- on a scope, the pinned driver. Rebuilding reuses the rendered SQL,
     /// parameter layout, row reader, and recorded functions, so it renders
     /// nothing.
-    func bindRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
+    package func bindRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
         guard let grdbRequest = request as? GRDBRequest<Row> else {
             assertionFailure("A GRDBDatabase render-once entry must be a GRDBRequest.")
             return request
@@ -294,7 +289,7 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
     /// the pool, the dialect, and the cache identifier the scope copied from
     /// its database -- so it is the database's driver, with the identifier the
     /// root re-entry guard checks.
-    func storableRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
+    package func storableRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
         guard driver.isPinned else {
             return request
         }

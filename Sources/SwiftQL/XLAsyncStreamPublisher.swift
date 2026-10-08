@@ -314,7 +314,7 @@ private final class XLAsyncStreamSubscription<Value: Sendable>: Subscription, @u
         // task, but creating a `Task` and that task's first statement actually running are
         // not atomic: `cancel()` can still land in between. Re-checking here, before calling
         // `makeStream()`, avoids doing real work -- for the production `makeStream` (backed
-        // by `GRDBRequest.stream()`/`streamOne()`), that includes packet validation and
+        // by `XLDriverRequest.stream()`/`streamOne()`), that includes packet validation and
         // bridge construction -- for a subscription already known to be cancelled, rather
         // than only catching it one step later inside `waitForDemandUnit()`.
         guard !isCancelledNow() else {
