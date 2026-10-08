@@ -16,8 +16,8 @@ import Foundation
 /// Failures while preparing or executing a static query.
 ///
 /// Formerly `GRDBStaticQueryError`, which remains as a deprecated typealias
-/// (issue #113). ``XLStaticQueryError`` is a different type: it reports a
-/// descriptor that is invalid before any database is involved.
+/// (issue #113). SwiftQLCore's `XLStaticQueryError` is a different type: it
+/// reports a descriptor that is invalid before any database is involved.
 public enum XLStaticQueryInvocationError: Error, Equatable, Sendable, LocalizedError {
 
     case operationCardinalityMismatch(
