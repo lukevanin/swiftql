@@ -497,8 +497,7 @@ operator:
 - `#row(...)` builds SQLite rows, so its declaration takes
   `any XLSQLiteExpression<C>`.
 - A slot stores its expression erased, as before, so a read of a `Setting`
-  slot returns it wrapped in `XLTypeAffinityExpression`, which is an
-  expression of every dialect.
+  slot returns it as an `XLDialectExpression` of the model's dialect.
 
 ### Type-check time
 
@@ -565,10 +564,8 @@ between the two checkouts, so the sections are compared instead.
 | release `SwiftQL.o`, loaded sections | 1,808,056 bytes | 1,811,352 bytes (+0.2 %) |
 | release `SwiftQL.o`, `__text` | 1,087,744 bytes | 1,090,320 bytes (+0.2 %) |
 
-The library's own code grows only by SwiftQL's own `@SQLResult` models
-(`SQLScalarResult`, `SQLRow2` to `SQLRow6`), whose generated slots now wrap a
-read in `XLTypeAffinityExpression`, and by the conformance of
-`XLLegacyDynamicValueExpression`, which the first version of this change
-added. The review moved the read into the column slots and dropped that
-conformance, which can only shrink the library; the numbers above are from
-before it.
+These numbers are from the first version of this change, whose generated
+slots wrapped a read in `XLTypeAffinityExpression` themselves and which made
+`XLLegacyDynamicValueExpression` an expression of every dialect. The review
+moved the read into the column slots, as one generic accessor, and dropped
+that conformance; neither adds code per model.

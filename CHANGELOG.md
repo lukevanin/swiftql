@@ -612,8 +612,13 @@
     dialect's models are, because their generated members name it.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression as an expression of the model's
-    dialect, wrapped in `XLTypeAffinityExpression`, rather than the erased
+    dialect, an `XLDialectExpression<T, Dialect>`, rather than the erased
     expression itself. Assigning it back does not wrap it again.
+  - `XLLegacyDynamicValueExpression`, the value wrapper behind
+    `_xlLegacyValueExpression(_:)` and the generated `UpdateRequest`, is an
+    expression of no dialect, so it cannot be assigned through a slot. The
+    generated `makeUpdate()` writes it to the column's slot directly. Assign
+    the value itself, or a named binding, instead.
   - `XLNullExpression` is an expression of every dialect, as the other
     expression nodes are, so it can still be assigned to a nullable slot.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**

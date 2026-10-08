@@ -1870,13 +1870,13 @@ final class MetaBuilderTests: XCTestCase {
             )
         )
 
-        // Issue #825: a read returns the stored expression through a node
-        // that is an expression of every dialect, which the slot builds.
+        // Issue #825: a read returns the stored expression as an expression
+        // of the model's dialect, which the slot builds.
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression(in: SwiftQL.XLSQLiteDialect.self)")
         )
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression")
+            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(in: SwiftQL.XLSQLiteDialect.self)")
         )
 
         // The slots carry "was this column assigned at all", so the SET

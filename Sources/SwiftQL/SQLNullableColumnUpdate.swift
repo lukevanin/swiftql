@@ -49,17 +49,18 @@ public struct XLColumnUpdate<Wrapped> {
     }
 
     ///
-    /// The assigned expression, as a node that is an expression of every
-    /// dialect, or `nil` when the column was never assigned.
+    /// The assigned expression, as an expression of `dialect`, or `nil` when
+    /// the column was never assigned.
     ///
     /// A generated `MetaUpdate`'s slot takes only its model's dialect's
     /// expressions (issue #825) and stores the one it is given erased, so a
-    /// read returns it through this node. Assigning the read back stores the
-    /// node itself, and the next read returns it again rather than wrapping
-    /// it a second time. It is not part of the API a caller writes against.
+    /// read returns it as an expression of the model's dialect, which the
+    /// generated code names. Assigning the read back stores that expression,
+    /// and the next read returns it rather than wrapping it a second time.
+    /// It is not part of the API a caller writes against.
     ///
-    public var _xlReadExpression: XLTypeAffinityExpression<Wrapped>? {
-        expression.map(XLTypeAffinityExpression<Wrapped>.reading)
+    public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
+        expression.map(XLDialectExpression<Wrapped, Dialect>.reading)
     }
 }
 
@@ -168,21 +169,21 @@ public struct XLNullableColumnUpdate<Wrapped> {
     }
 
     ///
-    /// ``expression`` as a node that is an expression of every dialect, for a
-    /// generated `MetaUpdate`'s read of the slot (issue #825). See
-    /// ``XLColumnUpdate/_xlReadExpression``.
+    /// ``expression`` as an expression of `dialect`, for a generated
+    /// `MetaUpdate`'s read of the slot (issue #825). See
+    /// ``XLColumnUpdate/_xlReadExpression(in:)``.
     ///
-    public var _xlReadExpression: XLTypeAffinityExpression<Wrapped>? {
-        expression.map(XLTypeAffinityExpression<Wrapped>.reading)
+    public func _xlReadExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Wrapped, Dialect>? {
+        expression.map(XLDialectExpression<Wrapped, Dialect>.reading)
     }
 
     ///
-    /// ``optionalExpression`` as a node that is an expression of every
-    /// dialect, or `NULL` when it is `nil`, for a generated `MetaUpdate`'s read
-    /// of the slot as an optional-typed expression (issue #825).
+    /// ``optionalExpression`` as an expression of `dialect`, or `NULL` when it
+    /// is `nil`, for a generated `MetaUpdate`'s read of the slot as an
+    /// optional-typed expression (issue #825).
     ///
-    public var _xlReadOptionalExpression: XLTypeAffinityExpression<Optional<Wrapped>> {
-        XLTypeAffinityExpression<Optional<Wrapped>>.reading(
+    public func _xlReadOptionalExpression<Dialect>(in dialect: Dialect.Type) -> XLDialectExpression<Optional<Wrapped>, Dialect> {
+        XLDialectExpression<Optional<Wrapped>, Dialect>.reading(
             optionalExpression ?? XLNullExpression<Wrapped>()
         )
     }

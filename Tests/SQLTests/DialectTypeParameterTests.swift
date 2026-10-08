@@ -562,9 +562,14 @@ final class DialectTypeParameterTests: XCTestCase {
         // it again.
         update.name = update.name
         update.name = update.name
-        let reread = try XCTUnwrap(update._xlColumns.name._xlReadExpression)
-        let wrapped = Mirror(reflecting: reread).children.first?.value
-        XCTAssertFalse(wrapped is XLTypeAffinityExpression<String>)
+        let reread = try XCTUnwrap(update._xlColumns.name._xlReadExpression(in: FakeSecondDialect.self))
+        XCTAssertFalse(Mirror(reflecting: reread).children.first?.value is XLDialectExpression<String, FakeSecondDialect>)
+        for _ in 0 ..< 2 {
+            let optional: any FakeSecondDialectExpression<String?> = update.nickname
+            update.nickname = optional
+        }
+        let rereadOptional = update._xlColumns.nickname._xlReadOptionalExpression(in: FakeSecondDialect.self)
+        XCTAssertFalse(Mirror(reflecting: rereadOptional).children.first?.value is XLDialectExpression<String?, FakeSecondDialect>)
         // `XLNullExpression` is a node of every dialect, so it assigns to a
         // nullable slot of either.
         update.nickname = XLNullExpression<String>()

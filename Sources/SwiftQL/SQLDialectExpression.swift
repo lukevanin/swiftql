@@ -33,6 +33,15 @@ public struct XLDialectExpression<T, Dialect>: XLExpression {
         self.wrapped = wrapped
     }
 
+    /// `expression` as an expression of `Dialect`, or `expression` itself
+    /// when it already is one, so a value read from a generated `MetaUpdate`
+    /// slot and assigned back is not wrapped again (issue #825). The slot
+    /// took only `Dialect`'s expressions, so what it stored belongs to
+    /// `Dialect`.
+    static func reading(_ expression: any XLExpression<T>) -> XLDialectExpression<T, Dialect> {
+        expression as? XLDialectExpression<T, Dialect> ?? XLDialectExpression(expression)
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         wrapped.makeSQL(context: &context)
     }

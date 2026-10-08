@@ -437,14 +437,7 @@ public struct XLTypeAffinityExpression<T>: XLExpression {
     public init(expression: any XLExpression) {
         self.expression = expression
     }
-
-    /// `expression` as this node, or `expression` itself when it already is
-    /// one, so a value read from a slot and assigned back is not wrapped
-    /// again (issue #825).
-    static func reading(_ expression: any XLExpression<T>) -> XLTypeAffinityExpression<T> {
-        expression as? XLTypeAffinityExpression<T> ?? XLTypeAffinityExpression(expression: expression)
-    }
-
+    
     public func makeSQL(context: inout XLBuilder) {
         expression.makeSQL(context: &context)
     }
