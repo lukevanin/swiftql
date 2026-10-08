@@ -16,7 +16,10 @@ an application but the type of one or more fields differs.
 
 This example defines a table with one generic parameter. Each generic column
 must satisfy the same `XLLiteral` and `XLExpression` requirements as a concrete
-column type.
+column type. Generic code that passes a value of the generic type to one of
+the model's value slots, such as `MetaInsert(...)`, `columns(...)`, or an
+assignment in `Setting`, also constrains it to ``XLSQLiteExpression``, because
+a SQLite model's slots take SQLite expressions.
 
 <!-- test: XLDocumentationTests.testDocumentationGenericTableParameters -->
 ```swift

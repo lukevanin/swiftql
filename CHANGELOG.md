@@ -610,7 +610,11 @@
     ```
 
     A type of your own passed to a slot conforms to `XLSQLiteExpression`, as
-    it already must to be an operand.
+    it already must to be an operand. So does a generic value: a helper that
+    passes a `V: XLLiteral & XLExpression` value to a slot, to `#row(...)`,
+    or to a `Setting` assignment adds `XLSQLiteExpression` to its constraint.
+    Before: `func insert<V: XLLiteral & XLExpression>(_ value: V) -> GenericTable<V>.MetaInsert where V.T == V`.
+    After: `func insert<V: XLLiteral & XLSQLiteExpression>(_ value: V) -> GenericTable<V>.MetaInsert where V.T == V`.
   - The macros name the dialect's protocol from the model's dialect type, as
     `SwiftQL.XLSQLiteDialect.XLAnyExpression<T>`: each dialect's generated
     surface declares `XLAnyExpression<T>`, a typealias for
@@ -621,7 +625,11 @@
     only for static row layouts (issue #687), declares the typealias itself;
     `extension MyDialect { public typealias XLAnyExpression<T> = any XLExpression<T> }`
     keeps its slots taking any expression, as before. It is `public` when the
-    dialect's models are, because their generated members name it.
+    dialect's models are, because their generated members name it. A
+    hand-written expression protocol includes `XLTypeAffinityExpression`,
+    as a generated one does: a read of a slot returns a value of no dialect
+    inside it, and a model of a dialect whose protocol leaves it out does not
+    compile.
   - Reading a slot in a `Setting` closure, such as `row.name` after it is
     assigned, returns the assigned expression itself, as the model's
     dialect's expression type. A value written to the slot directly, which is
@@ -750,9 +758,11 @@
     template in `scripts/dialect-surface/Templates`.
     `XLSQLiteDialect.XLAnyExpression<T>` is `any XLSQLiteExpression<T>`.
   - `scripts/ci/check-dialect-type-parameter-type-safety.sh` refuses another
-    dialect's expression assigned in `Setting`, passed to `MetaInsert(...)`,
-    and passed to `columns(...)`, and a second dialect's column passed to
-    `#row(...)`.
+    dialect's expression assigned in `Setting` to a column and to a nullable
+    column, passed to `MetaUpdate(...)`, to `MetaInsert(...)`, and to
+    `columns(...)`, and a second dialect's column passed to `#row(...)`. It
+    also refuses a model of a dialect whose hand-written expression protocol
+    does not include `XLTypeAffinityExpression`.
 
 - **A connection's statement cache can be observed and warmed** (issue
   #677). A driver does not have to cache statements; one that does can let
