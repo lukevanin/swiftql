@@ -1896,21 +1896,33 @@ final class MetaBuilderTests: XCTestCase {
 
         // Issue #825: a read casts the stored expression back to the model's
         // dialect's expression type.
-        XCTAssertTrue(
-            source.contains("if let typed = slot._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)")
+        // Each of the three getters casts first; the two wrapped-type ones
+        // read the untyped value when the cast fails.
+        func occurrences(_ text: String) -> Int {
+            source.components(separatedBy: text).count - 1
+        }
+        XCTAssertEqual(
+            occurrences("if let typed = slot._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)"),
+            2
+        )
+        XCTAssertEqual(occurrences("guard let untyped = slot._xlReadUntypedExpression else"), 2)
+        XCTAssertEqual(
+            occurrences("if let typed = slot._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)"),
+            1
+        )
+        // A value of no dialect reads through one generated function whose
+        // coercion the compiler checks against the dialect's expression type.
+        // The getters call it rather than pass it as a value or a closure,
+        // which would capture the model's generic metatypes.
+        XCTAssertEqual(occurrences("return Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression(untyped)"), 2)
+        XCTAssertEqual(
+            occurrences("return Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression(slot._xlReadUntypedOptionalExpression)"),
+            1
         )
         XCTAssertTrue(
-            source.contains("if let typed = slot._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)")
+            source.contains("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
         )
-        // A value of no dialect reads through a coercion the compiler checks
-        // against the dialect's expression type, in statements rather than a
-        // closure, which would capture the model's generic metatypes.
-        XCTAssertTrue(
-            source.contains("return untyped as SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
-        )
-        XCTAssertTrue(
-            source.contains("return slot._xlReadUntypedOptionalExpression as SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>")
-        )
+        XCTAssertTrue(source.contains("return expression as SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>"))
         XCTAssertFalse(source.contains("wrapping:"))
 
         // The slots carry "was this column assigned at all", so the SET

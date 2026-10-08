@@ -567,6 +567,7 @@ between the two checkouts, so the sections are compared instead.
 These numbers are from the first version of this change, whose generated
 slots wrapped a read in `XLTypeAffinityExpression` themselves and which made
 `XLLegacyDynamicValueExpression` an expression of every dialect. The review
-moved the read into the column slots, as one generic accessor that casts the
-stored expression back, and dropped that conformance; neither adds code per
-model.
+moved the cast into the column slots and dropped that conformance, and a
+later fix for a Swift 6.3 warning on Linux made each `MetaUpdate`'s three
+getters a few statements that call one generated conversion function: about
+twenty lines of getter code per model, not measured here.

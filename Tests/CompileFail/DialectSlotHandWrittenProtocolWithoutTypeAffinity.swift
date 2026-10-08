@@ -5,7 +5,7 @@ import SwiftQL
 // generate its surface. A read of a model's `Setting` slot returns a value of
 // no dialect inside an `XLTypeAffinityExpression`, so the protocol must
 // include that node. One that does not is a compile error in the model's
-// expansion, at the generated conversion, under a comment that states the
+// expansion, at the one generated conversion, whose name states the
 // requirement, rather than a read that stops the program or returns `nil`.
 // The error names the node and the protocol.
 // Compiled with Support/DialectParameterisedSupport.swift and

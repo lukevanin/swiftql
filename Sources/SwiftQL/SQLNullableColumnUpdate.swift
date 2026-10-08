@@ -60,10 +60,10 @@ public struct XLColumnUpdate<Wrapped> {
     /// unchanged. A value written to the slot directly, such as the one the
     /// generated `UpdateRequest` writes, is no dialect's expression; the
     /// generated getter then reads ``_xlReadUntypedExpression`` and converts
-    /// it to the dialect's type itself, so a dialect whose expression
-    /// protocol does not include `XLTypeAffinityExpression` is a compile
-    /// error in the model rather than a read that fails. It is not part of
-    /// the API a caller writes against.
+    /// it to the dialect's type with a generated function, so a dialect
+    /// whose expression protocol does not include `XLTypeAffinityExpression`
+    /// is a compile error in the model rather than a read that fails. It is
+    /// not part of the API a caller writes against.
     ///
     public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
         expression as? ExpressionType
@@ -77,11 +77,21 @@ public struct XLColumnUpdate<Wrapped> {
     /// part of the API a caller writes against.
     ///
     public var _xlReadUntypedExpression: XLTypeAffinityExpression<Wrapped>? {
-        guard let expression else {
-            return nil
-        }
-        return XLTypeAffinityExpression<Wrapped>(expression: expression)
+        _xlUntypedSlotRead(expression)
     }
+}
+
+
+///
+/// A slot's expression inside an `XLTypeAffinityExpression`, which records no
+/// dialect, so a run-time dialect check walks into it, or `nil` when the slot
+/// holds none (issue #825). Both column slots' untyped reads return it.
+///
+func _xlUntypedSlotRead<T>(_ expression: (any XLExpression<T>)?) -> XLTypeAffinityExpression<T>? {
+    guard let expression else {
+        return nil
+    }
+    return XLTypeAffinityExpression<T>(expression: expression)
 }
 
 
@@ -211,10 +221,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// ``XLColumnUpdate/_xlReadUntypedExpression``.
     ///
     public var _xlReadUntypedExpression: XLTypeAffinityExpression<Wrapped>? {
-        guard let expression else {
-            return nil
-        }
-        return XLTypeAffinityExpression<Wrapped>(expression: expression)
+        _xlUntypedSlotRead(expression)
     }
 
     ///

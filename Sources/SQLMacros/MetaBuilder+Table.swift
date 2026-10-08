@@ -194,29 +194,20 @@ extension MetaBuilder {
             // expressions. The slot stores the expression erased, so a read
             // casts it back to the dialect's expression type, which the
             // getter names. A value of no dialect, written to the slot
-            // directly, reads inside an `XLTypeAffinityExpression`, which the
-            // getter converts with an `as` coercion: it compiles only when the
-            // dialect's expression protocol includes that node, so a dialect
-            // that does not is a compile error here rather than a read that
-            // fails. The getter is statements, not a closure or a reference
-            // to a static method, because those capture the model's generic
-            // metatypes, which Swift 6.3 warns about (SendableMetatypes). The
-            // coercion is spelled `as` because the compiler's message for a
-            // plain return of the wrong type is "failed to produce
+            // directly, reads inside an `XLTypeAffinityExpression`, which this
+            // function converts with an `as` coercion: it compiles only when
+            // the dialect's expression protocol includes that node, so a
+            // dialect that does not is one compile error here, under a name
+            // that states the requirement, rather than a read that fails.
+            // The coercion is spelled `as` because the compiler's message for
+            // a plain return of the wrong type is "failed to produce
             // diagnostic".
+            context.block("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> \(dialectExpressionType("Wrapped"))") { context in
+                context.line("return expression as \(dialectExpressionType("Wrapped"))")
+            }
 
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
-                context.block("get") { context in
-                    context.line("let slot = _xlColumns[keyPath: keyPath]")
-                    context.block("if let typed = slot._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)") { context in
-                        context.line("return typed")
-                    }
-                    context.line("// The dialect's expression protocol must include XLTypeAffinityExpression (issue #825).")
-                    context.block("guard let untyped = slot._xlReadUntypedExpression else") { context in
-                        context.line("return nil")
-                    }
-                    context.line("return untyped as \(dialectExpressionType("Wrapped"))")
-                }
+                emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
                 }
@@ -226,17 +217,7 @@ extension MetaBuilder {
             // means SQL NULL. Leaving the column out of the statement is what
             // never assigning it does.
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
-                context.block("get") { context in
-                    context.line("let slot = _xlColumns[keyPath: keyPath]")
-                    context.block("if let typed = slot._xlReadExpression(as: \(dialectExpressionType("Wrapped")).self)") { context in
-                        context.line("return typed")
-                    }
-                    context.line("// The dialect's expression protocol must include XLTypeAffinityExpression (issue #825).")
-                    context.block("guard let untyped = slot._xlReadUntypedExpression else") { context in
-                        context.line("return nil")
-                    }
-                    context.line("return untyped as \(dialectExpressionType("Wrapped"))")
-                }
+                emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
                 }
@@ -248,14 +229,7 @@ extension MetaBuilder {
             // is `Wrapped?` only matches this overload, so it still applies.
             context.line("@_disfavoredOverload")
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
-                context.block("get") { context in
-                    context.line("let slot = _xlColumns[keyPath: keyPath]")
-                    context.block("if let typed = slot._xlReadOptionalExpression(as: \(dialectExpressionType("Optional<Wrapped>")).self)") { context in
-                        context.line("return typed")
-                    }
-                    context.line("// The dialect's expression protocol must include XLTypeAffinityExpression (issue #825).")
-                    context.line("return slot._xlReadUntypedOptionalExpression as \(dialectExpressionType("Optional<Wrapped>"))")
-                }
+                emitSlotRead(read: "_xlReadOptionalExpression", untyped: "_xlReadUntypedOptionalExpression", valueType: "Optional<Wrapped>", isOptional: true, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")
                 }
@@ -385,6 +359,43 @@ extension MetaBuilder {
         }
     }
     
+    ///
+    /// Emits a `MetaUpdate` subscript's getter (issue #825): the stored
+    /// expression cast back to the dialect's expression type, or, for a value
+    /// of no dialect, that value inside an `XLTypeAffinityExpression`,
+    /// converted by the generated `_xlDialectExpressionMustInclude...`
+    /// function.
+    ///
+    /// The getter is statements that call the conversion. A closure, or a
+    /// reference to the static function as a value, captures a generic
+    /// model's metatypes, which Swift 6.3 warns about on Linux
+    /// (SendableMetatypes) and the warnings gate refuses.
+    ///
+    private func emitSlotRead(
+        read: String,
+        untyped: String,
+        valueType: String,
+        isOptional: Bool,
+        into context: inout CodeWriter
+    ) {
+        let conversion = "Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression"
+        context.block("get") { context in
+            context.line("let slot = _xlColumns[keyPath: keyPath]")
+            context.block("if let typed = slot.\(read)(as: \(dialectExpressionType(valueType)).self)") { context in
+                context.line("return typed")
+            }
+            if isOptional {
+                context.line("return \(conversion)(slot.\(untyped))")
+            }
+            else {
+                context.block("guard let untyped = slot.\(untyped) else") { context in
+                    context.line("return nil")
+                }
+                context.line("return \(conversion)(untyped)")
+            }
+        }
+    }
+
     private func makeCreate(context: inout CodeWriter) {
         
         context.block("public struct MetaCreate: XLMetaCreate") { context in
