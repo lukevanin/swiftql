@@ -1897,16 +1897,21 @@ final class MetaBuilderTests: XCTestCase {
         // Issue #825: a read casts the stored expression back to the model's
         // dialect's expression type.
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
+            source.contains("if let typed = slot._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)")
         )
         XCTAssertTrue(
-            source.contains("_xlColumns[keyPath: keyPath]._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self, wrapping: Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression)")
+            source.contains("if let typed = slot._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)")
         )
-        // A value of no dialect reads through a conversion the compiler
-        // checks against the dialect's expression type.
+        // A value of no dialect reads through a coercion the compiler checks
+        // against the dialect's expression type, in statements rather than a
+        // closure, which would capture the model's generic metatypes.
         XCTAssertTrue(
-            source.contains("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
+            source.contains("return untyped as SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
         )
+        XCTAssertTrue(
+            source.contains("return slot._xlReadUntypedOptionalExpression as SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>")
+        )
+        XCTAssertFalse(source.contains("wrapping:"))
 
         // The slots carry "was this column assigned at all", so the SET
         // clause reads them rather than a stored property.

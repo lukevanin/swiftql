@@ -316,10 +316,10 @@ for fixture in "${expansion_refusal_fixtures[@]}"; do
         cat "$diagnostic_log" >&2
         exit 1
     fi
-    # The error is at the generated conversion whose name states the
-    # requirement, which the compiler shows with the error.
+    # The error is at the generated conversion, under the comment that states
+    # the requirement, which the compiler shows with the error.
     if ! printf '%s\n' "$plain_log" |
-        grep -Fq 'private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression'; then
+        grep -Fq "// The dialect's expression protocol must include XLTypeAffinityExpression"; then
         printf 'error: refusal is not at the generated conversion: %s\n' "$fixture" >&2
         cat "$diagnostic_log" >&2
         exit 1
