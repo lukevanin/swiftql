@@ -662,7 +662,75 @@
   - A connection that already declared a method with this signature now
     provides the requirement, and SwiftQL calls it.
 
+- **The query surface, the runtime, and SQLite's surface are modules of
+  their own** (issue #790). `SwiftQLQuery` holds the dialect-neutral query
+  surface, `SwiftQLRuntime` the driver-neutral runtime contracts with their
+  Combine, async, and SwiftUI bridges, and `SwiftQLSQLite` SQLite's surface,
+  the macros, and the request runtime for any SQLite driver. `SwiftQL` keeps
+  the GRDB driver and re-exports `SwiftQLSQLite`, which re-exports the other
+  two, so **`import SwiftQL` keeps working unchanged**.
+  - Three new products, `SwiftQLQuery`, `SwiftQLRuntime`, and
+    `SwiftQLSQLite`. A model or query file can import `SwiftQLSQLite` alone,
+    and does not see GRDB. An app that uses SQLite without GRDB depends on
+    the `SwiftQLSQLite` product alone. A file that declares queries with
+    `@SQLQuery` or `@SQLQueries` on `GRDBDatabase` still imports `SwiftQL`,
+    where `GRDBDatabase` lives.
+  - The model macros without a `dialect:` argument, `@SQLFunction`, `#row`,
+    and `@SQLQuery`, `@SQLQueries`, and `@SQLBindings` are declared in
+    `SwiftQLSQLite`. A file that imports `SwiftQLQuery` alone, as a dialect
+    author's does, writes `@SQLTable(dialect:)` and `@SQLResult(dialect:)`,
+    and cannot reach SQLite's own operations, such as `collate`,
+    `Insert(_:or:)`, and `iif`.
+  - `XLEnum` and `XLCustomType` are now typealiases: SQLite's compositions of
+    the dialect-neutral requirements, `XLEnumRepresentable` and
+    `XLCustomValue`, with `XLSQLiteExpression`. `enum Kind: Int, XLEnum`, a
+    `T: XLEnum` constraint, and `any XLEnum` compile as before. Code that
+    writes `extension XLEnum` extends `XLEnumRepresentable` instead, because
+    a composition cannot be extended. Every dialect's generated surface
+    declares `XL<Dialect>Enum` and `XL<Dialect>CustomType`, such as
+    `XLSQLiteEnum`, so a type used in several dialects conforms to each
+    one's composition, or to a typealias of your own that composes them.
+  - `@testable import SwiftQL` no longer reaches the internals of a moved
+    declaration. Add `@testable import SwiftQLQuery`, `SwiftQLRuntime`, or
+    `SwiftQLSQLite` for the module that declares it, and depend on that
+    module directly.
+  - The documentation of a moved symbol has a new URL, under
+    `/documentation/swiftqlquery/`, `/documentation/swiftqlruntime/`, or
+    `/documentation/swiftqlsqlite/`. The site now holds every module, and the
+    landing page and the articles keep their paths under
+    `/documentation/swiftql/`. Old deep links to moved symbols break.
+  - A name you qualify with `SwiftQL`, such as `SwiftQL.XLSQLiteDialect`,
+    keeps resolving through the re-exports. Qualify with the declaring module
+    only in a file that does not import `SwiftQL`.
+  - The macros' expansions qualify names with the module that declares them,
+    `SwiftQLQuery`, `SwiftQLCore`, or `SwiftQLSQLite`, rather than with
+    `SwiftQL`, and the declared-query macros now qualify their default
+    dialect as `SwiftQLSQLite.XLSQLiteDialect`. A file that declares a type
+    with one of those module names cannot expand the macros, as one that
+    declared a type named `SwiftQL` could not before.
+  - A dialect surface generated outside the package imports `SwiftQLQuery`,
+    or `SwiftQL`, with `@_spi(XLDialectSurface)`. In `dialects.json`, write
+    `"imports": ["SwiftQLQuery"]` for a dialect that should not depend on
+    SQLite.
+  - The declared-query registry plugin adds `import SwiftQLSQLite`, rather
+    than `import SwiftQL`, when no scanned file imports either module, and
+    it finds an attribute written `@SwiftQLSQLite.SQLQuery`.
+
 ### Added
+
+- **A product for each layer of SwiftQL** (issue #790). See "The query
+  surface, the runtime, and SQLite's surface are modules of their own" under
+  "Migration".
+  - `SwiftQLQuery`, for a dialect author: the query surface, the model macros
+    that name their dialect, and `@SQLCodec`, with no dialect's operations.
+  - `SwiftQLRuntime`, for a driver author: `XLDatabase`, the requests, result
+    sets, transactions, and the render-once cache, and their Combine, async,
+    and SwiftUI bridges.
+  - `SwiftQLSQLite`, for models and queries: SQLite's surface, the macros,
+    and the request runtime for any SQLite driver, with no GRDB.
+  - `XLEnumRepresentable` and `XLCustomValue`, the dialect-neutral
+    requirements of an enum and of a custom type, and each dialect's
+    compositions of them, `XL<Dialect>Enum` and `XL<Dialect>CustomType`.
 
 - **Rows decode from the cursor's row** (issue #678). A connection lends
   each result row as a row handle, and SwiftQL decodes it by reading the
@@ -684,9 +752,9 @@
     `XLPreparedTypedStaticQuery`, still read rows as values.
   - A driver outside SwiftQL that implements `withRowHandleStepper(_:_:)`
     backs a lazily stepped `XLResultSet` through `XLDriverDatabase`, with
-    SwiftQL's public API alone. `XLResultSet.init(stepper:)` stays internal;
-    a request conformer that builds a result set from its own cursor is
-    issue #458.
+    SwiftQL's public API alone. `XLResultSet.init(stepper:)` stays out of the
+    public API; a request conformer that builds a result set from its own
+    cursor is issue #458.
 
 - **The macro output carries the dialect as a parameter** (issue #687). The
   code the macros generate no longer names SQLite, so a model declared once
@@ -720,7 +788,7 @@
     start a query in it.
   - Each dialect's operators and functions are generated from one set of
     templates by `scripts/dialect-surface/generate.py`, into a directory of
-    the dialect's own: SQLite's is `Sources/SwiftQL/Dialects/SQLite/Generated`.
+    the dialect's own: SQLite's is `Sources/SwiftQLSQLite/Generated`.
     `dialects.json` lists the dialects, and CI fails when the checked-in
     output differs from what the templates generate. A function only one
     dialect has is written by hand, on that dialect's expression protocol.

@@ -28,8 +28,19 @@ have separate responsibilities:
   values, logical statements, immutable parameter layouts and invocation
   packets, static query descriptors, and database drivers. It is intended for
   adapter packages and does not provide a usable SQLite connection by itself.
-- `SwiftQL` is the application-facing library. It includes `SwiftQLCore`, the
-  macros and typed SQL DSL, contextual value codecs, and the current
+- `SwiftQLQuery` (v2.0, issue #790) is the dialect-neutral query surface:
+  expressions, columns, schemas, statements and clause builders, the renderer,
+  static row layouts, and the model macros that name their dialect. It is for
+  a dialect author, and holds no dialect's operations and no runtime.
+- `SwiftQLRuntime` (v2.0) holds the driver-neutral runtime contracts, such as
+  `XLDatabase` and `XLRequest`, and their Combine/OpenCombine, async, and
+  SwiftUI bridges. It is for a driver author.
+- `SwiftQLSQLite` (v2.0) is SQLite's surface, the macros, the contextual value
+  codecs, and the request runtime for any SQLite driver, with no GRDB. Model
+  and query files can import it alone. It re-exports `SwiftQLQuery` and
+  `SwiftQLRuntime`, which re-export `SwiftQLCore`.
+- `SwiftQL` is the application-facing library. It re-exports `SwiftQLSQLite`,
+  so `import SwiftQL` keeps everything a v1 file used, and adds the current
   GRDB-backed SQLite driver.
 - `SwiftQLSQLiteBuildValidationManifest` and
   `SwiftQLSQLiteBuildValidationValidator` are the build-time query validator's
@@ -79,7 +90,7 @@ resolved version. GRDB 7 also stops re-exporting the SQLite C module from
 `import GRDB`, so every target that calls a `sqlite3_*` function declares the
 `GRDBSQLite` product and imports the module. GRDB 7 requires `Sendable`
 observation and function closures as well, which SwiftQL satisfies rather than
-suppresses: see `Sources/SwiftQL/XLDriverRequest+RowDecoding.swift` for the one
+suppresses: see `Sources/SwiftQLSQLite/XLDriverRequest+RowDecoding.swift` for the one
 remaining seam and why it is there. The measured break list is in
 [Research/GRDB7Evaluation.md](Research/GRDB7Evaluation.md).
 
@@ -333,7 +344,7 @@ the decode boundary to avoid returning the multi-generic-parameter type
 directly from `pool.read`, `withTransaction`, `ValueObservation`, or a Combine
 operator closure — every one of those crossings independently triggered the
 same crash. Swift 6.1 (Xcode 16.4) fixes it. See
-`Sources/SwiftQL/SQLRowMacro.swift` and `Sources/SwiftQL/SQLRowResult.swift`.
+`Sources/SwiftQLSQLite/SQLRowMacro.swift` and `Sources/SwiftQLSQLite/SQLRowResult.swift`.
 
 **`sql { ... }` as a subquery** (issue #69) sits behind the same
 `#if compiler(>=6.1)`, now always true. The six `@_disfavoredOverload`
@@ -347,7 +358,7 @@ shipped once as pull request #416 and was reverted in #408 for this. Swift 6.1
 fixes it, so every subquery may now be spelled either way;
 `subqueryExpression { ... }` remains and is what the gated overloads forward
 to unchanged. See
-`Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift`.
+`Sources/SwiftQLSQLite/Expression Builder/SQLQueryExpressionBuilder+SQLite.swift`.
 
 **The generated `Sendable` conformance.** `@SQLTable` and `@SQLResult` declare
 it for a `public` or `package` model (issue #531) behind
@@ -628,7 +639,11 @@ The pinned Swift 6.1 support point also builds and runs
 package. The fixture depends on the repository root through SwiftPM, imports
 only the public `SwiftQL` product, expands representative `@SQLTable` and
 `@SQLResult` macros, constructs a typed query, binds a named value, and executes
-the query against a temporary SQLite database.
+the query against a temporary SQLite database. A second executable target
+depends on the `SwiftQLSQLite` product alone, with no GRDB, expands the
+dialect-less model macros, and renders a query with SQLite's operators, so the
+macros' expansions are checked from outside the package with
+`import SwiftQLSQLite` alone (issue #790).
 
 The fixture's manifest explicitly selects Swift 5 language mode. Compile-time
 guards fail if it is built by a pre-Swift-6 compiler or if a Swift 6 compiler
