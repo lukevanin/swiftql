@@ -85,7 +85,7 @@ public struct XLColumnUpdate<Wrapped> {
 ///
 /// A slot's expression inside an `XLTypeAffinityExpression`, which records no
 /// dialect, so a run-time dialect check walks into it, or `nil` when the slot
-/// holds none (issue #825). Both column slots' untyped reads return it.
+/// holds none (issue #825). The non-nullable slot's untyped read returns it.
 ///
 func _xlUntypedSlotRead<T>(_ expression: (any XLExpression<T>)?) -> XLTypeAffinityExpression<T>? {
     guard let expression else {

@@ -673,7 +673,11 @@
     `XCTAssertNil(update.nickname)`, now reads the optional-typed
     expression or does not compile. Before:
     `XCTAssertNil(update.nickname)` for a column assigned `NULL`. After:
-    `XCTAssertTrue(update.nickname is XLNullExpression<String>)`.
+    `XCTAssertTrue(update.nickname is XLNullExpression<String>)`. The read
+    is never `nil`, so code that tested whether a nullable column was
+    assigned by comparing its read with `nil`, as in
+    `if row.nickname == nil`, no longer can. Track it in a variable of
+    your own instead.
   - The read of a nullable column the closure never assigned stands for
     the column's current value. Assigned to a nullable column's slot, it
     sets that column to this one: `row.nickname = row.nickname` renders
