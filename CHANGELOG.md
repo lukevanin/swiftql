@@ -635,11 +635,8 @@
     assigned, returns the assigned expression itself, as the model's
     dialect's expression type. A value written to the slot directly, which is
     no dialect's expression, reads wrapped in `XLTypeAffinityExpression`, and
-    assigning a read back does not wrap it again. As before, a nullable
-    column assigned an optional-typed expression reads as `nil` through the
-    wrapped-type overload Swift prefers, so `row.nickname = row.nickname`
-    sets it to `NULL`; read it as `let n: any XLSQLiteExpression<String?> =
-    row.nickname` to copy it.
+    assigning a read back does not wrap it again. A nullable column is read
+    only as an optional-typed expression; see the next entry (issue #828).
   - A model's dialect is a concrete dialect type. A model whose `dialect:`
     argument names one of its own generic parameters, which compiled before,
     is reported by the macro: its value slots cannot name a generic
@@ -651,6 +648,63 @@
     the value itself, or a named binding, instead.
   - `XLNullExpression` is an expression of every dialect, as the other
     expression nodes are, so it can still be assigned to a nullable slot.
+- **A nullable column's `Setting` slot is read only as an optional-typed
+  expression** (issue #828). In `Setting { row in ... }` (and so in
+  `set(_:)` and `onConflict(_:doUpdate:)`), `row.nickname` for a column
+  declared `String?` is an `any XLSQLiteExpression<String?>`, the value the
+  closure assigned, whichever way it was assigned. Before, Swift preferred
+  the overload that reads it as an `(any XLSQLiteExpression<String>)?`,
+  which was `nil` for a column assigned `NULL`, an optional-typed
+  expression, or nothing, so `row.nickname = row.nickname` set the column to
+  `NULL`. Now it keeps the value; see "Fixed".
+  - A read of a nullable column used where the value cannot be `NULL` is a
+    compile error: assigned to a column that is not optional, passed to a
+    non-optional argument of the generated `MetaUpdate(...)` or
+    `MetaInsert(...)`, or force-unwrapped. The error is "getter for
+    'subscript(dynamicMember:)' is unavailable: a nullable column can be
+    NULL, so it is read only as an optional-typed expression". Before, such a
+    read was `nil` for a column holding an optional-typed value, so the
+    column it was assigned to was silently left out of the statement. To
+    copy a nullable value into a column that is not optional, give it a
+    default from the table's column, as in
+    `row.name = person.nickname.coalesce("")`, not from the read.
+  - Code that read a nullable slot as the wrapped type, such as
+    `let n: (any XLSQLiteExpression<String>)? = row.nickname` or
+    `XCTAssertNil(update.nickname)`, now reads the optional-typed
+    expression or does not compile. Before:
+    `XCTAssertNil(update.nickname)` for a column assigned `NULL`. After:
+    `XCTAssertTrue(update.nickname is XLNullExpression<String>)`. The read
+    is never `nil`, so code that tested whether a nullable column was
+    assigned by comparing its read with `nil`, as in
+    `if row.nickname == nil`, no longer can. Track it in a variable of
+    your own instead.
+  - The read of a nullable column the closure never assigned stands for
+    the column's current value. Assigned to a nullable column's slot, it
+    sets that column to this one: `row.nickname = row.nickname` renders
+    `SET "nickname" = "nickname"`, and `row.alias = row.nickname` renders
+    `SET "alias" = "nickname"`, copying the stored value. Before, the
+    preferred read was `nil`, so each set the column to `NULL`. The name is
+    unqualified, which is the row's current value in the `SET` clause of an
+    `UPDATE` and of an upsert's `DO UPDATE`. In an `UPDATE ... FROM` whose
+    source has a column of the same name it is ambiguous, and SQLite
+    refuses the statement; assign the target's column, such as
+    `person.nickname`, instead. Used anywhere else, such as inside a
+    composed expression (`row.nickname.coalesce("none")`), in a subquery,
+    or as a value of `MetaInsert(...)`, the read renders `NULL`, as before,
+    because an unqualified name there could resolve to another table's
+    column or, in SQLite, read as a string. So does a read of another
+    model's `MetaUpdate`, whose column name would be this table's. Compose
+    the target's column (`person.nickname.coalesce("none")`) instead, not
+    the read (`row.nickname.coalesce("none")`, which is
+    `COALESCE(NULL, 'none')` for a column never assigned). The generated
+    `MetaUpdate.Columns` creates each nullable slot with its column's name
+    and its model, through the new
+    `XLNullableColumnUpdate.init(_xlColumn:of:)`; a slot created with
+    `init()` has no name, and its unassigned read is `NULL`, as before. A non-nullable column's slot is unchanged: its unassigned read
+    is `nil`, so assigning it to a nullable column still sets that column to
+    `NULL`.
+  - Assigning a value of type `Wrapped?`, such as a `String?` variable, now
+    resolves to the optional-typed overload. The SQL is the same.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
   (issue #677), so a connection outside SwiftQL keeps compiling. See "A
   connection's statement cache can be observed and warmed" under "Added".
@@ -763,7 +817,11 @@
     column, passed to `MetaUpdate(...)`, to `MetaInsert(...)`, and to
     `columns(...)`, and a second dialect's column passed to `#row(...)`. It
     also refuses a model of a dialect whose hand-written expression protocol
-    does not include `XLTypeAffinityExpression`.
+    does not include `XLTypeAffinityExpression`, and (issue #828) a nullable
+    column's read, plain or force-unwrapped, where a value cannot be `NULL`:
+    assigned to a non-optional column in `Setting`, `set(_:)`, and
+    `onConflict(_:doUpdate:)`, and passed to a non-optional argument of
+    `MetaUpdate(...)` and `MetaInsert(...)`.
 
 - **A connection's statement cache can be observed and warmed** (issue
   #677). A driver does not have to cache statements; one that does can let
@@ -864,6 +922,17 @@
 
 ### Fixed
 
+- **`row.nickname = row.nickname` keeps a nullable column's value** (issue
+  #828). In a `Setting` closure, `set(_:)`, or `onConflict(_:doUpdate:)`,
+  reading a nullable column and assigning it back set the column to `NULL`
+  unless it had been assigned a value of the wrapped type: a column never
+  assigned, assigned `NULL`, or assigned an optional-typed expression such as
+  another nullable column. The read is now the value assigned, and a column
+  never assigned, assigned to a nullable column, sets it to that column's
+  current value, so the stored value is kept, and `row.alias = row.nickname`
+  copies it instead of setting `NULL`.
+  See the Migration entry "A nullable column's `Setting` slot is read only as
+  an optional-typed expression".
 - **A transaction scope used from another thread or queue throws instead of
   stopping the process** (issues #696 and #816). On 1.9 GRDB stopped the
   process with "Database was not used on the correct thread" when a

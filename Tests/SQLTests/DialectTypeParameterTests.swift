@@ -587,18 +587,20 @@ final class DialectTypeParameterTests: XCTestCase {
     func testAReadOfANullableSlotKeepsItsOptionalType() throws {
         var update = DialectSecondPerson.MetaUpdate()
         update.nickname = XLNullExpression<String>()
-        // `NULL` reads as `nil`, not as a non-optional expression.
-        XCTAssertNil(update.nickname)
+        // A nullable column is read only as an optional-typed expression
+        // (issue #828), so `NULL` reads as `NULL`, not as `nil` or as a
+        // non-optional expression.
+        XCTAssertTrue(update.nickname is XLNullExpression<String>)
         let statement = sql(dialect: FakeSecondDialect.self) { schema in
             let person = schema.into(DialectSecondPerson.self)
             Update(person)
             Setting<DialectSecondPerson> { row in
                 row.nickname = person.nickname
-                // An optional-typed assignment is not a wrapped-type
-                // expression, so it reads as one only through the
-                // optional-typed overload, which copies it.
+                // An optional-typed assignment reads as itself, so assigning
+                // the read back copies it.
                 let nickname: any FakeSecondDialectExpression<String?> = row.nickname
                 row.nickname = nickname
+                row.nickname = row.nickname
             }
         }
         XCTAssertEqual(
@@ -644,9 +646,9 @@ final class DialectTypeParameterTests: XCTestCase {
         // without `XLTypeAffinityExpression`, and with it every read returns
         // the value the slot holds.
         var update = DialectHandWrittenPerson.MetaUpdate()
-        // A nullable column never assigned reads as `NULL` through its
-        // optional-typed overload, although the protocol has no
-        // `XLNullExpression`.
+        // A nullable column never assigned reads, although the protocol has
+        // no `XLNullExpression`, as the column itself, so assigning the read
+        // back keeps the stored value (issue #828).
         let unassigned: any HandWrittenExpression<String?> = update.nickname
         update.nickname = unassigned
         // A value written to the slot directly, as `UpdateRequest` writes
@@ -656,11 +658,10 @@ final class DialectTypeParameterTests: XCTestCase {
         update.id = update.id
         XCTAssertEqual(
             try handWrittenSQL(Setting<DialectHandWrittenPerson>(update)),
-            #"SET "id" = 7,"nickname" = NULL"#
+            #"SET "id" = 7,"nickname" = "nickname""#
         )
-        // A nullable column's slot, written directly, reads back through
-        // either overload, and the optional-typed read of a column assigned
-        // through the wrapped-type overload copies it.
+        // A nullable column's slot, written directly, reads back as an
+        // optional-typed expression and assigns back without losing it.
         var nullable = DialectHandWrittenPerson.MetaUpdate()
         nullable._xlColumns.nickname.expression = _xlLegacyValueExpression("x")
         nullable.nickname = nullable.nickname

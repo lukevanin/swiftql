@@ -432,7 +432,9 @@ public struct XLTypeCastExpression<T>: XLExpression {
 ///
 public struct XLTypeAffinityExpression<T>: XLExpression {
     
-    private let expression: any XLExpression
+    /// The expression this one renders. Internal so that a nullable column's
+    /// slot can find the read of a column never assigned (issue #828).
+    let expression: any XLExpression
     
     public init(expression: any XLExpression) {
         self.expression = expression
