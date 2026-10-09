@@ -51,11 +51,26 @@ main() {
         --package-path "$fixture_root" \
         --scratch-path "$scratch_path" \
         --force-resolved-versions \
-        -v 2>&1 | tee "$output_log"
+        -v SwiftQLSwift5Client 2>&1 | tee "$output_log"
 
     marker_count="$(grep -c '^SWIFTQL_DOWNSTREAM_SWIFT5_CLIENT ok$' "$output_log" || true)"
     if [[ "$marker_count" -ne 1 ]]; then
         printf 'error: expected one downstream client success marker; found %s\n' \
+            "$marker_count" >&2
+        return 1
+    fi
+
+    # Issue #790: the client of the SwiftQLSQLite product alone. Its log is
+    # appended, so the one output log holds both runs.
+    xcrun swift run \
+        --package-path "$fixture_root" \
+        --scratch-path "$scratch_path" \
+        --force-resolved-versions \
+        -v SwiftQLSwift5SQLiteClient 2>&1 | tee -a "$output_log"
+
+    marker_count="$(grep -c '^SWIFTQL_DOWNSTREAM_SWIFT5_SQLITE_CLIENT ok$' "$output_log" || true)"
+    if [[ "$marker_count" -ne 1 ]]; then
+        printf 'error: expected one SQLite-only downstream client success marker; found %s\n' \
             "$marker_count" >&2
         return 1
     fi

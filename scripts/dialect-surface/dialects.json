@@ -28,6 +28,15 @@
             "imports": ["SwiftQL"],
             "access": "internal",
             "disfavored": true
+        },
+        {
+            "DialectName": "the query-only compile-fail dialect",
+            "Dialect": "QueryOnlyDialect",
+            "Expression": "QueryOnlyDialectExpression",
+            "filePrefix": "QueryOnlyDialect",
+            "output": "Tests/CompileFail/Support/Generated/QueryOnlyDialect",
+            "imports": ["SwiftQLQuery"],
+            "access": "internal"
         }
     ]
 }
