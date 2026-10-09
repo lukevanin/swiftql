@@ -33,6 +33,16 @@ struct SlotRoundTripPet: Equatable {
 }
 
 
+/// A model with a nullable column of a type whose storage form differs from
+/// its expression form: `Date` is stored as text and read through
+/// `julianday`, and written back through `strftime` (SQLExampleTests.swift).
+@SQLTable(name: "SlotRoundTripEvent")
+struct SlotRoundTripEvent: Equatable {
+    let id: String
+    let at: Date?
+}
+
+
 final class XLNullableSlotRoundTripTests: XCTestCase {
 
     var databasePool: DatabasePool!
@@ -122,6 +132,36 @@ final class XLNullableSlotRoundTripTests: XCTestCase {
             row.nickname = row.nickname
         }
         XCTAssertEqual(try allRows().map(\.nickname), ["A", nil])
+    }
+
+    func testAnUnassignedColumnOfACustomTypeKeepsItsStoredValue() throws {
+        try database.makeRequest(with: sqlCreate(SlotRoundTripEvent.self)).execute()
+        let date = Date(timeIntervalSince1970: 1_700_000_000.25)
+        try database.makeRequest(with: sqlInsert(SlotRoundTripEvent(id: "a", at: date))).execute()
+        try database.makeRequest(with: sqlInsert(SlotRoundTripEvent(id: "b", at: nil))).execute()
+        let statement = sql { schema in
+            let event = schema.into(SlotRoundTripEvent.self)
+            Update(event)
+            Setting<SlotRoundTripEvent> { row in
+                row.at = row.at
+            }
+        }
+        // The column is read through `julianday`, as a column reference is,
+        // so `strftime` writes back the text it was.
+        XCTAssertEqual(
+            try encode(statement),
+            #"UPDATE "SlotRoundTripEvent" AS "t0" SET "at" = strftime('%Y-%m-%dT%H:%M:%f', julianday("at"))"#
+        )
+        let before: [String?] = try databasePool.read { db in
+            try String?.fetchAll(db, sql: "SELECT at FROM SlotRoundTripEvent ORDER BY id")
+        }
+        try database.makeRequest(with: statement).execute()
+        let after: [String?] = try databasePool.read { db in
+            try String?.fetchAll(db, sql: "SELECT at FROM SlotRoundTripEvent ORDER BY id")
+        }
+        XCTAssertEqual(after, before)
+        XCTAssertNotNil(after.first ?? nil)
+        XCTAssertNil(after.last ?? nil)
     }
 
     func testAnUnassignedReadOfAnotherModelIsNull() throws {

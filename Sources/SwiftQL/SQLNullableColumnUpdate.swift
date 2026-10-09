@@ -142,6 +142,11 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// carries (issue #828), or `nil` for a slot created with ``init()``.
     private let column: XLSlotColumn?
 
+    /// The column of this slot's model whose read, of the column never
+    /// assigned, was assigned to this slot, found when it was assigned
+    /// (issue #828), or `nil`.
+    private var copiedColumn: XLName?
+
     /// Creates a slot that leaves the column out of the `SET` clause.
     public init() {
         self.init(column: nil)
@@ -164,6 +169,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
         self.storedExpression = nil
         self.isAssigned = false
         self.column = column
+        self.copiedColumn = nil
     }
 
     /// The expression assigned to the column, as an expression of the
@@ -195,6 +201,7 @@ public struct XLNullableColumnUpdate<Wrapped> {
             else {
                 storedExpression = nil
             }
+            copiedColumn = nil
             isAssigned = true
         }
     }
@@ -211,6 +218,13 @@ public struct XLNullableColumnUpdate<Wrapped> {
         set {
             wrappedExpression = nil
             storedExpression = newValue
+            copiedColumn = nil
+            if let newValue,
+               let read = XLUnassignedColumnRead<Wrapped>.read(in: newValue),
+               let column,
+               read.column.model == column.model {
+                copiedColumn = read.column.name
+            }
             isAssigned = true
         }
     }
@@ -229,15 +243,10 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// did before, because the name would be this table's column.
     ///
     public var _xlAssignedExpression: (any XLExpression<Optional<Wrapped>>)? {
-        guard let value = assignedValue else {
-            return nil
+        if let copiedColumn {
+            return XLUnqualifiedColumnName<Optional<Wrapped>>(name: copiedColumn)
         }
-        if let read = XLUnassignedColumnRead<Wrapped>.read(in: value),
-           let column,
-           read.column.model == column.model {
-            return XLUnqualifiedColumnName<Optional<Wrapped>>(name: read.column.name)
-        }
-        return value
+        return assignedValue
     }
 
     /// The value assigned, `NULL` when that is `nil`, or `nil` when the
@@ -280,17 +289,10 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// column never assigned reads as `NULL`.
     ///
     public var _xlReadUntypedOptionalExpression: XLTypeAffinityExpression<Optional<Wrapped>> {
-        if let assignedValue {
-            return XLTypeAffinityExpression<Optional<Wrapped>>(expression: assignedValue)
-        }
-        guard let column else {
-            return XLTypeAffinityExpression<Optional<Wrapped>>(
-                expression: XLNullExpression<Wrapped>()
-            )
-        }
-        return XLTypeAffinityExpression<Optional<Wrapped>>(
-            expression: XLUnassignedColumnRead<Wrapped>(column: column)
-        )
+        let unassigned: any XLExpression<Optional<Wrapped>> = column.map {
+            XLUnassignedColumnRead<Wrapped>(column: $0)
+        } ?? XLNullExpression<Wrapped>()
+        return XLTypeAffinityExpression<Optional<Wrapped>>(expression: assignedValue ?? unassigned)
     }
 }
 
@@ -345,11 +347,21 @@ struct XLSlotColumn: Sendable {
 /// A column by its unqualified name, for a nullable column's slot to render
 /// an assigned ``XLUnassignedColumnRead`` in a `SET` clause (issue #828).
 ///
+/// Like `XLColumnReference`, it renders the column through its type's
+/// `wrapSQL`, the conversion every read of a column of that type has, so
+/// that the `SET` clause's `unwrapSQL` writes back the value it read.
+///
 struct XLUnqualifiedColumnName<T>: XLExpression {
 
     let name: XLName
 
     func makeSQL(context: inout XLBuilder) {
-        name.makeSQL(context: &context)
+        guard let literalType = T.self as? any XLLiteral.Type else {
+            name.makeSQL(context: &context)
+            return
+        }
+        literalType.wrapSQL(context: &context) { context in
+            name.makeSQL(context: &context)
+        }
     }
 }
