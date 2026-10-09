@@ -481,6 +481,14 @@ let bindOccupationStatement = sql { schema in
 That parameter's slot is nullable, so one prepared statement can bind either a
 value or `NULL` for each call.
 
+Reading a column inside the closure, as in `row.occupationId`, gives the value
+the closure assigned to it. A nullable column reads as an expression of its
+optional type, `String?`, because that value can be `NULL`, so
+`row.occupationId = row.occupationId` keeps it, and assigning the read to a
+column that is not optional is a compile error. A column the closure never
+assigned reads as a value that leaves a nullable column it is assigned to out
+of the statement.
+
 ## Delete statements
 
 Use a delete statement with a `Where` clause to remove matching rows:
