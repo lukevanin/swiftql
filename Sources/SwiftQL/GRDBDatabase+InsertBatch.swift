@@ -15,6 +15,7 @@
 
 import Foundation
 internal import GRDB
+@_spi(XLDialectSurface) import SwiftQLQuery
 
 
 extension GRDBDatabase {

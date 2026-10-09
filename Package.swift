@@ -13,6 +13,25 @@ let package = Package(
             name: "SwiftQLCore",
             targets: ["SwiftQLCore"]
         ),
+        // The dialect-neutral query surface, for a dialect author (issue
+        // #790). Most apps import SwiftQLSQLite or SwiftQL instead.
+        .library(
+            name: "SwiftQLQuery",
+            targets: ["SwiftQLQuery"]
+        ),
+        // The driver-neutral runtime contracts and their Combine, async, and
+        // SwiftUI bridges, for a driver author (issue #790).
+        .library(
+            name: "SwiftQLRuntime",
+            targets: ["SwiftQLRuntime"]
+        ),
+        // SQLite's surface, the macros, and the request runtime for any
+        // SQLite driver, with no GRDB: models and queries import this
+        // (issue #790).
+        .library(
+            name: "SwiftQLSQLite",
+            targets: ["SwiftQLSQLite"]
+        ),
         .library(
             name: "SwiftQL",
             targets: ["SwiftQL"]
@@ -161,10 +180,58 @@ let package = Package(
             ]
         ),
 
-        // Library that exposes a macro as part of its API, which is used in client programs.
+        // The dialect-neutral query surface: expressions, columns, schemas,
+        // statements and clause builders, the renderer, static row layouts,
+        // and the macro contracts (issue #790). No dialect's operations, and
+        // no runtime: a target that imports only this module cannot reach a
+        // SQLite-only operation, and the core boundary check keeps GRDB and
+        // Combine out of it.
+        .target(
+            name: "SwiftQLQuery",
+            dependencies: [
+                "SwiftQLCore",
+                "SQLMacros",
+            ]
+        ),
+
+        // The driver-neutral runtime contracts -- `XLDatabase`, requests,
+        // result sets, transactions, the render-once cache -- and the
+        // Combine/OpenCombine, async, and SwiftUI bridges over them (issue
+        // #790, decision D8). The only one of the query modules that imports
+        // Combine.
+        .target(
+            name: "SwiftQLRuntime",
+            dependencies: [
+                "SwiftQLQuery",
+                .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineDispatch", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineFoundation", package: "OpenCombine", condition: .when(platforms: [.linux])),
+            ]
+        ),
+
+        // SQLite's surface (generated and hand-written), its codecs, the
+        // macros, and the request runtime for any SQLite driver (issue #790).
+        // It depends on no GRDB, so a model or query file that imports it
+        // alone does not see the database driver.
+        .target(
+            name: "SwiftQLSQLite",
+            dependencies: [
+                "SwiftQLQuery",
+                "SwiftQLRuntime",
+                "SQLMacros",
+            ]
+        ),
+
+        // The GRDB driver, and the umbrella that re-exports SwiftQLSQLite, so
+        // `import SwiftQL` keeps working (issue #790, decision D13). It
+        // depends on every module it re-exports directly, so its DocC catalog
+        // can link them.
         .target(
             name: "SwiftQL",
             dependencies: [
+                "SwiftQLSQLite",
+                "SwiftQLRuntime",
+                "SwiftQLQuery",
                 "SwiftQLCore",
                 "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
@@ -432,6 +499,11 @@ let package = Package(
             dependencies: [
                 "SwiftQLTestSupport",
                 "SwiftQL",
+                // `@testable` reaches the internals of the modules SwiftQL
+                // re-exports only through a direct dependency (issue #790).
+                "SwiftQLQuery",
+                "SwiftQLRuntime",
+                "SwiftQLSQLite",
                 "SwiftQLStreamOnlyRequestFixture",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
@@ -449,6 +521,7 @@ let package = Package(
             dependencies: [
                 "SwiftQLTestSupport",
                 "SwiftQL",
+                "SwiftQLSQLite",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),

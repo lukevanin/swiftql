@@ -12,8 +12,9 @@
 //  and SwiftData), and names every alias unqualified, so a proposed name that
 //  another of those modules declares stops the test build.
 //  `SwiftQLV2NameInventoryTests` keeps the list complete: every public `XL`
-//  type in SwiftQL and SwiftQLCore has exactly one line here, as an alias or
-//  below.
+//  type in SwiftQL and the modules it re-exports (SwiftQLSQLite,
+//  SwiftQLRuntime, SwiftQLQuery, and SwiftQLCore) has exactly one line here,
+//  as an alias or below.
 //
 //  Unresolved collisions. These names collide with a type another of those
 //  modules declares, so they have no alias yet. #33 chooses their v2 names;

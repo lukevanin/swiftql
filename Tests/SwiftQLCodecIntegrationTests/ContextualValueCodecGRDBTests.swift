@@ -3,6 +3,7 @@ import SwiftQLTestSupport
 import GRDB
 import XCTest
 @_spi(GRDB) @testable import SwiftQL
+@testable import SwiftQLSQLite
 import SwiftQLSQLiteConformanceFixtures
 
 

@@ -10,15 +10,11 @@
       "name": "SwiftQL",
       "source_root": "Sources/SwiftQL",
       "allowed_uninstrumented_sources": [
-        "Sources/SwiftQL/Builders/QueryBuilder+SQLite.swift",
-        "Sources/SwiftQL/Dialects/SQLite/Generated/SQLiteExpression.swift",
+        "Sources/SwiftQL/Exports.swift",
         "Sources/SwiftQL/SQL.swift",
-        "Sources/SwiftQL/SQLExpression+SQLite.swift",
-        "Sources/SwiftQL/SQLLiteralValueDialect.swift",
         "Sources/SwiftQL/SQLRowMacro.swift",
         "Sources/SwiftQL/SQLRowResult.swift",
-        "Sources/SwiftQL/SQLScalarResult.swift",
-        "Sources/SwiftQL/SwiftQLCore.swift"
+        "Sources/SwiftQL/SQLScalarResult.swift"
       ]
     },
     {
@@ -29,6 +25,31 @@
         "Sources/SwiftQLCore/SQLFormatter.swift",
         "Sources/SwiftQLCore/SQLObservingDatabaseDriver.swift",
         "Sources/SwiftQLCore/SQLVocabulary.swift"
+      ]
+    },
+    {
+      "name": "SwiftQLQuery",
+      "source_root": "Sources/SwiftQLQuery",
+      "allowed_uninstrumented_sources": [
+        "Sources/SwiftQLQuery/Exports.swift",
+        "Sources/SwiftQLQuery/SQLLiteralValueDialect.swift"
+      ]
+    },
+    {
+      "name": "SwiftQLRuntime",
+      "source_root": "Sources/SwiftQLRuntime",
+      "allowed_uninstrumented_sources": [
+        "Sources/SwiftQLRuntime/Exports.swift"
+      ]
+    },
+    {
+      "name": "SwiftQLSQLite",
+      "source_root": "Sources/SwiftQLSQLite",
+      "allowed_uninstrumented_sources": [
+        "Sources/SwiftQLSQLite/Builders/QueryBuilder+SQLite.swift",
+        "Sources/SwiftQLSQLite/Exports.swift",
+        "Sources/SwiftQLSQLite/Generated/SQLiteExpression.swift",
+        "Sources/SwiftQLSQLite/SQLExpression+SQLite.swift"
       ]
     },
     {

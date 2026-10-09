@@ -31,10 +31,10 @@ must end in `Expression`: the stem before it is followed by `Enum` or
 
 The template's leading comment is replaced with a header that says the file
 is generated, and a dialect's `imports` are added after `import Foundation`.
-A dialect outside the SwiftQL module imports SwiftQL with
+A dialect outside the SwiftQLQuery module imports it, or SwiftQL, with
 `@_spi(XLDialectSurface)`: the generated code builds clauses and statements
-through SwiftQL's dialect-surface SPI, the initializers that take an
-expression of any dialect and are not public API (issue #822).
+through the query surface's dialect-surface SPI, the initializers that take an
+expression of any dialect and are not public API (issues #822 and #790).
 A dialect whose `access` is `internal` has every `public` modifier removed
 from the code, so a test can declare a dialect without making its types
 public. A dialect marked `disfavored` has `@_disfavoredOverload` added to every
@@ -161,9 +161,11 @@ def render(template: Path, dialect: Mapping[str, str]) -> str:
     return header(template, dialect) + body
 
 
-# SwiftQL's dialect-surface SPI: the `_dialectSurface` initializers that the
-# generated code calls. A dialect outside SwiftQL needs it to build clauses.
-SPI_MODULES = {"SwiftQL": "XLDialectSurface"}
+# SwiftQLQuery's dialect-surface SPI: the `_dialectSurface` initializers that
+# the generated code calls. A dialect outside SwiftQLQuery needs it to build
+# clauses, whether it imports SwiftQLQuery itself, as SQLite's surface does, or
+# SwiftQL, which re-exports it (issue #790).
+SPI_MODULES = {"SwiftQLQuery": "XLDialectSurface", "SwiftQL": "XLDialectSurface"}
 
 
 def import_line(module: str) -> str:

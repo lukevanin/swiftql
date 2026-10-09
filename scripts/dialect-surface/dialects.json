@@ -5,7 +5,8 @@
             "Dialect": "XLSQLiteDialect",
             "Expression": "XLSQLiteExpression",
             "filePrefix": "SQLite",
-            "output": "Sources/SwiftQL/Dialects/SQLite/Generated",
+            "output": "Sources/SwiftQLSQLite/Generated",
+            "imports": ["SwiftQLQuery"],
             "access": "public"
         },
         {

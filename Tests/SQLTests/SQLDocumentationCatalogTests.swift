@@ -1186,7 +1186,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "SwiftQL exposes SQLite's JSON functions and operators as typed",
                 "<doc:JSON> covers that surface",
             ],
-            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+            "Sources/SwiftQLSQLite/Codecs/JSONValueCodec.swift": [
                 "use the\n/// typed JSON expressions instead",
             ],
             "Documentation/PortingFromSQL.md": [
@@ -1205,7 +1205,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "Sources/SwiftQL/SwiftQL.docc/CustomTypes.md": [
                 "SwiftQL does not drive SQLite's `json1` functions",
             ],
-            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+            "Sources/SwiftQLSQLite/Codecs/JSONValueCodec.swift": [
                 "drive SQLite's\n/// `json1` functions",
             ],
             "Sources/SwiftQL/SwiftQL.docc/CustomFunctions.md": [

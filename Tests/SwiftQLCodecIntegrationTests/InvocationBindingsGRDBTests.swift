@@ -8,6 +8,7 @@ import OpenCombine
 import GRDB
 import XCTest
 @_spi(GRDB) @testable import SwiftQL
+@testable import SwiftQLSQLite
 
 
 final class InvocationBindingsGRDBTests: XCTestCase {

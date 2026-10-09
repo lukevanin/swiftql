@@ -2,6 +2,7 @@ import GRDB
 import XCTest
 
 @_spi(XLDialectSurface) @testable import SwiftQL
+@testable import SwiftQLQuery
 
 
 @SQLResult
