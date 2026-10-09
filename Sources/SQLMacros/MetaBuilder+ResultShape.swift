@@ -128,7 +128,7 @@ extension MetaBuilder {
         context.block(signature) { context in
             for (property, binding) in zip(shape.properties, columnBindings) {
                 context.line(
-                    "let \(binding): any SwiftQLQuery.XLExpression<\(property.qualifiedType)>"
+                    "let \(binding): any \(EmittedModule.query).XLExpression<\(property.qualifiedType)>"
                         + " = \(property.makeInstance(kind: shape.rowColumnKind, dialect: dialectType, dependency: "dependency"))"
                 )
             }

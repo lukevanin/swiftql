@@ -70,7 +70,7 @@ extension MetaBuilder {
         var parameters = ["using _: \(dialect).Type"]
         for property in properties {
             parameters.append(
-                "\(property.name): some SwiftQLQuery.XLStaticRowFieldSource<\(property.qualifiedType), \(dialect)>"
+                "\(property.name): some \(EmittedModule.query).XLStaticRowFieldSource<\(property.qualifiedType), \(dialect)>"
             )
         }
 
@@ -80,7 +80,7 @@ extension MetaBuilder {
         let offsetIsMutable = properties.count > 2
 
         context.block(
-            "public static func staticRowLayout<\(dialect)>(\(parameters.joined(separator: ", "))) throws -> SwiftQLQuery.XLStaticRowLayout<Self, \(dialect)> where \(dialect): SwiftQLCore.XLValueCodingDialect"
+            "public static func staticRowLayout<\(dialect)>(\(parameters.joined(separator: ", "))) throws -> \(EmittedModule.query).XLStaticRowLayout<Self, \(dialect)> where \(dialect): \(EmittedModule.core).XLValueCodingDialect"
         ) { context in
             for (index, property) in properties.enumerated() {
                 if index == 0 {
@@ -103,7 +103,7 @@ extension MetaBuilder {
                 }
             }
 
-            context.block("return try SwiftQLQuery.XLStaticRowLayout", opening: "(", closing: ")") { context in
+            context.block("return try \(EmittedModule.query).XLStaticRowLayout", opening: "(", closing: ")") { context in
                 if fieldGroups.isEmpty {
                     context.line("fields: [],")
                 }
@@ -180,7 +180,7 @@ extension MetaBuilder {
             return (property.alias, codecKeyExpression)
         }
         context.block(
-            "public static var _swiftQLPropertyCodecKeys: [String: SwiftQLCore.XLValueCodecKey]"
+            "public static var _swiftQLPropertyCodecKeys: [String: \(EmittedModule.core).XLValueCodecKey]"
         ) { context in
             if entries.isEmpty {
                 context.line("[:]")
@@ -225,14 +225,14 @@ extension MetaBuilder {
             // is inferred from the value it passes.
             context.block(
                 "public static func staticResultField<\(storage), \(dialect)>("
-                    + "\(property.name) expression: any SwiftQLQuery.XLEncodable, "
+                    + "\(property.name) expression: any \(EmittedModule.query).XLEncodable, "
                     + "storedAs storageType: \(storageType).Type, "
-                    + "identifiedBy identity: SwiftQLCore.XLQuerySlotIdentity, "
+                    + "identifiedBy identity: \(EmittedModule.core).XLQuerySlotIdentity, "
                     + "using dialect: \(dialect), "
-                    + "context: SwiftQLCore.XLValueCodingContext? = nil, "
-                    + "configuration: SwiftQLCore.XLValueCodingConfiguration"
-                    + ") throws -> SwiftQLQuery.XLStaticSelectField<\(valueType), \(storageType), \(dialect)> "
-                    + "where \(storage): SwiftQLQuery.XLLiteral, \(dialect): SwiftQLQuery.XLLiteralValueDialect"
+                    + "context: \(EmittedModule.core).XLValueCodingContext? = nil, "
+                    + "configuration: \(EmittedModule.core).XLValueCodingConfiguration"
+                    + ") throws -> \(EmittedModule.query).XLStaticSelectField<\(valueType), \(storageType), \(dialect)> "
+                    + "where \(storage): \(EmittedModule.query).XLLiteral, \(dialect): \(EmittedModule.query).XLLiteralValueDialect"
             ) { context in
                 context.block(
                     "return try configuration.staticResultField",

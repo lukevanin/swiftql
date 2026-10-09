@@ -597,8 +597,8 @@ them). Concretely, for #308's implementation:
 
 `publish()`/`publishOne()` map Combine demand onto stream iteration through a small pull loop, not a
 second buffer. This is implemented by `XLAsyncStreamPublisher` and its subscription
-(`Sources/SwiftQL/XLAsyncStreamPublisher.swift`), which the publish members wrap with the main-queue
-delivery default (`Sources/SwiftQL/XLRequest+Combine.swift`):
+(`Sources/SwiftQLRuntime/XLAsyncStreamPublisher.swift`), which the publish members wrap with the main-queue
+delivery default (`Sources/SwiftQLRuntime/XLRequest+Combine.swift`):
 
 - **Zero demand**: the adapter's internal consumer `Task` is not started at all. It does not start
   until the first unit of demand arrives — this preserves "subscribing with zero demand does not start

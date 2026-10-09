@@ -58,6 +58,11 @@ NO_PACKAGE_ACCESS_TEST_TARGETS = (
 # build. The graph is read from `swift package describe`.
 GRDB_FREE_PRODUCTS = ("SwiftQLQuery", "SwiftQLRuntime", "SwiftQLSQLite")
 GRDB_PRODUCTS = frozenset(("GRDB", "GRDBSQLite"))
+# The only packages whose products those targets may depend on: swift-syntax
+# for the macros, and OpenCombine for the runtime's bridges on Linux. A
+# product of any other package could bring GRDB in transitively, so it fails
+# the check until it is reviewed and listed here.
+GRDB_FREE_PRODUCT_PACKAGES = frozenset(("swift-syntax", "OpenCombine"))
 DEPENDENCY_FIELDS = (
     "target_dependencies",
     "product_dependencies",
@@ -210,7 +215,9 @@ def run_swift(command, package_root, label):
 def check_package_access(swift, package_root):
     """Each target in NO_PACKAGE_ACCESS_TEST_TARGETS keeps `packageAccess:
     false` in Package.swift (issue #113). `swift package describe` does not
-    report the setting, so the manifest is read with `dump-package`."""
+    report the setting, so the manifest is read with `dump-package`. The same
+    manifest names the package of every product dependency, which the
+    GRDB-free products are checked against (issue #790)."""
     output = run_swift(
         (swift, "package", "dump-package"),
         package_root,
@@ -244,6 +251,42 @@ def check_package_access(swift, package_root):
                     name, json.dumps(matching[0].get("packageAccess"))
                 )
             )
+
+    check_grdb_free_product_packages(targets)
+
+
+def check_grdb_free_product_packages(manifest_targets):
+    """Every product dependency of a target that GRDB_FREE_PRODUCTS reach
+    comes from a package in GRDB_FREE_PRODUCT_PACKAGES (issue #790)."""
+    by_name = {
+        target.get("name"): target
+        for target in manifest_targets
+        if isinstance(target, dict)
+    }
+    for product_name in GRDB_FREE_PRODUCTS:
+        pending = [product_name]
+        reached = set()
+        while pending:
+            name = pending.pop()
+            if name in reached or name not in by_name:
+                continue
+            reached.add(name)
+            for dependency in by_name[name].get("dependencies", []):
+                if not isinstance(dependency, dict):
+                    continue
+                if "product" in dependency:
+                    product, package = dependency["product"][0], dependency["product"][1]
+                    if package not in GRDB_FREE_PRODUCT_PACKAGES:
+                        raise BoundaryCheckError(
+                            "the {} product reaches {}, which depends on product {} of package {}; "
+                            "only {} may be reached".format(
+                                product_name, name, product, package,
+                                ", ".join(sorted(GRDB_FREE_PRODUCT_PACKAGES)),
+                            )
+                        )
+                for kind in ("byName", "target"):
+                    if kind in dependency:
+                        pending.append(dependency[kind][0])
 
 
 def check_grdb_free_products(targets, products):
@@ -687,8 +730,11 @@ def main():
         )
         check_package_access(swift, package_root)
         print(
-            "CHECK package access: PASS ({} built with packageAccess: false)".format(
-                ", ".join(NO_PACKAGE_ACCESS_TEST_TARGETS)
+            "CHECK package access: PASS ({} built with packageAccess: false; "
+            "{} reach products of {} only)".format(
+                ", ".join(NO_PACKAGE_ACCESS_TEST_TARGETS),
+                ", ".join(GRDB_FREE_PRODUCTS),
+                ", ".join(sorted(GRDB_FREE_PRODUCT_PACKAGES)),
             )
         )
 

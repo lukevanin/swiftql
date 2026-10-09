@@ -237,7 +237,6 @@ let package = Package(
                 "SwiftQLRuntime",
                 "SwiftQLQuery",
                 "SwiftQLCore",
-                "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "GRDBSQLite", package: "GRDB.swift"),
                 .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),

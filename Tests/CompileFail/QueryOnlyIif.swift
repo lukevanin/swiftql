@@ -6,6 +6,7 @@ import SwiftQLQuery
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
 // expected-names: 'iif'
+// expected-phrase: cannot find 'iif' in scope
 
 func refusal() -> any XLQueryStatement<QueryOnlyPerson> {
     sql(dialect: QueryOnlyDialect.self) { schema in

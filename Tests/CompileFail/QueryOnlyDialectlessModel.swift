@@ -7,6 +7,7 @@ import SwiftQLQuery
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
 // expected-names: 'dialect'
+// expected-phrase: missing argument for parameter 'dialect'
 
 @SQLTable // expected-error
 struct QueryOnlyDialectlessPerson {

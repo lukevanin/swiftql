@@ -87,15 +87,19 @@ public enum DeclaredQueryRegistryRenderer {
         // "ambiguous implicit access level" error, so the first one found
         // wins. The registry names `XLDeclaredQuery`, which SwiftQLSQLite
         // declares and SwiftQL re-exports, so SwiftQLSQLite is added only
-        // when no file imports either one: a target that does not depend on
-        // GRDB is not made to import it (issue #790).
+        // when no file imports either one unconditionally: a target that does
+        // not depend on GRDB is not made to import it, and an import inside
+        // `#if` does not cover the registry's unconditional uses (issue
+        // #790).
         var imports: [DeclaredQueryImport] = []
         for declaredImport in scan.imports where !imports.contains(where: {
             $0.module == declaredImport.module && $0.condition == declaredImport.condition
         }) {
             imports.append(declaredImport)
         }
-        if !imports.contains(where: { $0.module == "SwiftQL" || $0.module == "SwiftQLSQLite" }) {
+        if !imports.contains(where: {
+            ($0.module == "SwiftQL" || $0.module == "SwiftQLSQLite") && $0.condition == nil
+        }) {
             imports.append(DeclaredQueryImport(declaration: "import SwiftQLSQLite", condition: nil, module: "SwiftQLSQLite"))
         }
         for declaredImport in imports where declaredImport.condition == nil {

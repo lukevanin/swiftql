@@ -115,6 +115,25 @@ internal enum MacroNameArgument {
 
 
 ///
+/// The modules that qualify the names the macros emit: each name is qualified
+/// with the module that declares it, so a file that imports only that module,
+/// or one that re-exports it, can expand the macro (issue #790). Spelled once,
+/// so a later move of a declaration changes one constant.
+///
+internal enum EmittedModule {
+
+    /// SwiftQLCore: the codec and value-coding contracts.
+    static let core = "SwiftQLCore"
+
+    /// SwiftQLQuery: the dialect-neutral query surface.
+    static let query = "SwiftQLQuery"
+
+    /// SwiftQLSQLite: SQLite's surface, and the default dialect's spelling.
+    static let sqlite = "SwiftQLSQLite"
+}
+
+
+///
 /// Resolves the optional `dialect:` argument shared by `@SQLQuery`,
 /// `@SQLQueries`, and `@SQLBindings` (issue #687), and by `@SQLTable` and
 /// `@SQLResult` (issue #789).
@@ -134,7 +153,7 @@ internal enum MacroDialectArgument {
     /// valid if the type itself later moves out of `SwiftQLCore`, because
     /// `SwiftQLSQLite` re-exports it (issue #790).
     ///
-    static let defaultDialectType = "SwiftQLSQLite.XLSQLiteDialect"
+    static let defaultDialectType = "\(EmittedModule.sqlite).XLSQLiteDialect"
 
     ///
     /// Returns the dialect type the attribute names, as source text, or

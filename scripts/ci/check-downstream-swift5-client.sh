@@ -47,37 +47,43 @@ main() {
         --package-path "$fixture_root" \
         --scratch-path "$scratch_path" \
         clean
-    xcrun swift run \
-        --package-path "$fixture_root" \
-        --scratch-path "$scratch_path" \
-        --force-resolved-versions \
-        -v SwiftQLSwift5Client 2>&1 | tee "$output_log"
-
-    marker_count="$(grep -c '^SWIFTQL_DOWNSTREAM_SWIFT5_CLIENT ok$' "$output_log" || true)"
-    if [[ "$marker_count" -ne 1 ]]; then
-        printf 'error: expected one downstream client success marker; found %s\n' \
-            "$marker_count" >&2
-        return 1
-    fi
-
-    # Issue #790: the client of the SwiftQLSQLite product alone. Its log is
-    # appended, so the one output log holds both runs.
-    xcrun swift run \
-        --package-path "$fixture_root" \
-        --scratch-path "$scratch_path" \
-        --force-resolved-versions \
-        -v SwiftQLSwift5SQLiteClient 2>&1 | tee -a "$output_log"
-
-    marker_count="$(grep -c '^SWIFTQL_DOWNSTREAM_SWIFT5_SQLITE_CLIENT ok$' "$output_log" || true)"
-    if [[ "$marker_count" -ne 1 ]]; then
-        printf 'error: expected one SQLite-only downstream client success marker; found %s\n' \
-            "$marker_count" >&2
-        return 1
-    fi
+    : > "$output_log"
+    # Each client and the marker it prints when it succeeds. The second
+    # depends on the SwiftQLSQLite product alone (issue #790); both share the
+    # scratch path, so this proves that client compiles and runs without
+    # importing GRDB, and the core boundary check proves the product reaches
+    # no GRDB.
+    run_client SwiftQLSwift5Client SWIFTQL_DOWNSTREAM_SWIFT5_CLIENT || return 1
+    run_client SwiftQLSwift5SQLiteClient SWIFTQL_DOWNSTREAM_SWIFT5_SQLITE_CLIENT || return 1
 
     test -f "$fixture_root/Package.resolved"
     if [[ "$resolution_mode" == "committed" ]]; then
         cmp "$source_root/Package.resolved" "$fixture_root/Package.resolved"
+    fi
+}
+
+# Runs one of the fixture's executables, appending to the output log, and
+# requires its success marker exactly once in that run's output.
+run_client() {
+    local product="$1"
+    local marker="$2"
+    local run_log
+    local marker_count
+
+    run_log="$(mktemp "${TMPDIR:-/tmp}/swiftql-swift5-client-run.XXXXXX")"
+    xcrun swift run \
+        --package-path "$fixture_root" \
+        --scratch-path "$scratch_path" \
+        --force-resolved-versions \
+        -v "$product" 2>&1 | tee "$run_log"
+    cat "$run_log" >> "$output_log"
+
+    marker_count="$(grep -c "^$marker ok\$" "$run_log" || true)"
+    rm -f "$run_log"
+    if [[ "$marker_count" -ne 1 ]]; then
+        printf 'error: expected one %s success marker; found %s\n' \
+            "$product" "$marker_count" >&2
+        return 1
     fi
 }
 

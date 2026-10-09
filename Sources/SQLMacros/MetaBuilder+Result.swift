@@ -116,7 +116,7 @@ extension MetaBuilder {
             context.line("public typealias Row = \(structName)")
 
             for property in properties {
-                context.line("private let \(property.name): any SwiftQLQuery.XLExpression<\(property.qualifiedType)>")
+                context.line("private let \(property.name): any \(EmittedModule.query).XLExpression<\(property.qualifiedType)>")
             }
 
             // Issue #825: the reader's columns are what the row selects, so

@@ -13,7 +13,7 @@ import Foundation
 
 
 ///
-/// A typed SQLite `LIKE` expression with an explicit `ESCAPE` clause.
+/// A typed `LIKE` expression with an explicit `ESCAPE` clause.
 ///
 /// Example:
 ///

@@ -148,10 +148,8 @@ private final class XLiteDialectRequirementRecorder {
         let slot = XLParameterSlot(
             index: existing?.index ?? nextLogicalIndex(),
             key: key,
-            valueTypeIdentifier: XLValueTypeIdentifier(
-                rawValue: "swiftql.legacy-binding-value"
-            ),
-            valueTypeName: "SwiftQL.XLBindable",
+            valueTypeIdentifier: XLParameterSlot.legacyBindingValueTypeIdentifier,
+            valueTypeName: XLParameterSlot.legacyBindingValueTypeName,
             nullability: .nullable,
             codecIdentity: nil,
             codingContext: XLValueCodingContext(
@@ -301,13 +299,22 @@ extension XLParameterSlot {
     /// this one or the legacy `set` facade would silently reject bindings the
     /// renderer had accepted (issue #560 surfaced the duplicate; #558 names it).
     package var isRendererLegacyBindingWildcard: Bool {
-        valueTypeIdentifier == XLValueTypeIdentifier(
-            rawValue: "swiftql.legacy-binding-value"
-        )
-            && valueTypeName == "SwiftQL.XLBindable"
+        valueTypeIdentifier == Self.legacyBindingValueTypeIdentifier
+            && valueTypeName == Self.legacyBindingValueTypeName
             && nullability == .nullable
             && codecIdentity == nil
     }
+
+    /// The value type the renderer records for a legacy binding, and the
+    /// only one ``isRendererLegacyBindingWildcard`` accepts. The name keeps
+    /// its v1 spelling, `SwiftQL.XLBindable`, though the protocol is now
+    /// declared in SwiftQLQuery: it is an identifier, not a type lookup.
+    static let legacyBindingValueTypeIdentifier = XLValueTypeIdentifier(
+        rawValue: "swiftql.legacy-binding-value"
+    )
+
+    /// See ``legacyBindingValueTypeIdentifier``.
+    static let legacyBindingValueTypeName = "SwiftQL.XLBindable"
 }
 
 

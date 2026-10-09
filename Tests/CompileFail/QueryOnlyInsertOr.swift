@@ -6,6 +6,7 @@ import SwiftQLQuery
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
 // expected-names: 'or'
+// expected-phrase: extra argument 'or' in call
 
 func refusal() -> any XLInsertStatement {
     sql(dialect: QueryOnlyDialect.self) { schema in

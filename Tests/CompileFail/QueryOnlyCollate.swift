@@ -6,6 +6,7 @@ import SwiftQLQuery
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
 // expected-names: 'collate'
+// expected-phrase: has no member 'collate'
 
 func refusal(name: String) -> any XLQueryStatement<QueryOnlyPerson> {
     sql(dialect: QueryOnlyDialect.self) { schema in

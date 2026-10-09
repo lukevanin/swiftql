@@ -350,6 +350,28 @@ final class DeclaredQueryScannerTests: XCTestCase {
         )
         let unimportedLines = unimported.components(separatedBy: "\n")
         XCTAssertEqual(unimportedLines.filter { $0.hasPrefix("import ") }, ["import SwiftQLSQLite"], unimported)
+
+        // An import inside `#if` does not cover the registry, which names
+        // `XLDeclaredQuery` unconditionally.
+        let conditional = DeclaredQueryRegistryRenderer.render(
+            targetName: "Fixture",
+            scan: scan("""
+                #if canImport(SwiftQL)
+                import SwiftQL
+                #endif
+
+                extension AppDatabase {
+                    @SQLQuery
+                    func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """)
+        )
+        let conditionalLines = conditional.components(separatedBy: "\n")
+        XCTAssertEqual(
+            conditionalLines.filter { $0.hasPrefix("import ") },
+            ["import SwiftQLSQLite", "import SwiftQL"],
+            conditional
+        )
     }
 
     func testABindingsStructIsNotADeclaredQuery() {

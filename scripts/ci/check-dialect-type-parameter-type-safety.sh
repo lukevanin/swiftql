@@ -284,6 +284,7 @@ compile_negative_fixture() {
 check_refusal_names() {
     local fixture="$1"
     local expected_names
+    local expected_phrase
     local error_text
     local name
 
@@ -309,6 +310,17 @@ check_refusal_names() {
             exit 1
         fi
     done
+    # A fixture may also pin a phrase of the error, such as "cannot find 'iif'
+    # in scope": a query-only refusal must fail because the operation is out of
+    # scope, not because dialect typing refuses it (issue #790).
+    expected_phrase="$(
+        awk -F'// expected-phrase: ' '/\/\/ expected-phrase: / { print $2; exit }' "$fixture"
+    )"
+    if [[ -n "$expected_phrase" && "$error_text" != *"$expected_phrase"* ]]; then
+        printf 'error: refusal does not say "%s": %s\n' "$expected_phrase" "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
     printf '%s\n' "$error_text"
 }
 

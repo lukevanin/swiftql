@@ -299,7 +299,7 @@ internal struct FunctionMetaBuilder {
         }
         if let member = constraint.as(MemberTypeSyntax.self) {
             let genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
-            return "any SwiftQLSQLite.XLSQLiteExpression\(genericArguments)"
+            return "any \(EmittedModule.sqlite).XLSQLiteExpression\(genericArguments)"
         }
         return nil
     }
