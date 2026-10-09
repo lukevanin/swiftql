@@ -57,7 +57,6 @@ NO_PACKAGE_ACCESS_TEST_TARGETS = (
 # path to these products, so a client of it never resolves them into its
 # build. The graph is read from `swift package describe`.
 GRDB_FREE_PRODUCTS = ("SwiftQLQuery", "SwiftQLRuntime", "SwiftQLSQLite")
-GRDB_PRODUCTS = frozenset(("GRDB", "GRDBSQLite"))
 # The only packages whose products those targets may depend on: swift-syntax
 # for the macros, and OpenCombine for the runtime's bridges on Linux. A
 # product of any other package could bring GRDB in transitively, so it fails
@@ -212,12 +211,10 @@ def run_swift(command, package_root, label):
     return result.stdout
 
 
-def check_package_access(swift, package_root):
-    """Each target in NO_PACKAGE_ACCESS_TEST_TARGETS keeps `packageAccess:
-    false` in Package.swift (issue #113). `swift package describe` does not
-    report the setting, so the manifest is read with `dump-package`. The same
-    manifest names the package of every product dependency, which the
-    GRDB-free products are checked against (issue #790)."""
+def read_manifest_targets(swift, package_root):
+    """The manifest's targets, from `dump-package`, which reports what
+    `swift package describe` does not: each target's `packageAccess`, and the
+    package of every product dependency."""
     output = run_swift(
         (swift, "package", "dump-package"),
         package_root,
@@ -232,6 +229,12 @@ def check_package_access(swift, package_root):
     targets = manifest.get("targets") if isinstance(manifest, dict) else None
     if not isinstance(targets, list):
         raise BoundaryCheckError("the dumped manifest is missing its targets array")
+    return targets
+
+
+def check_package_access(targets):
+    """Each target in NO_PACKAGE_ACCESS_TEST_TARGETS keeps `packageAccess:
+    false` in Package.swift (issue #113)."""
     for name in NO_PACKAGE_ACCESS_TEST_TARGETS:
         matching = [
             target
@@ -252,12 +255,11 @@ def check_package_access(swift, package_root):
                 )
             )
 
-    check_grdb_free_product_packages(targets)
-
 
 def check_grdb_free_product_packages(manifest_targets):
     """Every product dependency of a target that GRDB_FREE_PRODUCTS reach
-    comes from a package in GRDB_FREE_PRODUCT_PACKAGES (issue #790)."""
+    comes from a package in GRDB_FREE_PRODUCT_PACKAGES, which GRDB.swift is
+    not, so a client of those products never builds GRDB (issue #790)."""
     by_name = {
         target.get("name"): target
         for target in manifest_targets
@@ -299,14 +301,10 @@ def check_grdb_free_product_packages(manifest_targets):
                     pending.append(dependency_name)
 
 
-def check_grdb_free_products(targets, products):
-    """No target that a product in GRDB_FREE_PRODUCTS reaches depends on a
-    GRDB product (issue #790)."""
-    by_name = {
-        target.get("name"): target
-        for target in targets
-        if isinstance(target, dict)
-    }
+def check_grdb_free_product_exports(products):
+    """Each product in GRDB_FREE_PRODUCTS is exported, and holds its own target
+    alone, so the closure check below starts from the right target (issue
+    #790)."""
     for product_name in GRDB_FREE_PRODUCTS:
         matching = [
             product
@@ -319,26 +317,6 @@ def check_grdb_free_products(targets, products):
                     product_name, product_name
                 )
             )
-        pending = [product_name]
-        reached = set()
-        while pending:
-            name = pending.pop()
-            if name in reached:
-                continue
-            reached.add(name)
-            target = by_name.get(name)
-            if target is None:
-                raise BoundaryCheckError(
-                    "{} reaches an unknown target {}".format(product_name, name)
-                )
-            grdb = sorted(GRDB_PRODUCTS.intersection(target.get("product_dependencies", [])))
-            if grdb:
-                raise BoundaryCheckError(
-                    "the {} product reaches {}, which depends on {}; it must not reach GRDB".format(
-                        product_name, name, ", ".join(grdb)
-                    )
-                )
-            pending.extend(target.get("target_dependencies", []))
 
 
 def check_package_dependencies(swift, package_root):
@@ -459,7 +437,7 @@ def check_package_dependencies(swift, package_root):
             )
         )
 
-    check_grdb_free_products(targets, products)
+    check_grdb_free_product_exports(products)
 
 
 def forbidden_reference_kinds(line):
@@ -730,7 +708,7 @@ def main():
         print(
             "CHECK package graph: PASS "
             "(SwiftQLCore product exported; target/product dependencies: none; "
-            "{}; {} reach no GRDB product)".format(
+            "{}; {} exported)".format(
                 ", ".join(
                     "{} depends on {} alone".format(name, dependency)
                     for name, dependency in SINGLE_DEPENDENCY_TEST_TARGETS.items()
@@ -738,11 +716,16 @@ def main():
                 ", ".join(GRDB_FREE_PRODUCTS),
             )
         )
-        check_package_access(swift, package_root)
+        manifest_targets = read_manifest_targets(swift, package_root)
+        check_package_access(manifest_targets)
         print(
-            "CHECK package access: PASS ({} built with packageAccess: false; "
-            "{} reach products of {} only)".format(
-                ", ".join(NO_PACKAGE_ACCESS_TEST_TARGETS),
+            "CHECK package access: PASS ({} built with packageAccess: false)".format(
+                ", ".join(NO_PACKAGE_ACCESS_TEST_TARGETS)
+            )
+        )
+        check_grdb_free_product_packages(manifest_targets)
+        print(
+            "CHECK GRDB-free products: PASS ({} reach products of {} only)".format(
                 ", ".join(GRDB_FREE_PRODUCTS),
                 ", ".join(sorted(GRDB_FREE_PRODUCT_PACKAGES)),
             )

@@ -19,7 +19,6 @@ import SwiftParser
 import SwiftSyntax
 
 
-/// One `import` a generated registry repeats, so it can name the same types.
 /// The modules that declare the declared-query macros and `XLDeclaredQuery`,
 /// or re-export them: SwiftQLSQLite declares them, and SwiftQL re-exports it
 /// (issue #790). An attribute may be qualified with either, and an import of
@@ -34,6 +33,7 @@ public enum DeclaredQueryModules {
 }
 
 
+/// One `import` a generated registry repeats, so it can name the same types.
 public struct DeclaredQueryImport: Equatable, Sendable {
 
     /// The import as written, attributes included (`@testable import Foo`).

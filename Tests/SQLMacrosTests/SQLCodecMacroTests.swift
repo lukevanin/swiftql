@@ -287,6 +287,28 @@ final class SQLCodecPropertyCollectionTests: XCTestCase {
         XCTAssertNil(builder.properties[1].codecKeyExpression)
     }
 
+    /// Issue #790: `@SQLCodec` may be qualified with the module that declares
+    /// it, SwiftQLQuery, or with one that re-exports it.
+    func test_moduleQualifiedAnnotation_capturesCodecKeyExpression() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(dialect: MyDialect.self)
+            struct Sample {
+                @SwiftQLQuery.SQLCodec(Codecs.badge)
+                var badge: String
+                @SwiftQL.SQLCodec(Codecs.code)
+                var code: String
+                @SwiftQLSQLite.SQLCodec(Codecs.note)
+                var note: String
+            }
+            """
+        )
+        XCTAssertEqual(
+            builder.properties.map(\.codecKeyExpression),
+            ["Codecs.badge", "Codecs.code", "Codecs.note"]
+        )
+    }
+
     func test_multiLineCodecKeyExpression_isTrimmedOfIndentation() throws {
         let builder = try makeBuilder(
             """

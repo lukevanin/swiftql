@@ -373,8 +373,9 @@ final class DeclaredQueryScannerTests: XCTestCase {
             conditional
         )
 
-        // Nor does a scoped or an implementation-only import.
-        for declaration in ["import struct SwiftQL.GRDBDatabase", "@_implementationOnly import SwiftQLSQLite"] {
+        // Nor does a scoped import, or one hidden from the registry's public
+        // API.
+        for declaration in ["import struct SwiftQL.GRDBDatabase", "internal import SwiftQL"] {
             let scoped = DeclaredQueryRegistryRenderer.render(
                 targetName: "Fixture",
                 scan: scan("""
@@ -387,6 +388,26 @@ final class DeclaredQueryScannerTests: XCTestCase {
                     """)
             )
             XCTAssertTrue(scoped.contains("\nimport SwiftQLSQLite\n"), scoped)
+        }
+
+        // The fallback module is never imported a second time, in another
+        // spelling, beside a file's own import of it.
+        for declaration in ["@_implementationOnly import SwiftQLSQLite", "internal import SwiftQLSQLite"] {
+            let existing = DeclaredQueryRegistryRenderer.render(
+                targetName: "Fixture",
+                scan: scan("""
+                    #if DEBUG
+                    \(declaration)
+                    #endif
+
+                    extension AppDatabase {
+                        @SQLQuery
+                        func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """)
+            )
+            let lines = existing.components(separatedBy: "\n")
+            XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQLSQLite") }, [declaration], existing)
         }
     }
 

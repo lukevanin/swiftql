@@ -17,24 +17,6 @@ public enum DeclaredQueryRegistryRenderer {
     ///
     /// The target must not declare a type with this name itself.
     ///
-    /// Whether `declaredImport` imports a whole module in
-    /// `DeclaredQueryModules.names`, visibly to the registry's public API:
-    /// not a scoped import of one declaration, and not `@_implementationOnly`.
-    static func importsWholeDeclaringModule(_ declaredImport: DeclaredQueryImport) -> Bool {
-        guard DeclaredQueryModules.names.contains(declaredImport.module) else {
-            return false
-        }
-        let tokens = declaredImport.declaration.split(whereSeparator: \.isWhitespace)
-        guard
-            !tokens.contains("@_implementationOnly"),
-            let importIndex = tokens.firstIndex(of: "import"),
-            importIndex + 1 < tokens.count
-        else {
-            return false
-        }
-        return tokens[importIndex + 1] == declaredImport.module[...]
-    }
-
     public static func typeName(forTarget target: String) -> String {
         var result = ""
         var capitalizesNext = true
@@ -58,6 +40,30 @@ public enum DeclaredQueryRegistryRenderer {
             result = "_" + result
         }
         return result + "DeclaredQueries"
+    }
+
+    ///
+    /// Whether `declaredImport` imports a whole module in
+    /// `DeclaredQueryModules.names` visibly to the registry's public API: not
+    /// a scoped import of one declaration, not `@_implementationOnly`, and not
+    /// with an access level below `public`.
+    ///
+    static func importsWholeDeclaringModule(_ declaredImport: DeclaredQueryImport) -> Bool {
+        guard DeclaredQueryModules.names.contains(declaredImport.module) else {
+            return false
+        }
+        let tokens = declaredImport.declaration.split(whereSeparator: \.isWhitespace)
+        let hiddenFromPublicAPI: Set<Substring> = [
+            "@_implementationOnly", "package", "internal", "fileprivate", "private",
+        ]
+        guard
+            !tokens.contains(where: hiddenFromPublicAPI.contains),
+            let importIndex = tokens.firstIndex(of: "import"),
+            importIndex + 1 < tokens.count
+        else {
+            return false
+        }
+        return tokens[importIndex + 1] == declaredImport.module[...]
     }
 
     ///
@@ -116,8 +122,14 @@ public enum DeclaredQueryRegistryRenderer {
         }) {
             imports.append(declaredImport)
         }
-        if !imports.contains(where: { $0.condition == nil && Self.importsWholeDeclaringModule($0) }) {
-            let fallback = DeclaredQueryModules.fallback
+        let fallback = DeclaredQueryModules.fallback
+        let covered = imports.contains { $0.condition == nil && Self.importsWholeDeclaringModule($0) }
+        // A second import of the fallback module, beside one in another
+        // spelling, such as `internal import SwiftQLSQLite` inside `#if`, is
+        // the "ambiguous implicit access level" error above, so a file's own
+        // spelling of that module is left to stand alone.
+        let importsFallback = imports.contains { $0.module == fallback }
+        if !covered && !importsFallback {
             imports.append(DeclaredQueryImport(declaration: "import \(fallback)", condition: nil, module: fallback))
         }
         for declaredImport in imports where declaredImport.condition == nil {

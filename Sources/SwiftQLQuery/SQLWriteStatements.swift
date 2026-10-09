@@ -288,8 +288,9 @@ public struct As<Table> {
     internal let queryStatement: any XLEncodable
 
     ///
-    /// Populates a table from a query already built. Each dialect's spelling
-    /// of `As` builds the query in its own schema and calls this.
+    /// Populates a table from a query already built. SQLite's spelling of
+    /// `As`, in SwiftQLSQLite, builds the query in its schema and calls this.
+    /// Another dialect uses `init(dialect:builder:)`.
     ///
     package init(queryStatement: any XLEncodable) {
         self.queryStatement = queryStatement

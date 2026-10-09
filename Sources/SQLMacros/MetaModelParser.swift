@@ -227,7 +227,13 @@ internal enum MetaModelParser {
             guard case let .attribute(attribute) = element else {
                 continue
             }
-            guard attribute.attributeName.trimmedDescription == "SQLCodec" else {
+            // Unqualified, or qualified with SwiftQLQuery, which declares the
+            // attribute, or with a module that re-exports it (issue #790).
+            let spelling = attribute.attributeName.trimmedDescription
+            guard
+                spelling == "SQLCodec"
+                    || ["SwiftQLQuery", "SwiftQLSQLite", "SwiftQL"].contains(where: { spelling == "\($0).SQLCodec" })
+            else {
                 continue
             }
             guard
