@@ -20,6 +20,20 @@ import SwiftSyntax
 
 
 /// One `import` a generated registry repeats, so it can name the same types.
+/// The modules that declare the declared-query macros and `XLDeclaredQuery`,
+/// or re-export them: SwiftQLSQLite declares them, and SwiftQL re-exports it
+/// (issue #790). An attribute may be qualified with either, and an import of
+/// either makes the registry's names visible.
+public enum DeclaredQueryModules {
+    public static let names: Set<String> = ["SwiftQL", "SwiftQLSQLite"]
+
+    /// The module the registry imports when no scanned file imports one of
+    /// `names`: the one that declares `XLDeclaredQuery`, which brings in no
+    /// GRDB.
+    public static let fallback = "SwiftQLSQLite"
+}
+
+
 public struct DeclaredQueryImport: Equatable, Sendable {
 
     /// The import as written, attributes included (`@testable import Foo`).
@@ -588,11 +602,15 @@ private struct Walker {
                 return false
             }
             let spelling = attribute.attributeName.trimmedDescription
-            // The macros are declared in SwiftQLSQLite, and SwiftQL
-            // re-exports them, so either module may qualify one (issue #790).
-            return spelling == name
-                || spelling == "SwiftQL.\(name)"
-                || spelling == "SwiftQLSQLite.\(name)"
+            if spelling == name {
+                return true
+            }
+            // Qualified with a module that declares or re-exports the macro
+            // (issue #790).
+            let parts = spelling.split(separator: ".", maxSplits: 1)
+            return parts.count == 2
+                && parts[1] == name
+                && DeclaredQueryModules.names.contains(String(parts[0]))
         }
     }
 }

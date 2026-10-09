@@ -372,6 +372,22 @@ final class DeclaredQueryScannerTests: XCTestCase {
             ["import SwiftQLSQLite", "import SwiftQL"],
             conditional
         )
+
+        // Nor does a scoped or an implementation-only import.
+        for declaration in ["import struct SwiftQL.GRDBDatabase", "@_implementationOnly import SwiftQLSQLite"] {
+            let scoped = DeclaredQueryRegistryRenderer.render(
+                targetName: "Fixture",
+                scan: scan("""
+                    \(declaration)
+
+                    extension AppDatabase {
+                        @SQLQuery
+                        func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """)
+            )
+            XCTAssertTrue(scoped.contains("\nimport SwiftQLSQLite\n"), scoped)
+        }
     }
 
     func testABindingsStructIsNotADeclaredQuery() {

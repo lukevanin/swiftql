@@ -17,6 +17,24 @@ public enum DeclaredQueryRegistryRenderer {
     ///
     /// The target must not declare a type with this name itself.
     ///
+    /// Whether `declaredImport` imports a whole module in
+    /// `DeclaredQueryModules.names`, visibly to the registry's public API:
+    /// not a scoped import of one declaration, and not `@_implementationOnly`.
+    static func importsWholeDeclaringModule(_ declaredImport: DeclaredQueryImport) -> Bool {
+        guard DeclaredQueryModules.names.contains(declaredImport.module) else {
+            return false
+        }
+        let tokens = declaredImport.declaration.split(whereSeparator: \.isWhitespace)
+        guard
+            !tokens.contains("@_implementationOnly"),
+            let importIndex = tokens.firstIndex(of: "import"),
+            importIndex + 1 < tokens.count
+        else {
+            return false
+        }
+        return tokens[importIndex + 1] == declaredImport.module[...]
+    }
+
     public static func typeName(forTarget target: String) -> String {
         var result = ""
         var capitalizesNext = true
@@ -89,18 +107,18 @@ public enum DeclaredQueryRegistryRenderer {
         // declares and SwiftQL re-exports, so SwiftQLSQLite is added only
         // when no file imports either one unconditionally: a target that does
         // not depend on GRDB is not made to import it, and an import inside
-        // `#if` does not cover the registry's unconditional uses (issue
-        // #790).
+        // `#if` does not cover the registry's unconditional uses. Nor does a
+        // scoped import of one declaration, or an `@_implementationOnly`
+        // one, whose names the public registry cannot use (issue #790).
         var imports: [DeclaredQueryImport] = []
         for declaredImport in scan.imports where !imports.contains(where: {
             $0.module == declaredImport.module && $0.condition == declaredImport.condition
         }) {
             imports.append(declaredImport)
         }
-        if !imports.contains(where: {
-            ($0.module == "SwiftQL" || $0.module == "SwiftQLSQLite") && $0.condition == nil
-        }) {
-            imports.append(DeclaredQueryImport(declaration: "import SwiftQLSQLite", condition: nil, module: "SwiftQLSQLite"))
+        if !imports.contains(where: { $0.condition == nil && Self.importsWholeDeclaringModule($0) }) {
+            let fallback = DeclaredQueryModules.fallback
+            imports.append(DeclaredQueryImport(declaration: "import \(fallback)", condition: nil, module: fallback))
         }
         for declaredImport in imports where declaredImport.condition == nil {
             lines.append(declaredImport.declaration)

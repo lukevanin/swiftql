@@ -70,13 +70,20 @@ run_client() {
     local run_log
     local marker_count
 
-    run_log="$(mktemp "${TMPDIR:-/tmp}/swiftql-swift5-client-run.XXXXXX")"
-    xcrun swift run \
+    # Called as `run_client ... || return 1`, so errexit does not apply in
+    # here: every step checks its own status.
+    run_log="$(mktemp "${TMPDIR:-/tmp}/swiftql-swift5-client-run.XXXXXX")" || return 1
+    if ! xcrun swift run \
         --package-path "$fixture_root" \
         --scratch-path "$scratch_path" \
         --force-resolved-versions \
-        -v "$product" 2>&1 | tee "$run_log"
-    cat "$run_log" >> "$output_log"
+        -v "$product" 2>&1 | tee "$run_log"; then
+        cat "$run_log" >> "$output_log"
+        rm -f "$run_log"
+        printf 'error: %s failed\n' "$product" >&2
+        return 1
+    fi
+    cat "$run_log" >> "$output_log" || return 1
 
     marker_count="$(grep -c "^$marker ok\$" "$run_log" || true)"
     rm -f "$run_log"

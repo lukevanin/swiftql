@@ -268,7 +268,7 @@ def check_grdb_free_product_packages(manifest_targets):
         reached = set()
         while pending:
             name = pending.pop()
-            if name in reached or name not in by_name:
+            if name in reached:
                 continue
             reached.add(name)
             for dependency in by_name[name].get("dependencies", []):
@@ -284,9 +284,19 @@ def check_grdb_free_product_packages(manifest_targets):
                                 ", ".join(sorted(GRDB_FREE_PRODUCT_PACKAGES)),
                             )
                         )
-                for kind in ("byName", "target"):
-                    if kind in dependency:
-                        pending.append(dependency[kind][0])
+                if "target" in dependency:
+                    pending.append(dependency["target"][0])
+                if "byName" in dependency:
+                    dependency_name = dependency["byName"][0]
+                    if dependency_name not in by_name:
+                        raise BoundaryCheckError(
+                            "the {} product reaches {}, which depends on {} by name, "
+                            "a product rather than a target of this package; name it "
+                            "with .product(name:package:) so its package can be checked".format(
+                                product_name, name, dependency_name
+                            )
+                        )
+                    pending.append(dependency_name)
 
 
 def check_grdb_free_products(targets, products):

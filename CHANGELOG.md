@@ -718,8 +718,11 @@
     `"imports": ["SwiftQLQuery"]` for a dialect that should not depend on
     SQLite.
   - The declared-query registry plugin adds `import SwiftQLSQLite`, rather
-    than `import SwiftQL`, when no scanned file imports either module, and
-    it finds an attribute written `@SwiftQLSQLite.SQLQuery`.
+    than `import SwiftQL`, unless a scanned file imports one of the two
+    modules whole and unconditionally: an import inside `#if`, a scoped
+    import such as `import struct SwiftQL.GRDBDatabase`, or an
+    `@_implementationOnly` import no longer counts. It also finds an
+    attribute written `@SwiftQLSQLite.SQLQuery`.
 
 ### Added
 
