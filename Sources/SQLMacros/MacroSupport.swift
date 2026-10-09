@@ -122,32 +122,23 @@ internal enum MacroNameArgument {
 internal enum MacroDialectArgument {
 
     ///
-    /// The dialect a model's metadata names when `@SQLTable` or `@SQLResult`
-    /// names none.
+    /// The dialect generated code names when the attribute names none, for a
+    /// model and for a declared query alike.
     ///
-    /// Module-qualified, because the model's metadata is expanded into the
-    /// user's file, which may also import a module with a type of the same
-    /// name (issue #789). The module is `SwiftQLSQLite`, which declares the
-    /// dialect-less overloads, so a file that imports it alone can expand
-    /// them. The spelling stays valid if the type itself later moves out of
-    /// `SwiftQLCore`, because `SwiftQLSQLite` re-exports it (issue #790).
-    ///
-    static let defaultModelDialectType = "SwiftQLSQLite.XLSQLiteDialect"
-
-    ///
-    /// The dialect generated code names when the attribute names none.
-    ///
-    /// The dialect-less declared-query macros are declared in `SwiftQLSQLite`,
-    /// whose default dialect is SQLite, so an attribute without the argument
-    /// expands to what it always meant. Qualified for the reason
-    /// ``defaultModelDialectType`` is (issue #790).
+    /// The dialect-less overloads are declared in `SwiftQLSQLite`, whose
+    /// default dialect is SQLite, so an attribute without the argument
+    /// expands to what it always meant. Module-qualified, because the
+    /// expansion is in the user's file, which may also import a module with a
+    /// type of the same name (issue #789). The module is `SwiftQLSQLite`, so a
+    /// file that imports it alone can expand them, and the spelling stays
+    /// valid if the type itself later moves out of `SwiftQLCore`, because
+    /// `SwiftQLSQLite` re-exports it (issue #790).
     ///
     static let defaultDialectType = "SwiftQLSQLite.XLSQLiteDialect"
 
     ///
     /// Returns the dialect type the attribute names, as source text, or
-    /// `defaultDialectType` when the argument is absent: by default
-    /// ``defaultDialectType``, and ``defaultModelDialectType`` for a model.
+    /// ``defaultDialectType`` when the argument is absent.
     ///
     /// The macro declaration types the argument as `Dialect.Type`, so the
     /// compiler has already checked that it names a dialect. The macro still
@@ -168,8 +159,7 @@ internal enum MacroDialectArgument {
     ///
     static func resolve(
         of node: AttributeSyntax,
-        macroName: String,
-        defaultingTo defaultDialectType: String = Self.defaultDialectType
+        macroName: String
     ) -> (dialectType: String, diagnostic: Diagnostic?) {
         guard
             case let .argumentList(arguments) = node.arguments,

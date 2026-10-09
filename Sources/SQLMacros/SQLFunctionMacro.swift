@@ -287,6 +287,11 @@ internal struct FunctionMetaBuilder {
         }
         // A module-qualified property type keeps its qualifier, so a client
         // that qualifies its types to avoid a clash is not exposed to one.
+        // `XLExpression` is declared in SwiftQLQuery, and SwiftQLRuntime and
+        // SwiftQLSQLite re-export it, but only SwiftQLSQLite, and SwiftQL,
+        // which re-exports it, have `XLSQLiteExpression`. A qualifier of a
+        // module below SwiftQLSQLite is therefore written as SwiftQLSQLite
+        // (issue #790).
         let constraint = existential.constraint
         if let identifier = constraint.as(IdentifierTypeSyntax.self) {
             let genericArguments = identifier.genericArgumentClause?.trimmedDescription ?? ""
@@ -294,10 +299,22 @@ internal struct FunctionMetaBuilder {
         }
         if let member = constraint.as(MemberTypeSyntax.self) {
             let genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
-            return "any \(member.baseType.trimmedDescription).XLSQLiteExpression\(genericArguments)"
+            var module = member.baseType.trimmedDescription
+            if modulesWithoutSQLiteExpression.contains(module) {
+                module = "SwiftQLSQLite"
+            }
+            return "any \(module).XLSQLiteExpression\(genericArguments)"
         }
         return nil
     }
+
+    /// The modules that re-export `XLExpression` but declare no
+    /// `XLSQLiteExpression` and re-export none (issue #790).
+    private static let modulesWithoutSQLiteExpression: Set<String> = [
+        "SwiftQLCore",
+        "SwiftQLQuery",
+        "SwiftQLRuntime",
+    ]
 
     ///
     /// Determines whether a type annotation is an `XLExpression`, spelled as an existential

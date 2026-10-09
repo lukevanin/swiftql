@@ -839,7 +839,7 @@ package struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
         self.statement = statement
     }
     
-package func makeSQL(context: inout XLBuilder) {
+    package func makeSQL(context: inout XLBuilder) {
         context.parenthesis(contents: statement.makeSQL)
     }
 }

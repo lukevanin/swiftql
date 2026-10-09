@@ -43,8 +43,7 @@ internal enum MetaModelParser {
         // Issue #789: the dialect the model's columns carry.
         let dialect = MacroDialectArgument.resolve(
             of: node,
-            macroName: "@" + node.attributeName.trimmedDescription,
-            defaultingTo: MacroDialectArgument.defaultModelDialectType
+            macroName: "@" + node.attributeName.trimmedDescription
         )
         if let diagnostic = dialect.diagnostic {
             diagnostics.report(diagnostic)

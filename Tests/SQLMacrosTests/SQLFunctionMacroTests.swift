@@ -496,6 +496,43 @@ final class SQLFunctionMacroTests: XCTestCase {
         )
     }
 
+    /// Issue #790: `XLExpression` is declared in SwiftQLQuery, which has no
+    /// `XLSQLiteExpression`, so a property qualified with it, or with another
+    /// module below SwiftQLSQLite, gets an initializer parameter qualified
+    /// with SwiftQLSQLite.
+    func test_expressionTypeQualifiedWithAModuleBelowSQLite_takesSwiftQLSQLiteExpression() {
+        assertMacroExpansion(
+            """
+            @SQLFunction(name: "wrap")
+            struct WrapFunction {
+                let value: any SwiftQLQuery.XLExpression<Int>
+                let other: any SwiftQLRuntime.XLExpression<String>
+            }
+            """,
+            expandedSource: """
+            struct WrapFunction {
+                let value: any SwiftQLQuery.XLExpression<Int>
+                let other: any SwiftQLRuntime.XLExpression<String>
+
+                public static let definition = XLCustomFunctionDefinition(name: "wrap", numberOfArguments: 2)
+
+                public func makeSQL(context: inout XLBuilder) {
+                        context.simpleFunction(name: Self.definition.name) { context in
+                            context.listItem(expression: value.makeSQL)
+                            context.listItem(expression: other.makeSQL)
+                        }
+                  }
+
+                init(value: any SwiftQLSQLite.XLSQLiteExpression<Int>, other: any SwiftQLSQLite.XLSQLiteExpression<String>) {
+                        self.value = value
+                        self.other = other
+                  }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
     func test_moduleQualifiedExpressionType_isAccepted() {
         assertMacroExpansion(
             """

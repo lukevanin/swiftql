@@ -92,7 +92,9 @@ let package = Package(
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
         .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.0"),
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
-        .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.0.0"),
+        // `make-docs.sh` builds combined documentation, whose flag the plugin
+        // has from 1.4.0 (issue #790).
+        .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.4.0"),
         // OpenCombine is linked on Linux only (see the `condition:` on each
         // product below). Apple platforms use Combine. `Package.resolved` keeps
         // the tested 0.14.0 pin; the range lets consumers resolve a compatible

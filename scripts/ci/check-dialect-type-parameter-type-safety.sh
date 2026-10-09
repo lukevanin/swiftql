@@ -227,7 +227,7 @@ fi
 # SQLite in, or the query-only fixtures would prove nothing.
 for query_only_file in "${query_only_support_files[@]}" \
     "$query_only_positive_fixture" "${query_only_refusal_fixtures[@]}"; do
-    if grep -Eq '^[^/]*import[[:space:]]+(SwiftQL|SwiftQLSQLite|SwiftQLRuntime)([[:space:]]|$)' \
+    if grep -Eq '^[^/]*import[[:space:]]+((class|enum|func|let|protocol|struct|typealias|var)[[:space:]]+)?(SwiftQL|SwiftQLSQLite|SwiftQLRuntime)([[:space:].]|$)' \
         "$query_only_file"; then
         printf 'error: a query-only file imports more than SwiftQLQuery: %s\n' \
             "$query_only_file" >&2
