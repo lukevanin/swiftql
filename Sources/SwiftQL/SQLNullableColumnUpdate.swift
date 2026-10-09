@@ -172,13 +172,20 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// expression.
     ///
     /// Assigning `nil` here sets the column to SQL `NULL`, the same as
-    /// assigning `nil` to ``expression``.
+    /// assigning `nil` to ``expression``. Assigning the read of a column that
+    /// was never assigned leaves the column out of the statement, so
+    /// `row.nickname = row.nickname` keeps the stored value (issue #828).
     public var optionalExpression: (any XLExpression<Optional<Wrapped>>)? {
         get {
             storedExpression
         }
         set {
             wrappedExpression = nil
+            if let newValue, XLUnassignedColumnExpression<Wrapped>.isRead(of: newValue) {
+                storedExpression = nil
+                isAssigned = false
+                return
+            }
             storedExpression = newValue
             isAssigned = true
         }
@@ -199,52 +206,73 @@ public struct XLNullableColumnUpdate<Wrapped> {
     }
 
     ///
-    /// ``expression`` as `ExpressionType`, the model's dialect's expression
-    /// type of the column's wrapped type, for a generated `MetaUpdate`'s read
-    /// of the slot (issue #825), or `nil` when it holds a value of no dialect.
-    /// See ``XLColumnUpdate/_xlReadExpression(as:)``.
+    /// The assigned value as `ExpressionType`, the model's dialect's
+    /// expression type of the column's optional type, for a generated
+    /// `MetaUpdate`'s read of the slot (issues #825, #828), or `nil` when the
+    /// column was never assigned or holds a value of no dialect, or the value
+    /// is `NULL` in a dialect whose expression protocol does not include
+    /// `XLNullExpression`.
     ///
-    /// It is also `nil` when the column was never assigned, was assigned
-    /// `NULL`, or was assigned an optional-typed expression, which is not an
-    /// expression of the wrapped type: reading it as one would let a value
-    /// that can be `NULL` be assigned to a column that cannot. So assigning
-    /// this read back sets the column to `NULL` (issue #828); read the column
-    /// through its optional-typed overload to copy it.
-    ///
-    public func _xlReadExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
-        expression as? ExpressionType
-    }
-
-    ///
-    /// ``expression`` inside an `XLTypeAffinityExpression`, for a generated
-    /// getter when ``_xlReadExpression(as:)`` is `nil` (issue #825). See
-    /// ``XLColumnUpdate/_xlReadUntypedExpression``.
-    ///
-    public var _xlReadUntypedExpression: XLTypeAffinityExpression<Wrapped>? {
-        _xlUntypedSlotRead(expression)
-    }
-
-    ///
-    /// ``optionalExpression`` as `ExpressionType`, or `NULL` when it is `nil`,
-    /// for a generated `MetaUpdate`'s read of the slot as an optional-typed
-    /// expression (issue #825); `nil` when that is not one of
-    /// `ExpressionType`, such as `NULL` in a dialect whose expression
-    /// protocol does not include `XLNullExpression`. A column never assigned
-    /// also reads as `NULL`, so assigning that read back adds the column to
-    /// the statement as `NULL`.
+    /// A nullable column is read only as an optional-typed expression: the
+    /// value can be `NULL`, so the generated getter of the wrapped-type
+    /// overload is unavailable, and a read cannot be assigned to a column
+    /// that is `NOT NULL`. Whichever overload assigned the column, the read
+    /// is the assigned value, so assigning it back keeps it. A value of the
+    /// wrapped type reads inside the `XLTypeAffinityExpression` it is stored
+    /// in, and `NULL` reads as `NULL`.
     ///
     public func _xlReadOptionalExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
-        (optionalExpression ?? XLNullExpression<Wrapped>()) as? ExpressionType
+        guard isAssigned else {
+            return nil
+        }
+        return (storedExpression ?? XLNullExpression<Wrapped>()) as? ExpressionType
     }
 
     ///
-    /// ``optionalExpression``, or `NULL` when it is `nil`, inside an
-    /// `XLTypeAffinityExpression`, for a generated getter when
+    /// The assigned value inside an `XLTypeAffinityExpression`, which records
+    /// no dialect, for a generated getter when
     /// ``_xlReadOptionalExpression(as:)`` is `nil` (issue #825).
     ///
+    /// A column never assigned reads as a value that renders `NULL` and that
+    /// ``optionalExpression`` recognises: assigning it to a nullable column,
+    /// this one or another, leaves that column out of the statement, so
+    /// `row.nickname = row.nickname` keeps the stored value (issue #828).
+    ///
     public var _xlReadUntypedOptionalExpression: XLTypeAffinityExpression<Optional<Wrapped>> {
-        XLTypeAffinityExpression<Optional<Wrapped>>(
-            expression: optionalExpression ?? XLNullExpression<Wrapped>()
+        guard isAssigned else {
+            return XLTypeAffinityExpression<Optional<Wrapped>>(
+                expression: XLUnassignedColumnExpression<Wrapped>()
+            )
+        }
+        return XLTypeAffinityExpression<Optional<Wrapped>>(
+            expression: storedExpression ?? XLNullExpression<Wrapped>()
         )
+    }
+}
+
+
+///
+/// The read of a nullable column that a `Setting` closure never assigned
+/// (issue #828).
+///
+/// It is only ever held inside an `XLTypeAffinityExpression`, which every
+/// dialect's expression protocol includes. Assigned to a nullable column's
+/// slot, it leaves the column out of the statement; anywhere else it renders
+/// `NULL`, as the read of an unassigned column did before.
+///
+struct XLUnassignedColumnExpression<Wrapped>: XLExpression {
+
+    typealias T = Optional<Wrapped>
+
+    func makeSQL(context: inout XLBuilder) {
+        context.null()
+    }
+
+    /// Whether `expression` is the read of a column never assigned.
+    static func isRead(of expression: any XLExpression<Optional<Wrapped>>) -> Bool {
+        guard let read = expression as? XLTypeAffinityExpression<Optional<Wrapped>> else {
+            return false
+        }
+        return read.wrappedExpression is XLUnassignedColumnExpression<Wrapped>
     }
 }

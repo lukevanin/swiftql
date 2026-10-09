@@ -437,7 +437,13 @@ public struct XLTypeAffinityExpression<T>: XLExpression {
     public init(expression: any XLExpression) {
         self.expression = expression
     }
-    
+
+    /// The expression this one renders, for a nullable column's slot to
+    /// recognise the read of a column never assigned (issue #828).
+    var wrappedExpression: any XLExpression {
+        expression
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         expression.makeSQL(context: &context)
     }

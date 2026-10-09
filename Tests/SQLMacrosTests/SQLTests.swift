@@ -1846,13 +1846,14 @@ final class MetaBuilderTests: XCTestCase {
 
     // MetaUpdate routes column assignment through key-path member lookup over
     // typed slots. A nullable column gets an `XLNullableColumnUpdate` slot and
-    // two subscript overloads -- one keyed on the column's *wrapped* type
-    // (which is what lets `row.nickname = "Ada"` and `row.nickname = nil`
-    // both compile and mean different things) and a disfavored one keyed on
-    // the optional type (which is what lets an optional-typed expression such
-    // as a `XLNamedBindingReference<String?>` assign with the same spelling).
-    // A non-optional column gets a plain `XLColumnUpdate` slot, where `nil`
-    // still means "leave this column out".
+    // two subscript overloads -- a disfavored one keyed on the column's
+    // *wrapped* type (which is what lets `row.nickname = "Ada"` and
+    // `row.nickname = nil` both compile and mean different things), whose
+    // getter is unavailable (issue #828), and one keyed on the optional type
+    // (which is what lets an optional-typed expression such as a
+    // `XLNamedBindingReference<String?>` assign with the same spelling, and
+    // is the only way to read the column). A non-optional column gets a plain
+    // `XLColumnUpdate` slot, where `nil` still means "leave this column out".
     func test_metaUpdateRoutesColumnsThroughTypedSlots() throws {
         let builder = try makeBuilder(
             """
@@ -1876,36 +1877,47 @@ final class MetaBuilderTests: XCTestCase {
         )
 
         // The three subscript overloads: wrapped-type for both slot kinds,
-        // and the disfavored optional-typed overload for nullable slots.
-        XCTAssertTrue(
-            source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
-            )
-        )
-        XCTAssertTrue(
-            source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
-            )
-        )
-        XCTAssertTrue(source.contains("@_disfavoredOverload"))
-        XCTAssertTrue(
-            source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>"
-            )
-        )
-
-        // Issue #825: a read casts the stored expression back to the model's
-        // dialect's expression type.
-        // Each of the three getters casts first; the two wrapped-type ones
-        // read the untyped value when the cast fails.
+        // and the optional-typed overload for nullable slots.
         func occurrences(_ text: String) -> Int {
             source.components(separatedBy: text).count - 1
         }
+        let columnSubscript = "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
+        let nullableWrappedSubscript = "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
+        let nullableOptionalSubscript = "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>"
+        XCTAssertEqual(occurrences(columnSubscript), 1)
+        XCTAssertEqual(occurrences(nullableWrappedSubscript), 1)
+        XCTAssertEqual(occurrences(nullableOptionalSubscript), 1)
+
+        // Issue #828: the nullable column's wrapped-type overload is the one
+        // disfavored, so a read and a plain `Wrapped?` value resolve to the
+        // optional-typed overload, and its getter is unavailable, so a read
+        // that can be `NULL` is never an expression of the wrapped type.
+        XCTAssertEqual(occurrences("@_disfavoredOverload"), 1)
+        let wrappedOverload = try XCTUnwrap(source.range(of: nullableWrappedSubscript))
+        let disfavored = try XCTUnwrap(source.range(of: "@_disfavoredOverload"))
+        XCTAssertEqual(
+            source[disfavored.upperBound ..< wrappedOverload.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines),
+            ""
+        )
+        let unavailableGetter = #"@available(*, unavailable, message: "a nullable column can be NULL, so it is read only as an optional-typed expression")"#
+        XCTAssertEqual(occurrences(unavailableGetter), 1)
+        let wrappedOverloadBody = source[wrappedOverload.upperBound...]
+        let unavailable = try XCTUnwrap(wrappedOverloadBody.range(of: unavailableGetter))
+        XCTAssertEqual(
+            wrappedOverloadBody[..<unavailable.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines),
+            "{"
+        )
+        XCTAssertEqual(occurrences("Swift.fatalError()"), 1)
+
+        // Issue #825: a read casts the stored expression back to the model's
+        // dialect's expression type.
+        // Each of the two readable getters casts first, and reads the untyped
+        // value when the cast fails.
         XCTAssertEqual(
             occurrences("if let typed = slot._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)"),
-            2
+            1
         )
-        XCTAssertEqual(occurrences("guard let untyped = slot._xlReadUntypedExpression else"), 2)
+        XCTAssertEqual(occurrences("guard let untyped = slot._xlReadUntypedExpression else"), 1)
         XCTAssertEqual(
             occurrences("if let typed = slot._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)"),
             1
@@ -1914,7 +1926,7 @@ final class MetaBuilderTests: XCTestCase {
         // coercion the compiler checks against the dialect's expression type.
         // The getters call it rather than pass it as a value or a closure,
         // which would capture the model's generic metatypes.
-        XCTAssertEqual(occurrences("return Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression(untyped)"), 2)
+        XCTAssertEqual(occurrences("return Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression(untyped)"), 1)
         XCTAssertEqual(
             occurrences("return Self._xlDialectExpressionMustIncludeXLTypeAffinityExpression(slot._xlReadUntypedOptionalExpression)"),
             1
