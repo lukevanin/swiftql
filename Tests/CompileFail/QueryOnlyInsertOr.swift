@@ -5,7 +5,7 @@ import SwiftQLQuery
 // file that imports SwiftQLQuery alone has only the plain `Insert`.
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
-// expected-names: or
+// expected-names: 'or'
 
 func refusal() -> any XLInsertStatement {
     sql(dialect: QueryOnlyDialect.self) { schema in

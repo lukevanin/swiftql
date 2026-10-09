@@ -251,7 +251,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                init(first: any XLSQLiteExpression<Int>, second: any SwiftQL.XLSQLiteExpression<String>) {
+                init(first: any XLSQLiteExpression<Int>, second: any SwiftQLSQLite.XLSQLiteExpression<String>) {
                         self.first = first
                         self.second = second
                   }
@@ -553,7 +553,7 @@ final class SQLFunctionMacroTests: XCTestCase {
                         }
                   }
 
-                init(value: any SwiftQL.XLSQLiteExpression<Int>) {
+                init(value: any SwiftQLSQLite.XLSQLiteExpression<Int>) {
                         self.value = value
                   }
             }

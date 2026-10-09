@@ -6,7 +6,7 @@ import SwiftQLQuery
 // alone sees only the overload that names the dialect.
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
-// expected-names: dialect
+// expected-names: 'dialect'
 
 @SQLTable // expected-error
 struct QueryOnlyDialectlessPerson {

@@ -56,8 +56,9 @@ public protocol XLSQLiteExpression<T>: XLExpression {
 
 
 ///
-/// An enum that is a SQLite value: a column of a model declared for
-/// SQLite, and an operand of its operators and functions.
+/// An enum whose cases are values in SQLite queries: a column of a
+/// model declared for SQLite, and an operand of its operators and
+/// functions.
 ///
 /// `XLEnumRepresentable` holds the requirements and their defaults, and names
 /// no dialect. An enum used in several dialects conforms to each dialect's
@@ -66,8 +67,8 @@ public protocol XLSQLiteExpression<T>: XLExpression {
 public typealias XLSQLiteEnum = XLEnumRepresentable & XLSQLiteExpression
 
 ///
-/// A custom scalar type that is a SQLite value: it binds to, reads
-/// from, and renders into a SQLite query.
+/// A custom scalar type whose values are values in SQLite queries:
+/// it binds to, reads from, and renders into them.
 ///
 /// `XLCustomValue` holds the requirements, and names no dialect. A type used
 /// in several dialects conforms to each dialect's composition, or to a

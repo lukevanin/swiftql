@@ -11,8 +11,9 @@
 /// Defines the `@SQLTable(dialect:)` macro.
 ///
 /// Issue #789: the same as `@SQLTable`, with the dialect the model belongs to
-/// named as `MyDialect.self`. Without the argument the dialect is
-/// `XLSQLiteDialect`.
+/// named as `MyDialect.self`. The argument is required here: the form without
+/// it, whose dialect is `XLSQLiteDialect`, is declared in SwiftQLSQLite
+/// (issue #790).
 ///
 /// Every column of the model carries the dialect, so every expression built
 /// from the model does too, and an operation the dialect does not have is a
@@ -45,8 +46,9 @@ public macro SQLTable<Dialect: XLSQLDialect>(name: String? = nil, dialect: Diale
 /// Defines the `@SQLResult(dialect:)` macro.
 ///
 /// Issue #789: the same as `@SQLResult`, with the dialect the result belongs
-/// to named as `MyDialect.self`. Without the argument the dialect is
-/// `XLSQLiteDialect`. See ``SQLTable(name:dialect:)``.
+/// to named as `MyDialect.self`. The argument is required here: the form
+/// without it, whose dialect is `XLSQLiteDialect`, is declared in
+/// SwiftQLSQLite (issue #790). See ``SQLTable(name:dialect:)``.
 ///
 @attached(member, names: arbitrary)
 @attached(extension, conformances: XLResult, Sendable, names: arbitrary)

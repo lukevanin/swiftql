@@ -5,7 +5,7 @@ import SwiftQLQuery
 // imports SwiftQLQuery alone cannot reach it.
 // Compiled with Support/QueryOnlySupport.swift and the query-only dialect's
 // generated surface.
-// expected-names: iif
+// expected-names: 'iif'
 
 func refusal() -> any XLQueryStatement<QueryOnlyPerson> {
     sql(dialect: QueryOnlyDialect.self) { schema in

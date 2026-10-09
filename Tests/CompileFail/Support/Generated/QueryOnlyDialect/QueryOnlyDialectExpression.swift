@@ -56,8 +56,9 @@ protocol QueryOnlyDialectExpression<T>: XLExpression {
 
 
 ///
-/// An enum that is a the query-only compile-fail dialect value: a column of a model declared for
-/// the query-only compile-fail dialect, and an operand of its operators and functions.
+/// An enum whose cases are values in the query-only compile-fail dialect queries: a column of a
+/// model declared for the query-only compile-fail dialect, and an operand of its operators and
+/// functions.
 ///
 /// `XLEnumRepresentable` holds the requirements and their defaults, and names
 /// no dialect. An enum used in several dialects conforms to each dialect's
@@ -66,8 +67,8 @@ protocol QueryOnlyDialectExpression<T>: XLExpression {
 typealias QueryOnlyDialectEnum = XLEnumRepresentable & QueryOnlyDialectExpression
 
 ///
-/// A custom scalar type that is a the query-only compile-fail dialect value: it binds to, reads
-/// from, and renders into a the query-only compile-fail dialect query.
+/// A custom scalar type whose values are values in the query-only compile-fail dialect queries:
+/// it binds to, reads from, and renders into them.
 ///
 /// `XLCustomValue` holds the requirements, and names no dialect. A type used
 /// in several dialects conforms to each dialect's composition, or to a

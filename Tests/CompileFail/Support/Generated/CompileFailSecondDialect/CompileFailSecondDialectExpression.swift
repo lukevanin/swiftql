@@ -56,8 +56,9 @@ protocol CompileFailSecondDialectExpression<T>: XLExpression {
 
 
 ///
-/// An enum that is a the compile-fail second dialect value: a column of a model declared for
-/// the compile-fail second dialect, and an operand of its operators and functions.
+/// An enum whose cases are values in the compile-fail second dialect queries: a column of a
+/// model declared for the compile-fail second dialect, and an operand of its operators and
+/// functions.
 ///
 /// `XLEnumRepresentable` holds the requirements and their defaults, and names
 /// no dialect. An enum used in several dialects conforms to each dialect's
@@ -66,8 +67,8 @@ protocol CompileFailSecondDialectExpression<T>: XLExpression {
 typealias CompileFailSecondDialectEnum = XLEnumRepresentable & CompileFailSecondDialectExpression
 
 ///
-/// A custom scalar type that is a the compile-fail second dialect value: it binds to, reads
-/// from, and renders into a the compile-fail second dialect query.
+/// A custom scalar type whose values are values in the compile-fail second dialect queries:
+/// it binds to, reads from, and renders into them.
 ///
 /// `XLCustomValue` holds the requirements, and names no dialect. A type used
 /// in several dialects conforms to each dialect's composition, or to a

@@ -319,30 +319,7 @@ done
 
 for fixture in "${refusal_fixtures[@]}"; do
     compile_negative_fixture "$fixture"
-
-    # The error itself, not a note under it, must contain the expected names,
-    # so a reader can see which dialects met without opening the generated
-    # code.
-    expected_names="$(
-        awk -F'// expected-names: ' '/\/\/ expected-names: / { print $2; exit }' "$fixture"
-    )"
-    if [[ -z "$expected_names" ]]; then
-        printf 'error: expected an expected-names comment in %s\n' "$fixture" >&2
-        exit 1
-    fi
-    error_text="$(
-        awk -v fixture="$fixture" '
-            index($0, fixture ":") == 1 && /: error:/ { print }
-        ' "$diagnostic_log"
-    )"
-    for name in $expected_names; do
-        if [[ "$error_text" != *"$name"* ]]; then
-            printf 'error: refusal does not name %s: %s\n' "$name" "$fixture" >&2
-            cat "$diagnostic_log" >&2
-            exit 1
-        fi
-    done
-    printf '%s\n' "$error_text"
+    check_refusal_names "$fixture"
 done
 
 for fixture in "${pinned_fixtures[@]}"; do

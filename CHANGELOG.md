@@ -668,7 +668,9 @@
   Combine, async, and SwiftUI bridges, and `SwiftQLSQLite` SQLite's surface,
   the macros, and the request runtime for any SQLite driver. `SwiftQL` keeps
   the GRDB driver and re-exports `SwiftQLSQLite`, which re-exports the other
-  two, so **`import SwiftQL` keeps working unchanged**.
+  two, so **`import SwiftQL` keeps working**. One source change can be
+  needed: `extension XLEnum` no longer compiles, because `XLEnum` is now a
+  typealias (below).
   - Three new products, `SwiftQLQuery`, `SwiftQLRuntime`, and
     `SwiftQLSQLite`. A model or query file can import `SwiftQLSQLite` alone,
     and does not see GRDB. An app that uses SQLite without GRDB depends on
@@ -705,7 +707,10 @@
   - The macros' expansions qualify names with the module that declares them,
     `SwiftQLQuery`, `SwiftQLCore`, or `SwiftQLSQLite`, rather than with
     `SwiftQL`, and the declared-query macros now qualify their default
-    dialect as `SwiftQLSQLite.XLSQLiteDialect`. A file that declares a type
+    dialect as `SwiftQLSQLite.XLSQLiteDialect`. The initializer `@SQLFunction`
+    generates for a property typed with a module-qualified `XLExpression`
+    takes `SwiftQLSQLite.XLSQLiteExpression`, whatever module the property
+    named. A file that declares a type
     with one of those module names cannot expand the macros, as one that
     declared a type named `SwiftQL` could not before.
   - A dialect surface generated outside the package imports `SwiftQLQuery`,
