@@ -486,8 +486,9 @@ the closure assigned to it. A nullable column reads as an expression of its
 optional type, `String?`, because that value can be `NULL`, so
 `row.occupationId = row.occupationId` keeps it, and assigning the read to a
 column that is not optional is a compile error. A column the closure never
-assigned reads as a value that leaves a nullable column it is assigned to out
-of the statement.
+assigned reads as the column itself, its current value, so
+`row.occupationId = row.occupationId.coalesce("none")` fills in only the rows
+that have none.
 
 ## Delete statements
 

@@ -4,8 +4,8 @@
 //  Issue #828: reading a nullable column's `Setting` slot and assigning it
 //  back keeps the value, against real SQLite. A nullable column is read only
 //  as an optional-typed expression, so the read is what was assigned; a
-//  column never assigned reads as a value that, assigned back, leaves the
-//  column out of the statement. That a possibly-`NULL` read cannot be
+//  column never assigned reads as the column itself, its current value,
+//  which the `SET` clause names. That a possibly-`NULL` read cannot be
 //  assigned to a NOT NULL column is proved by
 //  scripts/ci/check-dialect-type-parameter-type-safety.sh.
 //
@@ -84,40 +84,53 @@ final class XLNullableSlotRoundTripTests: XCTestCase {
             let person = schema.into(SlotRoundTripPerson.self)
             Update(person)
             Setting<SlotRoundTripPerson> { row in
-                row.name = person.name + "!"
                 row.nickname = row.nickname
             }
         }
-        // The column is left out of the statement rather than set to `NULL`.
+        // The read names the column, its current value, rather than `NULL`.
         XCTAssertEqual(
             try encode(statement),
-            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "name" = ("t0"."name" || '!')"#
+            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "nickname" = "nickname""#
         )
         try database.makeRequest(with: statement).execute()
         XCTAssertEqual(try allRows(), [
-            SlotRoundTripPerson(id: "a", name: "a!", nickname: "A", alias: "Al"),
-            SlotRoundTripPerson(id: "b", name: "b!", nickname: nil, alias: nil),
+            SlotRoundTripPerson(id: "a", name: "a", nickname: "A", alias: "Al"),
+            SlotRoundTripPerson(id: "b", name: "b", nickname: nil, alias: nil),
         ])
     }
 
-    func testAnUnassignedNullableColumnCopiedToAnotherLeavesBothOut() throws {
+    func testAnUnassignedColumnCopiesItsStoredValue() throws {
         try createRows()
-        let statement = sql { schema in
-            let person = schema.into(SlotRoundTripPerson.self)
-            Update(person)
-            Setting<SlotRoundTripPerson> { row in
-                row.name = person.name + "!"
-                row.alias = row.nickname
-            }
+        // To another nullable column, after an earlier assignment to it.
+        try applyUpdate { _, row in
+            row.alias = "x"
+            row.alias = row.nickname
         }
-        XCTAssertEqual(
-            try encode(statement),
-            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "name" = ("t0"."name" || '!')"#
-        )
-        try database.makeRequest(with: statement).execute()
+        XCTAssertEqual(try allRows().map(\.alias), ["A", nil])
+        // A non-nullable column to a nullable one.
+        try applyUpdate { _, row in
+            row.alias = row.name
+        }
+        XCTAssertEqual(try allRows().map(\.alias), ["a", "b"])
+        // A non-nullable column to itself.
+        try applyUpdate { _, row in
+            row.name = row.name
+            row.alias = nil
+        }
         XCTAssertEqual(try allRows(), [
-            SlotRoundTripPerson(id: "a", name: "a!", nickname: "A", alias: "Al"),
-            SlotRoundTripPerson(id: "b", name: "b!", nickname: nil, alias: nil),
+            SlotRoundTripPerson(id: "a", name: "a", nickname: "A", alias: nil),
+            SlotRoundTripPerson(id: "b", name: "b", nickname: nil, alias: nil),
+        ])
+    }
+
+    func testAnUnassignedColumnComposesWithItsStoredValue() throws {
+        try createRows()
+        try applyUpdate { _, row in
+            row.nickname = row.nickname.coalesce("none")
+        }
+        XCTAssertEqual(try allRows(), [
+            SlotRoundTripPerson(id: "a", name: "a", nickname: "A", alias: "Al"),
+            SlotRoundTripPerson(id: "b", name: "b", nickname: "none", alias: nil),
         ])
     }
 
@@ -235,7 +248,7 @@ final class XLNullableSlotRoundTripTests: XCTestCase {
         )
         XCTAssertEqual(
             try encode(statement),
-            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "name" = 'm',"alias" = "t0"."nickname""#
+            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "name" = 'm',"nickname" = "nickname","alias" = "t0"."nickname""#
         )
         try database.makeRequest(with: statement).execute()
         XCTAssertEqual(try allRows(), [

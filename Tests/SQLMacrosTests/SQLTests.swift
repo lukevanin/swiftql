@@ -1870,10 +1870,10 @@ final class MetaBuilderTests: XCTestCase {
             source.contains("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate")
         )
         XCTAssertTrue(
-            source.contains("public var nickname = SwiftQL.XLNullableColumnUpdate<String>()")
+            source.contains(#"public var nickname = SwiftQL.XLNullableColumnUpdate<String>(_xlColumn: SwiftQL.XLName("nickname"))"#)
         )
         XCTAssertTrue(
-            source.contains("public var id = SwiftQL.XLColumnUpdate<Int>()")
+            source.contains(#"public var id = SwiftQL.XLColumnUpdate<Int>(_xlColumn: SwiftQL.XLName("id"))"#)
         )
 
         // The three subscript overloads: wrapped-type for both slot kinds,

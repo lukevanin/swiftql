@@ -175,13 +175,16 @@ extension MetaBuilder {
 
             context.line("public typealias Row = \(structName)")
 
+            // Each slot knows its column's name, so a read of a column the
+            // closure never assigned is the column's current value (issue
+            // #828).
             context.block("public struct Columns") { context in
                 for property in properties {
                     if property.optional {
-                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>()")
+                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"))")
                     }
                     else {
-                        context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>()")
+                        context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"))")
                     }
                 }
                 context.block("public init()") { _ in

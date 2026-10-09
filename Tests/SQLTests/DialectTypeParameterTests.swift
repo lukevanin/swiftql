@@ -647,8 +647,8 @@ final class DialectTypeParameterTests: XCTestCase {
         // the value the slot holds.
         var update = DialectHandWrittenPerson.MetaUpdate()
         // A nullable column never assigned reads, although the protocol has
-        // no `XLNullExpression`, and assigning the read back leaves the
-        // column out of the statement (issue #828).
+        // no `XLNullExpression`, as the column itself, so assigning the read
+        // back keeps the stored value (issue #828).
         let unassigned: any HandWrittenExpression<String?> = update.nickname
         update.nickname = unassigned
         // A value written to the slot directly, as `UpdateRequest` writes
@@ -658,7 +658,7 @@ final class DialectTypeParameterTests: XCTestCase {
         update.id = update.id
         XCTAssertEqual(
             try handWrittenSQL(Setting<DialectHandWrittenPerson>(update)),
-            #"SET "id" = 7"#
+            #"SET "id" = 7,"nickname" = "nickname""#
         )
         // A nullable column's slot, written directly, reads back as an
         // optional-typed expression and assigns back without losing it.
@@ -698,7 +698,8 @@ final class DialectTypeParameterTests: XCTestCase {
 
     func testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect() throws {
         var update = DialectSecondPerson.MetaUpdate()
-        XCTAssertNil(update.name)
+        // A column never assigned reads as the column itself (issue #828).
+        XCTAssertTrue(try XCTUnwrap(update.name) is XLTypeAffinityExpression<String>)
         update.name = "a"
         update.nickname = nil
         // A read of the slot is an expression of the model's dialect, so it
