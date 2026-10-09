@@ -74,7 +74,7 @@ extension XLDriverRequest {
                 catch {
                     logger?.error("stream: Cannot decode entity: \(error)")
                     // A decode failure ends the stream, which is the contract
-                    // <doc:LiveQueries> states. Decoding runs here rather than
+                    // "Live Queries" in SwiftQL's documentation states. Decoding runs here rather than
                     // inside the observation, so this closure ends the stream
                     // itself. `AsyncThrowingStream`'s `unfolding` wrapper calls
                     // this closure again after a throw; stopping the

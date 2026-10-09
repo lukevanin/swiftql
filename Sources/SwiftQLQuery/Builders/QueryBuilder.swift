@@ -21,7 +21,7 @@ import Foundation
 /// runtime overhead. Static queries should be used where maximum efficiency is required.
 ///
 /// The builder carries its dialect, and takes only that dialect's tables and
-/// expressions (issue #822). ``QueryBuilder`` is the builder for SQLite. The
+/// expressions (issue #822). `QueryBuilder` is the builder for SQLite. The
 /// methods that take an expression are declared by each dialect's surface,
 /// from scripts/dialect-surface/Templates/QueryBuilder.swift.template.
 ///

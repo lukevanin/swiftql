@@ -13,7 +13,7 @@ synchronous fetch-method siblings, are exposed alongside each other on every `XL
 
 Since issue #684 the stream members are what a request adapter implements, and the publish members
 are SwiftQL's own: one leaf Combine adapter over the streams, shared by every request. An adapter
-needs neither Combine nor OpenCombine to conform to ``XLRequest``. See "Writing a request adapter"
+needs neither Combine nor OpenCombine to conform to `XLRequest`. See "Writing a request adapter"
 below.
 
 With the GRDB adapter, each subscriber's first positive demand — or each stream's first `next()`
@@ -110,7 +110,7 @@ documented glitch.
 
 A consumer that needs distinct values must compare them itself, for example by holding the last
 delivered value and ignoring a delivery equal to it. SwiftQL does not do this for you, and it does
-not require ``XLRequest/Row`` to be `Equatable`. GRDB's own `removeDuplicates()` operator is not
+not require `XLRequest.Row` to be `Equatable`. GRDB's own `removeDuplicates()` operator is not
 reachable either: SwiftQL owns the `ValueObservation`, and a consumer receives an
 `AsyncThrowingStream` or a Combine publisher instead.
 
@@ -124,7 +124,7 @@ main queue. The GRDB adapter gives each stream a private serial queue: GRDB deli
 into the stream on that queue, and a retry backoff waits on the same queue. Async consumers then
 resume per ordinary Swift concurrency scheduling, so a thread that blocks while it waits for a
 snapshot — the main thread included — does not hold up that snapshot. Only the Combine adapters add
-a main-queue hop, as their delivery default. Another ``XLRequest`` conformer schedules its own work;
+a main-queue hop, as their delivery default. Another `XLRequest` conformer schedules its own work;
 see the note on external conformers below. A framework adapter that needs a specific delivery
 guarantee (e.g. main-thread delivery for SwiftUI) implements that guarantee itself on top of this
 canonical source; it is not a property of `stream()`/`streamOne()`.
@@ -134,7 +134,7 @@ so the database region an observation tracks is constant. GRDB therefore refetch
 commit on a pool reader, not inline on the writer that committed, and commits that land while a
 refetch runs coalesce into one more fetch.
 
-``XLRequest`` is a public protocol with external conformers. `stream()` and `streamOne()` are its
+`XLRequest` is a public protocol with external conformers. `stream()` and `streamOne()` are its
 live-query requirements (issue #684), and SwiftQL's own requests implement them with the driver's
 observation, which for the GRDB driver is a true async-native GRDB observation source that never
 routes through Combine. The `bindings:` variants have compatibility
@@ -212,20 +212,20 @@ promise that one request can be shared directly across tasks.
 A declared query does not need a hand-built packet. Its prepared form,
 `database.preparedQueries.personByName(name:)` for `@SQLQueries` or
 `database.personByNamePreparedQuery(name:)` for `@SQLQuery`, returns an
-``XLPreparedQuery`` that holds the declaration's cached request and the packet
-for its arguments. ``XLPreparedQuery/stream()``, ``XLPreparedQuery/publish()``,
+`XLPreparedQuery` that holds the declaration's cached request and the packet
+for its arguments. `XLPreparedQuery.stream()`, `XLPreparedQuery.publish()`,
 and their single-row forms call the packet-backed methods above, and
-``XLObservableQuery`` and ``XLObservableQueryRow`` accept a prepared query
+`XLObservableQuery` and `XLObservableQueryRow` accept a prepared query
 directly. See <doc:DeclaredQueries>, "Observe a declared query".
 
 ### Writing a request adapter (issue #684)
 
-An ``XLRequest`` adapter implements the stream members, and SwiftQL gives it the publish members.
+An `XLRequest` adapter implements the stream members, and SwiftQL gives it the publish members.
 Combine is a leaf adapter that ships with SwiftQL, so a request adapter for a server, a command-line
 tool, or another database never imports Combine or OpenCombine.
 
 An adapter that already has a Combine publisher of its own implements each stream member in one
-line with ``XLPublisherAsyncBridge``:
+line with `XLPublisherAsyncBridge`:
 
 <!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
 ```swift
@@ -252,7 +252,7 @@ GRDB driver conforms with a `ValueObservation` that tracks the tables SQLite rep
 reads, which also covers the base tables of a view.
 
 The publish members build on whichever stream members the adapter provides, through
-``XLAsyncStreamPublisher``. That type is public, so code with a live-query stream of its own can
+`XLAsyncStreamPublisher`. That type is public, so code with a live-query stream of its own can
 offer the same Combine behaviour.
 
 ### Combine-compatible publishers (a convenience adapter over streams, issue #309)
@@ -303,7 +303,7 @@ finishes with the original error and does not emit a truncated result.
 
 ### SwiftUI (`ObservableObject`, Combine-backed)
 
-``XLQueryObserver`` and ``XLQueryRowObserver`` wrap `publish()`/`publishOne()`
+`XLQueryObserver` and `XLQueryRowObserver` wrap `publish()`/`publishOne()`
 as `ObservableObject`s, so a view model can adopt a live query directly with
 `@StateObject`/`@ObservedObject` instead of managing a `Cancellable` by hand:
 
@@ -327,13 +327,13 @@ described below apply, since both types subscribe through the same
 
 ### SwiftUI (`@Observable`, issue #97)
 
-``XLObservableQuery`` and ``XLObservableQueryRow`` are a third, independent live-query consumption
+`XLObservableQuery` and `XLObservableQueryRow` are a third, independent live-query consumption
 surface, for platforms that ship Swift's `Observation` framework. They are availability-gated with
 `@available(iOS 17, macOS 14, *)` — verified empirically against this package's pinned toolchains,
-not guessed — while every other SwiftQL API, including ``XLQueryObserver``/``XLQueryRowObserver``
+not guessed — while every other SwiftQL API, including `XLQueryObserver`/`XLQueryRowObserver`
 above, keeps compiling and working unchanged down to the package's iOS 16 / macOS 13 floor.
 
-Like ``XLQueryObserver``/``XLQueryRowObserver``, these types own only model/task lifecycle and
+Like `XLQueryObserver`/`XLQueryRowObserver`, these types own only model/task lifecycle and
 main-actor state updates — they are a thin adapter, not a third observation engine. Unlike those
 Combine-backed wrappers, they consume `stream()`/`streamOne()` (issue #308) directly through one
 owned `for try await` `Task` per instance; they never call `publish()`/`publishOne()` and never
@@ -355,9 +355,9 @@ final class PeopleListModel {
 A SwiftUI view reads `people.rows`, `people.isLoading`, and `people.error` directly in its `body`; the
 `@Observable` macro tracks each property access, so the view re-renders whenever any of them changes —
 no `@Published`/`@ObservedObject`/`@StateObject` annotations are needed. Observation starts immediately
-on initialization, exactly like ``XLQueryObserver``, and stops deterministically when the instance is
+on initialization, exactly like `XLQueryObserver`, and stops deterministically when the instance is
 released (`deinit` cancels the owned `Task`, tearing down the underlying observation) or when
-``XLObservableQuery/stop()``/``XLObservableQueryRow/stop()`` is called explicitly, whichever happens
+`XLObservableQuery.stop()`/`XLObservableQueryRow.stop()` is called explicitly, whichever happens
 first. Every snapshot and terminal error is applied to `rows`/`row`/`isLoading`/`error` on the main
 actor, so view code needs no additional synchronization to read them. `rows`/`row` reflect the latest
 known state, not a commit log: a terminal error leaves the last successfully observed value in place
@@ -374,8 +374,8 @@ retry, binding-capture, and cancellation contracts.
 | Surface | Use when |
 | --- | --- |
 | `for try await` over `stream()`/`streamOne()` | Already inside `async` code (a `Task`, an `actor`, a background pipeline) with no UI framework to satisfy. |
-| ``XLQueryObserver``/``XLQueryRowObserver`` (`ObservableObject`) | SwiftUI (or UIKit/AppKit via Combine) targeting iOS 16 / macOS 13, or a codebase already standardized on Combine. |
-| ``XLObservableQuery``/``XLObservableQueryRow`` (`@Observable`) | SwiftUI targeting iOS 17 / macOS 14 or later, wanting Observation-native property tracking instead of `@Published`. |
+| `XLQueryObserver`/`XLQueryRowObserver` (`ObservableObject`) | SwiftUI (or UIKit/AppKit via Combine) targeting iOS 16 / macOS 13, or a codebase already standardized on Combine. |
+| `XLObservableQuery`/`XLObservableQueryRow` (`@Observable`) | SwiftUI targeting iOS 17 / macOS 14 or later, wanting Observation-native property tracking instead of `@Published`. |
 
 ### Retry Policy
 
@@ -596,7 +596,7 @@ them). Concretely, for #308's implementation:
 ### Async-to-Combine demand mapping (issue #309)
 
 `publish()`/`publishOne()` map Combine demand onto stream iteration through a small pull loop, not a
-second buffer. This is implemented by ``XLAsyncStreamPublisher`` and its subscription
+second buffer. This is implemented by `XLAsyncStreamPublisher` and its subscription
 (`Sources/SwiftQL/XLAsyncStreamPublisher.swift`), which the publish members wrap with the main-queue
 delivery default (`Sources/SwiftQL/XLRequest+Combine.swift`):
 
@@ -662,9 +662,9 @@ invoked exactly once per consumer pull with no internal read-ahead — both requ
 ### Migration guidance
 
 For a request adapter (issue #684): `publish()`, `publish(bindings:)`, `publishOne()`, and
-`publishOne(bindings:)` are no longer ``XLRequest`` requirements, and `stream()` and `streamOne()`
+`publishOne(bindings:)` are no longer `XLRequest` requirements, and `stream()` and `streamOne()`
 no longer have defaults that bridge from them. An adapter that implemented only the publish members
-now implements `stream()` and `streamOne()`, in one line each with ``XLPublisherAsyncBridge`` (see
+now implements `stream()` and `streamOne()`, in one line each with `XLPublisherAsyncBridge` (see
 "Writing a request adapter"). A publish method it keeps is no longer what a caller holding
 `any XLRequest` gets: every caller receives SwiftQL's publisher, built on the adapter's streams.
 For a SwiftQL request, callers of the publish members see no change. For another adapter's request,
@@ -708,7 +708,7 @@ behavior change:
 - This decision does not address `XLResultSet` row-by-row cursors (#249) or the query-plan/index-advice
   work (#396) — it is scoped exclusively to whole-snapshot live-query streams.
 - `Tests/SQLTests/XLObservableLiveQueryTests.swift` is #97's follow-up suite: it drives
-  ``XLObservableQuery``/``XLObservableQueryRow`` against real, temporary GRDB databases to prove
+  `XLObservableQuery`/`XLObservableQueryRow` against real, temporary GRDB databases to prove
   initial delivery, refresh, a terminal error leaving `rows`/`row` untouched, main-actor state
   application, cancellation before the first value, a released instance's owned `Task` performing no
   further work (via a probe independent of the deallocated instance), binding replacement by

@@ -18,7 +18,7 @@ import Foundation
 /// Constructs a select statement that returns a scalar value.
 ///
 /// The logical result type is unconstrained. Bare contextual values can be
-/// rendered here, but decoding them requires an ``XLStaticRowLayout`` carrying
+/// rendered here, but decoding them requires an `XLStaticRowLayout` carrying
 /// result codec metadata.
 ///
 public func select<T>(

@@ -12,7 +12,7 @@ import Foundation
 ///
 /// Encodes SwiftQL statements into SQL that can be executed by SQLite.
 ///
-/// The SQLite conformance of ``XLDialectEncoder``.
+/// The SQLite conformance of `XLDialectEncoder`.
 ///
 public typealias XLiteEncoder = XLDialectEncoder<XLSQLiteDialect>
 

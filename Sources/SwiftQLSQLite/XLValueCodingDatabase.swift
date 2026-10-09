@@ -13,7 +13,7 @@
 /// A database whose immutable value-coding snapshot resolves contextual
 /// bindings and query captures (issue #113).
 ///
-/// ``GRDBDatabase`` and ``XLDriverDatabase`` conform, and share one
+/// `GRDBDatabase` and ``XLDriverDatabase`` conform, and share one
 /// implementation of `contextualBinding` and `queryCapture`. Code that holds
 /// any conforming database can declare its contextual bindings and captures
 /// without naming the database's driver:

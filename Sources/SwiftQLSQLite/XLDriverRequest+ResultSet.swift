@@ -20,7 +20,7 @@ extension XLDriverRequest {
     }
 
     ///
-    /// True-streaming override of the ``XLRequest`` default: lends an
+    /// True-streaming override of the `XLRequest` default: lends an
     /// `XLResultSet` backed directly by `XLInvocationExecutor<Driver>`'s
     /// row-handle stepper, so `next()` performs one real SQLite step and one
     /// real typed decode, reading each column from the cursor's row (issue

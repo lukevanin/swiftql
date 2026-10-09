@@ -343,7 +343,7 @@ driver binds anything.
 
 Foundation `UUID` and application-owned values use the same API without
 retroactive literal conformances. `InvoiceToken` below is one application's own
-domain type; `UUID` is SwiftQL's built-in ``XLUUIDValueCodec``, described next.
+domain type; `UUID` is SwiftQL's built-in `XLUUIDValueCodec`, described next.
 Suppose `applicationCodecDatabase` was opened with a registered default whose
 storage identifier matches `INTEGER`:
 
@@ -700,9 +700,9 @@ not offer a cross-database JSON abstraction today.
 ### Built-in UUID codec presets
 
 `UUID` never needs an application-owned wrapper or a registered codec of its
-own: ``XLUUIDValueCodec`` ships two named, versioned SQLite presets --
-``XLUUIDValueCodec/text``, the canonical lowercase hyphenated string, and
-``XLUUIDValueCodec/blob``, the canonical 16-byte RFC 4122 binary layout. Both
+own: `XLUUIDValueCodec` ships two named, versioned SQLite presets --
+`XLUUIDValueCodec.text`, the canonical lowercase hyphenated string, and
+`XLUUIDValueCodec.blob`, the canonical 16-byte RFC 4122 binary layout. Both
 target the same Swift `UUID` value; only their SQLite storage differs, so a
 schema can use each for a different property of the same type without a
 wrapper struct -- either directly as shown here, or per-property via
@@ -749,7 +749,7 @@ through either -- but not on ordering: `TEXT` sorts by lexicographic byte order
 over the hyphenated string, `BLOB` sorts by byte order over the raw RFC 4122
 bytes, and neither matches the other or, in general, UUID creation order.
 Switching a column between the two, or introducing a database-default
-``XLUUIDValueCodec/text`` or ``XLUUIDValueCodec/blob`` after rows already
+`XLUUIDValueCodec.text` or `XLUUIDValueCodec.blob` after rows already
 exist in the other representation, is a data migration: encode and rewrite the
 existing rows explicitly rather than relying on either preset to convert them.
 
@@ -794,8 +794,8 @@ let invoiceUUIDCodec = XLValueCodec<UUID, XLSQLiteDialect>(
 )
 ```
 
-This application-owned codec, ``XLUUIDValueCodec/text``, and
-``XLUUIDValueCodec/blob`` are all ordinary `XLValueCodec<UUID, XLSQLiteDialect>`
+This application-owned codec, `XLUUIDValueCodec.text`, and
+`XLUUIDValueCodec.blob` are all ordinary `XLValueCodec<UUID, XLSQLiteDialect>`
 values with different keys and storage bytes; a schema can register any
 combination of them and select each explicitly per property.
 
@@ -803,7 +803,7 @@ combination of them and select each explicitly per property.
 
 For existing v1 code, a custom scalar value satisfies the `XLCustomType`
 protocol composition (`XLExpression`, `XLBindable`, `XLLiteral`, and
-``XLSQLiteExpression``). The operators and functions take SQLite expressions,
+`XLSQLiteExpression`). The operators and functions take SQLite expressions,
 so a type that adopts the protocols one by one instead of the composition
 adopts `XLSQLiteExpression` as well; a type used in another dialect's query
 adopts that dialect's expression protocol too. It can also adopt these marker

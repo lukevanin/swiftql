@@ -118,9 +118,9 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
 /// A data-changing statement carrying a trailing `RETURNING` clause.
 ///
 /// Unlike a plain `INSERT`/`UPDATE`/`DELETE` — which are write-only and executed
-/// through ``XLWriteRequest`` — a returning statement is both renderable and
+/// through `XLWriteRequest` — a returning statement is both renderable and
 /// row-readable, so `XLDatabase.makeRequest(with:)` for a returning statement
-/// builds a reader-backed ``XLRequest`` whose rows are the values named by the
+/// builds a reader-backed `XLRequest` whose rows are the values named by the
 /// `RETURNING` clause.
 ///
 public protocol XLReturningStatement<Row>: XLEncodable, XLRowReadable {

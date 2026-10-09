@@ -214,7 +214,7 @@ extension XLSQLiteExpression {
 /// the document's type is `Data`, the result is `Data` too, and it assigns to
 /// a `NOT NULL` column without `coalesce`. `jsonb_remove` returns `NULL` when
 /// it removes the root, so a root path is reported as
-/// ``XLSQLValueEncodingError/jsonRootRemoval(function:)``.
+/// `XLSQLValueEncodingError.jsonRootRemoval(function:)`.
 /// `jsonbPatched(with:)` has no form here, because a `NULL` patch also gives
 /// `NULL`.
 ///
@@ -275,7 +275,7 @@ extension XLSQLiteExpression where T == Data {
     /// `jsonb_remove(X, P, ...)`.
     ///
     /// A root path is reported as
-    /// ``XLSQLValueEncodingError/jsonRootRemoval(function:)`` before SQLite
+    /// `XLSQLValueEncodingError.jsonRootRemoval(function:)` before SQLite
     /// prepares the statement.
     ///
     /// Needs SQLite 3.45.0 or later.

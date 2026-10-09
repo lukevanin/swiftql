@@ -36,7 +36,7 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
     ///
     /// The expression is in the field's dialect: a field selects only an
     /// expression of the dialect its layout is built for, so this is an
-    /// expression of that dialect, such as an ``XLSQLiteExpression`` for a
+    /// expression of that dialect, such as an `XLSQLiteExpression` for a
     /// SQLite layout (issue #789).
     public let expression: XLDialectExpression<Storage, Dialect>
 

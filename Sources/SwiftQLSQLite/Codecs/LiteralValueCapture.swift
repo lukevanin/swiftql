@@ -16,7 +16,7 @@ import Foundation
 /// through its binding context.
 ///
 /// Every capture path in SwiftQL shares this type, so the mapping from a bound
-/// Swift value to an ``XLSQLiteValue`` is defined exactly once.
+/// Swift value to an `XLSQLiteValue` is defined exactly once.
 ///
 struct XLSQLiteValueCapture: XLBindingContext {
 
@@ -82,10 +82,10 @@ func _xlCapturedSQLiteValue(
 ///
 /// SQLite's binding API turns an IEEE 754 NaN into SQL `NULL`. SwiftQL treats
 /// that as an error rather than a silent change of meaning, so a NaN `REAL`
-/// throws ``XLSQLValueEncodingError/realBindingWouldBecomeNull(value:valueType:context:)``
+/// throws `XLSQLValueEncodingError.realBindingWouldBecomeNull(value:valueType:context:)`
 /// here, at the point of capture, for every path that binds a value. Infinities
 /// survive the round trip and are captured unchanged. See
-/// <doc:RealValues>.
+/// "Real Values" in SwiftQL's documentation.
 ///
 /// - Parameters:
 ///   - value: The Swift value to capture.

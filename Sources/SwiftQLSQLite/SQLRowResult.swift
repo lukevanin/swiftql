@@ -38,7 +38,7 @@ extension SQLRow2: Hashable where C0: Hashable, C1: Hashable {
 
 ///
 /// The row crosses an isolation boundary on every observation path, so
-/// ``XLRequest`` requires a `Sendable` row. A generic model cannot get this
+/// `XLRequest` requires a `Sendable` row. A generic model cannot get this
 /// conformance from `@SQLResult`: an extension macro cannot write a `where`
 /// clause over its own type's generic signature. The macro documents this
 /// exact spelling as the remedy. See `SQLMacro.swift` and issue #685.

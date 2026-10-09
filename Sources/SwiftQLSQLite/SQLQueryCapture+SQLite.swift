@@ -14,7 +14,7 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
     /// Creates a codec-free capture for SQLite's intrinsic Swift value types:
     /// `Bool`, `Int`, `Double`, `String`, and `Data`.
     ///
-    /// The same as ``intrinsic(identifiedBy:using:context:)`` with a default
+    /// The same as `intrinsic(identifiedBy:using:context:)` with a default
     /// `XLSQLiteDialect`.
     public static func intrinsic(
         identifiedBy identity: XLQuerySlotIdentity,

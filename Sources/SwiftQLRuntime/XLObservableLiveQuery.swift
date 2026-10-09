@@ -23,7 +23,7 @@ import Foundation
 /// the `AsyncThrowingStream` `stream()`/`stream(bindings:)` returns. This type owns only one
 /// consumer `Task` per instance and the main-actor state that `Task` publishes into -- it never calls
 /// `publish()`, never observes a driver or `NotificationCenter` directly, and never
-/// reimplements retry, buffering, or binding-capture logic. See <doc:LiveQueries>, "SwiftUI /
+/// reimplements retry, buffering, or binding-capture logic. See "Live Queries" in SwiftQL's documentation, "SwiftUI /
 /// Observation (issue #97)", for the full picture alongside the `for try await` and Combine surfaces.
 ///
 /// ```swift

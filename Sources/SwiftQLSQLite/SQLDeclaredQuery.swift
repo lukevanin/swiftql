@@ -527,7 +527,7 @@ public enum XLDeclaredQueryError: Error, Equatable, LocalizedError {
 ///
 /// Returns each type's `sqlDefault()` placeholder so the reader can run to
 /// completion without a database row. A row that reads raw dialect values
-/// fails with the default ``XLRowReader`` diagnostic rather than producing a
+/// fails with the default `XLRowReader` diagnostic rather than producing a
 /// partial result layout.
 ///
 final class XLDeclaredQueryResultRecorder: XLRowReader {

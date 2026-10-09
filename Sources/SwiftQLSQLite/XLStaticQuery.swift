@@ -660,7 +660,7 @@ public struct XLPreparedStaticQuery: Sendable {
 /// A prepared handle that decodes through a generated static row layout.
 ///
 /// The database-bound wrapper is intentionally separate from
-/// ``XLTypedStaticQueryDescriptor`` so the descriptor and layout APIs remain
+/// `XLTypedStaticQueryDescriptor` so the descriptor and layout APIs remain
 /// free of any database's types.
 public struct XLPreparedTypedStaticQuery<Row> {
 

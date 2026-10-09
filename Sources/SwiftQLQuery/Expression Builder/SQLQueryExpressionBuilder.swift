@@ -36,7 +36,7 @@ import Foundation
 /// so a clause built from values alone, such as `Where(true)` or `Limit(10)`,
 /// takes `Dialect`.
 ///
-/// ``XLQueryExpressionBuilder`` is the builder for SQLite.
+/// `XLQueryExpressionBuilder` is the builder for SQLite.
 ///
 @resultBuilder public struct XLDialectQueryExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
 

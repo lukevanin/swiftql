@@ -83,7 +83,7 @@ extension XLCustomFunctionRegistration {
 /// ``XLCustomFunction/execute(reader:)`` sees them.
 ///
 /// Deliberately only an `XLColumnReader`: it does not forward
-/// ``XLStaticColumnReader/dialectValue(at:using:)`` to the
+/// `XLStaticColumnReader.dialectValue(at:using:)` to the
 /// ``XLSQLiteValueReader`` it wraps, so asking it for a raw dialect value
 /// throws `rawDialectValuesUnavailable`. That is not a gap. A custom function
 /// reads intrinsic values by position; a static row layout is a different
@@ -128,7 +128,7 @@ extension XLBuilder {
     /// on-demand registration. Conformers that continue calling `simpleFunction` directly keep
     /// working exactly as before -- SwiftQL has no way to know a bare function-name string
     /// identifies a custom function, so those functions still require an upfront
-    /// ``GRDBDatabaseBuilder/addFunction(_:)`` call.
+    /// `GRDBDatabaseBuilder.addFunction(_:)` call.
     ///
     /// - Parameters:
     ///   - type: The custom function type being called.

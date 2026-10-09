@@ -14,7 +14,7 @@ import Foundation
 /// contract (issue #682).
 ///
 /// `XLDriverDatabase` makes the same requests, write requests, result sets,
-/// prepared invocations, and static queries as ``GRDBDatabase``, through the
+/// prepared invocations, and static queries as `GRDBDatabase`, through the
 /// same implementation, but runs them on the driver it is given. A driver from
 /// outside SwiftQL plugs in here: it needs no GRDB types, and SwiftQL needs
 /// nothing from it beyond the driver protocols.
@@ -36,10 +36,10 @@ import Foundation
 /// let people = try database.makeRequest(with: peopleQuery).fetchAll()
 /// ```
 ///
-/// Two capabilities of ``GRDBDatabase`` are not offered here yet:
+/// Two capabilities of `GRDBDatabase` are not offered here yet:
 ///
-/// - Transaction scopes. `XLDriverDatabase` conforms to ``XLDatabase``, not
-///   ``XLTransactionalDatabase``, because a portable way for a driver to pin
+/// - Transaction scopes. `XLDriverDatabase` conforms to `XLDatabase`, not
+///   `XLTransactionalDatabase`, because a portable way for a driver to pin
 ///   one connection for a scope does not exist yet (issue #808).
 /// - Batch inserts with `insert(contentsOf:)`, which rely on GRDB savepoints.
 ///
@@ -115,7 +115,7 @@ public struct XLDriverDatabase<Driver>: XLDatabase
 
     /// Scopes render-once cache entries to this database and its dialect, so
     /// a declared query renders once per database (see
-    /// ``XLPreparedQueryCacheKey``).
+    /// `XLPreparedQueryCacheKey`).
     ///
     /// The key belongs to this database value, not to its driver: each cached
     /// request captures the database's coding configuration and logger, so a
@@ -191,14 +191,14 @@ extension XLDriverDatabase: XLDriverRequestFactory {}
 
 /// Contextual bindings and query captures resolve against this database's
 /// coding snapshot through the members ``XLValueCodingDatabase`` provides,
-/// which ``GRDBDatabase`` shares (issue #113). The request factory implies
+/// which `GRDBDatabase` shares (issue #113). The request factory implies
 /// this conformance too; it is stated here so that a reader of this type
 /// sees it.
 extension XLDriverDatabase: XLValueCodingDatabase {}
 
 
 /// `@unchecked Sendable` because sharing one value across threads is this
-/// type's purpose, as it is ``GRDBDatabase``'s: every stored property is
+/// type's purpose, as it is `GRDBDatabase`'s: every stored property is
 /// immutable, the driver is `Sendable`, and the encoder renders without
-/// shared mutable state, but ``XLEncoder`` itself is not declared `Sendable`.
+/// shared mutable state, but `XLEncoder` itself is not declared `Sendable`.
 extension XLDriverDatabase: @unchecked Sendable {}

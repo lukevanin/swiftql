@@ -38,7 +38,7 @@ public typealias XLCustomValue = XLExpression & XLBindable & XLLiteral
 /// clause that takes an expression without composing it, such as `Where`,
 /// `OrderBy`, or a column assignment, accepts any `XLExpression`. Operators and
 /// functions compose expressions, so they take and return a dialect's own
-/// expression protocol, such as ``XLSQLiteExpression``: a column of a model
+/// expression protocol, such as `XLSQLiteExpression`: a column of a model
 /// declared for one dialect does not compose with another dialect's
 /// expressions (issue #789).
 ///
@@ -198,7 +198,7 @@ public protocol XLComparable: XLEquatable {
 ///
 /// `Dialect` is the dialect of the model that declares the column, which names
 /// it with `@SQLTable(dialect:)` or `@SQLResult(dialect:)`. The column is an
-/// expression of that dialect only, such as an ``XLSQLiteExpression`` for a
+/// expression of that dialect only, such as an `XLSQLiteExpression` for a
 /// SQLite model (issue #789).
 ///
 public struct XLColumnReference<T, Dialect>: XLExpression {

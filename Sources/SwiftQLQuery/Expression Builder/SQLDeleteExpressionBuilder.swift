@@ -13,7 +13,7 @@ import Foundation
 ///
 /// Every clause of the body must belong to `Dialect`: the table it deletes
 /// from, its common tables, and the `Where` condition (issue #822).
-/// ``XLDeleteExpressionBuilder`` is the builder for SQLite.
+/// `XLDeleteExpressionBuilder` is the builder for SQLite.
 ///
 @resultBuilder public struct XLDialectDeleteExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
 

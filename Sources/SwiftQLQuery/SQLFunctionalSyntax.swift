@@ -26,7 +26,7 @@ public protocol XLTableStatement: XLQueryComponent {
 /// carries the dialect, so every expression composed in the statement does
 /// too (issue #789).
 ///
-/// A SQLite statement's scope is ``XLSQLiteSchema``, and `XLSchema()` creates
+/// A SQLite statement's scope is `XLSQLiteSchema`, and `XLSchema()` creates
 /// one. Another dialect's scope is created with ``init(dialect:)``, and the
 /// `sql(dialect:)` entry point passes one to its builder.
 ///

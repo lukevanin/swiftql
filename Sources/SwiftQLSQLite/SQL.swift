@@ -67,7 +67,7 @@ public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultM
 /// `any/some XLQueryStatement<Row>` spelling fetches all rows. A direct-result
 /// specification (`[Row]` / `Row?` / `Row`) writes its body with the trapping
 /// `sqlResult {}` entry point instead of `sql {}`. See
-/// <doc:DeclaredQueries> for the frozen-literal guard and render-once caching
+/// "Declared queries" in SwiftQL's documentation for the frozen-literal guard and render-once caching
 /// this macro relies on.
 ///
 @attached(peer, names: arbitrary)
@@ -100,7 +100,7 @@ public macro SQLQuery<Dialect: XLLiteralValueDialect>(dialect: Dialect.Type) = #
 /// convenience executor per specification (sugar over `execute`). Executors
 /// carry the specification's own name; the `Query` container is never
 /// referenced by generated code, so it may be declared `private` to hide the
-/// trapping specs from the visible API. See <doc:DeclaredQueries>.
+/// trapping specs from the visible API. See "Declared queries" in SwiftQL's documentation.
 ///
 @attached(member, names: arbitrary)
 public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQueriesMacro")
@@ -144,7 +144,7 @@ public macro SQLQueries<Dialect: XLLiteralValueDialect>(dialect: Dialect.Type) =
 /// A request type of your own that conforms to both `XLRequest` and
 /// `XLWriteRequest` makes `bindings(for:)` ambiguous, and the compiler error
 /// does not name that cause. Call `bindings(in: request.parameterLayout)` for
-/// such a type. See <doc:DeclaredQueries>.
+/// such a type. See "Declared queries" in SwiftQL's documentation.
 ///
 @attached(member, names: arbitrary)
 public macro SQLBindings() = #externalMacro(module: "SQLMacros", type: "SQLBindingsMacro")

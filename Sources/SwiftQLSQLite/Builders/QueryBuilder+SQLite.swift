@@ -13,6 +13,6 @@ import Foundation
 /// query is not known at compile time.
 ///
 /// It takes only SQLite tables and expressions. See
-/// ``XLDialectQueryBuilder`` for another dialect.
+/// `XLDialectQueryBuilder` for another dialect.
 ///
 public typealias QueryBuilder<Row> = XLDialectQueryBuilder<Row, XLSQLiteDialect>

@@ -240,7 +240,7 @@ extension XLSQLiteExpression where T == String {
     /// `json_remove(X, P, ...)`.
     ///
     /// SQLite returns `NULL` when it removes the root, so a root path is
-    /// reported as ``XLSQLValueEncodingError/jsonRootRemoval(function:)``
+    /// reported as `XLSQLValueEncodingError.jsonRootRemoval(function:)`
     /// before SQLite prepares the statement. Every other path leaves a
     /// document, so the result is not `NULL`.
     ///

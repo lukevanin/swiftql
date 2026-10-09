@@ -10,7 +10,7 @@ import Foundation
 /// way an application-owned domain type does. Register one of these presets
 /// (or an application-owned codec with the same shape) as a database or query
 /// default, or select it explicitly for one property, parameter, or result --
-/// see <doc:CustomTypes>.
+/// see "Custom Types" in SwiftQL's documentation.
 ///
 /// Both presets are named, versioned `XLValueCodec` values, not database
 /// defaults. Registering a preset never changes existing storage by itself.

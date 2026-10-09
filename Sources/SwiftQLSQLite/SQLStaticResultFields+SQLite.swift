@@ -16,7 +16,7 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
     /// SQLite storage class is statically known. This never calls
     /// `sqlDefault()`.
     ///
-    /// The same as ``intrinsic(selecting:identifiedBy:using:context:)`` with
+    /// The same as `intrinsic(selecting:identifiedBy:using:context:)` with
     /// a default `XLSQLiteDialect`.
     public static func intrinsic(
         selecting expression: any XLExpression<Value>,

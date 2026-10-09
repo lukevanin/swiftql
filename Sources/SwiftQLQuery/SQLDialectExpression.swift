@@ -14,7 +14,7 @@ import Foundation
 ///
 /// An operator or a function composes expressions of one dialect, so it takes
 /// and returns that dialect's expression protocol, such as
-/// ``XLSQLiteExpression``. An API that knows its dialect only as a generic
+/// `XLSQLiteExpression`. An API that knows its dialect only as a generic
 /// parameter, such as a scalar subquery on an ``XLSchema`` or the expression of
 /// an ``XLStaticSelectField``, cannot name that protocol, so it returns its
 /// expression as an `XLDialectExpression` instead. Each dialect's surface

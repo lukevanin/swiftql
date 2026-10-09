@@ -67,10 +67,10 @@ where T: XLBindable & XLLiteral, Dialect: XLLiteralValueDialect {
 /// the value `withTransaction(_:)` hands its body -- `body` runs on the scope
 /// itself, so the declared query joins the open transaction: it runs on the
 /// transaction's connection and sees its uncommitted writes, instead of
-/// throwing ``XLTransactionScopeError/nestedTransactionUnsupported``.
+/// throwing `XLTransactionScopeError.nestedTransactionUnsupported`.
 ///
 /// Nothing else about the scope rules changes. A scope used after its body
-/// returned still throws ``XLTransactionScopeError/scopeEscaped`` from the
+/// returned still throws `XLTransactionScopeError.scopeEscaped` from the
 /// fetch, because the scope's connection is gone. The original database
 /// captured inside a body is not a scope, so it still opens a transaction and
 /// throws `nestedTransactionUnsupported`. `execute(_:)` itself always opens a

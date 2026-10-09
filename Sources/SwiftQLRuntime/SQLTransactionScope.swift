@@ -63,14 +63,14 @@ import Foundation
 /// is lent to that thread until `body` returns. A conforming database should
 /// refuse a statement run through the scope, or through a request made from
 /// it, on any other thread with ``XLTransactionScopeError/scopeEscaped``
-/// rather than share the connection, as ``GRDBDatabase`` does.
-/// <doc:AdvancedUsage> gives the full rule for `GRDBDatabase`, which also
+/// rather than share the connection, as `GRDBDatabase` does.
+/// "Advanced usage" in SwiftQL's documentation gives the full rule for `GRDBDatabase`, which also
 /// refuses a block that another dispatch queue runs on the body's thread,
 /// and what the compiler does not yet catch.
 ///
-/// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for
+/// See "Advanced usage" in SwiftQL's documentation for the isolation and lifetime rules, and for
 /// concrete examples of the durable-state guarantees this API makes.
-/// <doc:GettingStarted> introduces the everyday spelling.
+/// "Getting started" in SwiftQL's documentation introduces the everyday spelling.
 ///
 public protocol XLTransactionalDatabase: XLDatabase {
 

@@ -20,9 +20,9 @@ extension Select where Dialect == XLSQLiteDialect {
     /// adopt the legacy expression and literal protocols.
     ///
     /// Bare contextual values can be rendered by this initializer, but their
-    /// row decoding still requires an ``XLStaticRowLayout`` carrying codec
+    /// row decoding still requires an `XLStaticRowLayout` carrying codec
     /// metadata. The legacy path reports
-    /// ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
+    /// `XLStaticRowReadError.staticLayoutRequired(valueType:alias:)`
     /// instead of fabricating a value.
     public init(
         @XLScalarExpressionBuilder _ expression: @escaping () -> some XLSQLiteExpression<Row>
@@ -32,7 +32,7 @@ extension Select where Dialect == XLSQLiteDialect {
 
     /// Builds an unconstrained scalar select.
     ///
-    /// Bare contextual values still require an ``XLStaticRowLayout`` to carry
+    /// Bare contextual values still require an `XLStaticRowLayout` to carry
     /// the codec metadata needed during row decoding.
     public init(_ expression: any XLSQLiteExpression<Row>) {
         self.init(_dialectSurface: expression)

@@ -25,7 +25,7 @@ extension XLDriverRequest {
     /// `AsyncThrowingStream`'s `unfolding` closure is `@Sendable` too. Every
     /// value a live query carries must therefore be `Sendable`. Two of the
     /// three are, and honestly so: ``XLInvocationExecutor`` is a `Sendable`
-    /// struct, and ``XLLogger`` now states the concurrency safety that SwiftQL
+    /// struct, and `XLLogger` now states the concurrency safety that SwiftQL
     /// has always needed from it. The third is the row reader.
     ///
     /// The reader arrives as `any XLRowReadable<Row>`, and in practice it is
@@ -40,7 +40,7 @@ extension XLDriverRequest {
     /// The function below reads a `[XLSQLiteValue]` array that SQLite has
     /// already copied out of the statement, and it returns a `Sendable` `Row`.
     /// It touches no connection, no cursor, and no statement handle.
-    /// ``XLRowReadable`` already states that `readRow(reader:)` only borrows
+    /// `XLRowReadable` already states that `readRow(reader:)` only borrows
     /// the reader it is given, and SwiftQL already calls it concurrently:
     /// `fetchAll()` runs it on whichever pooled reader connection the driver
     /// hands out, and two fetches on copies of one request run it at the same

@@ -14,14 +14,14 @@ import Foundation
 ///
 /// A `REGEXP` comparison.
 ///
-/// Renders exactly what ``XLBinaryOperatorExpression`` renders for the same
+/// Renders exactly what `XLBinaryOperatorExpression` renders for the same
 /// operands, and additionally records `XLCustomFunctionRegistration.bundledRegexp`
 /// so the driver registers SwiftQL's own `regexp` implementation on whichever
 /// connection executes the statement. Recording the registration is the only
 /// reason this is a distinct type: a plain binary-operator node records nothing,
 /// so before issue #612 the operator rendered SQL that SQLite could not prepare.
 ///
-/// When the right operand is an ``XLRegexPattern``, the node also holds the
+/// When the right operand is an `XLRegexPattern`, the node also holds the
 /// pattern, and records it on the registration, so the statement and every
 /// request rendered from it keep the registration alive. The registry holds a
 /// pattern weakly, so without this a pattern built as a local was released as

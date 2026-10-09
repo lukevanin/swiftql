@@ -116,7 +116,7 @@ private final class XLiteDialectRequirementRecorder {
     /// recorder reuses the first slot, and both references share one value.
     ///
     /// The collision is reported as
-    /// ``XLInvocationBindingError/conflictingParameterKey(key:existing:incoming:)``
+    /// `XLInvocationBindingError.conflictingParameterKey(key:existing:incoming:)`
     /// so that the public error enum keeps its cases. Both slots are the slot
     /// that the first reference recorded, because the two declarations are
     /// identical and only their origins differ.
@@ -445,7 +445,7 @@ final class XLiteCustomFunctionRegistry {
     /// `regexp/2` and also uses the `REGEXP` operator keeps the application's
     /// (issue #683). Otherwise the latest registration decides, as before.
     /// Retained values are merged rather than replaced, so a statement that
-    /// matches two ``XLRegexPattern`` values keeps both alive, not only the
+    /// matches two `XLRegexPattern` values keeps both alive, not only the
     /// last one rendered. See `XLCustomFunctionRegistration.preferring(_:_:)`.
     func insert(_ registration: XLCustomFunctionRegistration) {
         registrations[registration.definition] = XLCustomFunctionRegistration.preferring(

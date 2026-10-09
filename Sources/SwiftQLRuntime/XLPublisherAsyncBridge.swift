@@ -32,7 +32,7 @@ import OpenCombine
 ///   calling ``stream()`` calls `makePublisher`. The first `next()` call
 ///   calls it once and subscribes, with unlimited demand.
 /// - The stream buffers at most one undelivered value. A newer value replaces
-///   one the consumer has not yet asked for. See <doc:LiveQueries>,
+///   one the consumer has not yet asked for. See "Live Queries" in SwiftQL's documentation,
 ///   "Buffering and Resumed-Demand Semantics (#291)".
 /// - A failure completion throws its error from `next()`, and a finished
 ///   completion ends iteration.

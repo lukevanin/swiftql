@@ -13,7 +13,7 @@ import Foundation
 ///
 /// Every clause of the body must belong to `Dialect`: the table it inserts
 /// into, and the tables and expressions of a select that feeds it
-/// (issue #822). ``XLInsertExpressionBuilder`` is the builder for SQLite.
+/// (issue #822). `XLInsertExpressionBuilder` is the builder for SQLite.
 ///
 @resultBuilder public struct XLDialectInsertExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
 

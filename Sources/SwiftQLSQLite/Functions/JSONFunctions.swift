@@ -59,7 +59,7 @@ public struct XLJSONValidationFlags: OptionSet, Hashable, Sendable {
 /// SQLite also has no JSON form for a blob: it reports
 /// `JSON cannot hold BLOB values`, or reads the bytes as a document when they
 /// happen to be valid JSONB. A `Data` value is therefore reported as
-/// ``XLSQLValueEncodingError/blobInJSONValue(valueType:function:)`` before
+/// `XLSQLValueEncodingError.blobInJSONValue(valueType:function:)` before
 /// SQLite prepares the statement, unless it is the result of a `jsonb`
 /// function, which is how a JSONB document is nested on purpose. The check
 /// reads the static type, so a `Data?` value is rejected even when it is SQL

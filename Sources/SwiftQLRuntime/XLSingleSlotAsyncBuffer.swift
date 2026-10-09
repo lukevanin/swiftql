@@ -15,7 +15,7 @@ import Foundation
 /// This mirrors `AsyncThrowingStream.Continuation.BufferingPolicy
 /// .bufferingNewest(1)` semantics without depending on that GRDB-experimental
 /// buffering-policy API directly, so the exact same type backs both
-/// ``GRDBLiveQueryAsyncBridge`` (the true async-native GRDB source, #308) and
+/// `GRDBLiveQueryAsyncBridge` (the true async-native GRDB source, #308) and
 /// ``XLPublisherAsyncBridge``, which bridges an adapter's own Combine
 /// publisher into a live-query stream (#684).
 ///

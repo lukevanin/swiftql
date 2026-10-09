@@ -57,7 +57,7 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
 /// existing values, don't just swap the codec.
 ///
 /// `XLDateTextCodec` (issue #61) defines a companion text (`ISO-8601`) SQLite
-/// `Date` preset. See <doc:NumericDateCodecs> for a side-by-side comparison
+/// `Date` preset. See "Numeric Date Codecs" in SwiftQL's documentation for a side-by-side comparison
 /// and migration notes.
 public enum XLSQLiteNumericDateCodec {
 

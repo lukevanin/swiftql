@@ -264,7 +264,7 @@ public protocol XLRequest<Row> {
     /// The stream buffers at most one undelivered snapshot: a newly produced snapshot always replaces,
     /// never queues behind, a snapshot the consumer has not yet asked for. Resuming iteration delivers
     /// whatever has already been produced — it does not itself force a fresh fetch. See
-    /// <doc:LiveQueries>, "Buffering and Resumed-Demand Semantics (#291)", for the full contract
+    /// "Live Queries" in SwiftQL's documentation, "Buffering and Resumed-Demand Semantics (#291)", for the full contract
     /// this implements.
     ///
     /// Fetching is all-or-nothing, exactly like `fetchAll()`: if the query cannot execute
@@ -395,7 +395,7 @@ extension XLRequest {
     /// packet fails instead of being silently ignored.
     ///
     /// The failure is lazy, like every other live-query failure. Calling this does no work, and
-    /// the first `next()` call throws ``XLRequestBindingError/unsupportedInvocationBindings(requestType:layout:)``,
+    /// the first `next()` call throws `XLRequestBindingError.unsupportedInvocationBindings(requestType:layout:)`,
     /// unless the consuming task is already cancelled, when it returns `nil`.
     ///
     /// This default never calls a publish member: since issue #684 those are built on the stream

@@ -65,7 +65,7 @@ public macro SQLResult<Dialect: XLSQLDialect>(dialect: Dialect.Type) = #external
 /// resolution to succeed. Two properties of the same Swift type may each select a different
 /// codec this way, letting them use different storage conventions while the database/query
 /// coding configuration remains the default policy for every other property. See
-/// <doc:CustomTypes> for the selection precedence and a worked round-trip example.
+/// "Custom Types" in SwiftQL's documentation for the selection precedence and a worked round-trip example.
 ///
 @attached(peer, names: arbitrary)
 public macro SQLCodec(_ key: XLValueCodecKey) = #externalMacro(module: "SQLMacros", type: "SQLCodecMacro")

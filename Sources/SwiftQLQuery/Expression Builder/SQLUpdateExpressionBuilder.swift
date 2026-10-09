@@ -13,7 +13,7 @@ import Foundation
 ///
 /// Every clause of the body must belong to `Dialect`: the table it updates,
 /// a `From` table, and the `Where` condition (issue #822).
-/// ``XLUpdateExpressionBuilder`` is the builder for SQLite.
+/// `XLUpdateExpressionBuilder` is the builder for SQLite.
 ///
 @resultBuilder public struct XLDialectUpdateExpressionBuilder<Dialect> where Dialect: XLSQLDialect {
 

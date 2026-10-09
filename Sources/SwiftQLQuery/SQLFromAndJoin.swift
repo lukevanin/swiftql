@@ -81,7 +81,7 @@ public enum XLJoinOperator: String, CaseIterable {
 /// returns every combination of rows from its two tables; SQLite also preserves
 /// the left-to-right loop order for an explicit `CROSS JOIN`.
 ///
-/// A right join (``Right(_:on:)``) keeps every row of the joined table and fills
+/// A right join (`Join.Right(_:on:)`) keeps every row of the joined table and fills
 /// the `FROM` table's columns with `NULL` when there is no match; declare that
 /// `FROM` table with `nullableTable(_:as:)` so its columns
 /// decode as optionals. `RIGHT JOIN` requires SQLite 3.39.0 or later.

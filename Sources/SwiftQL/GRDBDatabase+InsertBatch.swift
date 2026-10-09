@@ -65,16 +65,16 @@ extension GRDBDatabase {
     ///
     /// An empty sequence renders and writes nothing. It still checks the
     /// database or scope, so an escaped scope throws
-    /// ``XLTransactionScopeError/scopeEscaped`` for an empty sequence too.
+    /// `XLTransactionScopeError.scopeEscaped` for an empty sequence too.
     ///
     /// - Parameter rows: The rows to insert.
     /// - Throws: The first error a row's rendering, binding, or execution
     ///   raises, after every row written by this call is rolled back;
-    ///   ``XLTransactionScopeError/scopeEscaped`` when called on a transaction
+    ///   `XLTransactionScopeError.scopeEscaped` when called on a transaction
     ///   scope after its body returned, or from a thread other than the one
     ///   running the body or, on a database whose pool SwiftQL opened, from
     ///   a block another dispatch queue runs on that thread; or
-    ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` when called on
+    ///   `XLTransactionScopeError.nestedTransactionUnsupported` when called on
     ///   the root database from inside an active transaction body.
     ///
     public func insert<Rows>(contentsOf rows: Rows) throws

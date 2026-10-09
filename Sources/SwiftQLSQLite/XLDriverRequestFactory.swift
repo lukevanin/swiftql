@@ -15,7 +15,7 @@ import Foundation
 ///
 /// A database that renders statements for one driver (issue #682).
 ///
-/// Package. ``GRDBDatabase`` and ``XLDriverDatabase`` conform, so both build
+/// Package. `GRDBDatabase` and ``XLDriverDatabase`` conform, so both build
 /// their requests, write requests, prepared invocations, and static queries
 /// through one implementation, and differ only in the driver they hold.
 ///

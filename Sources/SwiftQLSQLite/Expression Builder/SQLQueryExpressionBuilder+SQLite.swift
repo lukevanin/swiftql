@@ -26,7 +26,7 @@ public typealias XLQueryExpressionBuilder = XLDialectQueryExpressionBuilder<XLSQ
 /// Constructs a subquery.
 ///
 /// - Important: This function cannot see the enclosing schema, so it opens an
-///   independent scope. Use ``XLSchema/subqueryExpression(alias:statement:)``
+///   independent scope. Use `XLSchema.subqueryExpression(alias:statement:)`
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
 public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaResult where T: XLTable, T.XLModelDialect == XLSQLiteDialect {

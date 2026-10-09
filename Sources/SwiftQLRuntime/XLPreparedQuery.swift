@@ -64,7 +64,7 @@ import OpenCombine
 /// `@unchecked Sendable` either. It holds an `any XLRequest<Row>`, and
 /// ``XLRequest`` is a public protocol whose conformers SwiftQL does not
 /// control, so SwiftQL cannot promise that a request is safe to share across
-/// tasks (see <doc:LiveQueries>, "Packet-backed observations"). With strict
+/// tasks (see "Live Queries" in SwiftQL's documentation, "Packet-backed observations"). With strict
 /// concurrency checking, prepare the query in the isolation domain that
 /// observes it, for example in a `@MainActor` model's initializer, and send
 /// the arguments across the boundary instead.

@@ -93,7 +93,7 @@ public typealias XLSQLiteSchema = XLSchema<XLSQLiteDialect>
 ///
 /// - Important: This function cannot see the enclosing schema, so it opens an
 ///   independent scope: an unnamed subquery is aliased `t0`, and its body's
-///   aliases and bindings restart. Use ``XLSchema/subquery(alias:_:)`` to
+///   aliases and bindings restart. Use `XLSchema.subquery(alias:_:)` to
 ///   derive them from the enclosing schema, or name the subquery explicitly.
 ///
 public func subquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
@@ -114,7 +114,7 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> a
 /// the *result* is joined, not what the subquery selects.
 ///
 /// - Important: This function opens an independent scope, as the free
-///   `subquery(alias:_:)` function does. Use ``XLSchema/nullableSubquery(alias:_:)``
+///   `subquery(alias:_:)` function does. Use `XLSchema.nullableSubquery(alias:_:)`
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
 public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSQLiteSchema) -> any XLDialectQueryStatement<T, XLSQLiteDialect>) -> T.MetaNullableNamedResult where T: XLResult, T.XLModelDialect == XLSQLiteDialect {
