@@ -288,13 +288,3 @@ public struct XLDialectQueryBuilder<Row, Dialect> where Dialect: XLSQLDialect {
         return AbstractXLQueryStatement<Row, Dialect>(components: statement)
     }
 }
-
-
-///
-/// QueryBuilder constructs SQLite select statements when the structure of the
-/// query is not known at compile time.
-///
-/// It takes only SQLite tables and expressions. See
-/// ``XLDialectQueryBuilder`` for another dialect.
-///
-public typealias QueryBuilder<Row> = XLDialectQueryBuilder<Row, XLSQLiteDialect>

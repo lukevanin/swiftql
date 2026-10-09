@@ -18,7 +18,7 @@ extension XLDriverRequestFactory {
     /// statement belongs to this database's immutable coding snapshot. A
     /// reference resolved by another database is accepted only when the same
     /// durable codec identity is registered for the same dialect.
-    func preparedParameterLayoutError(
+    package func preparedParameterLayoutError(
         for encoding: XLEncoding
     ) -> XLInvocationBindingError? {
         if let parameterLayoutError = encoding.parameterLayoutError {
@@ -118,7 +118,7 @@ extension XLDriverRequestFactory {
         }
     }
 
-    func logicalStatement(for encoding: XLEncoding) -> XLLogicalPreparedStatement {
+    package func logicalStatement(for encoding: XLEncoding) -> XLLogicalPreparedStatement {
         XLLogicalPreparedStatement(
             databaseIdentifier: driver.databaseIdentifier,
             dialectRequirement: encoding.dialectRequirement,

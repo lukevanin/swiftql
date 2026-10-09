@@ -58,20 +58,6 @@ import Foundation
 
 
 ///
-/// Result builder used to construct a SQLite delete statement.
-///
-public typealias XLDeleteExpressionBuilder = XLDialectDeleteExpressionBuilder<XLSQLiteDialect>
-
-
-///
-/// Constructs a SQLite delete expression.
-///
-public func sql(@XLDeleteExpressionBuilder builder: (XLSQLiteSchema) -> any XLDeleteStatement) -> any XLDeleteStatement {
-    let schema = XLSchema()
-    return builder(schema)
-}
-
-///
 /// Constructs a delete expression in `dialect`.
 ///
 /// The builder receives a schema of `dialect`, which accepts only models

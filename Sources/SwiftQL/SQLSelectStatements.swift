@@ -40,7 +40,7 @@ public protocol XLDialectClause {
 ///
 /// A select clause of any dialect, as declared-query lowering reads it.
 ///
-protocol XLSelectProjection {
+package protocol XLSelectProjection {
 
     /// The static row layout the select projects, when it was built from one.
     var staticLayout: (any XLStaticRowReadable)? { get }
@@ -63,7 +63,7 @@ public struct Select<Row, Dialect>: XLEncodable, XLRowReadable, XLDialectClause,
     /// The static row layout this select projects, when it was built from
     /// one. Declared-query lowering reads the layout's metadata instead of
     /// replaying a row reader that reads raw dialect values (issue #659).
-    var staticLayout: (any XLStaticRowReadable)? {
+    package var staticLayout: (any XLStaticRowReadable)? {
         fields as? any XLStaticRowReadable
     }
 

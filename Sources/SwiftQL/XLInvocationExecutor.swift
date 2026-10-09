@@ -17,19 +17,19 @@ import Foundation
 /// Generic over any blocking driver of the SQLite dialect: invocation packets,
 /// the legacy binding facade, and row decoding all carry SQLite values, and
 /// making them dialect-parametric is issue #686.
-struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
+package struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     where Driver.Dialect == XLSQLiteDialect
 {
 
-    let driver: Driver
+    package let driver: Driver
 
-    let logicalStatement: XLLogicalPreparedStatement
+    package let logicalStatement: XLLogicalPreparedStatement
 
-    let parameterLayoutError: XLInvocationBindingError?
+    package let parameterLayoutError: XLInvocationBindingError?
 
     let valueEncodingError: XLSQLValueEncodingError?
 
-    init(
+    package init(
         driver: Driver,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
@@ -41,7 +41,7 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
         self.valueEncodingError = valueEncodingError
     }
 
-    var parameterLayout: XLParameterLayout {
+    package var parameterLayout: XLParameterLayout {
         logicalStatement.parameterLayout
     }
 
@@ -173,7 +173,7 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     }
 
     @discardableResult
-    func execute(
+    package func execute(
         packet: XLValidatedSQLitePacket,
         in connection: inout Driver.Connection
     ) throws -> XLExecutionResult {
@@ -210,7 +210,7 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     /// without the structural checks running, and this is the only place the
     /// semantic ones are applied -- so validation happens once per execution
     /// rather than the two or three times it used to (issue #561).
-    func sqlitePacket(
+    package func sqlitePacket(
         _ bindings: any XLInvocationBindingPacket
     ) throws -> XLValidatedSQLitePacket {
         if let valueEncodingError {
@@ -308,7 +308,7 @@ struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     ///
     /// Internal rather than private so that the benchmark's phase probe can
     /// time this exact binding step on its own (issue #670).
-    func bind(
+    package func bind(
         packet: XLValidatedSQLitePacket,
         to statement: inout Driver.Connection.PhysicalStatement,
         in connection: inout Driver.Connection

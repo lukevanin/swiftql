@@ -45,20 +45,6 @@ import Foundation
         XLInsertTableStatement(components: XLInsertStatementComponents(insert: first))
     }
 
-    ///
-    /// Constructs a Replace expression.
-    ///
-    public static func buildPartialBlock<Row>(first: Replace<Row>) -> XLInsertTableStatement<Row, Dialect> {
-        XLInsertTableStatement(components: XLInsertStatementComponents(insert: first.insert))
-    }
-
-    ///
-    /// Constructs a Replace expression using a With expression.
-    ///
-    public static func buildPartialBlock<Row>(accumulated: XLWithStatement<Dialect>, next: Replace<Row>) -> XLInsertTableStatement<Row, Dialect> {
-        XLInsertTableStatement(components: XLInsertStatementComponents(commonTables: accumulated.commonTables, insert: next.insert))
-    }
-
 
     // MARK: Insert
     
@@ -214,20 +200,6 @@ import Foundation
     }
 }
 
-
-///
-/// Result builder used to construct a SQLite insert statement.
-///
-public typealias XLInsertExpressionBuilder = XLDialectInsertExpressionBuilder<XLSQLiteDialect>
-
-
-///
-/// Constructs a SQLite Insert statement.
-///
-public func sql(@XLInsertExpressionBuilder builder: (XLSQLiteSchema) -> any XLInsertStatement) -> any XLInsertStatement {
-    let schema = XLSchema()
-    return builder(schema)
-}
 
 ///
 /// Constructs an Insert statement in `dialect`.

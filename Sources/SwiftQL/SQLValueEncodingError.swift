@@ -108,7 +108,7 @@ public enum XLSQLValueEncodingError:
 
 
 extension XLSQLValueEncodingError {
-    static func bindingFailure(
+    package static func bindingFailure(
         for value: Double,
         valueType: String,
         context: XLValueCodingContext

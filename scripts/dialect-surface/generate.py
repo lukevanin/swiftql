@@ -21,6 +21,13 @@ A template is Swift with these placeholders:
     {{Expression}}   the dialect's expression protocol, such as XLSQLiteExpression
     {{Dialect}}      the dialect's type, such as XLSQLiteDialect
     {{DialectName}}  the dialect's name in prose, such as SQLite
+    {{Enum}}         the dialect's enum composition, such as XLSQLiteEnum
+    {{CustomType}}   the dialect's custom-type composition, such as
+                     XLSQLiteCustomType
+
+`{{Enum}}` and `{{CustomType}}` are derived from `{{Expression}}`, whose name
+must end in `Expression`: the stem before it is followed by `Enum` or
+`CustomType` (issue #790).
 
 The template's leading comment is replaced with a header that says the file
 is generated, and a dialect's `imports` are added after `import Foundation`.
@@ -114,12 +121,25 @@ def strip_leading_comment(text: str) -> str:
     return "".join(lines[index:])
 
 
+def placeholders(dialect: Mapping[str, str]) -> Dict[str, str]:
+    """The dialect's keys, and the names derived from its expression
+    protocol: its enum and custom-type compositions (issue #790)."""
+    expression = dialect["Expression"]
+    suffix = "Expression"
+    if not expression.endswith(suffix) or expression == suffix:
+        raise SystemExit(f"{relative(SPECIFICATION)}: {dialect['DialectName']}'s Expression must end in {suffix}")
+    stem = expression[:-len(suffix)]
+    return dict(dialect, Enum=stem + "Enum", CustomType=stem + "CustomType")
+
+
 def render(template: Path, dialect: Mapping[str, str]) -> str:
+    values = placeholders(dialect)
+
     def substitute(match: re.Match) -> str:
         name = match.group(1)
-        if name not in dialect:
+        if name not in values:
             raise SystemExit(f"{relative(template)}: unknown placeholder {{{{{name}}}}}")
-        return dialect[name]
+        return values[name]
 
     body = PLACEHOLDER.sub(substitute, strip_leading_comment(template.read_text()))
     imports = "".join(import_line(module) for module in dialect.get("imports", []))

@@ -40,7 +40,7 @@ package protocol XLDriverRequestFactory: XLValueCodingDatabase
 extension XLDriverRequestFactory {
 
     /// A read request for `statement`.
-    func makeQueryRequest<Row: Sendable>(
+    package func makeQueryRequest<Row: Sendable>(
         with statement: any XLQueryStatement<Row>
     ) -> XLDriverRequest<Driver, Row> {
         let encoding = encoder.makeSQL(statement)
@@ -57,7 +57,7 @@ extension XLDriverRequestFactory {
 
     /// A request for a `RETURNING` statement, whose fetches run in a
     /// transaction on the writer (issue #643).
-    func makeReturningRequest<Row: Sendable>(
+    package func makeReturningRequest<Row: Sendable>(
         with statement: any XLReturningStatement<Row>
     ) -> XLDriverRequest<Driver, Row> {
         let encoding = encoder.makeSQL(statement)
@@ -74,7 +74,7 @@ extension XLDriverRequestFactory {
     }
 
     /// A write request for an update, insert, create, or delete statement.
-    func makeWriteRequest(with statement: any XLEncodable) -> XLDriverWriteRequest<Driver> {
+    package func makeWriteRequest(with statement: any XLEncodable) -> XLDriverWriteRequest<Driver> {
         let encoding = encoder.makeSQL(statement)
         return XLDriverWriteRequest(
             driver: driver,
@@ -87,7 +87,7 @@ extension XLDriverRequestFactory {
     }
 
     /// An immutable raw-value runtime handle for one rendered statement.
-    func makePreparedInvocation(with statement: any XLEncodable) -> XLPreparedInvocation {
+    package func makePreparedInvocation(with statement: any XLEncodable) -> XLPreparedInvocation {
         let encoding = encoder.makeSQL(statement)
         return XLPreparedInvocation(
             executor: XLInvocationExecutor(
@@ -105,7 +105,7 @@ extension XLDriverRequestFactory {
     /// Only the functions SwiftQL bundles are registered here. See
     /// `GRDBDatabase.prepareInvocation(with:)` for why an application's own
     /// custom function is not carried by a descriptor.
-    func makePreparedStaticQuery(
+    package func makePreparedStaticQuery(
         with descriptor: XLStaticQueryDescriptor
     ) throws -> XLPreparedStaticQuery {
         try descriptor.statement.dialectRequirement.validate(
@@ -140,7 +140,7 @@ extension XLDriverRequestFactory {
 
     /// A typed static query, prepared only after its generated row layout has
     /// been proven equal to the descriptor's complete result metadata.
-    func makePreparedTypedStaticQuery<Row>(
+    package func makePreparedTypedStaticQuery<Row>(
         with definition: XLTypedStaticQueryDescriptor<Row, XLSQLiteDialect>
     ) throws -> XLPreparedTypedStaticQuery<Row> {
         XLPreparedTypedStaticQuery(

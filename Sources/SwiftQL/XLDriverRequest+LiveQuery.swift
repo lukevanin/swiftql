@@ -33,7 +33,7 @@ extension XLDriverRequest {
         return XLReturningRequestError.observationUnsupported
     }
 
-    func stream() -> AsyncThrowingStream<[Row], Error> {
+    package func stream() -> AsyncThrowingStream<[Row], Error> {
         do {
             return try stream(bindings: legacyBindings.packet())
         }
@@ -42,7 +42,7 @@ extension XLDriverRequest {
         }
     }
 
-    func stream(
+    package func stream(
         bindings: any XLInvocationBindingPacket
     ) -> AsyncThrowingStream<[Row], Error> {
         if let error = observationUnavailableError {
@@ -90,7 +90,7 @@ extension XLDriverRequest {
         }
     }
 
-    func streamOne() -> AsyncThrowingStream<Row?, Error> {
+    package func streamOne() -> AsyncThrowingStream<Row?, Error> {
         do {
             return try streamOne(bindings: legacyBindings.packet())
         }
@@ -99,7 +99,7 @@ extension XLDriverRequest {
         }
     }
 
-    func streamOne(
+    package func streamOne(
         bindings: any XLInvocationBindingPacket
     ) -> AsyncThrowingStream<Row?, Error> {
         if let error = observationUnavailableError {
@@ -217,7 +217,7 @@ extension XLDriverRequest: XLLivePublishPreflight {
     /// delivered lazily, through a task and `.receive(on: DispatchQueue.main)`, could never arrive
     /// while that thread is the one waiting for it. `Fail` needs no dispatch queue and delivers
     /// synchronously.
-    func livePublishPreflightFailure(
+    package func livePublishPreflightFailure(
         bindings: (any XLInvocationBindingPacket)?
     ) -> Error? {
         if let error = observationUnavailableError {

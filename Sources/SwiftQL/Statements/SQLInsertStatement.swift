@@ -36,7 +36,7 @@ public struct XLInsertStatementComponents<Row>: XLEncodable {
     
     var components: [any XLEncodable]
 
-    init(commonTables: [XLCommonTableDependency] = [], insert: Insert<Row>, components: [any XLEncodable] = []) {
+    package init(commonTables: [XLCommonTableDependency] = [], insert: Insert<Row>, components: [any XLEncodable] = []) {
         self.commonTables = commonTables
         self.insert = insert
         self.components = components

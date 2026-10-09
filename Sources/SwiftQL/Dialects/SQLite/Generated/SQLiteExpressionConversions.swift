@@ -12,15 +12,15 @@ import Foundation
 
 extension XLSQLiteExpression {
 
-    public func toRawValue() -> some XLSQLiteExpression<Int> where T: XLEnum, T.RawValue == Int {
+    public func toRawValue() -> some XLSQLiteExpression<Int> where T: XLEnumRepresentable, T.RawValue == Int {
         XLTypeAffinityExpression(expression: self)
     }
 
-    public func toRawValue() -> some XLSQLiteExpression<Double> where T: XLEnum, T.RawValue == Double {
+    public func toRawValue() -> some XLSQLiteExpression<Double> where T: XLEnumRepresentable, T.RawValue == Double {
         XLTypeAffinityExpression(expression: self)
     }
 
-    public func toRawValue() -> some XLSQLiteExpression<String> where T: XLEnum, T.RawValue == String {
+    public func toRawValue() -> some XLSQLiteExpression<String> where T: XLEnumRepresentable, T.RawValue == String {
         XLTypeAffinityExpression(expression: self)
     }
 }

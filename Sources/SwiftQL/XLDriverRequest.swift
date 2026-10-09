@@ -21,20 +21,20 @@ import Foundation
 /// The synchronous members run on the driver's blocking scopes, the
 /// asynchronous view on its asynchronous scopes, and the live-query members on
 /// its `observe(_:fetch:)`.
-struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
+package struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
     where Driver: XLBlockingDatabaseDriver,
           Driver: XLObservingDatabaseDriver,
           Driver.Dialect == XLSQLiteDialect
 {
 
-    let executor: XLInvocationExecutor<Driver>
+    package let executor: XLInvocationExecutor<Driver>
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
 
     let logger: XLLogger?
 
-    let reader: any XLRowReadable<Row>
+    package let reader: any XLRowReadable<Row>
 
     /// A `RETURNING` statement changes the database, and a pooled reader
     /// connection is read-only, so every fetch of its rows -- `fetchAll`,
@@ -45,10 +45,10 @@ struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
     /// Observation is unsupported in the write mode because re-running a
     /// data-changing statement on every database change is never the intended
     /// behavior.
-    let requiresWriteConnection: Bool
+    package let requiresWriteConnection: Bool
 
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
-    var legacyBindings: XLLegacyBindingAccumulator
+    package var legacyBindings: XLLegacyBindingAccumulator
 
     init(
         driver: Driver,
@@ -76,7 +76,7 @@ struct XLDriverRequest<Driver, Row: Sendable>: XLRequest
         )
     }
 
-    var parameterLayout: XLParameterLayout {
+    package var parameterLayout: XLParameterLayout {
         executor.parameterLayout
     }
 
@@ -101,7 +101,7 @@ extension XLDriverRequest {
     /// logical statement is validated against. Bindings set through the v1
     /// `set(parameter:value:)` facade are not carried over; a render-once
     /// request is value-free.
-    func rebound(to driver: Driver) -> XLDriverRequest<Driver, Row> {
+    package func rebound(to driver: Driver) -> XLDriverRequest<Driver, Row> {
         XLDriverRequest(
             driver: driver,
             codingConfiguration: codingConfiguration,

@@ -15,7 +15,7 @@ import Foundation
 
 extension XLDriverRequest {
 
-    var async: any XLAsyncRequest<Row> {
+    package var async: any XLAsyncRequest<Row> {
         XLDriverAsyncRequest(request: self)
     }
 }
@@ -23,7 +23,7 @@ extension XLDriverRequest {
 
 extension XLDriverWriteRequest {
 
-    var async: any XLAsyncWriteRequest {
+    package var async: any XLAsyncWriteRequest {
         XLDriverAsyncWriteRequest(request: self)
     }
 }

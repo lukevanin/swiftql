@@ -104,7 +104,7 @@ public enum XLQueryCaptureError: Error, Equatable, Sendable, LocalizedError {
 }
 
 
-enum _XLQueryCaptureEncoding<Input, Dialect>: Sendable
+package enum _XLQueryCaptureEncoding<Input, Dialect>: Sendable
 where Dialect: XLValueCodingDialect {
     case contextual
     case intrinsic(@Sendable (Input) throws -> Dialect.Value)
@@ -132,7 +132,7 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
 
     public let dialectIdentifier: XLDialectIdentifier
 
-    let encoding: _XLQueryCaptureEncoding<Input, Dialect>
+    package let encoding: _XLQueryCaptureEncoding<Input, Dialect>
 
     /// Creates a pure contextual capture from durable codec metadata.
     ///
@@ -314,26 +314,6 @@ extension XLQueryCapture where Dialect: XLLiteralValueDialect {
             nullability: _xlLiteralNullability(Literal.self),
             context: codingContext,
             intrinsicEncoder: encoder
-        )
-    }
-}
-
-
-extension XLQueryCapture where Dialect == XLSQLiteDialect {
-
-    /// Creates a codec-free capture for SQLite's intrinsic Swift value types:
-    /// `Bool`, `Int`, `Double`, `String`, and `Data`.
-    ///
-    /// The same as ``intrinsic(identifiedBy:using:context:)`` with a default
-    /// `XLSQLiteDialect`.
-    public static func intrinsic(
-        identifiedBy identity: XLQuerySlotIdentity,
-        context: XLValueCodingContext? = nil
-    ) throws -> Self {
-        try intrinsic(
-            identifiedBy: identity,
-            using: XLSQLiteDialect(),
-            context: context
         )
     }
 }

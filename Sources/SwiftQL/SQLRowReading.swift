@@ -260,7 +260,7 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
 /// The value stores only a pointer to state borrowed from ``withReader(_:body:)``.
 /// Keeping the representation pointer-sized lets the `XLRowReader` existential
 /// carry it inline instead of allocating the previous reader class.
-struct XLColumnValuesRowReader<Output>: XLRowReader {
+package struct XLColumnValuesRowReader<Output>: XLRowReader {
 
     private struct State {
         var count: Int = 0
@@ -288,7 +288,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
     /// `body` must not let the supplied reader escape. The pointer remains
     /// valid only until `body` returns or throws.
     @inline(__always)
-    static func withReader<Result>(
+    package static func withReader<Result>(
         _ reader: any XLColumnReader,
         body: (Self) throws -> Result
     ) rethrows -> Result {
@@ -301,7 +301,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
     ///
     /// Reads the value of the current column from the row, then advances the state to the next column.
     ///
-    func column<T>(
+    package func column<T>(
         _ expression: any XLExpression<T>,
         alias: XLName
     ) throws -> T where T: XLLiteral {
@@ -321,7 +321,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
         )
     }
 
-    func dialectValue<Dialect>(
+    package func dialectValue<Dialect>(
         at index: Int,
         using dialect: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
@@ -378,7 +378,7 @@ struct XLColumnValuesRowReader<Output>: XLRowReader {
 /// Every row handle's raw read goes through here: SwiftQL's own handles call
 /// it from their ``XLStaticColumnReader`` conformance, and
 /// `XLColumnValuesRowReader` calls it for a handle from outside SwiftQL.
-func xlDialectValue<Handle, Expected>(
+package func xlDialectValue<Handle, Expected>(
     at index: Int,
     of handle: Handle,
     as _: Expected.Type

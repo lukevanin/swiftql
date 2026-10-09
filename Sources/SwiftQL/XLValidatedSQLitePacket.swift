@@ -29,10 +29,10 @@
 /// carries is "structurally valid for its layout", and the reason a second
 /// pass is unnecessary is that `sqlitePacket` runs the rest before returning.
 ///
-struct XLValidatedSQLitePacket {
+package struct XLValidatedSQLitePacket {
 
     /// The bindings, complete and in layout order.
-    let bindings: [XLInvocationBinding<XLSQLiteValue>]
+    package let bindings: [XLInvocationBinding<XLSQLiteValue>]
 
     /// The layout they were checked against.
     let layout: XLParameterLayout

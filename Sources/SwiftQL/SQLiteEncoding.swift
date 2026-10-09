@@ -85,32 +85,6 @@ public struct XLDialectEncoder<Dialect>: XLEncoder where Dialect: XLSQLDialect {
 }
 
 
-///
-/// Encodes SwiftQL statements into SQL that can be executed by SQLite.
-///
-/// The SQLite conformance of ``XLDialectEncoder``.
-///
-public typealias XLiteEncoder = XLDialectEncoder<XLSQLiteDialect>
-
-
-extension XLDialectEncoder where Dialect == XLSQLiteDialect {
-
-    ///
-    /// Creates a SQLite encoder from a formatter.
-    ///
-    /// The formatter carries the identifier quoting, which is the only part of
-    /// the dialect it can express; everything else takes its default.
-    ///
-    public init(formatter: XLiteFormatter) {
-        self.init(
-            dialect: XLSQLiteDialect(
-                identifierFormattingOptions: formatter.identifierFormattingOptions
-            )
-        )
-    }
-}
-
-
 private final class XLiteDialectRequirementRecorder {
 
     var capabilities: XLDialectCapabilities = []
@@ -307,6 +281,32 @@ private final class XLiteDialectRequirementRecorder {
             rawValue += 1
         }
         return XLLogicalParameterIndex(rawValue)
+    }
+}
+
+
+extension XLParameterSlot {
+
+    /// Whether this slot is the renderer's legacy binding sentinel.
+    ///
+    /// `XLBuilder.namedBinding` and `indexedBinding` predate typed parameter
+    /// declarations. The renderer records this exact sentinel so the v1
+    /// mutating `set` facade can still normalize a value for custom expressions
+    /// that emit placeholders directly. Typed and contextual slots never take
+    /// this path and continue to require an exact declaration match.
+    ///
+    /// One definition, package-wide: the renderer here and the legacy `set`
+    /// facade in SwiftQLSQLite both read it (issue #790). `SQLiteEncoding`
+    /// carried a byte-identical private copy that had to stay in lockstep with
+    /// this one or the legacy `set` facade would silently reject bindings the
+    /// renderer had accepted (issue #560 surfaced the duplicate; #558 names it).
+    package var isRendererLegacyBindingWildcard: Bool {
+        valueTypeIdentifier == XLValueTypeIdentifier(
+            rawValue: "swiftql.legacy-binding-value"
+        )
+            && valueTypeName == "SwiftQL.XLBindable"
+            && nullability == .nullable
+            && codecIdentity == nil
     }
 }
 

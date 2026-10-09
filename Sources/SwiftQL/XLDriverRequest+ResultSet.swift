@@ -13,7 +13,7 @@ import Foundation
 
 extension XLDriverRequest {
 
-    func withResultSet<Result>(
+    package func withResultSet<Result>(
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {
         try withResultSet(bindings: try legacyBindings.packet(), operation)
@@ -40,7 +40,7 @@ extension XLDriverRequest {
     /// return the `RETURNING` rows (issue #643). Non-`RETURNING` requests are
     /// unaffected and stream lazily.
     ///
-    func withResultSet<Result>(
+    package func withResultSet<Result>(
         bindings: any XLInvocationBindingPacket,
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {

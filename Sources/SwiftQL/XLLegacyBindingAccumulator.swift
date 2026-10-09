@@ -22,7 +22,7 @@
 /// is the one that describes what went wrong, and reporting the rest would bury
 /// it.
 ///
-struct XLLegacyBindingAccumulator {
+package struct XLLegacyBindingAccumulator {
 
     /// The bindings set so far.
     private(set) var bindings: XLInvocationBindings<XLSQLiteValue>
@@ -121,7 +121,7 @@ struct XLLegacyBindingAccumulator {
 
     /// The accumulated bindings, or the first failure that stopped them from
     /// being what the caller asked for.
-    func packet() throws -> XLInvocationBindings<XLSQLiteValue> {
+    package func packet() throws -> XLInvocationBindings<XLSQLiteValue> {
         if let error {
             throw error
         }

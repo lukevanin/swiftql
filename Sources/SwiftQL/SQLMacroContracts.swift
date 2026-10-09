@@ -277,7 +277,7 @@ public class XLNamespace {
     /// Creates and returns an alias with a given name. The alias is tracked to avoid conflicts. If the alias is
     /// not specified then one is assigned automatically using `nextAlias()`.
     ///
-    func makeAlias(alias: XLName?) -> XLName {
+    package func makeAlias(alias: XLName?) -> XLName {
         let newAlias = alias ?? nextAlias()
         usedAliases.insert(aliasKey(newAlias))
         return newAlias

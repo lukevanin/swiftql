@@ -29,7 +29,7 @@ public struct XLDialectExpression<T, Dialect>: XLExpression {
     /// The expression this one renders, which belongs to `Dialect`.
     let wrapped: any XLEncodable
 
-    init(_ wrapped: any XLEncodable) {
+    package init(_ wrapped: any XLEncodable) {
         self.wrapped = wrapped
     }
 
@@ -73,7 +73,7 @@ extension XLDialectExpression: XLDialectTaggedExpression {
 // check that lets a `jsonb` result into a JSON function, sees through the
 // wrapper. A wrapper of anything else has no name.
 extension XLDialectExpression: XLNamedFunction {
-    var functionName: String {
+    package var functionName: String {
         (wrapped as? any XLNamedFunction)?.functionName ?? ""
     }
 }

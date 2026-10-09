@@ -103,7 +103,7 @@ extension XLRequest {
 ///
 /// Internal: a conformer outside SwiftQL gets its failures from its stream on first demand.
 ///
-protocol XLLivePublishPreflight {
+package protocol XLLivePublishPreflight {
 
     /// The error the live query is known to end with, or `nil` when it may start. `bindings` is
     /// the packet a `bindings:` publish member was given, or `nil` for a member without one.

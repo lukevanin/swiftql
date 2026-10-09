@@ -12,11 +12,11 @@ import Foundation
 
 extension XLDriverRequest {
 
-    func fetchAll() throws -> [Row] {
+    package func fetchAll() throws -> [Row] {
         try fetchAll(bindings: legacyBindings.packet())
     }
 
-    func fetchAll(
+    package func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
         let packet = try executor.validatedPacket(bindings, for: "fetchAll", logger: logger)
@@ -90,7 +90,7 @@ extension XLDriverRequest {
     /// `forEachRowHandle` when it returns (issues #682 and #678), which
     /// resets the statement before the transaction commits.
     ///
-    func fetchAtMost(
+    package func fetchAtMost(
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
@@ -126,7 +126,7 @@ extension XLDriverRequest {
         return items
     }
 
-    func fetchOne() throws -> Row? {
+    package func fetchOne() throws -> Row? {
         try fetchOne(bindings: legacyBindings.packet())
     }
 
@@ -136,7 +136,7 @@ extension XLDriverRequest {
     /// query decodes it after the reader is released, as it always has, so
     /// the decode holds no connection.
     ///
-    func fetchOne(
+    package func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> Row? {
         let packet = try executor.validatedPacket(bindings, for: "fetchOne", logger: logger)

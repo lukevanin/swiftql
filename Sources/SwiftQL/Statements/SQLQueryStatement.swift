@@ -24,7 +24,7 @@ public struct XLQueryStatementComponents<Row>: XLEncodable, XLRowReadable {
 
     var commonTables: [XLCommonTableDependency]
 
-    let reader: any XLRowReadable<Row>
+    package let reader: any XLRowReadable<Row>
 
     var components: [any XLEncodable]
 

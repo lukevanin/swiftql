@@ -90,7 +90,7 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 
     private let target: XLInsertTarget
 
-    internal init(table: any XLEncodable, target: XLInsertTarget) {
+    package init(table: any XLEncodable, target: XLInsertTarget) {
         self.table = table
         self.target = target
     }
@@ -99,43 +99,8 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
         self.init(table: meta._dependency, target: .insert)
     }
 
-    ///
-    /// Creates an insert statement with an `OR` conflict-resolution clause.
-    ///
-    /// Renders `INSERT OR <action> INTO`. The algorithm applies to every
-    /// uniqueness constraint violated while the statement runs.
-    ///
-    /// `INSERT OR` is SQLite's own, so the table must be a SQLite table
-    /// (issue #789).
-    ///
-    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
-        self.init(table: meta._dependency, target: .insertOr(action))
-    }
-
     public func makeSQL(context: inout XLBuilder) {
         context.insertTarget(target, table: table.makeSQL)
-    }
-}
-
-
-///
-/// Replace statement.
-///
-/// `REPLACE INTO` is the SQLite shorthand for `INSERT OR REPLACE INTO`. A row
-/// that would violate a uniqueness constraint is deleted before the new row is
-/// inserted. It is SQLite's own, so the table must be a SQLite table (issue
-/// #789).
-///
-public struct Replace<Row>: XLEncodable, XLRowWritable {
-
-    internal let insert: Insert<Row>
-
-    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
-        self.insert = Insert(table: meta._dependency, target: .replace)
-    }
-
-    public func makeSQL(context: inout XLBuilder) {
-        insert.makeSQL(context: &context)
     }
 }
 
@@ -321,13 +286,13 @@ public struct Create<Table>: XLEncodable {
 public struct As<Table> {
     
     internal let queryStatement: any XLEncodable
-    
+
     ///
-    /// Populates a SQLite table from a query.
+    /// Populates a table from a query already built. Each dialect's spelling
+    /// of `As` builds the query in its own schema and calls this.
     ///
-    public init(@XLQueryExpressionBuilder builder: (XLSQLiteSchema) -> some XLDialectQueryStatement<Table, XLSQLiteDialect>) where Table: XLTable, Table.XLModelDialect == XLSQLiteDialect {
-        let schema = XLSchema()
-        self.queryStatement = builder(schema)
+    package init(queryStatement: any XLEncodable) {
+        self.queryStatement = queryStatement
     }
 
     ///
@@ -381,10 +346,6 @@ extension Setting: XLDialectClause where Row: XLTable {
 }
 
 extension Insert: XLDialectClause where Row: XLTable {
-    public typealias Dialect = Row.XLModelDialect
-}
-
-extension Replace: XLDialectClause where Row: XLTable {
     public typealias Dialect = Row.XLModelDialect
 }
 

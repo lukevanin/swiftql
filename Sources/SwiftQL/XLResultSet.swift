@@ -173,7 +173,7 @@ public final class XLResultSet<Row> {
     ///   exhausted. Must only be invoked from inside the database access
     ///   that owns whatever cursor it closes over, and must stop being
     ///   invoked no later than when that access returns.
-    init(stepper: @escaping () throws -> Row?) {
+    package init(stepper: @escaping () throws -> Row?) {
         self.stepper = stepper
     }
 

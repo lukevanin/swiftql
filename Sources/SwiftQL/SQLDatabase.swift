@@ -352,7 +352,7 @@ extension XLRequest {
     /// Internal rather than private so `XLDriverRequest` can use it for the case
     /// where it has already decoded every row -- it carried a verbatim copy
     /// (issue #561), which `private` being file-scoped had forced.
-    func withEagerResultSet<Result>(
+    package func withEagerResultSet<Result>(
         _ rows: [Row],
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {
@@ -465,7 +465,7 @@ extension XLRequest {
 ///
 /// It lives beside those adapter-neutral defaults rather than with the GRDB
 /// bridge, which also uses it (issue #684).
-func xlFailingAsyncThrowingStream<Value>(_ error: Error) -> AsyncThrowingStream<Value, Error> {
+package func xlFailingAsyncThrowingStream<Value>(_ error: Error) -> AsyncThrowingStream<Value, Error> {
     AsyncThrowingStream(unfolding: {
         guard !Task.isCancelled else {
             return nil

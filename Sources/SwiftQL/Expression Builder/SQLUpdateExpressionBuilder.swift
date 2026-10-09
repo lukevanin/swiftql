@@ -61,12 +61,6 @@ import Foundation
 }
 
 
-///
-/// Result builder used to construct a SQLite Update statement.
-///
-public typealias XLUpdateExpressionBuilder = XLDialectUpdateExpressionBuilder<XLSQLiteDialect>
-
-
 extension XLSchema {
     
     ///
@@ -81,14 +75,6 @@ extension XLSchema {
 
 }
 
-
-///
-/// Constructs a SQLite Update statement.
-///
-public func sql(@XLUpdateExpressionBuilder builder: (XLSQLiteSchema) -> any XLUpdateStatement) -> any XLUpdateStatement {
-    let schema = XLSchema()
-    return builder(schema)
-}
 
 ///
 /// Constructs an Update statement in `dialect`.

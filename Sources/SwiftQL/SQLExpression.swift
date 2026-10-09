@@ -9,17 +9,21 @@ import Foundation
 
 
 ///
-/// A custom scalar type: a Swift value that binds to, reads from, and renders
-/// into SQL.
+/// The requirements of a custom scalar type, in any dialect: a Swift value
+/// that binds to, reads from, and renders into SQL.
 ///
-/// A custom type is a value, so it is an operand in a SQLite query, as an
-/// ``XLSQLiteExpression``, like `String` or `Int` (issue #789). A type that
-/// conforms to `XLExpression`, `XLBindable`, and `XLLiteral` separately,
-/// rather than to this alias, conforms to `XLSQLiteExpression` itself. A type
-/// used in another dialect's query conforms to that dialect's expression
-/// protocol as well.
+/// A custom type is a value, so it is an operand in a query of every dialect
+/// it declares. This composition names no dialect. Each dialect composes it
+/// with its own expression protocol, such as `XLSQLiteCustomType`, and SQLite
+/// keeps the v1 name `XLCustomType` for its own (issue #790). A type used in
+/// several dialects conforms to each dialect's composition, or to a
+/// composition of its own, here with a second dialect's `MyDialectCustomType`:
 ///
-public typealias XLCustomType = XLExpression & XLBindable & XLLiteral & XLSQLiteExpression
+/// ```swift
+/// typealias AppCustomType = XLSQLiteCustomType & MyDialectCustomType
+/// ```
+///
+public typealias XLCustomValue = XLExpression & XLBindable & XLLiteral
 
 
 // MARK: - Expressions
@@ -474,41 +478,54 @@ public struct XLFunction<T>: XLExpression where T: XLLiteral {
 /// JSON value arguments use this to tell a JSONB function result, which
 /// SQLite reads as JSON, from any other blob, which it rejects.
 ///
-protocol XLNamedFunction {
+package protocol XLNamedFunction {
     var functionName: String { get }
 }
 
 
 extension XLFunction: XLNamedFunction {
-    var functionName: String {
+    package var functionName: String {
         name
     }
 }
 
 
 ///
-/// An enum that is used as a column on an `SQLTable` or `SQLResult`.
+/// The requirements of an enum that is used as a column on an `SQLTable` or
+/// `SQLResult`, in any dialect.
 ///
 /// To use an enum for a column the enum must adhere to the following conditions:
 /// - Use a supported intrinsic type for the `RawValue`.
-/// - Conform to the `XLEnum` protocol and declare `T` as `Self`.
+/// - Conform to a dialect's enum composition, such as SQLite's `XLEnum`, and
+///   declare `T` as `Self`.
 /// - When using legacy `SQLReader` result introspection, implement
 ///   `sqlDefault()` and return any valid enum value. Static row layouts do not
 ///   require or call that placeholder, and it is never a fallback for database
 ///   decoding.
 ///
-/// The `XLEnum` protocol provides default implementations for most of the required methods which can
+/// This protocol provides default implementations for most of the required methods which can
 /// be overridden as required. Reading an unknown stored raw value throws `XLColumnReadError`.
 ///
-/// An enum is a value, so it is an operand in a SQLite query, as an
-/// ``XLSQLiteExpression`` (issue #789). An enum used in another dialect's
-/// query conforms to that dialect's expression protocol as well.
+/// An enum is a value, so it is an operand in a query of every dialect it
+/// declares. This protocol names no dialect. Each dialect composes it with its
+/// own expression protocol, such as `XLSQLiteEnum`, and SQLite keeps the v1
+/// name `XLEnum` for its own (issue #790). An enum used in several dialects
+/// conforms to each dialect's composition, or to a composition of its own,
+/// here with a second dialect's `MyDialectEnum`:
 ///
-public protocol XLEnum: XLLiteral, XLExpression, XLSQLiteExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
+/// ```swift
+/// typealias AppEnum = XLSQLiteEnum & MyDialectEnum
+///
+/// enum Kind: Int, AppEnum {
+///     case small, large
+/// }
+/// ```
+///
+public protocol XLEnumRepresentable: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     
 }
 
-extension XLEnum {
+extension XLEnumRepresentable {
         
     public init(reader: XLFieldReader) throws {
         let rawValue = try RawValue(reader: reader)
@@ -802,13 +819,13 @@ struct XLParenthesis<T>: XLExpression {
 ///
 /// An expression representing an SQL subquery.
 ///
-struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
+package struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
     
-    typealias T = Optional<Wrapped>
+    package typealias T = Optional<Wrapped>
     
     private let statement: any XLEncodable
 
-    init(statement: any XLQueryStatement<Wrapped>) {
+    package init(statement: any XLQueryStatement<Wrapped>) {
         self.statement = statement
     }
 
@@ -818,11 +835,11 @@ struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
     /// is type-erased for rendering either way; the two initialisers differ
     /// only in what they accept.
     ///
-    init(statement: any XLQueryStatement<Optional<Wrapped>>) {
+    package init(statement: any XLQueryStatement<Optional<Wrapped>>) {
         self.statement = statement
     }
     
-    func makeSQL(context: inout XLBuilder) {
+package func makeSQL(context: inout XLBuilder) {
         context.parenthesis(contents: statement.makeSQL)
     }
 }

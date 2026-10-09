@@ -17,7 +17,7 @@
 import Foundation
 
 
-func _xlLegacyParameterDeclaration<Value>(
+package func _xlLegacyParameterDeclaration<Value>(
     for type: Value.Type,
     key: XLBindingKey
 ) -> XLParameterDeclaration {
@@ -36,41 +36,19 @@ func _xlLegacyParameterDeclaration<Value>(
 }
 
 
-protocol _XLOptionalLiteralType {
+package protocol _XLOptionalLiteralType {
     static var wrappedType: Any.Type { get }
 }
 
 
 extension Optional: _XLOptionalLiteralType {
-    static var wrappedType: Any.Type {
+    package static var wrappedType: Any.Type {
         Wrapped.self
     }
 }
 
 
-func sqliteStorageClass(
-    for type: Any.Type
-) -> XLSQLiteStorageClass? {
-    if let optional = type as? any _XLOptionalLiteralType.Type {
-        return sqliteStorageClass(for: optional.wrappedType)
-    }
-    if type == Bool.self || type == Int.self {
-        return .integer
-    }
-    if type == Double.self {
-        return .real
-    }
-    if type == String.self {
-        return .text
-    }
-    if type == Data.self {
-        return .blob
-    }
-    return nil
-}
-
-
-func legacyValueMetadata(
+package func legacyValueMetadata(
     for type: Any.Type
 ) -> (identifier: XLValueTypeIdentifier, typeName: String, isOptional: Bool) {
     if let optional = type as? any _XLOptionalLiteralType.Type {
@@ -112,7 +90,7 @@ extension XLBindingKey {
 
     /// The binding key as it appears in a value-coding path -- the name for a
     /// named parameter, the index for a positional one.
-    var contextPathComponent: String {
+    package var contextPathComponent: String {
         switch self {
         case .named(let name):
             return name

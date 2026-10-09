@@ -22,7 +22,7 @@ import Foundation
 /// `Value` may itself be `Optional` (as `streamOne()`'s `Row?` is): a present
 /// `nil` row is a real delivered snapshot and is buffered like any other
 /// value, distinct from "nothing buffered yet."
-final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
+package final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
 
     private let lock = NSLock()
 
@@ -44,6 +44,10 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
 
     private var waiter: CheckedContinuation<Value?, Error>?
 
+    /// An empty buffer. Declared so the GRDB live-query stream, in another
+    /// module of the package, can create one (issue #790).
+    package init() {}
+
     /// Buffers `value`, replacing whatever was previously buffered, or
     /// resumes an already-suspended `next()` call directly if one is
     /// waiting. Has no effect after ``finish(throwing:)``/``cancel()``.
@@ -57,7 +61,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     // and sharing one body does not parse -- each active branch's opening brace must be matched by a
     // closing brace within that same branch.
     #if compiler(>=6.0)
-    func yield(_ value: sending Value) {
+    package func yield(_ value: sending Value) {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -73,7 +77,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
         lock.unlock()
     }
     #else
-    func yield(_ value: Value) {
+    package func yield(_ value: Value) {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -93,7 +97,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     /// Ends the buffer, delivering `error` (if any) to the currently
     /// suspended or next `next()` call exactly once. Safe to call more than
     /// once; only the first call has an effect.
-    func finish(throwing error: Error?) {
+    package func finish(throwing error: Error?) {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -139,7 +143,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     /// the cancellation contract, not represent a legitimate "last value
     /// before normal completion." This is why `cancel()` does not simply
     /// delegate to `finish(throwing: nil)`.
-    func cancel() {
+    package func cancel() {
         lock.lock()
         // Guards against `cancel()` itself, not against a prior `finish(throwing:)` -- see `isCancelled`'s
         // own doc comment for why those must stay distinct.
@@ -235,7 +239,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     /// Calling `next()` never itself triggers new upstream work — it only
     /// asks for whatever has already been produced, per #291's "resuming
     /// does not force a fresh fetch" rule.
-    func next() async throws -> Value? {
+    package func next() async throws -> Value? {
         switch checkFastPath() {
         case .value(let value):
             return value

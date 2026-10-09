@@ -13,11 +13,11 @@ import Foundation
 
 /// The write request of any blocking driver of the SQLite dialect (issue
 /// #682). It runs each statement in a transaction on the writer connection.
-struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
+package struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
     where Driver.Dialect == XLSQLiteDialect
 {
 
-    let executor: XLInvocationExecutor<Driver>
+    package let executor: XLInvocationExecutor<Driver>
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
@@ -25,7 +25,7 @@ struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
     let logger: XLLogger?
     
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
-    var legacyBindings: XLLegacyBindingAccumulator
+    package var legacyBindings: XLLegacyBindingAccumulator
     
     init(
         driver: Driver,
@@ -49,7 +49,7 @@ struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
         )
     }
 
-    var parameterLayout: XLParameterLayout {
+    package var parameterLayout: XLParameterLayout {
         executor.parameterLayout
     }
     
@@ -62,12 +62,12 @@ struct XLDriverWriteRequest<Driver: XLBlockingDatabaseDriver>: XLWriteRequest
     }
     
     @discardableResult
-    func execute() throws -> XLExecutionResult {
+    package func execute() throws -> XLExecutionResult {
         try execute(bindings: try legacyBindings.packet())
     }
 
     @discardableResult
-    func execute(
+    package func execute(
         bindings: any XLInvocationBindingPacket
     ) throws -> XLExecutionResult {
         try executor.execute(
