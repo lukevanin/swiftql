@@ -43,27 +43,9 @@ public struct XLColumnUpdate<Wrapped> {
     /// left out of the `SET` clause.
     public var expression: (any XLExpression<Wrapped>)?
 
-    /// The column's name, which a read of the slot names when the column was
-    /// never assigned (issue #828), or `nil` for a slot created with
-    /// ``init()``.
-    private let column: XLName?
-
     /// Creates a slot that leaves the column out of the `SET` clause.
     public init() {
         self.expression = nil
-        self.column = nil
-    }
-
-    ///
-    /// Creates a slot that leaves the column out of the `SET` clause, for the
-    /// column named `column`, so that a read of the slot before it is
-    /// assigned is the column's current value (issue #828). A generated
-    /// `MetaUpdate` creates its slots with it. It is not part of the API a
-    /// caller writes against.
-    ///
-    public init(_xlColumn column: XLName) {
-        self.expression = nil
-        self.column = column
     }
 
     ///
@@ -89,27 +71,27 @@ public struct XLColumnUpdate<Wrapped> {
 
     ///
     /// The assigned expression inside an `XLTypeAffinityExpression`, which
-    /// records no dialect, so a run-time dialect check walks into it (issue
-    /// #825). A generated getter reads it when ``_xlReadExpression(as:)`` is
-    /// `nil`. It is not part of the API a caller writes against.
-    ///
-    /// A column never assigned reads as the column itself, its current value
-    /// (issue #828), which the statement's `SET` clause renders by its name:
-    /// `row.name = row.name` keeps the stored value, and
-    /// `row.nickname = row.name` copies it. It is `nil` only for a slot
-    /// created with ``init()`` and never assigned.
+    /// records no dialect, so a run-time dialect check walks into it, or
+    /// `nil` when the column was never assigned (issue #825). A generated
+    /// getter reads it when ``_xlReadExpression(as:)`` is `nil`. It is not
+    /// part of the API a caller writes against.
     ///
     public var _xlReadUntypedExpression: XLTypeAffinityExpression<Wrapped>? {
-        if let expression {
-            return XLTypeAffinityExpression<Wrapped>(expression: expression)
-        }
-        guard let column else {
-            return nil
-        }
-        return XLTypeAffinityExpression<Wrapped>(
-            expression: XLSlotColumnExpression<Wrapped>(name: column)
-        )
+        _xlUntypedSlotRead(expression)
     }
+}
+
+
+///
+/// A slot's expression inside an `XLTypeAffinityExpression`, which records no
+/// dialect, so a run-time dialect check walks into it, or `nil` when the slot
+/// holds none (issue #825). Both column slots' untyped reads return it.
+///
+func _xlUntypedSlotRead<T>(_ expression: (any XLExpression<T>)?) -> XLTypeAffinityExpression<T>? {
+    guard let expression else {
+        return nil
+    }
+    return XLTypeAffinityExpression<T>(expression: expression)
 }
 
 
@@ -138,6 +120,16 @@ public struct XLColumnUpdate<Wrapped> {
 /// slot's ``optionalExpression``. A column that is never assigned stays out
 /// of the statement entirely.
 ///
+/// A nullable column is read only as an optional-typed expression (issue
+/// #828): the value can be `NULL`, so a read cannot be assigned to a column
+/// that is `NOT NULL`. The read is the value assigned, so assigning it back
+/// keeps it. The read of a column never assigned stands for the column's
+/// current value: assigned to a nullable column's slot, it sets that column
+/// to this one, so `row.nickname = row.nickname` renders
+/// `SET "nickname" = "nickname"`, and `row.alias = row.nickname` copies the
+/// stored value. Anywhere else, such as inside a composed expression, it
+/// renders `NULL`, as it did before.
+///
 public struct XLNullableColumnUpdate<Wrapped> {
 
     private var wrappedExpression: (any XLExpression<Wrapped>)?
@@ -146,27 +138,27 @@ public struct XLNullableColumnUpdate<Wrapped> {
 
     private var isAssigned: Bool
 
-    /// The column's name, which a read of the slot names when the column was
-    /// never assigned (issue #828), or `nil` for a slot created with
-    /// ``init()``.
+    /// The column's name, which the read of the column before it is assigned
+    /// carries (issue #828), or `nil` for a slot created with ``init()``.
     private let column: XLName?
 
     /// Creates a slot that leaves the column out of the `SET` clause.
     public init() {
-        self.wrappedExpression = nil
-        self.storedExpression = nil
-        self.isAssigned = false
-        self.column = nil
+        self.init(column: nil)
     }
 
     ///
     /// Creates a slot that leaves the column out of the `SET` clause, for the
-    /// column named `column`, so that a read of the slot before it is
-    /// assigned is the column's current value (issue #828). A generated
-    /// `MetaUpdate` creates its slots with it. It is not part of the API a
-    /// caller writes against.
+    /// column named `column`, whose read before it is assigned stands for
+    /// the column's current value (issue #828). A generated `MetaUpdate`
+    /// creates its nullable slots with it. It is not part of the API a caller
+    /// writes against.
     ///
     public init(_xlColumn column: XLName) {
+        self.init(column: column)
+    }
+
+    private init(column: XLName?) {
         self.wrappedExpression = nil
         self.storedExpression = nil
         self.isAssigned = false
@@ -229,7 +221,25 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// Generated `makeSQL` implementations read this. It is not part of the
     /// API a caller writes against.
     ///
+    /// The read of a column never assigned, assigned to this slot, renders
+    /// here, and only here, as that column's unqualified name: in a `SET`
+    /// clause it is the row's current value (issue #828).
+    ///
     public var _xlAssignedExpression: (any XLExpression<Optional<Wrapped>>)? {
+        guard let value = assignedValue else {
+            return nil
+        }
+        if let read = XLUnassignedColumnRead<Wrapped>.read(in: value) {
+            return XLTypeAffinityExpression<Optional<Wrapped>>(
+                expression: XLUnqualifiedColumnName<Optional<Wrapped>>(name: read.column)
+            )
+        }
+        return value
+    }
+
+    /// The value assigned, `NULL` when that is `nil`, or `nil` when the
+    /// column was never assigned.
+    private var assignedValue: (any XLExpression<Optional<Wrapped>>)? {
         guard isAssigned else {
             return nil
         }
@@ -245,19 +255,14 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// `XLNullExpression`.
     ///
     /// A nullable column is read only as an optional-typed expression: the
-    /// value can be `NULL`, so the generated getter of the wrapped-type
-    /// overload is unavailable, and a read cannot be assigned to a column
-    /// that is `NOT NULL`. Whichever overload assigned the column, the read
-    /// is the assigned value, so assigning it back keeps it. A value of the
-    /// wrapped type reads inside the `XLTypeAffinityExpression` it is stored
-    /// in, and `NULL` reads as `NULL`. A column never assigned reads through
-    /// ``_xlReadUntypedOptionalExpression``.
+    /// generated getter of the wrapped-type overload is unavailable. The
+    /// read is the assigned value, whichever overload assigned it: a value of
+    /// the wrapped type reads inside the `XLTypeAffinityExpression` it is
+    /// stored in, and `NULL` reads as `NULL`. A column never assigned reads
+    /// through ``_xlReadUntypedOptionalExpression``.
     ///
     public func _xlReadOptionalExpression<ExpressionType>(as type: ExpressionType.Type) -> ExpressionType? {
-        guard isAssigned else {
-            return nil
-        }
-        return (storedExpression ?? XLNullExpression<Wrapped>()) as? ExpressionType
+        assignedValue as? ExpressionType
     }
 
     ///
@@ -265,41 +270,61 @@ public struct XLNullableColumnUpdate<Wrapped> {
     /// no dialect, for a generated getter when
     /// ``_xlReadOptionalExpression(as:)`` is `nil` (issue #825).
     ///
-    /// A column never assigned reads as the column itself, its current value
-    /// (issue #828), which the statement's `SET` clause renders by its name:
-    /// `row.nickname = row.nickname` keeps the stored value, and
-    /// `row.alias = row.nickname` copies it. A slot created with ``init()``
-    /// has no name, and its unassigned column reads as `NULL`.
+    /// A column never assigned reads as the column's current value (issue
+    /// #828): a value that renders `NULL`, as the read did before, except
+    /// where a nullable column's slot renders it in a `SET` clause, as this
+    /// column's name. A slot created with ``init()`` has no name, and its
+    /// column never assigned reads as `NULL`.
     ///
     public var _xlReadUntypedOptionalExpression: XLTypeAffinityExpression<Optional<Wrapped>> {
-        guard isAssigned else {
-            guard let column else {
-                return XLTypeAffinityExpression<Optional<Wrapped>>(
-                    expression: XLNullExpression<Wrapped>()
-                )
-            }
+        if let assignedValue {
+            return XLTypeAffinityExpression<Optional<Wrapped>>(expression: assignedValue)
+        }
+        guard let column else {
             return XLTypeAffinityExpression<Optional<Wrapped>>(
-                expression: XLSlotColumnExpression<Optional<Wrapped>>(name: column)
+                expression: XLNullExpression<Wrapped>()
             )
         }
         return XLTypeAffinityExpression<Optional<Wrapped>>(
-            expression: storedExpression ?? XLNullExpression<Wrapped>()
+            expression: XLUnassignedColumnRead<Wrapped>(column: column)
         )
     }
 }
 
 
 ///
-/// The column a `Setting` slot belongs to, by its unqualified name: the read
-/// of a column the closure never assigned, which is the column's current
-/// value (issue #828).
+/// The read of a nullable column that a `Setting` closure never assigned
+/// (issue #828), which stands for the column's current value.
 ///
-/// It is held only inside an `XLTypeAffinityExpression`, which every
-/// dialect's expression protocol includes. An unqualified column name is the
-/// row's current value in an `UPDATE` statement's `SET` clause and in an
-/// upsert's `DO UPDATE SET`, where a slot's values are rendered.
+/// A read hands it out inside an `XLTypeAffinityExpression`, which every
+/// dialect's expression protocol includes. A nullable column's slot that is
+/// assigned it renders it in the `SET` clause as the column's unqualified
+/// name, the row's current value there. Anywhere else, where an unqualified
+/// name could resolve to another table's column or, in SQLite, read as a
+/// string, it renders `NULL`, as the read of an unassigned column did before.
 ///
-struct XLSlotColumnExpression<T>: XLExpression {
+struct XLUnassignedColumnRead<Wrapped>: XLExpression {
+
+    typealias T = Optional<Wrapped>
+
+    let column: XLName
+
+    func makeSQL(context: inout XLBuilder) {
+        context.null()
+    }
+
+    /// The read `value` holds, as a read hands it out, or `nil`.
+    static func read(in value: any XLExpression<Optional<Wrapped>>) -> XLUnassignedColumnRead<Wrapped>? {
+        (value as? XLTypeAffinityExpression<Optional<Wrapped>>)?.expression as? XLUnassignedColumnRead<Wrapped>
+    }
+}
+
+
+///
+/// A column by its unqualified name, for a nullable column's slot to render
+/// an assigned ``XLUnassignedColumnRead`` in a `SET` clause (issue #828).
+///
+struct XLUnqualifiedColumnName<T>: XLExpression {
 
     let name: XLName
 

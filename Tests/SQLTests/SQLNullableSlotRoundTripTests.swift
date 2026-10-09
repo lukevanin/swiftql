@@ -3,9 +3,9 @@
 //
 //  Issue #828: reading a nullable column's `Setting` slot and assigning it
 //  back keeps the value, against real SQLite. A nullable column is read only
-//  as an optional-typed expression, so the read is what was assigned; a
-//  column never assigned reads as the column itself, its current value,
-//  which the `SET` clause names. That a possibly-`NULL` read cannot be
+//  as an optional-typed expression, so the read is what was assigned; the
+//  read of a column never assigned, assigned to a nullable column, sets it
+//  to that column's current value, which the `SET` clause names. That a possibly-`NULL` read cannot be
 //  assigned to a NOT NULL column is proved by
 //  scripts/ci/check-dialect-type-parameter-type-safety.sh.
 //
@@ -99,39 +99,47 @@ final class XLNullableSlotRoundTripTests: XCTestCase {
         ])
     }
 
-    func testAnUnassignedColumnCopiesItsStoredValue() throws {
+    func testAnUnassignedNullableColumnCopiesItsStoredValue() throws {
         try createRows()
-        // To another nullable column, after an earlier assignment to it.
+        // To another nullable column, replacing an earlier assignment to it.
         try applyUpdate { _, row in
             row.alias = "x"
             row.alias = row.nickname
         }
         XCTAssertEqual(try allRows().map(\.alias), ["A", nil])
-        // A non-nullable column to a nullable one.
+        // Through a read held in a variable, and through a second slot.
         try applyUpdate { _, row in
-            row.alias = row.name
+            let read: any XLSQLiteExpression<String?> = row.alias
+            row.nickname = read
+            row.nickname = row.nickname
         }
-        XCTAssertEqual(try allRows().map(\.alias), ["a", "b"])
-        // A non-nullable column to itself.
-        try applyUpdate { _, row in
-            row.name = row.name
-            row.alias = nil
-        }
-        XCTAssertEqual(try allRows(), [
-            SlotRoundTripPerson(id: "a", name: "a", nickname: "A", alias: nil),
-            SlotRoundTripPerson(id: "b", name: "b", nickname: nil, alias: nil),
-        ])
+        XCTAssertEqual(try allRows().map(\.nickname), ["A", nil])
     }
 
-    func testAnUnassignedColumnComposesWithItsStoredValue() throws {
+    func testAnUnassignedReadOutsideTheSetClauseIsNull() throws {
         try createRows()
-        try applyUpdate { _, row in
-            row.nickname = row.nickname.coalesce("none")
+        // Composed, the read renders `NULL`, as before, rather than a bare
+        // column name that another table's column could capture.
+        let composed = sql { schema in
+            let person = schema.into(SlotRoundTripPerson.self)
+            Update(person)
+            Setting<SlotRoundTripPerson> { row in
+                row.alias = row.nickname.coalesce("none")
+            }
         }
-        XCTAssertEqual(try allRows(), [
-            SlotRoundTripPerson(id: "a", name: "a", nickname: "A", alias: "Al"),
-            SlotRoundTripPerson(id: "b", name: "b", nickname: "none", alias: nil),
-        ])
+        XCTAssertEqual(
+            try encode(composed),
+            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "alias" = COALESCE(NULL, 'none')"#
+        )
+        // As a value to insert, it is `NULL`, not a name that SQLite would
+        // read as a string.
+        let unassigned = SlotRoundTripPerson.MetaUpdate()
+        let insertion = sql { schema in
+            Insert(schema.table(SlotRoundTripPerson.self))
+            Values(SlotRoundTripPerson.MetaInsert(id: "c", name: "c", nickname: unassigned.nickname, alias: nil as String?))
+        }
+        try database.makeRequest(with: insertion).execute()
+        XCTAssertEqual(try allRows().last, SlotRoundTripPerson(id: "c", name: "c", nickname: nil, alias: nil))
     }
 
     // MARK: - A column assigned

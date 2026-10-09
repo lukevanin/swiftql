@@ -698,8 +698,7 @@ final class DialectTypeParameterTests: XCTestCase {
 
     func testReadingAnAssignedSlotReturnsAnExpressionOfTheDialect() throws {
         var update = DialectSecondPerson.MetaUpdate()
-        // A column never assigned reads as the column itself (issue #828).
-        XCTAssertTrue(try XCTUnwrap(update.name) is XLTypeAffinityExpression<String>)
+        XCTAssertNil(update.name)
         update.name = "a"
         update.nickname = nil
         // A read of the slot is an expression of the model's dialect, so it

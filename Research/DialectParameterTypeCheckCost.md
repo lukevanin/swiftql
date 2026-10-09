@@ -579,9 +579,9 @@ optional-typed expression. The wrapped-type subscript of a nullable column
 becomes the disfavored overload, in place of the optional-typed one, and its
 getter is `@available(*, unavailable)` with a body of `Swift.fatalError()`, in
 place of the cast-and-convert statements #825 generated. Every other getter is
-unchanged. Each slot of `MetaUpdate.Columns` is created with its column's
-name, `init(_xlColumn: SwiftQL.XLName("..."))`, so that a read of a column
-never assigned is the column itself. Measured against `version/2.0` at
+unchanged. Each nullable slot of `MetaUpdate.Columns` is created with its
+column's name, `init(_xlColumn: SwiftQL.XLName("..."))`, so that the read of
+a column never assigned can stand for the column's current value. Measured against `version/2.0` at
 `ed31fd83`, on Swift 6.4, macOS, arm64. The table is of the first version of
 the change, before the slots knew their names. A second pass after naming
 them, median of 9 on a more loaded machine, was as flat: `Setting` of 10, 40,
@@ -625,14 +625,16 @@ getters of #825 had not been measured against.
 
 | | before #825 | base | branch |
 | --- | ---: | ---: | ---: |
-| debug `__text` | 3,059,340 bytes | 3,129,124 bytes | 3,200,576 bytes |
-| release `__text` | 708,908 bytes | 711,412 bytes | 713,588 bytes |
+| debug `__text` | 3,059,340 bytes | 3,129,124 bytes | 3,160,820 bytes |
+| release `__text` | 708,908 bytes | 711,412 bytes | 712,876 bytes |
 | release compile, median of 4 interleaved | | 40.8 s | 40.8 s |
 
 So #825's getters added about 3.5 KB of debug code per model (+2.3 %) and
-about 125 bytes of release code (+0.4 %). This change adds about 3.6 KB of
-debug code per model (+2.3 %), almost all of it the eight named slots'
-initializers, and about 110 bytes of release code (+0.3 %). The unavailable
-getter alone, without the names, saved about 290 bytes of debug code. The
-compile times vary by more between neighbouring runs (36.9 to 54.8 s for the
-same release compile, on a loaded machine) than between the builds.
+about 125 bytes of release code (+0.4 %). This change adds about 1.6 KB of
+debug code per model (+1.0 %), the four named nullable slots' initializers,
+and about 75 bytes of release code (+0.2 %). The unavailable getter alone,
+without the names, saved about 290 bytes of debug code; naming all eight
+slots, as a review round tried, added 3.6 KB. The release compile times are
+of that eight-name version. They vary by more between neighbouring runs
+(36.9 to 54.8 s for the same release compile, on a loaded machine) than
+between the builds.

@@ -485,10 +485,10 @@ Reading a column inside the closure, as in `row.occupationId`, gives the value
 the closure assigned to it. A nullable column reads as an expression of its
 optional type, `String?`, because that value can be `NULL`, so
 `row.occupationId = row.occupationId` keeps it, and assigning the read to a
-column that is not optional is a compile error. A column the closure never
-assigned reads as the column itself, its current value, so
-`row.occupationId = row.occupationId.coalesce("none")` fills in only the rows
-that have none.
+column that is not optional is a compile error. Assigning the read of a column
+the closure never assigned to a nullable column sets it to the stored value.
+To build on the stored value, use the column itself, as in
+`person.occupationId.coalesce("none")`.
 
 ## Delete statements
 

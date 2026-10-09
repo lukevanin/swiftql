@@ -673,24 +673,28 @@
     expression or does not compile. Before:
     `XCTAssertNil(update.nickname)` for a column assigned `NULL`. After:
     `XCTAssertTrue(update.nickname is XLNullExpression<String>)`.
-  - Reading a column the closure never assigned, nullable or not, gives
-    the column itself, its current value, rendered by its unqualified name:
-    `row.nickname = row.nickname` renders `SET "nickname" = "nickname"`,
-    and `row.alias = row.nickname` copies the stored value. Before, a
-    nullable column's read was `NULL` and a non-nullable column's read was
-    `nil`, so either assigned to a nullable column set it to `NULL`, and
-    `XCTAssertNil(update.name)` held for a column never assigned. The
-    unqualified name is the row's current value in the `SET` clause of an
-    `UPDATE` and of an upsert's `DO UPDATE`, where a slot's values are
-    rendered. In an `UPDATE ... FROM` whose source has a column of the same
-    name it is ambiguous, and SQLite refuses the statement; assign the
-    target's column, such as `person.nickname`, instead. A slot's read used
-    outside a `SET` clause, such as in `MetaInsert(...)`, names a column
-    that is not there. The generated `MetaUpdate.Columns` creates each slot
-    with its column's name, through the new `init(_xlColumn:)` of
-    `XLColumnUpdate` and `XLNullableColumnUpdate`; a slot created with
-    `init()` has no name, and its unassigned read is `nil` or `NULL`, as
-    before.
+  - The read of a nullable column the closure never assigned stands for
+    the column's current value. Assigned to a nullable column's slot, it
+    sets that column to this one: `row.nickname = row.nickname` renders
+    `SET "nickname" = "nickname"`, and `row.alias = row.nickname` renders
+    `SET "alias" = "nickname"`, copying the stored value. Before, the
+    preferred read was `nil`, so each set the column to `NULL`. The name is
+    unqualified, which is the row's current value in the `SET` clause of an
+    `UPDATE` and of an upsert's `DO UPDATE`. In an `UPDATE ... FROM` whose
+    source has a column of the same name it is ambiguous, and SQLite
+    refuses the statement; assign the target's column, such as
+    `person.nickname`, instead. Used anywhere else, such as inside a
+    composed expression (`row.nickname.coalesce("none")`), in a subquery,
+    or as a value of `MetaInsert(...)`, the read renders `NULL`, as before,
+    because an unqualified name there could resolve to another table's
+    column or, in SQLite, read as a string. Compose the target's column
+    (`person.nickname.coalesce("none")`) instead. The generated
+    `MetaUpdate.Columns` creates each nullable slot with its column's name,
+    through the new `XLNullableColumnUpdate.init(_xlColumn:)`; a slot
+    created with `init()` has no name, and its unassigned read is `NULL`, as
+    before. A non-nullable column's slot is unchanged: its unassigned read
+    is `nil`, so assigning it to a nullable column still sets that column to
+    `NULL`.
   - Assigning a value of type `Wrapped?`, such as a `String?` variable, now
     resolves to the optional-typed overload. The SQL is the same.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**
@@ -916,11 +920,9 @@
   unless it had been assigned a value of the wrapped type: a column never
   assigned, assigned `NULL`, or assigned an optional-typed expression such as
   another nullable column. The read is now the value assigned, and a column
-  never assigned reads as itself, so the stored value is kept. Reading a
-  column never assigned and assigning it to another nullable column, such as
-  `row.alias = row.name`, copies the stored value instead of setting `NULL`,
-  and composing the read, as in `row.nickname.coalesce("none")`, uses the
-  stored value instead of `NULL`.
+  never assigned, assigned to a nullable column, sets it to that column's
+  current value, so the stored value is kept, and `row.alias = row.nickname`
+  copies it instead of setting `NULL`.
   See the Migration entry "A nullable column's `Setting` slot is read only as
   an optional-typed expression".
 - **A transaction scope used from another thread or queue throws instead of
