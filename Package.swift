@@ -428,11 +428,12 @@ let package = Package(
 
         // Issue #682: a driver double with no GRDB import backs requests,
         // writes, result sets, and static queries through `XLDriverDatabase`.
-        // It depends on SwiftQL alone, and the core boundary check rejects a
+        // It depends on SwiftQLSQLite alone, the syntax and runtime with no
+        // GRDB driver (issue #790), and the core boundary check rejects a
         // GRDB, CSQLite, or Combine import in it.
         .testTarget(
             name: "SwiftQLDriverDatabaseTests",
-            dependencies: ["SwiftQL"]
+            dependencies: ["SwiftQLSQLite"]
         ),
 
         // Issue #702: a client opens a GRDB-backed database, registers a

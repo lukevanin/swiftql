@@ -4,6 +4,11 @@
 SwiftPM plans build directories for unrelated root-package targets even when
 `--target SwiftQLCore` is used. The compile check therefore copies the exact
 core Swift sources into a generated dependency-free package before building.
+
+The query modules above the core keep the same boundary (issue #790): none of
+SwiftQLQuery, SwiftQLRuntime, or SwiftQLSQLite imports GRDB or CSQLite, only
+SwiftQLRuntime imports Combine or OpenCombine, and the package graph gives the
+SwiftQLSQLite product no path to GRDB, so a client of it never builds GRDB.
 """
 
 import argparse
@@ -20,6 +25,11 @@ import tempfile
 TARGET_NAME = "SwiftQLCore"
 SOURCE_ROOTS = (
     "Sources/SwiftQLCore",
+    # Issue #790: the query surface, the runtime, and SQLite's surface and
+    # runtime. A model or query file imports SwiftQLSQLite and nothing of GRDB.
+    "Sources/SwiftQLQuery",
+    "Sources/SwiftQLRuntime",
+    "Sources/SwiftQLSQLite",
     "Tests/SwiftQLCoreTests",
     # Issue #682: the driver double that backs `XLDriverDatabase` must reach
     # SwiftQL through the driver contract alone.
@@ -28,12 +38,26 @@ SOURCE_ROOTS = (
     # and runs queries through SwiftQL without importing GRDB.
     "Tests/SwiftQLGRDBFreeClientTests",
 )
-# Test targets that prove a client needs only SwiftQL: they may depend on the
-# SwiftQL target and nothing else (issues #682 and #702).
-SWIFTQL_ONLY_TEST_TARGETS = (
-    "SwiftQLDriverDatabaseTests",
+# Test targets that prove what a client needs, and the one target each may
+# depend on. The driver double needs only SwiftQLSQLite, the syntax and
+# runtime with no GRDB driver (issues #682 and #790); the GRDB-free client
+# opens a GRDB database through SwiftQL (issue #702).
+SINGLE_DEPENDENCY_TEST_TARGETS = {
+    "SwiftQLDriverDatabaseTests": "SwiftQLSQLite",
+    "SwiftQLGRDBFreeClientTests": "SwiftQL",
+}
+# Test targets built without package access, so the compiler hides the
+# package's `package` declarations from them, as it does from a client
+# (issue #113). The GRDB driver's types are `package`, so without this the
+# GRDB-free client could reach them.
+NO_PACKAGE_ACCESS_TEST_TARGETS = (
     "SwiftQLGRDBFreeClientTests",
 )
+# Issue #790: the SwiftQLSQLite product, and every target it reaches, has no
+# path to these products, so a client of it never resolves them into its
+# build. The graph is read from `swift package describe`.
+GRDB_FREE_PRODUCTS = ("SwiftQLQuery", "SwiftQLRuntime", "SwiftQLSQLite")
+GRDB_PRODUCTS = frozenset(("GRDB", "GRDBSQLite"))
 DEPENDENCY_FIELDS = (
     "target_dependencies",
     "product_dependencies",
@@ -68,6 +92,15 @@ IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
 CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
     r"\bcanImport[ \t]*\([ \t]*" + OBSERVATION_FRAMEWORK_PATTERN + r"[ \t]*\)"
 )
+# The kinds of reference a source root may make anyway. SwiftQLRuntime holds
+# the Combine/OpenCombine bridges over the runtime contracts, so it is the one
+# query module that imports Combine (issue #790, decision D8).
+ROOT_ALLOWED_KINDS = {
+    "Sources/SwiftQLRuntime": frozenset((
+        "forbidden Combine import",
+        "forbidden Combine availability check",
+    )),
+}
 # SwiftQL's GRDB escape hatch (issue #702). A file that declares it reaches
 # GRDB's types through SwiftQL without importing GRDB, and members of those
 # types resolve without the import, so the patterns above would not see it.
@@ -81,7 +114,10 @@ SPI_FORBIDDEN_PATTERN = re.compile(r"@_spi[ \t]*\([ \t]*GRDB[ \t]*\)")
 ROOT_FORBIDDEN_PATTERNS = {
     "Tests/SwiftQLGRDBFreeClientTests": (
         (
-            re.compile(r"@testable[ \t]+(?:[A-Za-z_@()]+[ \t]+)*import[ \t]+SwiftQL\b(?!Core)"),
+            # Any SwiftQL module but the core: SwiftQL, or a module it
+            # re-exports, whose internals include the GRDB driver's or reach
+            # it (issue #790).
+            re.compile(r"@testable[ \t]+(?:[A-Za-z_@()]+[ \t]+)*import[ \t]+SwiftQL(?!Core\b)[A-Za-z0-9_]*\b"),
             "forbidden testable SwiftQL import",
         ),
     ),
@@ -171,6 +207,87 @@ def run_swift(command, package_root, label):
     return result.stdout
 
 
+def check_package_access(swift, package_root):
+    """Each target in NO_PACKAGE_ACCESS_TEST_TARGETS keeps `packageAccess:
+    false` in Package.swift (issue #113). `swift package describe` does not
+    report the setting, so the manifest is read with `dump-package`."""
+    output = run_swift(
+        (swift, "package", "dump-package"),
+        package_root,
+        "swift package dump-package",
+    )
+    try:
+        manifest = json.loads(output)
+    except (TypeError, ValueError) as error:
+        raise BoundaryCheckError(
+            "swift package dump-package did not return valid JSON"
+        ) from error
+    targets = manifest.get("targets") if isinstance(manifest, dict) else None
+    if not isinstance(targets, list):
+        raise BoundaryCheckError("the dumped manifest is missing its targets array")
+    for name in NO_PACKAGE_ACCESS_TEST_TARGETS:
+        matching = [
+            target
+            for target in targets
+            if isinstance(target, dict) and target.get("name") == name
+        ]
+        if len(matching) != 1:
+            raise BoundaryCheckError(
+                "the manifest must contain exactly one {} target; found {}".format(
+                    name, len(matching)
+                )
+            )
+        if matching[0].get("packageAccess") is not False:
+            raise BoundaryCheckError(
+                "{} must be built with packageAccess: false, so the package's "
+                "`package` declarations stay hidden from it; found {}".format(
+                    name, json.dumps(matching[0].get("packageAccess"))
+                )
+            )
+
+
+def check_grdb_free_products(targets, products):
+    """No target that a product in GRDB_FREE_PRODUCTS reaches depends on a
+    GRDB product (issue #790)."""
+    by_name = {
+        target.get("name"): target
+        for target in targets
+        if isinstance(target, dict)
+    }
+    for product_name in GRDB_FREE_PRODUCTS:
+        matching = [
+            product
+            for product in products
+            if isinstance(product, dict) and product.get("name") == product_name
+        ]
+        if len(matching) != 1 or matching[0].get("targets") != [product_name]:
+            raise BoundaryCheckError(
+                "package description must export a {} product of the {} target alone".format(
+                    product_name, product_name
+                )
+            )
+        pending = [product_name]
+        reached = set()
+        while pending:
+            name = pending.pop()
+            if name in reached:
+                continue
+            reached.add(name)
+            target = by_name.get(name)
+            if target is None:
+                raise BoundaryCheckError(
+                    "{} reaches an unknown target {}".format(product_name, name)
+                )
+            grdb = sorted(GRDB_PRODUCTS.intersection(target.get("product_dependencies", [])))
+            if grdb:
+                raise BoundaryCheckError(
+                    "the {} product reaches {}, which depends on {}; it must not reach GRDB".format(
+                        product_name, name, ", ".join(grdb)
+                    )
+                )
+            pending.extend(target.get("target_dependencies", []))
+
+
 def check_package_dependencies(swift, package_root):
     output = run_swift(
         (swift, "package", "describe", "--type", "json"),
@@ -231,7 +348,7 @@ def check_package_dependencies(swift, package_root):
             )
         )
 
-    for name in SWIFTQL_ONLY_TEST_TARGETS:
+    for name, dependency in SINGLE_DEPENDENCY_TEST_TARGETS.items():
         matching = [
             target
             for target in targets
@@ -249,12 +366,13 @@ def check_package_dependencies(swift, package_root):
             for field in DEPENDENCY_FIELDS
         }
         if dependencies != {
-            "target_dependencies": ["SwiftQL"],
+            "target_dependencies": [dependency],
             "product_dependencies": [],
         }:
             raise BoundaryCheckError(
-                "{} must depend on the SwiftQL target alone; found {}".format(
+                "{} must depend on the {} target alone; found {}".format(
                     name,
+                    dependency,
                     json.dumps(dependencies, sort_keys=True, separators=(",", ":")),
                 )
             )
@@ -287,6 +405,8 @@ def check_package_dependencies(swift, package_root):
                 TARGET_NAME,
             )
         )
+
+    check_grdb_free_products(targets, products)
 
 
 def forbidden_reference_kinds(line):
@@ -365,8 +485,11 @@ def check_source_references(package_root):
                     "could not read {}: {}".format(relative_path, error)
                 ) from error
 
+            allowed = ROOT_ALLOWED_KINDS.get(source_root_name, frozenset())
             for line_number, line in enumerate(lines, start=1):
                 for kind in forbidden_reference_kinds(line):
+                    if kind in allowed:
+                        continue
                     violations.append(
                         (relative_path, line_number, kind)
                     )
@@ -554,7 +677,19 @@ def main():
         print(
             "CHECK package graph: PASS "
             "(SwiftQLCore product exported; target/product dependencies: none; "
-            "{} depend on SwiftQL alone)".format(", ".join(SWIFTQL_ONLY_TEST_TARGETS))
+            "{}; {} reach no GRDB product)".format(
+                ", ".join(
+                    "{} depends on {} alone".format(name, dependency)
+                    for name, dependency in SINGLE_DEPENDENCY_TEST_TARGETS.items()
+                ),
+                ", ".join(GRDB_FREE_PRODUCTS),
+            )
+        )
+        check_package_access(swift, package_root)
+        print(
+            "CHECK package access: PASS ({} built with packageAccess: false)".format(
+                ", ".join(NO_PACKAGE_ACCESS_TEST_TARGETS)
+            )
         )
 
         scanned_file_count, core_source_files = check_source_references(
