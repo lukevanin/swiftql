@@ -6,7 +6,7 @@ import SwiftSyntaxMacros
 ///
 /// Implements the `#row(...)` freestanding expression macro.
 ///
-/// The public overloads declared in `Sources/SwiftQL/SQLRowMacro.swift` fix the arity (one to
+/// The public overloads declared in `Sources/SwiftQLSQLite/SQLRowMacro.swift` fix the arity (one to
 /// six unlabeled column expressions) and the resulting ad hoc row type (`SQLScalarResult` for one
 /// column, `SQLRow2`...`SQLRow6` for two to six), so the only work left here is rewriting
 /// `#row(a, b, ...)` into the equivalent `Type.columns(...)` call the caller would otherwise have

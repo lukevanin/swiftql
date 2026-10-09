@@ -173,7 +173,7 @@ private func makeCodecAwareMembers(builder: MetaBuilder) throws -> [DeclSyntax] 
 /// into that property's generated `staticResultField(_:...)` convenience and into the type's
 /// `_swiftQLPropertyCodecKeys` metadata. The Swift compiler enforces that the argument is a
 /// genuine `XLValueCodecKey` value through this macro's own declared signature in
-/// `Sources/SwiftQL/SQL.swift`; SwiftQL's runtime precedence (`XLValueCodingConfiguration`) still
+/// `Sources/SwiftQLQuery/SQL.swift`; SwiftQL's runtime precedence (`XLValueCodingConfiguration`) still
 /// validates the codec's Swift value type, dialect, and registration when the selection is
 /// resolved, since a registry is a runtime value no macro can see.
 ///

@@ -588,7 +588,11 @@ private struct Walker {
                 return false
             }
             let spelling = attribute.attributeName.trimmedDescription
-            return spelling == name || spelling == "SwiftQL.\(name)"
+            // The macros are declared in SwiftQLSQLite, and SwiftQL
+            // re-exports them, so either module may qualify one (issue #790).
+            return spelling == name
+                || spelling == "SwiftQL.\(name)"
+                || spelling == "SwiftQLSQLite.\(name)"
         }
     }
 }

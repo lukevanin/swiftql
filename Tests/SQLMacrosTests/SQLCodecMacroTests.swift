@@ -343,7 +343,7 @@ final class SQLCodecKeysDeclarationTests: XCTestCase {
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(
             source.contains(
-                "public static var _swiftQLPropertyCodecKeys: [String: SwiftQL.XLValueCodecKey]"
+                "public static var _swiftQLPropertyCodecKeys: [String: SwiftQLCore.XLValueCodecKey]"
             )
         )
         XCTAssertTrue(source.contains("[:]"))
@@ -388,7 +388,7 @@ final class SQLCodecKeysDeclarationTests: XCTestCase {
                 var badge: String
                 var plain: Int
 
-                public static var _swiftQLPropertyCodecKeys: [String: SwiftQL.XLValueCodecKey] {
+                public static var _swiftQLPropertyCodecKeys: [String: SwiftQLCore.XLValueCodecKey] {
                         [
                             "badge": Codecs.badge,
                         ]
@@ -454,7 +454,7 @@ final class SQLCodecResultFieldFunctionTests: XCTestCase {
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(
             source.contains(
-                "public static func staticResultField<_SwiftQLCodecStorage, _SwiftQLCodecDialect>(timestamp expression: any SwiftQL.XLEncodable, storedAs storageType: _SwiftQLCodecStorage.Type, identifiedBy identity: SwiftQL.XLQuerySlotIdentity, using dialect: _SwiftQLCodecDialect, context: SwiftQL.XLValueCodingContext? = nil, configuration: SwiftQL.XLValueCodingConfiguration) throws -> SwiftQL.XLStaticSelectField<Date, _SwiftQLCodecStorage, _SwiftQLCodecDialect> where _SwiftQLCodecStorage: SwiftQL.XLLiteral, _SwiftQLCodecDialect: SwiftQL.XLLiteralValueDialect"
+                "public static func staticResultField<_SwiftQLCodecStorage, _SwiftQLCodecDialect>(timestamp expression: any SwiftQLQuery.XLEncodable, storedAs storageType: _SwiftQLCodecStorage.Type, identifiedBy identity: SwiftQLCore.XLQuerySlotIdentity, using dialect: _SwiftQLCodecDialect, context: SwiftQLCore.XLValueCodingContext? = nil, configuration: SwiftQLCore.XLValueCodingConfiguration) throws -> SwiftQLQuery.XLStaticSelectField<Date, _SwiftQLCodecStorage, _SwiftQLCodecDialect> where _SwiftQLCodecStorage: SwiftQLQuery.XLLiteral, _SwiftQLCodecDialect: SwiftQLQuery.XLLiteralValueDialect"
             )
         )
         XCTAssertTrue(source.contains("Date.self,"))
@@ -481,7 +481,7 @@ final class SQLCodecResultFieldFunctionTests: XCTestCase {
         XCTAssertTrue(source.contains("storedAs storageType: _SwiftQLCodecStorage?.Type"))
         XCTAssertTrue(
             source.contains(
-                "SwiftQL.XLStaticSelectField<Date?, _SwiftQLCodecStorage?, _SwiftQLCodecDialect>"
+                "SwiftQLQuery.XLStaticSelectField<Date?, _SwiftQLCodecStorage?, _SwiftQLCodecDialect>"
             )
         )
         XCTAssertTrue(source.contains("Date?.self,"))
@@ -537,7 +537,7 @@ final class SQLCodecResultFieldFunctionTests: XCTestCase {
             struct Sample {
                 var badge: String
 
-                public static func staticResultField<_SwiftQLCodecStorage, _SwiftQLCodecDialect>(badge expression: any SwiftQL.XLEncodable, storedAs storageType: _SwiftQLCodecStorage.Type, identifiedBy identity: SwiftQL.XLQuerySlotIdentity, using dialect: _SwiftQLCodecDialect, context: SwiftQL.XLValueCodingContext? = nil, configuration: SwiftQL.XLValueCodingConfiguration) throws -> SwiftQL.XLStaticSelectField<String, _SwiftQLCodecStorage, _SwiftQLCodecDialect> where _SwiftQLCodecStorage: SwiftQL.XLLiteral, _SwiftQLCodecDialect: SwiftQL.XLLiteralValueDialect {
+                public static func staticResultField<_SwiftQLCodecStorage, _SwiftQLCodecDialect>(badge expression: any SwiftQLQuery.XLEncodable, storedAs storageType: _SwiftQLCodecStorage.Type, identifiedBy identity: SwiftQLCore.XLQuerySlotIdentity, using dialect: _SwiftQLCodecDialect, context: SwiftQLCore.XLValueCodingContext? = nil, configuration: SwiftQLCore.XLValueCodingConfiguration) throws -> SwiftQLQuery.XLStaticSelectField<String, _SwiftQLCodecStorage, _SwiftQLCodecDialect> where _SwiftQLCodecStorage: SwiftQLQuery.XLLiteral, _SwiftQLCodecDialect: SwiftQLQuery.XLLiteralValueDialect {
                         return try configuration.staticResultField(
                             String.self,
                             selecting: expression,

@@ -861,7 +861,7 @@ final class SQLMacroExpansionTests: XCTestCase {
                 let id: Int
                 let name: String?
 
-                public static func columns(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>, name: SwiftQL.XLSQLiteDialect.XLAnyExpression<String?>) -> MetaResult {
+                public static func columns(id: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>, name: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<String?>) -> MetaResult {
                         return Self.makeSQLAnonymousResult(
                             namespace: XLNamespace.table(),
                             dependency: XLSelectResultDependency(),
@@ -1410,12 +1410,12 @@ final class MetaBuilderTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains(
-                "let _swiftQLRowColumn0: any SwiftQL.XLExpression<Int> = XLColumnReference<Int, SwiftQL.XLSQLiteDialect>(dependency: dependency, as: \"id\")"
+                "let _swiftQLRowColumn0: any SwiftQLQuery.XLExpression<Int> = XLColumnReference<Int, SwiftQLSQLite.XLSQLiteDialect>(dependency: dependency, as: \"id\")"
             )
         )
         XCTAssertTrue(
             source.contains(
-                "let _swiftQLRowColumn1: any SwiftQL.XLExpression<String?> = XLColumnReference<String?, SwiftQL.XLSQLiteDialect>(dependency: dependency, as: \"name\")"
+                "let _swiftQLRowColumn1: any SwiftQLQuery.XLExpression<String?> = XLColumnReference<String?, SwiftQLSQLite.XLSQLiteDialect>(dependency: dependency, as: \"name\")"
             )
         )
         XCTAssertTrue(
@@ -1462,7 +1462,7 @@ final class MetaBuilderTests: XCTestCase {
         // The anonymous factories read their rows as results, not references.
         XCTAssertTrue(
             source.contains(
-                "let _swiftQLRowColumn0: any SwiftQL.XLExpression<Int> = XLColumnResult<Int, SwiftQL.XLSQLiteDialect>(dependency: dependency, as: \"id\")"
+                "let _swiftQLRowColumn0: any SwiftQLQuery.XLExpression<Int> = XLColumnResult<Int, SwiftQLSQLite.XLSQLiteDialect>(dependency: dependency, as: \"id\")"
             )
         )
         XCTAssertTrue(
@@ -1486,7 +1486,7 @@ final class MetaBuilderTests: XCTestCase {
         // The author owns `_swiftQLRowColumn0`, so the allocator moves its own
         // binding aside rather than reuse a reserved name.
         XCTAssertTrue(
-            source.contains("let _swiftQLRowColumn0_1: any SwiftQL.XLExpression<Int> = ")
+            source.contains("let _swiftQLRowColumn0_1: any SwiftQLQuery.XLExpression<Int> = ")
         )
         XCTAssertFalse(Parser.parse(source: source).hasError)
     }
@@ -1504,7 +1504,7 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeColumnsFunction()
         let extensionSource = builder.makeMetaResultExtension(table: false)
 
-        XCTAssertTrue(source.contains("public static func columns(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<String>, result: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>) -> MetaResult"))
+        XCTAssertTrue(source.contains("public static func columns(id: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<String>, result: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>) -> MetaResult"))
         XCTAssertTrue(source.contains("return Self.makeSQLAnonymousResult("))
         XCTAssertTrue(source.contains("namespace: XLNamespace.table(),"))
         XCTAssertTrue(source.contains("dependency: XLSelectResultDependency(),"))
@@ -1546,8 +1546,8 @@ final class MetaBuilderTests: XCTestCase {
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(source.contains("public static func staticRowLayout<_SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Element?, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Array<Element>, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQLQuery.XLStaticRowFieldSource<Element?, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQLQuery.XLStaticRowFieldSource<Array<Element>, _SwiftQLStaticDialect>"))
         XCTAssertFalse(source.contains("_SwiftQLStaticStorage"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try `switch`.grouped(at: 0, alias: \"switch\")"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try values.grouped(at: _swiftQLStaticOffset, alias: \"values\")"))
@@ -1667,7 +1667,7 @@ final class MetaBuilderTests: XCTestCase {
     // from "scalar `XLLiteral`" at expansion time. Composite support is
     // therefore uniform code generation, not macro-side detection: every
     // property -- scalar or composite -- goes through the same
-    // `some SwiftQL.XLStaticRowFieldSource<Type, Dialect>` parameter and the
+    // `some SwiftQLQuery.XLStaticRowFieldSource<Type, Dialect>` parameter and the
     // same `.grouped(at:alias:)` / running-offset accumulation. Whether a
     // given call site actually supplies a scalar field or a nested
     // `XLStaticRowLayout` is resolved later, by Swift's own conformance
@@ -1688,7 +1688,7 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeStaticRowLayoutFunction()
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
-        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQLQuery.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
         XCTAssertFalse(source.contains("_swiftQLStaticOffset"))
         XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields].flatMap { $0 },"))
@@ -1710,8 +1710,8 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeStaticRowLayoutFunction()
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
-        XCTAssertTrue(source.contains("employee: some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("company: some SwiftQL.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("employee: some SwiftQLQuery.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("company: some SwiftQLQuery.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
         XCTAssertTrue(source.contains("_swiftQLStaticOffset = _swiftQLStaticField0.count"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try company.grouped(at: _swiftQLStaticOffset, alias: \"company\")"))
@@ -1741,9 +1741,9 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertFalse(Parser.parse(source: source).hasError)
         // Every property -- scalar or composite -- gets the identical
         // parameter shape; there is no macro-side branch between them.
-        XCTAssertTrue(source.contains("badgeNumber: some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("employee: some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("company: some SwiftQL.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("badgeNumber: some SwiftQLQuery.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("employee: some SwiftQLQuery.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("company: some SwiftQLQuery.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try badgeNumber.grouped(at: 0, alias: \"badgeNumber\")"))
         // A third property means the running offset is genuinely
         // reassigned, so it is generated as `var`.
@@ -1782,8 +1782,8 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeStaticRowLayoutFunction()
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
-        XCTAssertTrue(source.contains("headcount: some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("department: some SwiftQL.XLStaticRowFieldSource<Department, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("headcount: some SwiftQLQuery.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("department: some SwiftQLQuery.XLStaticRowFieldSource<Department, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try headcount.grouped(at: 0, alias: \"headcount\")"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try department.grouped(at: _swiftQLStaticOffset, alias: \"department\")"))
         XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
@@ -1841,7 +1841,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("var output = entity"))
         XCTAssertTrue(source.contains("output.id = value"))
         XCTAssertTrue(source.contains("var output = MetaUpdate()"))
-        XCTAssertTrue(source.contains("output._xlColumns.id.expression = SwiftQL._xlLegacyValueExpression(value)"))
+        XCTAssertTrue(source.contains("output._xlColumns.id.expression = SwiftQLQuery._xlLegacyValueExpression(value)"))
     }
 
     // MetaUpdate routes column assignment through key-path member lookup over
@@ -1869,28 +1869,28 @@ final class MetaBuilderTests: XCTestCase {
             source.contains("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate")
         )
         XCTAssertTrue(
-            source.contains("public var nickname = SwiftQL.XLNullableColumnUpdate<String>()")
+            source.contains("public var nickname = SwiftQLQuery.XLNullableColumnUpdate<String>()")
         )
         XCTAssertTrue(
-            source.contains("public var id = SwiftQL.XLColumnUpdate<Int>()")
+            source.contains("public var id = SwiftQLQuery.XLColumnUpdate<Int>()")
         )
 
         // The three subscript overloads: wrapped-type for both slot kinds,
         // and the disfavored optional-typed overload for nullable slots.
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQLQuery.XLColumnUpdate<Wrapped>>) -> Optional<SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
             )
         )
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQLQuery.XLNullableColumnUpdate<Wrapped>>) -> Optional<SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Wrapped>>"
             )
         )
         XCTAssertTrue(source.contains("@_disfavoredOverload"))
         XCTAssertTrue(
             source.contains(
-                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQLQuery.XLNullableColumnUpdate<Wrapped>>) -> SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>"
             )
         )
 
@@ -1902,12 +1902,12 @@ final class MetaBuilderTests: XCTestCase {
             source.components(separatedBy: text).count - 1
         }
         XCTAssertEqual(
-            occurrences("if let typed = slot._xlReadExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)"),
+            occurrences("if let typed = slot._xlReadExpression(as: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Wrapped>.self)"),
             2
         )
         XCTAssertEqual(occurrences("guard let untyped = slot._xlReadUntypedExpression else"), 2)
         XCTAssertEqual(
-            occurrences("if let typed = slot._xlReadOptionalExpression(as: SwiftQL.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)"),
+            occurrences("if let typed = slot._xlReadOptionalExpression(as: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Optional<Wrapped>>.self)"),
             1
         )
         // A value of no dialect reads through one generated function whose
@@ -1920,9 +1920,9 @@ final class MetaBuilderTests: XCTestCase {
             1
         )
         XCTAssertTrue(
-            source.contains("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>")
+            source.contains("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQLQuery.XLTypeAffinityExpression<Wrapped>) -> SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Wrapped>")
         )
-        XCTAssertTrue(source.contains("return expression as SwiftQL.XLSQLiteDialect.XLAnyExpression<Wrapped>"))
+        XCTAssertTrue(source.contains("return expression as SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Wrapped>"))
         XCTAssertFalse(source.contains("wrapping:"))
 
         // The slots carry "was this column assigned at all", so the SET
@@ -1938,10 +1938,10 @@ final class MetaBuilderTests: XCTestCase {
         // on the column's declared (qualified) type, and `nil` means "omit
         // this column from the statement".
         XCTAssertTrue(
-            source.contains("nickname: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<String?>> = nil")
+            source.contains("nickname: Optional<SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<String?>> = nil")
         )
         XCTAssertTrue(
-            source.contains("id: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>> = nil")
+            source.contains("id: Optional<SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>> = nil")
         )
 
         // The generated expansion never needs `toNullable()` to bridge a
@@ -2035,7 +2035,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertEqual(builder.properties.count, propertyCount)
         for index in 0..<propertyCount {
             XCTAssertTrue(
-                source.contains("field\(index): some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"),
+                source.contains("field\(index): some SwiftQLQuery.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"),
                 "missing parameter for field\(index)"
             )
             XCTAssertTrue(
@@ -2077,13 +2077,13 @@ final class MetaBuilderTests: XCTestCase {
         // The model and every metadata type name the dialect through
         // `_dialect`, qualified so a user's file that also imports a module
         // with a type of the same name expands unambiguously.
-        XCTAssertTrue(result.contains("public static var _dialect: SwiftQL.XLSQLiteDialect.Type { SwiftQL.XLSQLiteDialect.self }"))
-        XCTAssertTrue(result.contains("public var _dialect: SwiftQL.XLSQLiteDialect.Type { SwiftQL.XLSQLiteDialect.self }"))
-        XCTAssertTrue(table.contains("public var _dialect: SwiftQL.XLSQLiteDialect.Type { SwiftQL.XLSQLiteDialect.self }"))
+        XCTAssertTrue(result.contains("public static var _dialect: SwiftQLSQLite.XLSQLiteDialect.Type { SwiftQLSQLite.XLSQLiteDialect.self }"))
+        XCTAssertTrue(result.contains("public var _dialect: SwiftQLSQLite.XLSQLiteDialect.Type { SwiftQLSQLite.XLSQLiteDialect.self }"))
+        XCTAssertTrue(table.contains("public var _dialect: SwiftQLSQLite.XLSQLiteDialect.Type { SwiftQLSQLite.XLSQLiteDialect.self }"))
         // Each column carries the dialect in its own type.
-        XCTAssertTrue(result.contains("public let id: XLColumnReference<Int, SwiftQL.XLSQLiteDialect>"))
-        XCTAssertTrue(result.contains("public let note: XLColumnReference<String?, SwiftQL.XLSQLiteDialect>"))
-        XCTAssertTrue(table.contains("public let id: XLColumnReference<Int, SwiftQL.XLSQLiteDialect>"))
+        XCTAssertTrue(result.contains("public let id: XLColumnReference<Int, SwiftQLSQLite.XLSQLiteDialect>"))
+        XCTAssertTrue(result.contains("public let note: XLColumnReference<String?, SwiftQLSQLite.XLSQLiteDialect>"))
+        XCTAssertTrue(table.contains("public let id: XLColumnReference<Int, SwiftQLSQLite.XLSQLiteDialect>"))
         XCTAssertFalse(result.contains("XLColumnReference<Int>"))
         XCTAssertFalse(Parser.parse(source: result).hasError)
         XCTAssertFalse(Parser.parse(source: table).hasError)
@@ -2106,8 +2106,8 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(result.contains("public let id: XLColumnReference<Int, Storage.PostgreSQLDialect>"))
         XCTAssertTrue(result.contains("XLColumnReference<Int, Storage.PostgreSQLDialect>(dependency: dependency, as: \"id\")"))
         XCTAssertTrue(table.contains("public let id: XLColumnReference<Int, Storage.PostgreSQLDialect>"))
-        XCTAssertFalse(result.contains("SwiftQL.XLSQLiteDialect"))
-        XCTAssertFalse(table.contains("SwiftQL.XLSQLiteDialect"))
+        XCTAssertFalse(result.contains("SwiftQLSQLite.XLSQLiteDialect"))
+        XCTAssertFalse(table.contains("SwiftQLSQLite.XLSQLiteDialect"))
     }
 
     func test_resultDialectArgumentNamesTheDialectEveryResultColumnCarries() throws {
@@ -2148,7 +2148,7 @@ final class MetaBuilderTests: XCTestCase {
             XCTAssertFalse(source.contains("enum Dialect"))
         }
         // The user's own `Dialect` stays the property's value type.
-        XCTAssertTrue(result.contains("public let dialect: XLColumnReference<Dialect, SwiftQL.XLSQLiteDialect>"))
+        XCTAssertTrue(result.contains("public let dialect: XLColumnReference<Dialect, SwiftQLSQLite.XLSQLiteDialect>"))
     }
 
     // The associated type is `XLModelDialect`, so a type the model declares
@@ -2184,11 +2184,11 @@ final class MetaBuilderTests: XCTestCase {
         // slot take the model's dialect's expressions, named from the dialect
         // type, which takes Swift values as well. The reader and the insert
         // store what they are given erased.
-        XCTAssertTrue(result.contains("public init(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>)"))
-        XCTAssertTrue(result.contains("private let id: any SwiftQL.XLExpression<Int>"))
-        XCTAssertTrue(table.contains("public init(id: SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>)"))
+        XCTAssertTrue(result.contains("public init(id: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>)"))
+        XCTAssertTrue(result.contains("private let id: any SwiftQLQuery.XLExpression<Int>"))
+        XCTAssertTrue(table.contains("public init(id: SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>)"))
         XCTAssertTrue(table.contains("private let id: any XLExpression<Int>"))
-        XCTAssertTrue(table.contains("id: Optional<SwiftQL.XLSQLiteDialect.XLAnyExpression<Int>> = nil"))
+        XCTAssertTrue(table.contains("id: Optional<SwiftQLSQLite.XLSQLiteDialect.XLAnyExpression<Int>> = nil"))
         XCTAssertFalse(result.contains("XLSQLiteExpression"))
         XCTAssertFalse(table.contains("XLSQLiteExpression"))
     }
