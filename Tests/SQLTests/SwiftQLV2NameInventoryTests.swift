@@ -19,7 +19,7 @@ import XCTest
 final class SwiftQLV2NameInventoryTests: XCTestCase {
 
     /// Read once for every test in the class: each scan reads every source
-    /// file in SwiftQL and SwiftQLCore.
+    /// file in SwiftQL and the modules it re-exports.
     private static let declared = Result { try publicTopLevelTypeNames() }
     private static let inventory = Result { try proposedNameInventory() }
 
@@ -141,7 +141,7 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
             encoding: .utf8
         )
         let aliases = try matches(
-            of: #"^public typealias ([A-Za-z_][A-Za-z0-9_]*) = (?:SwiftQL|SwiftQLCore)\.(XL[A-Za-z0-9_]*)$"#,
+            of: #"^public typealias ([A-Za-z_][A-Za-z0-9_]*) = (?:SwiftQL|SwiftQLCore|SwiftQLQuery|SwiftQLRuntime|SwiftQLSQLite)\.(XL[A-Za-z0-9_]*)$"#,
             in: source
         ).map { (newName: $0[0], oldName: $0[1]) }
         let unresolved = try matches(
@@ -162,7 +162,8 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
         )
     }
 
-    /// The public types SwiftQL and SwiftQLCore declare at file scope.
+    /// The public types SwiftQL and the modules it re-exports declare at file
+    /// scope.
     ///
     /// A declaration counts when it sits outside every brace, whatever its
     /// indentation, so one inside an `#if` block is found and a nested type
@@ -175,7 +176,7 @@ final class SwiftQLV2NameInventoryTests: XCTestCase {
             + #"(?:struct|class|enum|protocol|typealias|actor)\s+([A-Za-z_][A-Za-z0-9_]*)"#
         )
         var names: Set<String> = []
-        for module in ["SwiftQLCore", "SwiftQL"] {
+        for module in ["SwiftQLCore", "SwiftQLQuery", "SwiftQLRuntime", "SwiftQLSQLite", "SwiftQL"] {
             let directory = root.appendingPathComponent("Sources/\(module)")
             guard let enumerator = FileManager.default.enumerator(
                 at: directory,

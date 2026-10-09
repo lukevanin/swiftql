@@ -216,7 +216,7 @@ let query = sql { schema in
 ```
 
 `#row` accepts between one and six column expressions. A single column
-decodes into ``SQLScalarResult``; two to six columns decode into the matching
+decodes into `SQLScalarResult`; two to six columns decode into the matching
 `SQLRow2`...`SQLRow6` type, whose fields are named positionally (`_0`, `_1`,
 ...) since the columns have no caller-chosen name:
 

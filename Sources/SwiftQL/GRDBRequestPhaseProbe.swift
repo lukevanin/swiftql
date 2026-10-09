@@ -29,7 +29,7 @@ package enum GRDBRequestPhaseProbeError: Error, CustomStringConvertible {
 ///
 /// `fetchAll()` and `execute()` validate the request's binding packet, prepare
 /// and bind a statement, step a GRDB row cursor, normalize every column to
-/// ``XLSQLiteValue``, and decode each row. This probe calls the same internal
+/// `XLSQLiteValue`, and decode each row. This probe calls the same internal
 /// functions one phase at a time, so a benchmark never re-implements that work
 /// with raw GRDB calls or decodes rows through a path production does not use.
 ///
@@ -59,7 +59,7 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
         self.usesWriteConnection = request.requiresWriteConnection
     }
 
-    /// Decodes normalized rows through ``XLRowDecoder/decode(values:)``.
+    /// Decodes normalized rows through `XLRowDecoder.decode(values:)`.
     ///
     /// `fetchAll()` reads each column from the cursor's row handle instead
     /// (issue #678), through the same row reader and literal decoders, so

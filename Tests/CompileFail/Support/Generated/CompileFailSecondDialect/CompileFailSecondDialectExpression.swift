@@ -28,9 +28,9 @@ import Foundation
 ///   one, and a named binding. A value is written the same way in every
 ///   dialect, so it is an expression of every dialect.
 /// - An enum or a custom type that conforms to this protocol. A protocol
-///   cannot be made to refine this one from outside, so a type declares it:
-///   `XLEnum` and `XLCustomType` include SQLite's, and a type used in another
-///   dialect's query conforms to that dialect's protocol as well.
+///   cannot be made to refine this one from outside, so a type declares it,
+///   usually through `CompileFailSecondDialectEnum` or `CompileFailSecondDialectCustomType`, and a type used in
+///   another dialect's query conforms to that dialect's composition as well.
 /// - A capture or contextual binding that encodes its value for
 ///   the compile-fail second dialect.
 /// - The result of a the compile-fail second dialect operator or function, which returns
@@ -50,6 +50,31 @@ import Foundation
 ///
 protocol CompileFailSecondDialectExpression<T>: XLExpression {
 }
+
+
+// MARK: - Enums and custom types
+
+
+///
+/// An enum whose cases are values in the compile-fail second dialect queries: a column of a
+/// model declared for the compile-fail second dialect, and an operand of its operators and
+/// functions.
+///
+/// `XLEnumRepresentable` holds the requirements and their defaults, and names
+/// no dialect. An enum used in several dialects conforms to each dialect's
+/// composition, or to a composition of its own (issue #790).
+///
+typealias CompileFailSecondDialectEnum = XLEnumRepresentable & CompileFailSecondDialectExpression
+
+///
+/// A custom scalar type whose values are values in the compile-fail second dialect queries:
+/// it binds to, reads from, and renders into them.
+///
+/// `XLCustomValue` holds the requirements, and names no dialect. A type used
+/// in several dialects conforms to each dialect's composition, or to a
+/// composition of its own (issue #790).
+///
+typealias CompileFailSecondDialectCustomType = XLCustomValue & CompileFailSecondDialectExpression
 
 
 // MARK: - The dialect's name for its expressions

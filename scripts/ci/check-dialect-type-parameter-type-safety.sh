@@ -29,6 +29,13 @@
 # different types, whose only change is the dialect argument in the printed
 # column type. The fixtures use macros, so the standalone compiler loads
 # SwiftQL's macro plugin.
+#
+# Issue #790: a file that imports SwiftQLQuery alone, as a dialect author's
+# does, builds a query in a dialect of its own, whose surface is generated
+# against SwiftQLQuery, and cannot reach a SQLite-only operation: `COLLATE`,
+# `INSERT OR`, `iif`, or the model macros without a `dialect:` argument. Those
+# fixtures are compiled with the query-only support alone, which imports
+# nothing of SQLite.
 
 set -euo pipefail
 
@@ -87,6 +94,29 @@ refusal_fixtures=(
 # `expected-error` marker.
 expansion_refusal_fixtures=(
     "$source_root/Tests/CompileFail/DialectSlotHandWrittenProtocolWithoutTypeAffinity.swift"
+)
+# Issue #790: compiled with the query-only support and surface instead of the
+# support files above, so nothing they compile with imports SwiftQLSQLite or
+# SwiftQL.
+query_only_support_files=(
+    "$source_root/Tests/CompileFail/Support/QueryOnlySupport.swift"
+)
+while IFS= read -r generated_file; do
+    query_only_support_files+=("$generated_file")
+done < <(
+    find "$source_root/Tests/CompileFail/Support/Generated/QueryOnlyDialect" \
+        -name '*.swift' | sort
+)
+if [[ "${#query_only_support_files[@]}" -le 1 ]]; then
+    printf 'error: no generated query-only surface; run scripts/dialect-surface/generate.py\n' >&2
+    exit 1
+fi
+query_only_positive_fixture="$source_root/Tests/CompileFail/QueryOnlyValid.swift"
+query_only_refusal_fixtures=(
+    "$source_root/Tests/CompileFail/QueryOnlyCollate.swift"
+    "$source_root/Tests/CompileFail/QueryOnlyInsertOr.swift"
+    "$source_root/Tests/CompileFail/QueryOnlyIif.swift"
+    "$source_root/Tests/CompileFail/QueryOnlyDialectlessModel.swift"
 )
 # An ordinary mistake: the error text must be exactly the fixture's
 # `expected-message`, which pins the message the issue says must not change.
@@ -193,10 +223,29 @@ fi
 # fixtures as API evidence.
 "${compiler[@]}" "${support_files[@]}" "$positive_fixture"
 
+# Every query-only file must import SwiftQLQuery and nothing that brings
+# SQLite in, or the query-only fixtures would prove nothing.
+for query_only_file in "${query_only_support_files[@]}" \
+    "$query_only_positive_fixture" "${query_only_refusal_fixtures[@]}"; do
+    if grep -Eq '^[^/]*import[[:space:]]+((class|enum|func|let|protocol|struct|typealias|var)[[:space:]]+)?(SwiftQL|SwiftQLSQLite|SwiftQLRuntime)([[:space:].]|$)' \
+        "$query_only_file"; then
+        printf 'error: a query-only file imports more than SwiftQLQuery: %s\n' \
+            "$query_only_file" >&2
+        exit 1
+    fi
+done
+"${compiler[@]}" "${query_only_support_files[@]}" "$query_only_positive_fixture"
+
 # Compiles one negative fixture and prints its error lines, after checking that
-# it failed exactly at its one `expected-error` line.
+# it failed exactly at its one `expected-error` line. The fixture is compiled
+# with `support_files`, or with the files named after it.
 compile_negative_fixture() {
     local fixture="$1"
+    shift
+    local fixture_support=("${support_files[@]}")
+    if [[ "$#" -gt 0 ]]; then
+        fixture_support=("$@")
+    fi
     local marker_count
     local expected_line
     local error_lines
@@ -209,7 +258,7 @@ compile_negative_fixture() {
         exit 1
     fi
 
-    if "${compiler[@]}" "${support_files[@]}" "$fixture" >"$diagnostic_log" 2>&1; then
+    if "${compiler[@]}" "${fixture_support[@]}" "$fixture" >"$diagnostic_log" 2>&1; then
         printf 'error: a fixture that must not type-check did: %s\n' \
             "$fixture" >&2
         exit 1
@@ -232,8 +281,12 @@ compile_negative_fixture() {
     fi
 }
 
-for fixture in "${refusal_fixtures[@]}"; do
-    compile_negative_fixture "$fixture"
+check_refusal_names() {
+    local fixture="$1"
+    local expected_names
+    local expected_phrase
+    local error_text
+    local name
 
     # The error itself, not a note under it, must contain the expected names,
     # so a reader can see which dialects met without opening the generated
@@ -257,7 +310,28 @@ for fixture in "${refusal_fixtures[@]}"; do
             exit 1
         fi
     done
+    # A fixture may also pin a phrase of the error, such as "cannot find 'iif'
+    # in scope": a query-only refusal must fail because the operation is out of
+    # scope, not because dialect typing refuses it (issue #790).
+    expected_phrase="$(
+        awk -F'// expected-phrase: ' '/\/\/ expected-phrase: / { print $2; exit }' "$fixture"
+    )"
+    if [[ -n "$expected_phrase" && "$error_text" != *"$expected_phrase"* ]]; then
+        printf 'error: refusal does not say "%s": %s\n' "$expected_phrase" "$fixture" >&2
+        cat "$diagnostic_log" >&2
+        exit 1
+    fi
     printf '%s\n' "$error_text"
+}
+
+for fixture in "${query_only_refusal_fixtures[@]}"; do
+    compile_negative_fixture "$fixture" "${query_only_support_files[@]}"
+    check_refusal_names "$fixture"
+done
+
+for fixture in "${refusal_fixtures[@]}"; do
+    compile_negative_fixture "$fixture"
+    check_refusal_names "$fixture"
 done
 
 for fixture in "${pinned_fixtures[@]}"; do

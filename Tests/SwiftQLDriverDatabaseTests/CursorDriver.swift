@@ -11,7 +11,7 @@
 //
 
 import Foundation
-import SwiftQL
+import SwiftQLSQLite
 
 
 /// The scripted rows and the record of what the cursor did, shared by the

@@ -296,7 +296,7 @@ injectable failure point at all.
 ## An interface that never refetches
 
 Every view is fed by a live query. The models are thin: they own an
-``XLObservableQuery`` and nothing else.
+`XLObservableQuery` and nothing else.
 
 <!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoModels.swift -->
 ```swift
@@ -329,7 +329,7 @@ The queries these models observe are the declarations in `TodoReads.swift`.
 `listsQuery` and `listCountsQuery` are `database.preparedQueries.todoLists()` and
 `database.preparedQueries.listCounts()`, prepared once when the database opens. The
 list and detail models prepare `filteredTodos(...)` and `todo(id:)` with their
-own arguments. Each prepared query is an ``XLPreparedQuery``: the declaration's
+own arguments. Each prepared query is an `XLPreparedQuery`: the declaration's
 cached request and the binding packet its executor would use, so no observed
 read is written a second time (see <doc:DeclaredQueries>, "Observe a declared
 query").

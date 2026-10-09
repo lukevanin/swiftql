@@ -21,6 +21,7 @@ import SwiftQLStreamOnlyRequestFixture
 import SwiftQLTestSupport
 import XCTest
 @testable import SwiftQL
+@testable import SwiftQLRuntime
 
 
 final class XLRequestCombineDefaultsTests: XCTestCase {

@@ -41,6 +41,29 @@ summarizes each release in plain language, and the
 [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md)
 records the exact detail.
 
+## Modules
+
+`import SwiftQL` gives a file everything below, and is the one import a v1
+file wrote. Each layer is also a module of its own, so a file can import
+only what it uses:
+
+- `SwiftQLSQLite`: SQLite's operators and functions, the macros, and the
+  requests that run a query on any SQLite driver, with no GRDB. A model or a
+  query file needs only this import.
+- `SwiftQL`: the GRDB driver, `GRDBDatabase`, and everything
+  `SwiftQLSQLite` has. A file that opens the database, or that declares
+  queries with `@SQLQueries` or `@SQLQuery` on `GRDBDatabase`, imports it.
+- `SwiftQLQuery`: the query surface that every dialect shares, for a dialect
+  author. It has no SQLite operation: a model declared with it names its
+  dialect, as `@SQLTable(dialect:)`.
+- `SwiftQLRuntime`: the database and request contracts, and their Combine,
+  async, and SwiftUI bridges, for a driver author.
+- `SwiftQLCore`: the driver and value-codec contracts every other module
+  builds on.
+
+Each module has its own pages on this site. A symbol another module declares
+is written in code font here.
+
 ## Why SQLite?
 
 SQLite is a commonly used database in many iOS and macOS applications. It has

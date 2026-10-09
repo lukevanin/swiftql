@@ -11,6 +11,7 @@ import OpenCombineDispatch
 import Foundation
 import XCTest
 @testable import SwiftQL
+@testable import SwiftQLRuntime
 
 
 // MARK: - Deterministic, GRDB-independent stream source

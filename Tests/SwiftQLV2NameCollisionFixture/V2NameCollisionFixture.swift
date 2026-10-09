@@ -92,6 +92,7 @@ enum V2NameCollisionFixture {
     typealias Check_CustomFunctionRegistration = CustomFunctionRegistration
     typealias Check_CustomFunctionResultError = CustomFunctionResultError
     typealias Check_CustomType = CustomType
+    typealias Check_CustomValue = CustomValue
     typealias Check_DatabaseContractError = DatabaseContractError
     typealias Check_DatabaseDriver = DatabaseDriver
     typealias Check_DatabaseDriverConnection = DatabaseDriverConnection
@@ -135,6 +136,7 @@ enum V2NameCollisionFixture {
     typealias Check_DriverScopeRefusal = DriverScopeRefusal
     typealias Check_Encoding = Encoding
     typealias Check_Enum = Enum
+    typealias Check_EnumRepresentable = EnumRepresentable
     typealias Check_ExcludedTableDependency = ExcludedTableDependency
     typealias Check_ExecutionResult = ExecutionResult
     typealias Check_FieldReader = FieldReader
@@ -287,7 +289,9 @@ enum V2NameCollisionFixture {
     typealias Check_SQLDialect = SQLDialect
     typealias Check_SQLValueEncodingError = SQLValueEncodingError
     typealias Check_SQLVocabulary = SQLVocabulary
+    typealias Check_SQLiteCustomType = SQLiteCustomType
     typealias Check_SQLiteDialect = SQLiteDialect
+    typealias Check_SQLiteEnum = SQLiteEnum
     typealias Check_SQLiteExpression = SQLiteExpression
     typealias Check_SQLiteIdentifierFormattingOptions = SQLiteIdentifierFormattingOptions
     typealias Check_SQLiteNumericDateCodec = SQLiteNumericDateCodec

@@ -73,7 +73,7 @@ final class GRDBLiveQueryAsyncBridge<Value: Sendable>: @unchecked Sendable {
     }
 
     /// Synchronous locked mutation kept out of `next()`'s `async` body (see
-    /// the equivalent note on ``XLSingleSlotAsyncBuffer``). Returns `true`
+    /// the equivalent note on `XLSingleSlotAsyncBuffer`). Returns `true`
     /// exactly once, for the call that must actually start the first GRDB
     /// observation attempt.
     private func claimStart() -> Bool {

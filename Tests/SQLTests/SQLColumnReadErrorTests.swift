@@ -7,6 +7,7 @@ import OpenCombine
 import GRDB
 import XCTest
 @_spi(GRDB) @testable import SwiftQL
+@testable import SwiftQLSQLite
 
 
 enum ColumnReadTestStatus: Int, XLEnum {

@@ -700,12 +700,12 @@ model that declares it: SQLite, unless the model names another with
 `@SQLTable(dialect:)` or `@SQLResult(dialect:)`. An operator or a function
 returns an expression of its operands' dialect. A Swift value, an optional of
 one, and a named binding are written the same way in every dialect, so each is
-an expression of every dialect. An enum and an ``XLCustomType`` are SQLite
+an expression of every dialect. An enum and an `XLCustomType` are SQLite
 expressions; to use one in another dialect's query, conform it to that
 dialect's expression protocol as well.
 
 Each dialect has its own expression protocol, and SQLite's is
-``XLSQLiteExpression``. The operators and functions take and return it, so a
+`XLSQLiteExpression`. The operators and functions take and return it, so a
 helper that composes part of a SQLite query does too:
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
@@ -722,7 +722,7 @@ let adults = sql { schema in
 }
 ```
 
-``XLExpression`` is the protocol every expression conforms to, whatever its
+`XLExpression` is the protocol every expression conforms to, whatever its
 dialect. An operator, a function, and a clause take the dialect's own protocol
 instead: an `any XLExpression<Int>` cannot be compared, added to, or passed to
 `Where`. Declare it `any XLSQLiteExpression<Int>`. A type of your own that
@@ -743,7 +743,7 @@ A statement belongs to a dialect too. `sql { }` builds a SQLite statement, and
 `Select`, `From` and the joins, `Where`, `GroupBy`, `Having`, `OrderBy`,
 `Limit`, `Offset`, and `With`, takes only that dialect's tables, common tables,
 and expressions. So do the functional forms, such as `select(_:)`,
-`where(_:)`, and `innerJoin(_:on:)`, ``QueryBuilder``, the insert, update, and
+`where(_:)`, and `innerJoin(_:on:)`, `QueryBuilder`, the insert, update, and
 delete statements, and `returning(_:)`. A table, a column, or an expression of
 another dialect passed to a clause is a compile error at the clause, and the
 error names both dialects.
@@ -755,8 +755,8 @@ builder chooses the clause's initializer. In a second dialect's query,
 
 A subquery, a common table, and a branch of a compound select take a
 statement of the containing statement's dialect, an
-``XLDialectQueryStatement``. `sql { }` returns one, and it is also an
-``XLQueryStatement``, so a query stored or run as an `any XLQueryStatement<Row>`
+`XLDialectQueryStatement`. `sql { }` returns one, and it is also an
+`XLQueryStatement`, so a query stored or run as an `any XLQueryStatement<Row>`
 keeps working. A statement stored as `any XLQueryStatement<Row>` has lost its
 dialect, so it cannot become a subquery or a branch; store it as an
 `any XLDialectQueryStatement<Row, XLSQLiteDialect>` instead. The schema-less
@@ -788,9 +788,9 @@ their dialect:
   model, and it is not checked. The operators and functions build nodes
   through their dialect's surface.
 - The expression of a static row field, which the field factories, such as
-  ``XLStaticSelectField/intrinsic(selecting:identifiedBy:using:context:)``,
+  `XLStaticSelectField.intrinsic(selecting:identifiedBy:using:context:)`,
   take erased so that a generated layout can build its fields for any dialect.
   The field checks the expression's dialect when it is built and throws
-  ``XLStaticRowLayoutError/expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)``.
+  `XLStaticRowLayoutError.expressionDialectMismatch(identity:expectedDialect:foundDialect:expressionType:)`.
   The layout itself belongs to its dialect, so a layout of another dialect is
   a compile error in `Select`.

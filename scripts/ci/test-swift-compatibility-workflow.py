@@ -356,7 +356,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         # exercised on every platform, so it needs no coverage exclusion of its own.
         manifest = (ROOT / "Package.swift").read_text(encoding="utf-8")
         bridge = (
-            ROOT / "Sources/SwiftQL/XLAsyncStreamPublisher.swift"
+            ROOT / "Sources/SwiftQLRuntime/XLAsyncStreamPublisher.swift"
         ).read_text(encoding="utf-8")
         coverage_config = (
             ROOT / "scripts/ci/source-coverage-config.json"

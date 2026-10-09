@@ -285,8 +285,13 @@ internal struct FunctionMetaBuilder {
         else {
             return nil
         }
-        // A module-qualified property type keeps its qualifier, so a client
-        // that qualifies its types to avoid a clash is not exposed to one.
+        // A module-qualified property type gets a module-qualified parameter
+        // type, so a client that qualifies its types to avoid a clash is not
+        // exposed to one. The qualifier is the module that declares
+        // `XLSQLiteExpression`, whatever module the property named:
+        // `XLExpression` is declared in SwiftQLQuery, which has no
+        // `XLSQLiteExpression`, and the macro is declared in SwiftQLSQLite, so
+        // a file that expands it sees that module (issue #790).
         let constraint = existential.constraint
         if let identifier = constraint.as(IdentifierTypeSyntax.self) {
             let genericArguments = identifier.genericArgumentClause?.trimmedDescription ?? ""
@@ -294,7 +299,7 @@ internal struct FunctionMetaBuilder {
         }
         if let member = constraint.as(MemberTypeSyntax.self) {
             let genericArguments = member.genericArgumentClause?.trimmedDescription ?? ""
-            return "any \(member.baseType.trimmedDescription).XLSQLiteExpression\(genericArguments)"
+            return "any \(EmittedModule.sqlite).XLSQLiteExpression\(genericArguments)"
         }
         return nil
     }

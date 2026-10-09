@@ -12,8 +12,9 @@
 //  and SwiftData), and names every alias unqualified, so a proposed name that
 //  another of those modules declares stops the test build.
 //  `SwiftQLV2NameInventoryTests` keeps the list complete: every public `XL`
-//  type in SwiftQL and SwiftQLCore has exactly one line here, as an alias or
-//  below.
+//  type in SwiftQL and the modules it re-exports (SwiftQLSQLite,
+//  SwiftQLRuntime, SwiftQLQuery, and SwiftQLCore) has exactly one line here,
+//  as an alias or below.
 //
 //  Unresolved collisions. These names collide with a type another of those
 //  modules declares, so they have no alias yet. #33 chooses their v2 names;
@@ -98,6 +99,7 @@ public typealias CustomFunctionEvaluator = SwiftQLCore.XLCustomFunctionEvaluator
 public typealias CustomFunctionRegistration = SwiftQLCore.XLCustomFunctionRegistration
 public typealias CustomFunctionResultError = SwiftQLCore.XLCustomFunctionResultError
 public typealias CustomType = SwiftQL.XLCustomType
+public typealias CustomValue = SwiftQL.XLCustomValue
 public typealias DatabaseContractError = SwiftQLCore.XLDatabaseContractError
 public typealias DatabaseDriver = SwiftQLCore.XLDatabaseDriver
 public typealias DatabaseDriverConnection = SwiftQLCore.XLDatabaseDriverConnection
@@ -141,6 +143,7 @@ public typealias DriverIdentifier = SwiftQLCore.XLDriverIdentifier
 public typealias DriverScopeRefusal = SwiftQLCore.XLDriverScopeRefusal
 public typealias Encoding = SwiftQL.XLEncoding
 public typealias Enum = SwiftQL.XLEnum
+public typealias EnumRepresentable = SwiftQL.XLEnumRepresentable
 public typealias ExcludedTableDependency = SwiftQL.XLExcludedTableDependency
 public typealias ExecutionResult = SwiftQLCore.XLExecutionResult
 public typealias FieldReader = SwiftQL.XLFieldReader
@@ -293,7 +296,9 @@ public typealias RowWritable = SwiftQL.XLRowWritable
 public typealias SQLDialect = SwiftQLCore.XLSQLDialect
 public typealias SQLValueEncodingError = SwiftQL.XLSQLValueEncodingError
 public typealias SQLVocabulary = SwiftQLCore.XLSQLVocabulary
+public typealias SQLiteCustomType = SwiftQL.XLSQLiteCustomType
 public typealias SQLiteDialect = SwiftQLCore.XLSQLiteDialect
+public typealias SQLiteEnum = SwiftQL.XLSQLiteEnum
 public typealias SQLiteExpression = SwiftQL.XLSQLiteExpression
 public typealias SQLiteIdentifierFormattingOptions = SwiftQLCore.XLSQLiteIdentifierFormattingOptions
 public typealias SQLiteNumericDateCodec = SwiftQL.XLSQLiteNumericDateCodec
