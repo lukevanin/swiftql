@@ -666,7 +666,8 @@
     read was `nil` for a column holding an optional-typed value, so the
     column it was assigned to was silently left out of the statement. To
     copy a nullable value into a column that is not optional, give it a
-    default, as in `row.name = person.nickname.coalesce("")`.
+    default from the table's column, as in
+    `row.name = person.nickname.coalesce("")`, not from the read.
   - Code that read a nullable slot as the wrapped type, such as
     `let n: (any XLSQLiteExpression<String>)? = row.nickname` or
     `XCTAssertNil(update.nickname)`, now reads the optional-typed
@@ -687,12 +688,15 @@
     composed expression (`row.nickname.coalesce("none")`), in a subquery,
     or as a value of `MetaInsert(...)`, the read renders `NULL`, as before,
     because an unqualified name there could resolve to another table's
-    column or, in SQLite, read as a string. Compose the target's column
-    (`person.nickname.coalesce("none")`) instead. The generated
-    `MetaUpdate.Columns` creates each nullable slot with its column's name,
-    through the new `XLNullableColumnUpdate.init(_xlColumn:)`; a slot
-    created with `init()` has no name, and its unassigned read is `NULL`, as
-    before. A non-nullable column's slot is unchanged: its unassigned read
+    column or, in SQLite, read as a string. So does a read of another
+    model's `MetaUpdate`, whose column name would be this table's. Compose
+    the target's column (`person.nickname.coalesce("none")`) instead, not
+    the read (`row.nickname.coalesce("none")`, which is
+    `COALESCE(NULL, 'none')` for a column never assigned). The generated
+    `MetaUpdate.Columns` creates each nullable slot with its column's name
+    and its model, through the new
+    `XLNullableColumnUpdate.init(_xlColumn:of:)`; a slot created with
+    `init()` has no name, and its unassigned read is `NULL`, as before. A non-nullable column's slot is unchanged: its unassigned read
     is `nil`, so assigning it to a nullable column still sets that column to
     `NULL`.
   - Assigning a value of type `Wrapped?`, such as a `String?` variable, now

@@ -182,7 +182,7 @@ extension MetaBuilder {
             context.block("public struct Columns") { context in
                 for property in properties {
                     if property.optional {
-                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"))")
+                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"), of: Columns.self)")
                     }
                     else {
                         context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>()")

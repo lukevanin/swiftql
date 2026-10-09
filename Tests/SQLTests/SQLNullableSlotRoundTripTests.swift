@@ -25,6 +25,14 @@ struct SlotRoundTripPerson: Equatable {
 }
 
 
+/// Another model with a nullable column of the same name and type.
+@SQLTable(name: "SlotRoundTripPet")
+struct SlotRoundTripPet: Equatable {
+    let id: String
+    let nickname: String?
+}
+
+
 final class XLNullableSlotRoundTripTests: XCTestCase {
 
     var databasePool: DatabasePool!
@@ -114,6 +122,26 @@ final class XLNullableSlotRoundTripTests: XCTestCase {
             row.nickname = row.nickname
         }
         XCTAssertEqual(try allRows().map(\.nickname), ["A", nil])
+    }
+
+    func testAnUnassignedReadOfAnotherModelIsNull() throws {
+        // A read of another model's column never assigned does not name
+        // this table's column of the same name; it is `NULL`, as before.
+        let pet = SlotRoundTripPet.MetaUpdate()
+        let statement = sql { schema in
+            let person = schema.into(SlotRoundTripPerson.self)
+            Update(person)
+            Setting<SlotRoundTripPerson> { row in
+                row.nickname = pet.nickname
+                row.alias = SlotRoundTripPerson.MetaUpdate().nickname
+            }
+        }
+        // A read of the same model, from another `MetaUpdate`, is the row's
+        // column.
+        XCTAssertEqual(
+            try encode(statement),
+            #"UPDATE "SlotRoundTripPerson" AS "t0" SET "nickname" = NULL,"alias" = "nickname""#
+        )
     }
 
     func testAnUnassignedReadOutsideTheSetClauseIsNull() throws {

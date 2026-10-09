@@ -1870,7 +1870,7 @@ final class MetaBuilderTests: XCTestCase {
             source.contains("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate")
         )
         XCTAssertTrue(
-            source.contains(#"public var nickname = SwiftQL.XLNullableColumnUpdate<String>(_xlColumn: SwiftQL.XLName("nickname"))"#)
+            source.contains(#"public var nickname = SwiftQL.XLNullableColumnUpdate<String>(_xlColumn: SwiftQL.XLName("nickname"), of: Columns.self)"#)
         )
         XCTAssertTrue(
             source.contains("public var id = SwiftQL.XLColumnUpdate<Int>()")
