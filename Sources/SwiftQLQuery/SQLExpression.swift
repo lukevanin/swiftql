@@ -213,14 +213,28 @@ public struct XLColumnReference<T, Dialect>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        guard let literalType = T.self as? any XLLiteral.Type else {
-            context.qualifiedName(dependency.qualifiedName(forColumn: alias))
-            return
-        }
-        literalType.wrapSQL(context: &context) { context in
+        xlMakeColumnReadSQL(as: T.self, context: &context) { context in
             context.qualifiedName(dependency.qualifiedName(forColumn: alias))
         }
-    }    
+    }
+}
+
+
+/// Renders a read of a column of type `T`: `column` through `T`'s `wrapSQL`
+/// when `T` is an `XLLiteral`, and as it is otherwise.
+///
+/// Every expression that reads a column as a value of `T` goes through this,
+/// so that they convert the stored form the same way.
+func xlMakeColumnReadSQL<T>(
+    as type: T.Type,
+    context: inout XLBuilder,
+    column: (inout XLBuilder) -> Void
+) {
+    guard let literalType = type as? any XLLiteral.Type else {
+        column(&context)
+        return
+    }
+    literalType.wrapSQL(context: &context, builder: column)
 }
 
 

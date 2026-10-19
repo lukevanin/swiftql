@@ -192,6 +192,56 @@ func secondDialectValueSlots(name: String, nickname: String?) {
 }
 
 
+// Issue #828: a nullable column's slot is read as an optional-typed
+// expression, which assigns back to itself, to another nullable column, and
+// to a nullable value of the generated initializers, in every slot that takes
+// a `Setting` closure. A non-nullable column's read assigns to a nullable
+// column. The refusals of a read assigned where a value cannot be NULL are
+// the `DialectSlotNullableRead*` fixtures.
+
+func nullableSlotReads(nickname: String?) {
+    _ = sql { schema in
+        let target = schema.into(DialectPerson.self)
+        Update(target)
+        Setting<DialectPerson> { row in
+            row.nickname = row.nickname
+            row.nickname = target.nickname
+            row.nickname = row.nickname
+            row.name = target.name
+            row.nickname = row.name
+            let read: any XLSQLiteExpression<String?> = row.nickname
+            row.nickname = read
+            row.nickname = nickname
+            row.nickname = nil
+        }
+    }
+    let schema = XLSchema()
+    let target = schema.into(DialectPerson.self)
+    _ = update(target).set { row in
+        row.nickname = row.nickname
+    }
+    let table = schema.table(DialectPerson.self)
+    let excluded = schema.excluded(DialectPerson.self)
+    _ = insert(table)
+        .values(DialectPerson.MetaInsert(id: 1, name: "a", nickname: nickname, age: 2))
+        .onConflict("id", doUpdate: { row in
+            row.nickname = excluded.nickname
+            row.nickname = row.nickname
+        })
+    let read = DialectPerson.MetaUpdate(nickname: target.nickname)
+    _ = DialectPerson.MetaUpdate(nickname: read.nickname)
+    _ = DialectPerson.MetaInsert(id: 1, name: "a", nickname: read.nickname, age: 2)
+    _ = sql(dialect: CompileFailSecondDialect.self) { schema in
+        let target = schema.into(SecondDialectPerson.self)
+        Update(target)
+        Setting<SecondDialectPerson> { row in
+            row.nickname = target.nickname
+            row.nickname = row.nickname
+        }
+    }
+}
+
+
 /// A custom function runs inside SQLite; the initializer `@SQLFunction`
 /// generates takes SQLite expressions.
 @SQLFunction(name: "whisper")
