@@ -777,9 +777,11 @@
     modules whole and unconditionally: an import inside `#if`, a scoped
     import such as `import struct SwiftQL.GRDBDatabase`, an
     `@_implementationOnly` import, or one with an access level below
-    `public` no longer counts, and the registry's own import replaces any
-    such spelling of `SwiftQLSQLite`. It also finds an attribute written
-    `@SwiftQLSQLite.SQLQuery`.
+    `public` no longer counts. When a file imports `SwiftQL` unconditionally
+    in one of those spellings, the registry imports `SwiftQL` whole instead,
+    so it names a module the target declares; either way its own import
+    replaces the file's spelling of that module. It also finds an attribute
+    written `@SwiftQLSQLite.SQLQuery`.
 
 ### Added
 

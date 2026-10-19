@@ -30,6 +30,17 @@ public enum DeclaredQueryModules {
     /// `names`: the one that declares `XLDeclaredQuery`, which brings in no
     /// GRDB.
     public static let fallback = "SwiftQLSQLite"
+
+    /// The module the registry imports when no scanned file imports one of
+    /// `names` whole and visibly: one the scanned files import in some other
+    /// spelling, so the target already depends on it, else `fallback`.
+    /// `imported` holds the modules the scanned files import unconditionally.
+    public static func fallbackModule(importedAs imported: Set<String>) -> String {
+        if imported.contains(fallback) {
+            return fallback
+        }
+        return names.sorted().first(where: imported.contains) ?? fallback
+    }
 }
 
 

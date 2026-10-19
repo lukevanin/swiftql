@@ -117,12 +117,14 @@ public enum DeclaredQueryRegistryRenderer {
         // The registry names `XLDeclaredQuery`, which SwiftQLSQLite declares
         // and SwiftQL re-exports, so when no file imports either of them
         // whole, unconditionally, and visibly (issue #790), the registry
-        // imports SwiftQLSQLite, which brings in no GRDB. An import inside
-        // `#if`, a scoped import of one declaration, an `@_implementationOnly`
-        // one, and one below `public` do not cover the registry's
-        // unconditional, public uses. The registry's own import then replaces
-        // every spelling of SwiftQLSQLite a file wrote, so that no file's
-        // spelling stands beside it.
+        // imports one of them itself: the one a scanned file imports
+        // unconditionally in some other spelling, since the target then
+        // declares it, else SwiftQLSQLite, which brings in no GRDB. An import
+        // inside `#if`, a scoped import of one declaration, an
+        // `@_implementationOnly` one, and one below `public` do not cover the
+        // registry's unconditional, public uses. The registry's own import
+        // then replaces every spelling of that module a file wrote, so that
+        // no file's spelling stands beside it.
         var imports: [DeclaredQueryImport] = []
         for declaredImport in scan.imports {
             guard let index = imports.firstIndex(where: {
@@ -135,9 +137,9 @@ public enum DeclaredQueryRegistryRenderer {
                 imports[index] = declaredImport
             }
         }
-        let fallback = DeclaredQueryModules.fallback
         let covered = imports.contains { $0.condition == nil && Self.importsWholeDeclaringModule($0) }
         if !covered {
+            let fallback = DeclaredQueryModules.fallbackModule(importedAs: Set(imports.filter { $0.condition == nil }.map(\.module)))
             imports.removeAll { $0.module == fallback }
             imports.append(DeclaredQueryImport(declaration: "import \(fallback)", condition: nil, module: fallback))
         }

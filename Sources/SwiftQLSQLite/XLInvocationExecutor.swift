@@ -306,7 +306,7 @@ package struct XLInvocationExecutor<Driver: XLBlockingDatabaseDriver>: Sendable
     /// arguments. When a value fails to bind, `statement` keeps the values
     /// bound before it.
     ///
-    /// Internal rather than private so that the benchmark's phase probe can
+    /// `package` rather than private so that the benchmark's phase probe can
     /// time this exact binding step on its own (issue #670).
     package func bind(
         packet: XLValidatedSQLitePacket,

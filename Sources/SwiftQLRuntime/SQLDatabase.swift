@@ -349,8 +349,8 @@ extension XLRequest {
 
     /// Presents rows already in memory as a result set.
     ///
-    /// Internal rather than private so `XLDriverRequest` can use it for the case
-    /// where it has already decoded every row -- it carried a verbatim copy
+    /// `package` rather than private so `XLDriverRequest`, in SwiftQLSQLite, can
+    /// use it for the case where it has already decoded every row -- it carried a verbatim copy
     /// (issue #561), which `private` being file-scoped had forced.
     package func withEagerResultSet<Result>(
         _ rows: [Row],

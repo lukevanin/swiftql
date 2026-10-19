@@ -404,7 +404,9 @@ final class DeclaredQueryScannerTests: XCTestCase {
         )
 
         // Nor does a scoped import, or one hidden from the registry's public
-        // API.
+        // API. The target declares the module such a file imports, so the
+        // registry imports that one whole, in place of the file's spelling,
+        // not a module the target may not declare.
         for declaration in ["import struct SwiftQL.GRDBDatabase", "internal import SwiftQL"] {
             let scoped = DeclaredQueryRegistryRenderer.render(
                 targetName: "Fixture",
@@ -417,7 +419,8 @@ final class DeclaredQueryScannerTests: XCTestCase {
                     }
                     """)
             )
-            XCTAssertTrue(scoped.contains("\nimport SwiftQLSQLite\n"), scoped)
+            let lines = scoped.components(separatedBy: "\n")
+            XCTAssertEqual(lines.filter { $0.hasPrefix("import ") || $0.hasPrefix("internal import ") }, ["import SwiftQL"], scoped)
         }
 
         // The fallback module is never imported a second time, in another

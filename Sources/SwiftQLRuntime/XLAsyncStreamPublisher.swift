@@ -33,7 +33,7 @@ enum XLAsyncStreamSubscriptionEvent: Sendable, Equatable {
 
 /// Test-only observation of every `XLAsyncStreamSubscription`'s lifecycle transitions, process-wide.
 /// Not part of SwiftQL's public API: this type has no explicit access modifier, so it is `internal`
-/// and reachable only via `@testable import SwiftQL`. `#if DEBUG`-gated, so it and every call site
+/// and reachable only via `@testable import SwiftQLRuntime`. `#if DEBUG`-gated, so it and every call site
 /// that reports to it compile away entirely in a release build -- there is no synchronization for
 /// production to pay when no observer is attached, and none of it exists at all outside DEBUG.
 ///
