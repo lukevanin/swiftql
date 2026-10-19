@@ -274,6 +274,25 @@ final class DeclaredQueryScannerTests: XCTestCase {
         XCTAssertTrue(result.skipped[0].reason.contains("#if in the attribute list"))
     }
 
+    /// Issue #790: a module-qualified attribute inside the `#if` is reported
+    /// too, rather than left out of the registry without a word.
+    func testAModuleQualifiedAttributeInsideAnIfInTheAttributeListIsReported() {
+        for module in ["SwiftQL", "SwiftQLSQLite"] {
+            let result = scan("""
+                extension GRDBDatabase {
+                    #if DEBUG
+                    @\(module).SQLQuery
+                    #endif
+                    func maybeDeclared() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """)
+
+            XCTAssertEqual(result.declarations, [], module)
+            XCTAssertEqual(result.skipped.count, 1, module)
+            XCTAssertTrue(result.skipped.first?.reason.contains("#if in the attribute list") ?? false, module)
+        }
+    }
+
     func testTheRegistryKeepsOneImportPerModule() {
         let source = DeclaredQueryRegistryRenderer.render(
             targetName: "Fixture",

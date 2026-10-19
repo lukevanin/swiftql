@@ -603,7 +603,9 @@ private struct Walker {
             guard case .ifConfigDecl(let ifConfig) = element else {
                 return false
             }
-            return ifConfig.description.contains("@\(name)")
+            let description = ifConfig.description
+            return description.contains("@\(name)")
+                || DeclaredQueryModules.names.contains { description.contains("@\($0).\(name)") }
         }
     }
 
