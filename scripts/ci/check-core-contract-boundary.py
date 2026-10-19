@@ -96,14 +96,21 @@ IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
 CAN_IMPORT_OBSERVATION_FRAMEWORK_PATTERN = re.compile(
     r"\bcanImport[ \t]*\([ \t]*" + OBSERVATION_FRAMEWORK_PATTERN + r"[ \t]*\)"
 )
-# The kinds of reference a source root may make anyway. SwiftQLRuntime holds
-# the Combine/OpenCombine bridges over the runtime contracts, so it is the one
-# query module that imports Combine (issue #790, decision D8).
-ROOT_ALLOWED_KINDS = {
-    "Sources/SwiftQLRuntime": frozenset((
-        "forbidden Combine import",
-        "forbidden Combine availability check",
-    )),
+# The kinds of reference a file may make anyway. SwiftQLRuntime holds the
+# Combine/OpenCombine bridges over the runtime contracts (issue #790, decision
+# D8), and only these files are those bridges, so a new file in SwiftQLRuntime
+# that imports Combine fails until it is reviewed and listed here.
+COMBINE_BRIDGE_KINDS = frozenset((
+    "forbidden Combine import",
+    "forbidden Combine availability check",
+))
+FILE_ALLOWED_KINDS = {
+    "Sources/SwiftQLRuntime/SQLDatabase.swift": COMBINE_BRIDGE_KINDS,
+    "Sources/SwiftQLRuntime/SwiftUISupport.swift": COMBINE_BRIDGE_KINDS,
+    "Sources/SwiftQLRuntime/XLAsyncStreamPublisher.swift": COMBINE_BRIDGE_KINDS,
+    "Sources/SwiftQLRuntime/XLPreparedQuery.swift": COMBINE_BRIDGE_KINDS,
+    "Sources/SwiftQLRuntime/XLPublisherAsyncBridge.swift": COMBINE_BRIDGE_KINDS,
+    "Sources/SwiftQLRuntime/XLRequest+Combine.swift": COMBINE_BRIDGE_KINDS,
 }
 # SwiftQL's GRDB escape hatch (issue #702). A file that declares it reaches
 # GRDB's types through SwiftQL without importing GRDB, and members of those
@@ -516,7 +523,7 @@ def check_source_references(package_root):
                     "could not read {}: {}".format(relative_path, error)
                 ) from error
 
-            allowed = ROOT_ALLOWED_KINDS.get(source_root_name, frozenset())
+            allowed = FILE_ALLOWED_KINDS.get(relative_path, frozenset())
             for line_number, line in enumerate(lines, start=1):
                 for kind in forbidden_reference_kinds(line):
                     if kind in allowed:

@@ -130,6 +130,15 @@ internal enum EmittedModule {
 
     /// SwiftQLSQLite: SQLite's surface, and the default dialect's spelling.
     static let sqlite = "SwiftQLSQLite"
+
+    /// The modules a macro attribute may be qualified with: SwiftQLQuery,
+    /// which declares the dialect-neutral macros such as `SQLCodec`, and every
+    /// module that re-exports it (SwiftQLRuntime, SwiftQLSQLite, and the
+    /// SwiftQL umbrella). A user's `@Module.SQLCodec(...)` is recognised when
+    /// `Module` is one of these.
+    static let macroAttributeQualifiers: Set<String> = [
+        query, "SwiftQLRuntime", sqlite, "SwiftQL",
+    ]
 }
 
 

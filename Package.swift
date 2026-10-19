@@ -227,9 +227,12 @@ let package = Package(
         ),
 
         // The GRDB driver, and the umbrella that re-exports SwiftQLSQLite, so
-        // `import SwiftQL` keeps working (issue #790, decision D13). It
-        // depends on every module it re-exports directly, so its DocC catalog
-        // can link them.
+        // `import SwiftQL` keeps working (issue #790, decision D13). It lists
+        // each module it re-exports, and the two it imports by name
+        // (SwiftQLCore, and SwiftQLQuery for an SPI), as direct dependencies.
+        // That is not for DocC: a symbol link into another module does not
+        // resolve on Swift 6.1, so its catalog names those symbols in code
+        // font.
         .target(
             name: "SwiftQL",
             dependencies: [

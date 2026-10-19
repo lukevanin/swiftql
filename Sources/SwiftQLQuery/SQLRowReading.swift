@@ -384,13 +384,11 @@ package func xlDialectValue<Handle, Expected>(
     as _: Expected.Type
 ) throws -> Expected where Handle: XLRowHandle {
     // The type's name is built only for the error, not on every read.
-    if index < 0 || index >= handle.columnCount {
-        try XLSQLiteValueReading.checkIndex(
-            index,
-            count: handle.columnCount,
-            expectedType: String(reflecting: Expected.self)
-        )
-    }
+    try XLSQLiteValueReading.checkIndex(
+        index,
+        count: handle.columnCount,
+        expectedType: String(reflecting: Expected.self)
+    )
     let value = try handle.value(at: index)
     guard let typed = value as? Expected else {
         throw XLStaticRowReadError.dialectValueTypeMismatch(

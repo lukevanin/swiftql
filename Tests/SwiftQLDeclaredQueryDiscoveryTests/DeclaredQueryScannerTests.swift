@@ -298,7 +298,37 @@ final class DeclaredQueryScannerTests: XCTestCase {
         )
         let lines = source.components(separatedBy: "\n")
 
-        XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQL") }, ["internal import SwiftQL"], source)
+        // The plain import is the one the registry's public API can use, so it
+        // replaces the earlier file's `internal` one.
+        XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQL") }, ["import SwiftQL"], source)
+        XCTAssertFalse(source.contains("\nimport SwiftQLSQLite\n"), source)
+
+        // A scoped import in an earlier file does not hide a later file's
+        // whole-module one.
+        let scoped = DeclaredQueryRegistryRenderer.render(
+            targetName: "Fixture",
+            scan: scan(files: [
+                "A.swift": """
+                    import struct SwiftQL.GRDBDatabase
+
+                    extension GRDBDatabase {
+                        @SQLQuery
+                        func a() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """,
+                "B.swift": """
+                    import SwiftQL
+
+                    extension GRDBDatabase {
+                        @SQLQuery
+                        func b() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """,
+            ])
+        )
+        let scopedLines = scoped.components(separatedBy: "\n")
+        XCTAssertTrue(scopedLines.contains("import SwiftQL"), scoped)
+        XCTAssertFalse(scopedLines.contains("import SwiftQLSQLite"), scoped)
     }
 
     /// Issue #790: the macros are declared in SwiftQLSQLite, and SwiftQL
@@ -391,23 +421,27 @@ final class DeclaredQueryScannerTests: XCTestCase {
         }
 
         // The fallback module is never imported a second time, in another
-        // spelling, beside a file's own import of it.
+        // spelling, beside a file's own import of it: the registry's own
+        // import replaces the file's, in `#if` or not, so that its public API
+        // can name `XLDeclaredQuery`.
         for declaration in ["@_implementationOnly import SwiftQLSQLite", "internal import SwiftQLSQLite"] {
-            let existing = DeclaredQueryRegistryRenderer.render(
-                targetName: "Fixture",
-                scan: scan("""
-                    #if DEBUG
-                    \(declaration)
-                    #endif
+            for wrapped in [true, false] {
+                let existing = DeclaredQueryRegistryRenderer.render(
+                    targetName: "Fixture",
+                    scan: scan("""
+                        \(wrapped ? "#if DEBUG" : "")
+                        \(declaration)
+                        \(wrapped ? "#endif" : "")
 
-                    extension AppDatabase {
-                        @SQLQuery
-                        func rows() -> [Person] { sqlResult { _ in fatalError() } }
-                    }
-                    """)
-            )
-            let lines = existing.components(separatedBy: "\n")
-            XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQLSQLite") }, [declaration], existing)
+                        extension AppDatabase {
+                            @SQLQuery
+                            func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                        }
+                        """)
+                )
+                let lines = existing.components(separatedBy: "\n")
+                XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQLSQLite") }, ["import SwiftQLSQLite"], existing)
+            }
         }
     }
 

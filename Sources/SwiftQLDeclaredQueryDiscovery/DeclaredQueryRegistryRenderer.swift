@@ -108,28 +108,37 @@ public enum DeclaredQueryRegistryRenderer {
 
         // One import per module and condition. Two spellings of one import
         // in a file (`import SwiftQL` and `internal import SwiftQL`) are an
-        // "ambiguous implicit access level" error, so the first one found
-        // wins. The registry names `XLDeclaredQuery`, which SwiftQLSQLite
-        // declares and SwiftQL re-exports, so SwiftQLSQLite is added only
-        // when no file imports either one unconditionally: a target that does
-        // not depend on GRDB is not made to import it, and an import inside
-        // `#if` does not cover the registry's unconditional uses. Nor does a
-        // scoped import of one declaration, or an `@_implementationOnly`
-        // one, whose names the public registry cannot use (issue #790).
+        // "ambiguous implicit access level" error, so each module and
+        // condition keeps one: the first found, except that a whole-module
+        // one the registry's public API can use replaces a scoped or hidden
+        // one, so an earlier file's `internal import` or scoped import does
+        // not hide a later file's plain one.
+        //
+        // The registry names `XLDeclaredQuery`, which SwiftQLSQLite declares
+        // and SwiftQL re-exports, so when no file imports either of them
+        // whole, unconditionally, and visibly (issue #790), the registry
+        // imports SwiftQLSQLite, which brings in no GRDB. An import inside
+        // `#if`, a scoped import of one declaration, an `@_implementationOnly`
+        // one, and one below `public` do not cover the registry's
+        // unconditional, public uses. The registry's own import then replaces
+        // every spelling of SwiftQLSQLite a file wrote, so that no file's
+        // spelling stands beside it.
         var imports: [DeclaredQueryImport] = []
-        for declaredImport in scan.imports where !imports.contains(where: {
-            $0.module == declaredImport.module && $0.condition == declaredImport.condition
-        }) {
-            imports.append(declaredImport)
+        for declaredImport in scan.imports {
+            guard let index = imports.firstIndex(where: {
+                $0.module == declaredImport.module && $0.condition == declaredImport.condition
+            }) else {
+                imports.append(declaredImport)
+                continue
+            }
+            if !Self.importsWholeDeclaringModule(imports[index]) && Self.importsWholeDeclaringModule(declaredImport) {
+                imports[index] = declaredImport
+            }
         }
         let fallback = DeclaredQueryModules.fallback
         let covered = imports.contains { $0.condition == nil && Self.importsWholeDeclaringModule($0) }
-        // A second import of the fallback module, beside one in another
-        // spelling, such as `internal import SwiftQLSQLite` inside `#if`, is
-        // the "ambiguous implicit access level" error above, so a file's own
-        // spelling of that module is left to stand alone.
-        let importsFallback = imports.contains { $0.module == fallback }
-        if !covered && !importsFallback {
+        if !covered {
+            imports.removeAll { $0.module == fallback }
             imports.append(DeclaredQueryImport(declaration: "import \(fallback)", condition: nil, module: fallback))
         }
         for declaredImport in imports where declaredImport.condition == nil {

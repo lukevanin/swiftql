@@ -288,7 +288,7 @@ final class SQLCodecPropertyCollectionTests: XCTestCase {
     }
 
     /// Issue #790: `@SQLCodec` may be qualified with the module that declares
-    /// it, SwiftQLQuery, or with one that re-exports it.
+    /// it, SwiftQLQuery, or with one that re-exports it (SwiftQLRuntime, SwiftQLSQLite, SwiftQL).
     func test_moduleQualifiedAnnotation_capturesCodecKeyExpression() throws {
         let builder = try makeBuilder(
             """
@@ -300,12 +300,14 @@ final class SQLCodecPropertyCollectionTests: XCTestCase {
                 var code: String
                 @SwiftQLSQLite.SQLCodec(Codecs.note)
                 var note: String
+                @SwiftQLRuntime.SQLCodec(Codecs.tag)
+                var tag: String
             }
             """
         )
         XCTAssertEqual(
             builder.properties.map(\.codecKeyExpression),
-            ["Codecs.badge", "Codecs.code", "Codecs.note"]
+            ["Codecs.badge", "Codecs.code", "Codecs.note", "Codecs.tag"]
         )
     }
 

@@ -232,7 +232,7 @@ internal enum MetaModelParser {
             let spelling = attribute.attributeName.trimmedDescription
             guard
                 spelling == "SQLCodec"
-                    || ["SwiftQLQuery", "SwiftQLSQLite", "SwiftQL"].contains(where: { spelling == "\($0).SQLCodec" })
+                    || EmittedModule.macroAttributeQualifiers.contains(where: { spelling == "\($0).SQLCodec" })
             else {
                 continue
             }
