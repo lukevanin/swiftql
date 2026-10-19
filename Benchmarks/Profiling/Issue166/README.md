@@ -61,7 +61,7 @@ allocations (deterministic, `iterations = 20000`):
 | Multi-join read | 128 | 434 | 562 | 77% |
 
 Rendering issued roughly three-quarters of all allocations. Attributing the
-render allocations to exact code (`Sources/SwiftQL/SQLiteEncoding.swift`):
+render allocations to exact code (`Sources/SwiftQLQuery/SQLiteEncoding.swift`):
 
 - **`XLiteBuilder.append(_ tokens: String...)`** was variadic and filtered, so
   every builder node allocated a variadic `[String]` box *and* a `filter` copy

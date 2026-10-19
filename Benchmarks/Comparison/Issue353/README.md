@@ -69,7 +69,7 @@ samples. Reading a value is nowhere near the top: the whole
 `XLRowReader.staticColumn(_:alias:)` is an **unconstrained** protocol
 requirement — `T` is not known to be a literal. Its default implementation
 therefore finds out at run time, in
-`Sources/SwiftQL/SQLRowReading.swift`:
+`Sources/SwiftQLQuery/SQLRowReading.swift`:
 
 1. `T.self as? any XLLiteral.Type` — a conformance lookup on a metatype.
 2. `_xlReadLegacyStaticColumn` reopens that as a generic parameter, then casts
@@ -165,7 +165,7 @@ value; only the dispatch differs.
 
 Method: the same SwiftQL half of the #250 harness, release build, same
 16,143-row fixture and same 14 columns. Two source trees that differ only in
-`Sources/SwiftQL/SQLRowReading.swift`, each built into its own graph. Six
+`Sources/SwiftQLQuery/SQLRowReading.swift`, each built into its own graph. Six
 pairs. Both arms of a pair run back to back, and the arm that runs first
 alternates by pair, so a monotonic thermal drift cannot favour one arm. 10
 warmups and 100 timed fetches per process, as usual.

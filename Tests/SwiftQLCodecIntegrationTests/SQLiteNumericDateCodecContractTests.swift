@@ -4,7 +4,7 @@ import XCTest
 
 
 /// Pure Swift-level contract tests for the numeric SQLite `Date` presets
-/// defined in `Sources/SwiftQL/SQLiteNumericDateCodecs.swift`. These mirror
+/// defined in `Sources/SwiftQLSQLite/Codecs/SQLiteNumericDateCodecs.swift`. These mirror
 /// `Tests/SwiftQLCoreTests/ValueCodecContractTests.swift`'s style: no real
 /// SQLite connection is involved, only `XLValueCodec`/`XLValueCodingConfiguration`
 /// calls against `XLSQLiteDialect`. Real-database round trips, SQL

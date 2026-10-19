@@ -6,7 +6,7 @@ import XCTest
 
 
 /// Real GRDB/SQLite round-trip coverage for the numeric `Date` presets in
-/// `Sources/SwiftQL/SQLiteNumericDateCodecs.swift`. This mirrors
+/// `Sources/SwiftQLSQLite/Codecs/SQLiteNumericDateCodecs.swift`. This mirrors
 /// `ContextualValueCodecGRDBTests.swift`'s style: a low-level
 /// `GRDBDatabaseDriver` connection prepares and binds raw SQL directly, so
 /// these tests exercise real SQLite storage, affinity, and date/time
