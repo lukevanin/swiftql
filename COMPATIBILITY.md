@@ -672,8 +672,9 @@ SWIFTQL_DOWNSTREAM_SCRATCH_PATH="$(mktemp -d)" \
   scripts/ci/check-downstream-swift5-client.sh clean
 ```
 
-The checker performs a clean fixture build, requires exactly one runtime success
-marker, and keeps build products outside the source tree. The compatibility
+The checker performs a clean fixture build, runs the fixture's two clients (one
+on `SwiftQL`, one on `SwiftQLSQLite` alone), requires exactly one runtime
+success marker from each, and keeps build products outside the source tree. The compatibility
 matrix runs both fixture resolution paths only in its pinned Swift 6.1 cells,
 which are the package's declared floor.
 

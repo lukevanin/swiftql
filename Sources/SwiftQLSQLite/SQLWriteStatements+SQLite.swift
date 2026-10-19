@@ -39,7 +39,7 @@ extension Insert {
 ///
 public struct Replace<Row>: XLEncodable, XLRowWritable {
 
-    package let insert: Insert<Row>
+    let insert: Insert<Row>
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
         self.insert = Insert(table: meta._dependency, target: .replace)

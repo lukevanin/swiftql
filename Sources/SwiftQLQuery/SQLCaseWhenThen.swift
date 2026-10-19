@@ -15,7 +15,8 @@ import Foundation
 // (issue #789). They call the underscored primitives here, which take any
 // expression. The primitives are SwiftQL's dialect-surface SPI, not public
 // API: a dialect outside SwiftQL imports them with
-// `@_spi(XLDialectSurface) import SwiftQL` (issue #822).
+// `@_spi(XLDialectSurface) import SwiftQLQuery`, which brings in no SQLite
+// (issues #822 and #790).
 
 
 // MARK: - Constant Case-When-Then expression

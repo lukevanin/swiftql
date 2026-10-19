@@ -8,7 +8,6 @@ main() {
     local fixture_root
     local scratch_path
     local output_log
-    local marker_count
 
     if [[ "$#" -gt 2 ]]; then
         printf 'usage: %s [committed|clean] [OUTPUT_LOG]\n' "$0" >&2
