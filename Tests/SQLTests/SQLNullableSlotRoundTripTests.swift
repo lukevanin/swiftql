@@ -5,9 +5,9 @@
 //  back keeps the value, against real SQLite. A nullable column is read only
 //  as an optional-typed expression, so the read is what was assigned; the
 //  read of a column never assigned, assigned to a nullable column, sets it
-//  to that column's current value, which the `SET` clause names. That a possibly-`NULL` read cannot be
-//  assigned to a NOT NULL column is proved by
-//  scripts/ci/check-dialect-type-parameter-type-safety.sh.
+//  to that column's current value, which the `SET` clause names. That a
+//  possibly-`NULL` read cannot be assigned to a NOT NULL column is proved
+//  by scripts/ci/check-dialect-type-parameter-type-safety.sh.
 //
 
 import Foundation

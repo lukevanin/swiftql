@@ -676,8 +676,9 @@
     `XCTAssertTrue(update.nickname is XLNullExpression<String>)`. The read
     is never `nil`, so code that tested whether a nullable column was
     assigned by comparing its read with `nil`, as in
-    `if row.nickname == nil`, no longer can. Track it in a variable of
-    your own instead.
+    `if row.nickname == nil`, no longer can: that comparison still
+    compiles, with a warning, and is always false, so its branch never
+    runs. Track it in a variable of your own instead.
   - The read of a nullable column the closure never assigned stands for
     the column's current value. Assigned to a nullable column's slot, it
     sets that column to this one: `row.nickname = row.nickname` renders
@@ -700,9 +701,9 @@
     `MetaUpdate.Columns` creates each nullable slot with its column's name
     and its model, through the new
     `XLNullableColumnUpdate.init(_xlColumn:of:)`; a slot created with
-    `init()` has no name, and its unassigned read is `NULL`, as before. A non-nullable column's slot is unchanged: its unassigned read
-    is `nil`, so assigning it to a nullable column still sets that column to
-    `NULL`.
+    `init()` has no name, and its unassigned read is `NULL`, as before. A
+    non-nullable column's slot is unchanged: its unassigned read is `nil`,
+    so assigning it to a nullable column still sets that column to `NULL`.
   - Assigning a value of type `Wrapped?`, such as a `String?` variable, now
     resolves to the optional-typed overload. The SQL is the same.
 - **`XLDatabaseDriverConnection` has a new requirement, with a default**

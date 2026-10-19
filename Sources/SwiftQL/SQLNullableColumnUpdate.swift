@@ -356,11 +356,7 @@ struct XLUnqualifiedColumnName<T>: XLExpression {
     let name: XLName
 
     func makeSQL(context: inout XLBuilder) {
-        guard let literalType = T.self as? any XLLiteral.Type else {
-            name.makeSQL(context: &context)
-            return
-        }
-        literalType.wrapSQL(context: &context) { context in
+        xlMakeColumnReadSQL(as: T.self, context: &context) { context in
             name.makeSQL(context: &context)
         }
     }
