@@ -175,10 +175,14 @@ extension MetaBuilder {
 
             context.line("public typealias Row = \(structName)")
 
+            // A nullable slot knows its column's name: a read of a column the
+            // closure never assigned stands for the column's current value,
+            // which a nullable slot it is assigned to renders in the SET
+            // clause by that name (issue #828).
             context.block("public struct Columns") { context in
                 for property in properties {
                     if property.optional {
-                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>()")
+                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"), of: Columns.self)")
                     }
                     else {
                         context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>()")
@@ -215,19 +219,26 @@ extension MetaBuilder {
 
             // For a nullable column, `nil` assigned through this overload
             // means SQL NULL. Leaving the column out of the statement is what
-            // never assigning it does.
+            // never assigning it does. It takes a value of the wrapped type
+            // and `nil`, which the optional-typed overload does not. Issue
+            // #828: it is never read. A nullable column's value can be NULL,
+            // so a read as the wrapped type would let it into a column that
+            // is NOT NULL; with the getter unavailable, that is a compile
+            // error, and a read resolves to the optional-typed overload,
+            // which returns what was assigned. Disfavored so that a read, and
+            // a plain `Wrapped?` value, which both overloads accept with
+            // identical rendered SQL, resolve to the optional-typed overload.
+            context.line("@_disfavoredOverload")
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
-                emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
+                context.line("@available(*, unavailable, message: \"a nullable column can be NULL, so it is read only as an optional-typed expression\")")
+                context.block("get") { context in
+                    context.line("Swift.fatalError()")
+                }
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
                 }
             }
 
-            // Disfavored so a plain `Wrapped?` value, which both overloads
-            // accept with identical rendered SQL, resolves to the wrapped
-            // overload instead of being ambiguous. An expression whose type
-            // is `Wrapped?` only matches this overload, so it still applies.
-            context.line("@_disfavoredOverload")
             context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
                 emitSlotRead(read: "_xlReadOptionalExpression", untyped: "_xlReadUntypedOptionalExpression", valueType: "Optional<Wrapped>", isOptional: true, into: &context)
                 context.block("set") { context in

@@ -571,3 +571,73 @@ moved the cast into the column slots and dropped that conformance, and a
 later fix for a Swift 6.3 warning on Linux made each `MetaUpdate`'s three
 getters a few statements that call one generated conversion function: about
 twenty lines of getter code per model, not measured here.
+
+## A nullable slot's read (issue #828)
+
+Issue #828 makes a nullable column's `Setting` slot readable only as an
+optional-typed expression. The wrapped-type subscript of a nullable column
+becomes the disfavored overload, in place of the optional-typed one, and its
+getter is `@available(*, unavailable)` with a body of `Swift.fatalError()`, in
+place of the cast-and-convert statements #825 generated. Every other getter is
+unchanged. Each nullable slot of `MetaUpdate.Columns` is created with its
+column's name and its model, `init(_xlColumn: SwiftQL.XLName("..."), of:
+Columns.self)`, so that the read of a column never assigned can stand for the
+column's current value. Measured against `version/2.0` at
+`ed31fd83`, on Swift 6.4, macOS, arm64. The table is of the first version of
+the change, before the slots knew their names. A second pass after naming
+them, median of 9 on a more loaded machine, was as flat: `Setting` of 10, 40,
+and 120 assignments 14.7, 26.1, 59.9 ms (base) and 16.6, 23.9, 59.3 ms
+(branch); one `Where` of 16 terms 31.2 and 31.7 ms; 450 clauses 777.6 and
+665.7 ms.
+
+### Type-check time
+
+`measure-shipped.sh`, median of 15, the two builds interleaved:
+
+| Body | base | branch |
+| --- | ---: | ---: |
+| 30 clauses | 23.1 ms | 23.1 ms (+0 %) |
+| 120 clauses | 69.5 ms | 74.9 ms (+8 %) |
+| 450 clauses | 479.5 ms | 496.9 ms (+4 %) |
+| one `Where` of 4 terms | 13.0 ms | 12.4 ms (−5 %) |
+| one `Where` of 8 terms | 16.8 ms | 16.0 ms (−5 %) |
+| one `Where` of 12 terms | 19.6 ms | 20.5 ms (+5 %) |
+| one `Where` of 16 terms | 23.3 ms | 23.3 ms (+0 %) |
+| `Setting` of 10 assignments | 12.4 ms | 12.3 ms (−1 %) |
+| `Setting` of 40 assignments | 18.9 ms | 20.6 ms (+9 %) |
+| `Setting` of 120 assignments | 49.9 ms | 47.8 ms (−4 %) |
+| `columns(...)` of 10 arguments | 11.6 ms | 11.7 ms (+1 %) |
+| `#row(...)` of 6 arguments | 9.4 ms | 9.7 ms (+3 %) |
+
+The clause and predicate bodies use no slot, so their differences are the
+run-to-run spread; the `Setting` bodies, four of whose ten assignments go to a
+nullable column through the now-disfavored overload, move by as much in both
+directions. The mistake path is unchanged: a misspelled column's first error is
+byte-identical (`value of type 'GateRow.MetaNamedResult' has no member
+'txet0'`) and takes 19.9 s (base) and 21.0 s (branch) at 16 terms, by wall
+clock.
+
+### Generated code per model
+
+One file of 20 `@SQLTable` models of eight columns, four of them nullable,
+compiled with `swiftc -c`; CPU time of the compile, and the object's `__text`.
+`before #825` is `version/2.0` before #827 merged (`11f0d67d`), which the
+getters of #825 had not been measured against.
+
+| | before #825 | base | branch |
+| --- | ---: | ---: | ---: |
+| debug `__text` | 3,059,340 bytes | 3,129,124 bytes | 3,168,916 bytes |
+| release `__text` | 708,908 bytes | 711,412 bytes | 719,536 bytes |
+| release compile, median of 4 interleaved | | 40.8 s | 40.8 s |
+
+So #825's getters added about 3.5 KB of debug code per model (+2.3 %) and
+about 125 bytes of release code (+0.4 %). This change adds about 2.0 KB of
+debug code per model (+1.3 %) and about 410 bytes of release code (+1.1 %),
+the four nullable slots' initializers with their names and model. The
+unavailable getter alone saved about 290 bytes of debug code. Other versions
+a review round tried: the name alone, 1.6 KB and 75 bytes; the name and the
+table's name as a string, 8.8 KB and 390 bytes; every slot named, 3.6 KB and
+110 bytes. The release compile times are
+of that eight-name version. They vary by more between neighbouring runs
+(36.9 to 54.8 s for the same release compile, on a loaded machine) than
+between the builds.

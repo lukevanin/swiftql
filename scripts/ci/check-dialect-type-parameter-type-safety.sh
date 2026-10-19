@@ -21,9 +21,13 @@
 # `MetaInsert`, an argument of `columns(...)`, and an argument of
 # `#row(...)`, which builds a SQLite row; and a model of a dialect whose
 # hand-written expression protocol does not include `XLTypeAffinityExpression`,
-# which a slot's read needs. Each refusal's error must contain the names
-# its fixture lists after `expected-names:`, so a reader can see which
-# dialects met. The errors for three ordinary mistakes are pinned to their
+# which a slot's read needs. A nullable column's slot is read only as an
+# optional-typed expression (issue #828): its read, plain or force-unwrapped,
+# is refused where a value cannot be NULL, in `Setting`, `set(_:)`,
+# `onConflict(_:doUpdate:)`, `MetaUpdate(...)`, and `MetaInsert(...)`. Each
+# refusal's error must contain the names its fixture lists after
+# `expected-names:`, so a reader can see which dialects met, or why a read
+# was refused. The errors for three ordinary mistakes are pinned to their
 # exact text: a misspelled column, which must be byte-identical to the error
 # before the dialect parameter, and a wrong value type and two columns of
 # different types, whose only change is the dialect argument in the printed
@@ -79,6 +83,11 @@ refusal_fixtures=(
     "$source_root/Tests/CompileFail/DialectSlotInsertForeignValue.swift"
     "$source_root/Tests/CompileFail/DialectSlotColumnsForeignArgument.swift"
     "$source_root/Tests/CompileFail/DialectSlotRowForeignArgument.swift"
+    "$source_root/Tests/CompileFail/DialectSlotNullableReadSetting.swift"
+    "$source_root/Tests/CompileFail/DialectSlotNullableReadForceUnwrapped.swift"
+    "$source_root/Tests/CompileFail/DialectSlotNullableReadUpsert.swift"
+    "$source_root/Tests/CompileFail/DialectSlotNullableReadUpdateValue.swift"
+    "$source_root/Tests/CompileFail/DialectSlotNullableReadInsertValue.swift"
 )
 # A requirement on a dialect that the macros' expansion checks (issue #825):
 # the fixture must fail inside the expansion of a model it declares, and that
