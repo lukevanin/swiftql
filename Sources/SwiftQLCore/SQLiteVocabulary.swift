@@ -6,9 +6,12 @@ import Foundation
 ///
 /// Every spelling here is the text SwiftQL rendered before the vocabulary
 /// existed. The pinned SQLite corpus is the proof: moving a keyword behind a
-/// vocabulary case must not change one rendered byte. SQLite's own surface,
-/// the conflict clause, the collating sequences, and the date modifiers,
-/// is spelled by `SwiftQLSQLite`, not here.
+/// vocabulary case must not change one rendered byte. That guarantee covers
+/// the lexical set this vocabulary spells, and nothing else: issue #791
+/// removed the conditional from the vocabulary and changed its rendered bytes
+/// on purpose, from `IIF` to `CASE WHEN`. SQLite's own surface, the conflict
+/// clause, the collating sequences, and the date modifiers, is spelled by
+/// `SwiftQLSQLite`, not here.
 ///
 public struct XLiteVocabulary: XLSQLVocabulary, Hashable, Sendable {
 

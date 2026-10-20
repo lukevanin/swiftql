@@ -269,10 +269,6 @@ extension XLSQLiteExpression {
 
 
 ///
-/// Builds the argument list for a date-and-time function: the time value
-/// followed by each modifier's rendered text, in order.
-///
-///
 /// Renders one date or time modifier as a text literal of its SQLite spelling.
 ///
 private struct XLDateModifierExpression: XLSQLiteExpression {
@@ -287,6 +283,10 @@ private struct XLDateModifierExpression: XLSQLiteExpression {
 }
 
 
+///
+/// Builds the argument list for a date-and-time function: the time value
+/// followed by each modifier's rendered text, in order.
+///
 private func dateParameters(value: any XLSQLiteExpression, modifiers: [XLDateModifier]) -> [any XLSQLiteExpression] {
     var parameters: [any XLSQLiteExpression] = [value]
     for modifier in modifiers {
