@@ -44,8 +44,10 @@ What "names a spelling" proves here is narrow. The spelling exists in the tree
 by signature, and each clause token it names is used by at least one test. That
 the builder form accepts every operand type the functional form accepts, and
 renders the same SQL for the same statement, is the parity matrix of #318. This
-note does not claim it row by row; the rows where it is known to fail or to be
-narrower are A-19, B-16, E-01, E-05, and C-13 (see the parity notes).
+note does not claim it row by row. The rows with no spelling for some case
+carry a gap issue (C-27, C-28, C-29, A-19, B-16). The rows where the spelling
+exists but is awkward or narrower are C-13, E-01, E-02, and E-05 (see the parity
+notes).
 
 Paths in the tables are under `Sources/` unless they start with another
 directory.
@@ -472,18 +474,24 @@ needs a compiling test, which is #318's job.
   the compiling test. A comment in
   `Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift` says the builder "has no
   LEFT JOIN component", although `Join.Left` exists; the comment looks stale.
-- **P-2.** A no-schema builder overload of `in` and `notIn` (E-01, E-05), to
-  match `subqueryExpression { ... }`. A builder replacement exists today (E-03,
-  with `XLSchema(parent:)` in the body), so this is ergonomics, not a gap. The
-  DocC catalog's correlated-`IN` recipe uses the plain-closure form
-  (`Sources/SwiftQL/SwiftQL.docc/Queries.md`, "Subqueries"), so #325 must
-  rewrite it.
+- **P-2.** A no-schema builder overload of `in` and `notIn` (E-01, E-02, E-05),
+  to match `subqueryExpression { ... }`. A builder replacement exists today
+  (E-03 and E-04, with `XLSchema(parent:)` in the body), so this is ergonomics,
+  not a gap. For a correlated query the DocC catalog tells readers to use the
+  closure that takes no schema, in one sentence of
+  `Sources/SwiftQL/SwiftQL.docc/Queries.md` ("Subqueries"). It has no code
+  example of a correlated `in`, and the only `in { schema in ... }` example
+  (`Expressions.md`) is the independent-scope builder form. #325 must rewrite
+  that sentence, because the closure it recommends leaves with the chain.
 - **P-3.** The builder's compound operators take an inline `Select`. The chained
   `union { ... }` (C-13) takes any already-built statement. Combining two
   statements built elsewhere has no builder token. The inline form replaces the
-  spelling, so C-13 is not a gap under the issue's rule, but the narrower
-  capability would be lost with the chain. Whether it belongs in SwiftQL,
-  FluentQL, or DynamicQL is a decision for #318, which is why no issue is filed.
+  spelling, so C-13 names a builder spelling as the issue's rule asks, but the
+  narrower capability would be lost with the chain. Whether it belongs in
+  SwiftQL, FluentQL, or DynamicQL (combining statements built elsewhere is
+  runtime composition) is a decision for the maintainer, so no issue is filed.
+  The loss is **not** accepted by this note: #323 must not remove C-13 until
+  that decision is recorded.
 
 ## Gap issues filed
 
@@ -496,7 +504,7 @@ needs a compiling test, which is #318's job.
 
 Each is in milestone v2.0 with labels `enhancement` and `P3`, and each says it
 is part of the #318 matrix. #323 must not remove C-27, C-28, C-29, A-19, or B-16 before
-they close.
+they close, and must not remove C-13 before the P-3 decision is recorded.
 
 ## Seams the companion packages need (input to #319)
 
@@ -552,8 +560,9 @@ spellings, and DynamicQL's, would also need `SwiftQLSQLite`.
   its constructors are the part to keep and the stored properties are not.
 - The `_dialectSurface*` methods on `QueryBuilder` (D-04) are an internal detail
   of the generated D-03 members. They move with the builder.
-- `AbstractXLQueryStatement` and `AbstractXLInsertStatement` (D-06) are
-  replaceable by the SPI-public statement structs.
+- `AbstractXLQueryStatement` and `AbstractXLInsertStatement` (D-06) should not
+  be exposed. Whether the SPI-public statement structs can replace them is a
+  #322 and #319 decision; see D-06 for what changes.
 
 ### Generator and compile-fail gates
 
@@ -589,17 +598,19 @@ written by `generate.py` from the `QueryBuilder` template, so they move with it.
 
 ## Method and verification
 
-- Read the code at `origin/version/2.0` with `git show`, `git ls-tree`, and
-  `git grep`. No build or test was run: the change is documentation only.
+- Read the code at the baseline commit `66b9fa18` with `git show`, `git ls-tree`,
+  and `git grep`. No build or test was run: the change is documentation only.
 - Enumerated every extension on the statement types, not only the methods the
   issue names, by reading `Statements/`, `Generated/`, and the templates.
 - Counted usage with `git grep -o -E`, for example
-  `git grep -o -E 'sqlInsert[(][^b]' origin/version/2.0 -- README.md SKILL.md Sources/SwiftQL/SwiftQL.docc Documentation Examples Benchmarks IntegrationTests Tests Conformance | wc -l`.
+  `git grep -o -E 'sqlInsert[(][^b]' 66b9fa18 -- README.md SKILL.md Sources/SwiftQL/SwiftQL.docc Documentation Examples Benchmarks IntegrationTests Tests Conformance | wc -l`.
   The counts are approximate: a pattern can match a comment or a doc example.
-- Checked that every `Sources/`, `Tests/`, `scripts/`, `Documentation/`,
-  `Examples/`, and `Research/` path in this note exists at the baseline, and
-  that every named symbol appears in the tree.
-- Dispositions counted from the tables A to F by script, not by hand.
+- Checked that every `Sources/`, `Tests/`, `scripts/`, and `Documentation/` path
+  in this note exists at the baseline (the quoted old links excepted), and that
+  every named symbol appears in the tree.
+- Counted dispositions from the tables A to F with a one-off script that reads
+  each row's disposition cell. The script is not checked in; recount by reading
+  the tables.
 
 Not covered, by design: expressions, operators, functions, codecs, and the
 execution layer. They are not query-construction spellings. They appear here
