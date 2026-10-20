@@ -11,9 +11,10 @@ SwiftQL builds the same `XLQuery*Statement` values from two spellings: the
 `sql { schema in ... }` result builders, and the functional and fluent syntax
 (`select(p).from(p).where(...)`). Both consume the same `XLSchema` and the same
 `@SQLTable` and `@SQLResult` metadata. Removal therefore cannot be scoped by
-file or by name. This note classifies every public symbol of the
-query-construction surface so that the extraction issues can work from one
-list.
+file or by name. This note classifies the public symbols that construct a
+statement, and the support types they depend on, so that the extraction issues
+can work from one list. It does not cover expressions, operators, functions,
+codecs, or the execution layer.
 
 It feeds #318 (parity), #319 (seams), #321 (port to FluentQL), #322 (move to
 DynamicQL), #323 (removal), #324 (test migration), #325 (documentation), and
@@ -37,8 +38,14 @@ The issue names four dispositions. **delete** is the fifth, for the deprecated
 confirm are deleted rather than moved.
 
 Rule from the issue: a **functional/fluent** row names the result-builder
-spelling that replaces it, or links a gap issue. Where the replacement exists
-but a compiling test has not yet proved it, the row links #318.
+spelling that replaces it, or links a gap issue.
+
+What "names a spelling" proves here is narrow. The spelling exists in the tree
+by signature, and each clause token it names is used by at least one test. That
+the builder form accepts every operand type the functional form accepts, and
+renders the same SQL for the same statement, is the parity matrix of #318. This
+note does not claim it row by row; the rows where it is known to fail or to be
+narrower are A-19, B-16, E-01, E-05, and C-13 (see the parity notes).
 
 Paths in the tables are under `Sources/` unless they start with another
 directory.
@@ -124,9 +131,9 @@ methods, D runtime builders, E closure overloads, F types that stay).
 | functional/fluent | 22 | 9 | 29 | 0 | 3 | 0 | 63 |
 | runtime builder | 0 | 0 | 0 | 6 | 0 | 0 | 6 |
 | result builder | 0 | 7 | 0 | 0 | 5 | 2 | 14 |
-| shared | 2 | 8 | 0 | 0 | 0 | 8 | 18 |
+| shared | 2 | 8 | 0 | 0 | 0 | 10 | 20 |
 | delete | 3 | 0 | 0 | 0 | 0 | 0 | 3 |
-| **Total** | 27 | 24 | 29 | 6 | 8 | 10 | 104 |
+| **Total** | 27 | 24 | 29 | 6 | 8 | 12 | 106 |
 
 Of the 63 functional/fluent rows, five (C-27, C-28, C-29, A-19, B-16) have no
 result-builder spelling for some case and carry a gap issue. Every other
@@ -160,7 +167,7 @@ the dialect-neutral ones are in `SwiftQLQuery/SQLFunctionalSyntax.swift`.
 | A-16 | `delete(_:)` | functional/fluent | `Delete(table)` |
 | A-17 | `with(_:)` variadic | functional/fluent | `With(...)` (`SwiftQLQuery/SQLSelectStatements.swift`) |
 | A-18 | `with(_:)` single common table | functional/fluent | `With(_:)` |
-| A-19 | `subquery(alias:_:)`, `XLResult` row, returns `MetaNamedResult` | functional/fluent | `subqueryExpression(alias:statement:)` for an `XLTable` row. **None** for a non-table `@SQLResult` row: the builder form is constrained to `XLTable` and returns `MetaResult`. Gap [#839](https://github.com/lukevanin/swiftql/issues/839) (P-1). |
+| A-19 | `subquery(alias:_:)`, `XLResult` row, returns `MetaNamedResult` | functional/fluent | `subqueryExpression(alias:statement:)` for an `XLTable` row, but only partly: it returns `MetaResult`, which `From` accepts and `Join.Inner(_:on:)` and `Join.Cross(_:)` do not (they take `XLMetaNamedResult`), and it accepts no non-table `@SQLResult` row. Gap [#839](https://github.com/lukevanin/swiftql/issues/839) (P-1). |
 | A-20 | `nullableSubquery(alias:_:)` | functional/fluent | `nullableSubqueryExpression(alias:statement:)` |
 | A-21 | `subquery(alias:_:)` over an `XLMetaNullable` row, already `@available(*, deprecated)` and unselectable | delete | `nullableSubqueryExpression(alias:statement:)`. The builder's own `XLMetaNullable` form of `subqueryExpression` is a separate symbol and stays. |
 | A-22 | `subquery(_:)`, scalar, closure takes a schema | functional/fluent | `subqueryExpression(statement:)`; on Swift 6.1 and later `sql(statement:)` also works |
@@ -198,7 +205,7 @@ in `SwiftQLQuery/Expression Builder/` or `SwiftQLQuery/Statements/`.
 | B-13 | `recursiveCommonTableExpression(_:alias:materialization:statement:)` | result builder | stays |
 | B-14 | `from(as:statement:)` (doc comment says "Insert"; it builds the `UPDATE ... FROM` source) | functional/fluent | `fromExpression(as:statement:)` (B-15) |
 | B-15 | `fromExpression(as:statement:)` (`SwiftQLQuery/Expression Builder/SQLUpdateExpressionBuilder.swift`) | result builder | stays |
-| B-16 | `subquery(alias:_:)`, schema method, `XLResult` | functional/fluent | `subqueryExpression(alias:statement:)` for an `XLTable` row; **none** for a non-table `@SQLResult` row. Gap [#839](https://github.com/lukevanin/swiftql/issues/839) (P-1). |
+| B-16 | `subquery(alias:_:)`, schema method, `XLResult` | functional/fluent | `subqueryExpression(alias:statement:)`, with the same limits as A-19. Gap [#839](https://github.com/lukevanin/swiftql/issues/839) (P-1). |
 | B-17 | `nullableSubquery(alias:_:)`, schema method | functional/fluent | `nullableSubqueryExpression(alias:statement:)` |
 | B-18 | `subquery(_:)`, scalar and optional scalar, schema methods (two) | functional/fluent | `subqueryExpression(statement:)` schema methods |
 | B-19 | `subqueryExpression(...)`, schema methods: table, scalar, optional scalar (three) | result builder | stays |
@@ -279,7 +286,7 @@ FluentQL. They exist for statements whose structure is decided at run time.
 | D-03 | The SQLite-typed members: `init(select:)`, `innerJoin(_:on:)` (two), `leftJoin(_:on:)` (four), `rightJoin(_:on:)` (two), `fullOuterJoin(_:on:)` (two), `and(_:)` (two), `or(_:)` (two), `groupBy(_:)`, `limit(_:)`, `offset(_:)` (`SwiftQLSQLite/Generated/SQLiteQueryBuilder.swift`) | runtime builder | The `Bool` and `Optional<Bool>` pairs are the clearest statement of how a nullable condition is typed. #322 must keep them. |
 | D-04 | `_dialectSurfaceJoin`, `_dialectSurfaceAnd`, `_dialectSurfaceOr`, `_dialectSurfaceGroupBy`, `_dialectSurfaceLimit`, `_dialectSurfaceOffset` (SPI members of the builder) | runtime builder | They exist only so the generated D-03 members can reach the builder. They move with it. |
 | D-05 | `InsertBuilder<Row>` (`SwiftQLQuery/Builders/InsertBuilder.swift`) | runtime builder | `build()` throws on a missing `Values`. |
-| D-06 | `AbstractXLQueryStatement`, `AbstractXLInsertStatement` (internal) | runtime builder | Only the two builders construct them. DynamicQL can return `XLQuerySelectStatement(components:)` and `XLInsertTableValuesStatement(components:)` instead, which are SPI-public. |
+| D-06 | `AbstractXLQueryStatement`, `AbstractXLInsertStatement` (internal) | runtime builder | Only the two builders construct them. DynamicQL needs some public return type for `build()`. `XLQuerySelectStatement(components:)` and `XLInsertTableValuesStatement(components:)` are SPI-public, but they are not a free substitution: `AbstractXLQueryStatement` conforms only to `XLDialectQueryStatement`, whereas `XLQuerySelectStatement` is an `XLSimpleSelectQueryStatement`, so a built query with `ORDER BY` and `LIMIT` would become unionable by the compiler. A #322 and #319 decision. |
 
 ## E. Closure overloads that share a name with a builder form
 
@@ -305,7 +312,7 @@ None of these is removable under #323.
 | --- | --- | --- | --- |
 | F-01 | `XLQueryStatementComponents`, `XLInsertStatementComponents`, `XLUpdateStatementComponents`, `XLDeleteStatementComponents`, `XLCreateTableStatementComponents` | shared | The values both spellings build. |
 | F-02 | The `XLQuery*Statement`, `XLInsert*Statement`, `XLUpdate*Statement`, `XLDelete*Statement`, `XLCreate*Statement`, and `XLWithStatement` families and their protocols (`XLQueryStatement`, `XLDialectQueryStatement`, `XLSimpleSelectQueryStatement`, `XLInsertStatement`, `XLUpdateStatement`, `XLDeleteStatement`, `XLCreateStatement`) | shared | Most are produced by the result builders as well. |
-| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement`, `XLReturningStatement` | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. |
+| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` (five structs), and the `XLReturningStatement` protocol | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. |
 | F-04 | `Returning`, `OnConflict`, `XLConflictResolution` | shared | Public clause types used only by the chain today. They are the natural tokens for #834 and #835. |
 | F-05 | `XLSelectResultDependency` and the `makeSQLAnonymousResult` and `makeSQLAnonymousNamedResult` requirements of `XLResult`, including the `iterator:` variants | shared | `@SQLResult`'s generated `columns(...)` uses the `iterator:` variant (`Tests/SQLMacrosTests/SQLTests.swift`). #90 owns retiring them. |
 | F-06 | `XLNamespace`, `XLName`, `XLCommonTableDependency`, `XLFromTableDependency`, `XLSubqueryDependency`, `XLUpdateFromTableDependency`, `XLExcludedTableDependency` | shared | The dependency model both spellings use. |
@@ -313,6 +320,8 @@ None of these is removable under #323.
 | F-08 | `XLQueryPartialUnion` | result builder | An accumulator produced and consumed only by the builder's `Union`, `UnionAll`, `Intersect`, and `Except` blocks. |
 | F-09 | `sqlResult(_:)` (`SwiftQLSQLite/SQLQueryPeerMacroSupport.swift`) | result builder | The `@SQLQuery` type-check anchor; it takes `@XLQueryExpressionBuilder`. The macro also lists `sqlQuery` in `reservedParameterNames` (`SQLMacros/SQLQueryMacro.swift`), which #323 updates. |
 | F-10 | `XLTableStatement` (protocol, declared at the top of `SQLFunctionalSyntax.swift`; `From` and `Join` conform) | shared | A marker protocol of the result-builder tokens. After #323 the surviving contents of that file are this protocol and `XLSchema`, so the file needs a name that says so. |
+| F-11 | `XLScalarCommonTable`, `XLScalarCommonTableReference`, `XLCommonTableMaterialization`, `XLRecursiveCommonTableDraft`, `XLRecursiveCommonTableReferenceLayout`, `XLRecursiveCommonTableConstructionError`, `xlValidateUniqueCommonTableAliases(_:)` | shared | Common-table support types. B-23 and B-24 return `XLScalarCommonTable`, so it stays even though B-21 and B-22 go. |
+| F-12 | `XLJoinOperator` (`SwiftQLQuery/SQLFromAndJoin.swift`), `XLInsertOrAction` and `XLInsertTarget` (`SwiftQLCore/SQLVocabulary.swift`) | shared | Clause vocabulary. `Insert(_:or:)`, `Replace`, and the fluent `insert(_:or:)` (A-13) all use `XLInsertOrAction`. |
 
 ### The result-builder surface that stays
 
@@ -439,9 +448,10 @@ that forward a closure value to the builder-attributed twin. A result-builder
 attribute applies only to a closure *literal*, so forwarding a closure
 *parameter* compiles and renders the same SQL. They need no seam beyond the
 public twin, provided the twin does not call the member being removed (B-23 and
-B-24 do; see section B). B-16 to B-18 differ: the plain form is generic over
+B-24 do; see section B). Only B-16 differs: the plain form is generic over
 `XLResult` and returns `MetaNamedResult`, and the twin is generic over `XLTable`
-and returns `MetaResult` (P-1, #839).
+and returns `MetaResult` (P-1, #839). B-17 and B-18 have twins with the same
+constraints and return types.
 
 ## Parity candidates for #318
 
@@ -450,10 +460,14 @@ needs a compiling test, which is #318's job.
 
 - **P-1.** `subquery(alias:_:)` (A-19, B-16) accepts any `XLResult` and returns
   `MetaNamedResult`. `subqueryExpression(alias:statement:)` accepts only
-  `XLTable` and returns `MetaResult`, and a `@SQLResult` struct is an
-  `XLResult` but not an `XLTable`. So by signature a non-table result row has no
-  builder subquery, and an inner join against a builder subquery needs checking
-  (`Join` takes an `XLMetaNamedResult`). Filed as
+  `XLTable` and returns `MetaResult`. A `@SQLResult` struct is an `XLResult`
+  but not an `XLTable`, so by signature a non-table result row has no builder
+  subquery. `MetaResult` and `MetaNamedResult` are distinct generated structs
+  (`SQLMacros/MetaBuilder+Result.swift`), and the query-statement joins
+  (`Join.Inner`, `Join.Cross`, `Join.Natural`) take an `XLMetaNamedResult`, so
+  by signature a builder subquery can go in `From` but cannot be inner-joined.
+  The nullable form (`nullableSubqueryExpression`) returns
+  `MetaNullableNamedResult` and can be left-joined. Filed as
   [#839](https://github.com/lukevanin/swiftql/issues/839), whose first step is
   the compiling test. A comment in
   `Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift` says the builder "has no
@@ -482,7 +496,7 @@ needs a compiling test, which is #318's job.
 
 Each is in milestone v2.0 with labels `enhancement` and `P3`, and each says it
 is part of the #318 matrix. #323 must not remove C-27, C-28, C-29, A-19, or B-16 before
-they close (B-16 and A-19 only for the non-table case).
+they close.
 
 ## Seams the companion packages need (input to #319)
 
@@ -524,8 +538,8 @@ spellings, and DynamicQL's, would also need `SwiftQLSQLite`.
 | S-08 | `OnConflict.init(targets:resolution:)` | internal | FluentQL `onConflict(_:doUpdate:)`, `onConflictDoNothing(_:)` | The public factories are variadic. |
 | S-09 | `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` memberwise initializers | internal | FluentQL `returning(_:)` | |
 | S-10 | `Replace.insert` | internal | FluentQL: `replace(_:)`, `with(...).replace(_:)` | They wrap `Replace(meta).insert`. `Insert(_:or:)` is already public, so `insert(_:or:)` needs only S-01. |
-| S-11 | `XLNamespace.makeAlias(alias:)` | `package` | FluentQL free `subquery` and `nullableSubquery` (A-19, A-20) | They open an independent scope: a fresh namespace, then an alias from it. Reimplementing through `XLSchema().subquery` would number the body's aliases from `t1` instead of `t0`, changing rendered SQL. |
-| S-12 | `XLSchema.tableNamespace`, `commonTableNamespace` | internal | FluentQL `XLSchema.subquery` and `nullableSubquery` (B-16, B-17), only if they cannot forward to their builder twins (P-1) | The other `XLSchema` closure members forward to public twins and need nothing. |
+| S-11 | `XLNamespace.makeAlias(alias:)` | `package` | FluentQL free `subquery` (A-19) | It opens an independent scope: a fresh namespace, then an alias from it. The free `nullableSubquery` (A-20) can forward to the public `nullableSubqueryExpression` (E-07), which has the same body. Reimplementing through `XLSchema().subquery` would number the body's aliases from `t1` instead of `t0`, changing rendered SQL. |
+| S-12 | `XLSchema.tableNamespace`, `commonTableNamespace` | internal | FluentQL `XLSchema.subquery` (B-16), because its twin returns a different type (P-1) | The other `XLSchema` closure members forward to public twins and need nothing. |
 | S-13 | `XLQueryStatementComponents.commonTables`, `.components` | internal | DynamicQL `QueryBuilder.build()` | It assigns `commonTables` and appends in bulk. `append(_:)` is public, so only the assignment needs a seam. |
 | S-14 | `XLInsertStatementComponents.components` | internal | DynamicQL `InsertBuilder.build()` | It appends the values clause. |
 | S-15 | `Limit.init(_dialectSurface:)`, `Offset.init(_dialectSurface:)` untyped `any XLExpression` | `@_spi` | FluentQL and DynamicQL | Reachable through the SPI. Listed because the SPI's stability is itself the #319 question; see [Limit and Offset](#limit-and-offset-type-erasure). |
@@ -559,11 +573,19 @@ example `DialectClauseWhereForeignExpression.swift`); a search for `Having`,
 `Offset`, `GroupBy`, and `OrderBy` tokens finds them only in valid fixtures. The
 builder gets its ordering from the `buildPartialBlock` overload sets. When the chain leaves, that
 guarantee loses its only negative test unless #324 adds builder fixtures first.
-Other fixtures also use the chain or `QueryBuilder`
-(`DialectClauseJoinFunctionalForeignTable.swift`,
+Other `Tests/CompileFail` files also use the chain, the free `subquery`, or
+`QueryBuilder`, and are #324's to place:
+`DialectClauseJoinFunctionalForeignTable.swift`,
 `DialectClauseUnionForeignBranch.swift`,
 `DialectClauseQueryBuilderForeignTable.swift`,
-`DialectClauseReturningForeignProjection.swift`), and are #324's to place.
+`DialectClauseReturningForeignProjection.swift`,
+`DialectClauseSubqueryForeignStatement.swift`,
+`DialectSlotNullableReadForceUnwrapped.swift` (chained `update(...).set`),
+`DialectSlotNullableReadUpsert.swift` (chained `onConflict`), and the valid
+`DialectTypeParameterValid.swift`. The generated second-dialect support files
+`Support/Generated/CompileFailSecondDialect/CompileFailSecondDialectQueryBuilder.swift`
+and `Support/Generated/QueryOnlyDialect/QueryOnlyDialectQueryBuilder.swift` are
+written by `generate.py` from the `QueryBuilder` template, so they move with it.
 
 ## Method and verification
 
