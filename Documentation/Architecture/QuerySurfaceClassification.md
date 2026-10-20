@@ -45,7 +45,7 @@ by signature, and each clause token it names is used by at least one test. That
 the builder form accepts every operand type the functional form accepts, and
 renders the same SQL for the same statement, is the parity matrix of #318. This
 note does not claim it row by row. The rows with no spelling for some case
-carry a gap issue (C-27, C-28, C-29, A-19, B-16). The rows where the spelling
+carry a gap issue (C-27, C-28, C-29, A-19, B-16, C-17). The rows where the spelling
 exists but is awkward or narrower are C-13, E-01, E-02, and E-05 (see the parity
 notes).
 
@@ -60,7 +60,7 @@ now holds only the GRDB adapter and the DocC catalog.
 | Issue link | Now |
 | --- | --- |
 | `Sources/SwiftQL/SQLFunctionalSyntax.swift` | `Sources/SwiftQLQuery/SQLFunctionalSyntax.swift` (every dialect: `XLSchema`, `with`, `select`, `update`, `insert`, `create`, `delete`, `result`) and `Sources/SwiftQLSQLite/SQLFunctionalSyntax+SQLite.swift` (`sqlQuery`, `sqlUpdate`, `sqlInsert`, `sqlCreate`, the `subquery` family, `XLSQLiteSchema`, `XLSchema.init()`) |
-| `Sources/SwiftQL/Statements` | `Sources/SwiftQLQuery/Statements`, plus the chain methods that take an expression, which are generated per dialect into `Sources/SwiftQLSQLite/Generated/SQLiteQueryStatements.swift` and `SQLiteWriteStatements.swift`, and `Sources/SwiftQLSQLite/Statements/SQLDataChangingStatements+SQLite.swift` |
+| `Sources/SwiftQL/Statements` | `Sources/SwiftQLQuery/Statements`, plus the chain methods that take an expression, which are generated per dialect into `Sources/SwiftQLSQLite/Generated/SQLiteQueryStatements.swift` and `SQLiteWriteStatements.swift`. The SQLite-only free functions `insert(_:or:)` and `replace(_:)` and `XLWithStatement.replace(_:)` are hand-written in `Sources/SwiftQLSQLite/Statements/SQLDataChangingStatements+SQLite.swift`. |
 | `Sources/SwiftQL/Builders` | `Sources/SwiftQLQuery/Builders` (`QueryBuilder.swift`, `InsertBuilder.swift`), `Sources/SwiftQLSQLite/Builders/QueryBuilder+SQLite.swift`, and the generated `Sources/SwiftQLSQLite/Generated/SQLiteQueryBuilder.swift` |
 | `Sources/SwiftQL/SQLStatements.swift:677`, `:707` | `Sources/SwiftQLQuery/SQLQueryClauses.swift` (`Limit` and `Offset`). The statements file was split in #559. The `init(unchecked:)` initializers no longer exist; see [Limit and Offset](#limit-and-offset-type-erasure). |
 | `Sources/SwiftQL/Operators/InOperator.swift:15`, `:26` | `Sources/SwiftQLSQLite/Generated/SQLiteInOperator.swift`, generated from `scripts/dialect-surface/Templates/InOperator.swift.template` |
@@ -86,8 +86,8 @@ result-builder tokens and stays.
 
 1. **Four functional-only cases have no result-builder spelling.** `RETURNING`
    (C-28), `ON CONFLICT` (C-29), and `WITH ... UPDATE` (C-27) are reachable
-   only through the chained methods, and a non-table `@SQLResult` row has no
-   builder subquery (A-19, B-16). Filed as
+   only through the chained methods, and the builder subquery cannot take a
+   non-table `@SQLResult` row or be inner-joined (A-19, B-16, C-17). Filed as
    [#834](https://github.com/lukevanin/swiftql/issues/834),
    [#835](https://github.com/lukevanin/swiftql/issues/835),
    [#836](https://github.com/lukevanin/swiftql/issues/836), and
@@ -137,7 +137,7 @@ methods, D runtime builders, E closure overloads, F types that stay).
 | delete | 3 | 0 | 0 | 0 | 0 | 0 | 3 |
 | **Total** | 27 | 24 | 29 | 6 | 8 | 12 | 106 |
 
-Of the 63 functional/fluent rows, five (C-27, C-28, C-29, A-19, B-16) have no
+Of the 63 functional/fluent rows, six (C-27, C-28, C-29, A-19, B-16, C-17) have no
 result-builder spelling for some case and carry a gap issue. Every other
 functional/fluent row names a spelling that exists in the tree. P-2 and P-3 list
 where that spelling is awkward or narrower, and #318 still owes each row a
@@ -258,7 +258,7 @@ row says so. The statement and components types themselves stay (see
 | C-14 | `values(_:)` (two: `MetaInsert`, row) | `XLInsertTableStatement` | functional/fluent | `Values(_:)` (two) |
 | C-15 | `select(_:)` (two) | `XLInsertTableStatement` | functional/fluent | `Select(_:)` after `Insert(_:)` |
 | C-16 | `from(_:)` | `XLInsertSelectStatement` | functional/fluent | `From(_:)` |
-| C-17 | `innerJoin(_:)`, `crossJoin(_:)`, and generated `innerJoin(_:on:)`, `leftJoin(_:on:)` | `XLInsertSelectTableStatement` | functional/fluent | `Join...` tokens |
+| C-17 | `innerJoin(_:)`, `crossJoin(_:)`, and generated `innerJoin(_:on:)`, `leftJoin(_:on:)` | `XLInsertSelectTableStatement` | functional/fluent | `Join...` tokens, for a named table only. These methods take `XLMetaResult` and `XLMetaNullableResult` (unnamed metadata, which is what a builder subquery returns), and the tokens take the named kinds. Gap [#839](https://github.com/lukevanin/swiftql/issues/839) (P-1). |
 | C-18 | `where`, `groupBy`, `having`, `orderBy`, `limit`, `offset` | the `XLInsertSelect*` statements (generated except `orderBy`) | functional/fluent | `Where`, `GroupBy`, `Having`, `OrderBy`, `Limit`, `Offset` |
 | C-19 | `set(_:)` (two: `XLMetaUpdate` value, closure) | `XLUpdateTableStatement` | functional/fluent | `Setting(_:)`, `Setting(table, closure)` |
 | C-20 | `from(_:)` | `XLUpdateSetStatement` | functional/fluent | `From(_:)` |
@@ -314,7 +314,7 @@ None of these is removable under #323.
 | --- | --- | --- | --- |
 | F-01 | `XLQueryStatementComponents`, `XLInsertStatementComponents`, `XLUpdateStatementComponents`, `XLDeleteStatementComponents`, `XLCreateTableStatementComponents` | shared | The values both spellings build. |
 | F-02 | The `XLQuery*Statement`, `XLInsert*Statement`, `XLUpdate*Statement`, `XLDelete*Statement`, `XLCreate*Statement`, and `XLWithStatement` families and their protocols (`XLQueryStatement`, `XLDialectQueryStatement`, `XLSimpleSelectQueryStatement`, `XLInsertStatement`, `XLUpdateStatement`, `XLDeleteStatement`, `XLCreateStatement`) | shared | Most are produced by the result builders as well. |
-| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` (five structs), and the `XLReturningStatement` protocol | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. |
+| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` (five structs), and the `XLReturningStatement` protocol | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. It stays under the issue's rule that the statement family is not removable, but its only producer (C-13) and its only members (C-10 to C-12) are fluent, so after #323 SwiftQL would keep a type that nothing in SwiftQL builds or extends. Whether it stays or moves with the chain is for #319 and #321, with P-3. |
 | F-04 | `Returning`, `OnConflict`, `XLConflictResolution` | shared | Public clause types used only by the chain today. They are the natural tokens for #834 and #835. |
 | F-05 | `XLSelectResultDependency` and the `makeSQLAnonymousResult` and `makeSQLAnonymousNamedResult` requirements of `XLResult`, including the `iterator:` variants | shared | `@SQLResult`'s generated `columns(...)` uses the `iterator:` variant (`Tests/SQLMacrosTests/SQLTests.swift`). #90 owns retiring them. |
 | F-06 | `XLNamespace`, `XLName`, `XLCommonTableDependency`, `XLFromTableDependency`, `XLSubqueryDependency`, `XLUpdateFromTableDependency`, `XLExcludedTableDependency` | shared | The dependency model both spellings use. |
@@ -384,6 +384,16 @@ initializers. `XLCreateTableStatementComponents.init` is internal to
 `SwiftQLQuery`, so `SwiftQLSQLite` needs at least `package` access to it
 (S-03); `XLInsertStatementComponents.init` is already `package` (S-01).
 Rendered SQL, including `CREATE TABLE IF NOT EXISTS`, must not change.
+
+The return types are part of the contract too. `sqlInsert(_ row:)` returns
+`XLInsertTableValuesStatement<Row, XLSQLiteDialect>`, and the 2.0.0 changelog
+promises that `sqlInsert(row).returning(t)` keeps compiling for that reason.
+That makes `.returning` (C-28) and `.onConflict` (C-29) members of the value
+`sqlInsert(row)` hands back. Rebuilding on the components API must return the
+same type, and if those two members move to FluentQL then `sqlInsert(row)
+.returning(t)` needs FluentQL imported, which is a source break for a whole-row
+call. #834 and #835 add a builder spelling but do not cover this path, so #323
+must either keep both members on that type or record the break.
 
 ### `result(_:)`
 
@@ -468,8 +478,11 @@ needs a compiling test, which is #318's job.
   (`SQLMacros/MetaBuilder+Result.swift`), and the query-statement joins
   (`Join.Inner`, `Join.Cross`, `Join.Natural`) take an `XLMetaNamedResult`, so
   by signature a builder subquery can go in `From` but cannot be inner-joined.
-  The nullable form (`nullableSubqueryExpression`) returns
-  `MetaNullableNamedResult` and can be left-joined. Filed as
+  The same holds for `INSERT ... SELECT ... JOIN` (C-17): the chained methods
+  take unnamed `XLMetaResult` operands, the tokens take named ones, and
+  `Tests/SQLTests/SQLSyntaxWriteStatementTests.swift` builds the unnamed
+  operand by hand. The nullable form (`nullableSubqueryExpression`) returns
+  `MetaNullableNamedResult` and can be left-joined in a query. Filed as
   [#839](https://github.com/lukevanin/swiftql/issues/839), whose first step is
   the compiling test. A comment in
   `Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift` says the builder "has no
@@ -478,11 +491,16 @@ needs a compiling test, which is #318's job.
   to match `subqueryExpression { ... }`. A builder replacement exists today
   (E-03 and E-04, with `XLSchema(parent:)` in the body), so this is ergonomics,
   not a gap. For a correlated query the DocC catalog tells readers to use the
-  closure that takes no schema, in one sentence of
-  `Sources/SwiftQL/SwiftQL.docc/Queries.md` ("Subqueries"). It has no code
-  example of a correlated `in`, and the only `in { schema in ... }` example
-  (`Expressions.md`) is the independent-scope builder form. #325 must rewrite
-  that sentence, because the closure it recommends leaves with the chain.
+  closure that takes no schema, in the passage of
+  `Sources/SwiftQL/SwiftQL.docc/Queries.md` ("Subqueries") about the schema that
+  `in` and `notIn` pass. It has no code example of a correlated `in`, and the
+  only `in { schema in ... }` example (`Expressions.md`) is the
+  independent-scope builder form. #325 must rewrite that passage, because the
+  closure it recommends leaves with the chain. The doc comments on the
+  surviving builder overloads (E-03, E-04, E-06) say the same thing ("use the
+  overload whose closure takes no schema"). They are generated from
+  `InOperator.swift.template`, and must be rewritten when E-01, E-02, and E-05
+  leave, as the `Limit` and `Offset` comments must be.
 - **P-3.** The builder's compound operators take an inline `Select`. The chained
   `union { ... }` (C-13) takes any already-built statement. Combining two
   statements built elsewhere has no builder token. The inline form replaces the
@@ -500,10 +518,10 @@ needs a compiling test, which is #318's job.
 | [#834](https://github.com/lukevanin/swiftql/issues/834) | `RETURNING` in `sql { }` insert, update, and delete | C-28 |
 | [#835](https://github.com/lukevanin/swiftql/issues/835) | `ON CONFLICT` in `sql { }` insert | C-29 |
 | [#836](https://github.com/lukevanin/swiftql/issues/836) | `WITH` in the `sql { }` update builder | C-27 |
-| [#839](https://github.com/lukevanin/swiftql/issues/839) | A non-table `@SQLResult` row in the `sql { }` subquery | A-19, B-16 |
+| [#839](https://github.com/lukevanin/swiftql/issues/839) | A joinable, `XLResult`-typed `sql { }` subquery | A-19, B-16, C-17 |
 
 Each is in milestone v2.0 with labels `enhancement` and `P3`, and each says it
-is part of the #318 matrix. #323 must not remove C-27, C-28, C-29, A-19, or B-16 before
+is part of the #318 matrix. #323 must not remove C-27, C-28, C-29, A-19, B-16, or C-17 before
 they close, and must not remove C-13 before the P-3 decision is recorded.
 
 ## Seams the companion packages need (input to #319)
@@ -591,10 +609,16 @@ Other `Tests/CompileFail` files also use the chain, the free `subquery`, or
 `DialectClauseSubqueryForeignStatement.swift`,
 `DialectSlotNullableReadForceUnwrapped.swift` (chained `update(...).set`),
 `DialectSlotNullableReadUpsert.swift` (chained `onConflict`), and the valid
-`DialectTypeParameterValid.swift`. The generated second-dialect support files
-`Support/Generated/CompileFailSecondDialect/CompileFailSecondDialectQueryBuilder.swift`
-and `Support/Generated/QueryOnlyDialect/QueryOnlyDialectQueryBuilder.swift` are
-written by `generate.py` from the `QueryBuilder` template, so they move with it.
+`DialectTypeParameterValid.swift`.
+
+`scripts/dialect-surface/dialects.json` lists four dialects: SQLite, and three
+fixture dialects. For each fixture dialect `generate.py` also writes the output
+of the `QueryBuilder`, `QueryStatements`, `WriteStatements`, and `InOperator`
+templates, so those files move or change with the templates:
+`Tests/SQLTests/Generated/FakeSecondDialect/`,
+`Tests/CompileFail/Support/Generated/CompileFailSecondDialect/`, and
+`Tests/CompileFail/Support/Generated/QueryOnlyDialect/`. Leaving them in place
+after the templates change fails `generate.py --check`.
 
 ## Method and verification
 
