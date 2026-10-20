@@ -20,7 +20,7 @@ public enum XLDateFunctionModifiers {
 
     case subseconds
 
-    /// The vocabulary term this legacy case names.
+    /// The date modifier term this legacy case names.
     var term: XLDateModifierTerm {
         switch self {
         case .subseconds:
@@ -269,15 +269,7 @@ extension XLSQLiteExpression {
 
 
 ///
-/// Builds the argument list for a date-and-time function: the time value
-/// followed by each modifier's rendered text, in order.
-///
-///
-/// Renders one date or time modifier through the dialect's vocabulary.
-///
-/// A modifier used to be appended as its pre-rendered SQLite text. It is now
-/// appended as this node, so the dialect that renders the statement decides
-/// the spelling.
+/// Renders one date or time modifier as a text literal of its SQLite spelling.
 ///
 private struct XLDateModifierExpression: XLSQLiteExpression {
 
@@ -286,11 +278,15 @@ private struct XLDateModifierExpression: XLSQLiteExpression {
     let modifier: XLDateModifier
 
     func makeSQL(context: inout XLBuilder) {
-        context.dateModifier(modifier.term)
+        context.text(modifier.rawValue)
     }
 }
 
 
+///
+/// Builds the argument list for a date-and-time function: the time value
+/// followed by each modifier's rendered text, in order.
+///
 private func dateParameters(value: any XLSQLiteExpression, modifiers: [XLDateModifier]) -> [any XLSQLiteExpression] {
     var parameters: [any XLSQLiteExpression] = [value]
     for modifier in modifiers {

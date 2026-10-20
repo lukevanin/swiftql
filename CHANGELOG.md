@@ -783,6 +783,46 @@
     replaces the file's spelling of that module. It also finds an attribute
     written `@SwiftQLSQLite.SQLQuery`.
 
+- **The SQL vocabulary keeps only what is spelling** (issue #791). A
+  vocabulary can spell a keyword; it cannot refuse an operation, so three of
+  its cases are gone and a dialect can no longer mis-render an operation it
+  does not have. See [Dialect surface
+  separation](Documentation/Architecture/DialectSurfaceSeparation.md). Code
+  that imports `SwiftQL` and writes `.collate(.nocase)`, `insert(_:or:)`,
+  `Insert(_:or:)`, `iif`, or a date modifier compiles as before.
+  - **SQLite renders `CASE WHEN` where it rendered `IIF`.** An `iif` call
+    now produces `CASE WHEN condition THEN a ELSE b END` instead of
+    `IIF(condition, a, b)`. The two are the same expression, and `CASE` is
+    standard SQL that every dialect accepts, so the node no longer asks the
+    dialect for a spelling. The result and its type are unchanged. A test or
+    snapshot that pins the rendered text of an `iif` call must be updated, and
+    so must a build-time validation manifest that records it: regenerate
+    it. A statement that uses `iif` no longer needs SQLite 3.32.0, the release
+    that added the function.
+  - `XLInsertTarget`, `XLCollationName`, and `XLConditionalFunction` are
+    removed from `SwiftQLCore`, and so are the `XLSQLVocabulary` requirements
+    that took them, `XLBuilder.insertTarget(_:table:)`,
+    `XLBuilder.collate(_:expression:)`, and
+    `XLBuilder.conditional(_:parameters:)`. A custom `XLSQLVocabulary` loses
+    four requirements, the `spelling(for:)` overloads for the three removed
+    types and for `XLDateModifierTerm`, which moves (below). It keeps the
+    comparison, null test, common-table prefix, and regular-expression match
+    spellings, and `requiredFunctions(for:)`. Delete those four overloads.
+  - The conflict clause and the collations are SQLite's, and `SwiftQLSQLite`
+    declares them. `XLInsertOrAction` moves from `SwiftQLCore` to
+    `SwiftQLSQLite`. `Insert(_:or:)`, `insert(_:or:)`, and `replace(_:)` render
+    `INSERT OR <action> INTO` and `REPLACE INTO` as before. `XLCollation`'s
+    `.binary`, `.nocase`, and `.rtrim` render `BINARY`, `NOCASE`, and `RTRIM`
+    as before. Neither is reachable from a dialect that does not have it.
+  - `XLDateModifierTerm` and `XLDateUnit` move from `SwiftQLCore` to
+    `SwiftQLSQLite`, and `XLBuilder.dateModifier(_:)` is removed. SQLite's
+    list of modifiers and PostgreSQL's interval arithmetic are different
+    surfaces, not two spellings. `XLDateModifier` and the date functions
+    render the same text as before. `XLiteVocabulary` no longer spells a
+    modifier, a collation, an insert, or a conditional.
+  - A file that imports `SwiftQLCore` alone and named one of the moved types
+    imports `SwiftQLSQLite` instead.
+
 ### Added
 
 - **A product for each layer of SwiftQL** (issue #790). See "The query

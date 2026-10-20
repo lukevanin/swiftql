@@ -491,6 +491,10 @@ extension XLBuilder {
 ///
 /// Renders the operations whose keyword differs between dialects.
 ///
+/// These are the lexical set only: an operation every dialect performs, with
+/// identical semantics, spelled differently. An operation that only some
+/// dialects have is declared by that dialect's product instead.
+///
 /// Each method asks ``XLBuilder/vocabulary`` for the spelling and then defers
 /// to the established string primitive, so one implementation serves every
 /// dialect and no node holds a keyword.
@@ -520,32 +524,6 @@ extension XLBuilder {
         expression: Builder
     ) {
         unarySuffix(vocabulary.spelling(for: test), expression: expression)
-    }
-
-    ///
-    /// Adds a conditional function call.
-    ///
-    public mutating func conditional(
-        _ function: XLConditionalFunction,
-        parameters: ListBuilder
-    ) {
-        simpleFunction(
-            name: vocabulary.spelling(for: function),
-            parameters: parameters
-        )
-    }
-
-    ///
-    /// Adds a collating sequence applied to a text sub-expression.
-    ///
-    public mutating func collate(
-        _ collation: XLCollationName,
-        expression: Builder
-    ) {
-        unarySuffix(
-            "COLLATE " + vocabulary.spelling(for: collation),
-            expression: expression
-        )
     }
 
     ///
@@ -585,23 +563,6 @@ extension XLBuilder {
             left: left,
             right: right
         )
-    }
-
-    ///
-    /// Adds the opening clause of an insert statement.
-    ///
-    public mutating func insertTarget(
-        _ target: XLInsertTarget,
-        table: Builder
-    ) {
-        unaryPrefix(vocabulary.spelling(for: target), expression: table)
-    }
-
-    ///
-    /// Renders one date or time modifier as a text literal.
-    ///
-    public mutating func dateModifier(_ modifier: XLDateModifierTerm) {
-        text(vocabulary.spelling(for: modifier))
     }
 }
 

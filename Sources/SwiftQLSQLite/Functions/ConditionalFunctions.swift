@@ -7,8 +7,10 @@
 
 import Foundation
 
-// SQLite's own: `IIF`. Declared only on a SQLite expression, not generated
-// for every dialect (issue #789).
+// SQLite's own spelling of the call: `iif`. Declared only on a SQLite
+// expression, not generated for every dialect (issue #789). It renders the
+// standard `CASE WHEN ... THEN ... ELSE ... END`, not SQLite's `IIF` function
+// (issue #791), so a statement that uses it needs no particular SQLite release.
 
 
 // MARK: - IIF

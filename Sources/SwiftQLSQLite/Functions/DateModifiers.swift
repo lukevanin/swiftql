@@ -35,19 +35,17 @@ public struct XLDateModifier: Hashable, Sendable {
     ///
     /// What the modifier means.
     ///
-    /// The dialect decides the text: a statement renders this term through
-    /// the vocabulary of the dialect it targets.
-    ///
     public let term: XLDateModifierTerm
 
     ///
     /// The SQLite text for this modifier.
     ///
-    /// Retained for callers that inspect a modifier. Rendering does not read
-    /// it, so a dialect that spells a modifier differently is not bypassed.
+    /// This is the text a statement renders. The modifier list is SQLite's
+    /// own surface, so it is spelled here and not through the shared
+    /// vocabulary (issue #791).
     ///
     public var rawValue: String {
-        XLiteVocabulary().spelling(for: term)
+        term.sqliteSpelling
     }
 
     ///
@@ -63,7 +61,7 @@ public struct XLDateModifier: Hashable, Sendable {
     }
 
     ///
-    /// Names a modifier by what it means, so the dialect can spell it.
+    /// Names a modifier by what it means.
     ///
     init(_ term: XLDateModifierTerm) {
         self.term = term
@@ -151,4 +149,103 @@ public struct XLDateModifier: Hashable, Sendable {
     ///
     public static let subsecond = XLDateModifier(.subsecond)
 
+}
+
+
+///
+/// One modifier applied to a date or time value.
+///
+/// The cases name what the modifier means. SQLite's modifier list is its own
+/// surface: PostgreSQL does date arithmetic with interval operators, not with
+/// a list of modifier strings, so the list is declared here and not in the
+/// shared vocabulary (issue #791).
+///
+public enum XLDateModifierTerm: Hashable, Sendable {
+
+    /// A signed relative offset, such as `+3 days`.
+    case offset(count: Int, unit: XLDateUnit)
+
+    /// Truncation back to the start of a day, month, or year.
+    case startOf(XLDateUnit)
+
+    /// Advance to the next matching day of week, where 0 is Sunday.
+    case weekday(Int)
+
+    /// Round a month or year offset up on overflow.
+    case ceiling
+
+    /// Round a month or year offset down on overflow.
+    case floor
+
+    /// Interpret the value as UTC and convert it to local time.
+    case localTime
+
+    /// Interpret the value as local time and convert it to UTC.
+    case utc
+
+    /// Render fractional seconds.
+    case subsecond
+
+    /// Exact SQLite text for a modifier this enumeration does not name.
+    case custom(String)
+
+    /// The text SQLite accepts for this modifier.
+    var sqliteSpelling: String {
+        switch self {
+        case .offset(let count, let unit):
+            // SQLite accepts an optional leading sign; an explicit one is
+            // emitted so a positive offset reads the same way a negative one
+            // does.
+            let sign = count < 0 ? "" : "+"
+            return "\(sign)\(count) \(unit.rawValue)"
+        case .startOf(let unit):
+            return "start of \(unit.singular)"
+        case .weekday(let day):
+            return "weekday \(day)"
+        case .ceiling:
+            return "ceiling"
+        case .floor:
+            return "floor"
+        case .localTime:
+            return "localtime"
+        case .utc:
+            return "utc"
+        case .subsecond:
+            return "subsec"
+        case .custom(let text):
+            return text
+        }
+    }
+}
+
+
+///
+/// A unit of time named by a date modifier.
+///
+public enum XLDateUnit: String, CaseIterable, Hashable, Sendable {
+    case seconds
+    case minutes
+    case hours
+    case days
+    case months
+    case years
+
+    /// SQLite anchors a truncation to a singular unit: `start of day`, not
+    /// `start of days`.
+    fileprivate var singular: String {
+        switch self {
+        case .seconds:
+            return "second"
+        case .minutes:
+            return "minute"
+        case .hours:
+            return "hour"
+        case .days:
+            return "day"
+        case .months:
+            return "month"
+        case .years:
+            return "year"
+        }
+    }
 }

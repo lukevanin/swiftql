@@ -950,7 +950,7 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS person, IIF((t1.name ISNULL), 'Unemployed', 'Employed') AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS person, CASE WHEN (t1.name ISNULL) THEN 'Unemployed' ELSE 'Employed' END AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [
             PersonOccupation(person: "John Doe", occupation: "Employed"),

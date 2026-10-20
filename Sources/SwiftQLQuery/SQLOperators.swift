@@ -485,7 +485,11 @@ public struct XLNullCoalesceExpression<T>: XLExpression {
 
 
 ///
-/// IIF expression.
+/// Conditional expression.
+///
+/// Renders the standard `CASE WHEN ... THEN ... ELSE ... END` for every
+/// dialect. SQLite's `IIF` is the same expression, and `CASE` is accepted by
+/// every dialect, so the node needs no per-dialect spelling (issue #791).
 ///
 /// Example:
 ///
@@ -496,7 +500,7 @@ public struct XLNullCoalesceExpression<T>: XLExpression {
 ///
 /// *SQL:*
 /// ```SQL
-/// IIF((foo.bar ISNULL), 'baz', 'buzz')
+/// CASE WHEN (foo.bar ISNULL) THEN 'baz' ELSE 'buzz' END
 /// ```
 ///
 public struct XLIfExpression<T>: XLExpression {
@@ -514,16 +518,10 @@ public struct XLIfExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.conditional(.immediateIf) { context in
-            context.listItem { context in
-                condition.makeSQL(context: &context)
-            }
-            context.listItem { context in
-                trueResult.makeSQL(context: &context)
-            }
-            context.listItem { context in
-                falseResult.makeSQL(context: &context)
-            }
+        context.block(beginsWith: "CASE", endsWith: "END", separator: .tuple) { context in
+            context.unaryPrefix("WHEN", expression: condition.makeSQL)
+            context.unaryPrefix("THEN", expression: trueResult.makeSQL)
+            context.unaryPrefix("ELSE", expression: falseResult.makeSQL)
         }
     }
 }

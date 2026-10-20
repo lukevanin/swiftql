@@ -38,16 +38,6 @@ public enum XLNullTest: Hashable, Sendable {
 
 
 ///
-/// A conditional expression.
-///
-/// SQLite provides `IIF`. Dialects without it fall back to `CASE WHEN`.
-///
-public enum XLConditionalFunction: Hashable, Sendable {
-    case immediateIf
-}
-
-
-///
 /// The keyword that introduces a common-table expression.
 ///
 /// SQLite accepts a recursive common table after a plain `WITH`. Several
@@ -56,105 +46,6 @@ public enum XLConditionalFunction: Hashable, Sendable {
 public enum XLCommonTablePrefix: Hashable, Sendable {
     case with
     case withRecursive
-}
-
-
-///
-/// A conflict-resolution algorithm applied by an `INSERT OR ...` statement.
-///
-/// SQLite parses the algorithm as part of the `INSERT` keyword, immediately
-/// before `INTO`. `replace` is the same algorithm reached by the standalone
-/// `REPLACE` statement.
-///
-public enum XLInsertOrAction: String, CaseIterable, Hashable, Sendable {
-    case rollback = "ROLLBACK"
-    case abort = "ABORT"
-    case fail = "FAIL"
-    case ignore = "IGNORE"
-    case replace = "REPLACE"
-}
-
-
-///
-/// The opening clause of an insert statement.
-///
-/// `INSERT OR <action> INTO` and `REPLACE INTO` are SQLite spellings. Other
-/// dialects express the same intent with `ON CONFLICT`.
-///
-public enum XLInsertTarget: Hashable, Sendable {
-
-    /// A plain insert with no conflict clause.
-    case insert
-
-    /// An insert carrying a conflict-resolution algorithm.
-    case insertOr(XLInsertOrAction)
-
-    /// The shorthand for an insert that replaces a conflicting row.
-    case replace
-}
-
-
-///
-/// A built-in collating sequence.
-///
-/// Only the sequences the dialect defines belong here. A sequence registered
-/// by the application is named by an identifier, not by vocabulary, so it
-/// goes through the formatter and never through this enum.
-///
-public enum XLCollationName: Hashable, Sendable {
-    case binary
-    case noCase
-    case rTrim
-}
-
-
-///
-/// One modifier applied to a date or time value.
-///
-/// The cases name what the modifier means. The dialect renders the text,
-/// because the spelling is SQLite's own.
-///
-public enum XLDateModifierTerm: Hashable, Sendable {
-
-    /// A signed relative offset, such as `+3 days`.
-    case offset(count: Int, unit: XLDateUnit)
-
-    /// Truncation back to the start of a day, month, or year.
-    case startOf(XLDateUnit)
-
-    /// Advance to the next matching day of week, where 0 is Sunday.
-    case weekday(Int)
-
-    /// Round a month or year offset up on overflow.
-    case ceiling
-
-    /// Round a month or year offset down on overflow.
-    case floor
-
-    /// Interpret the value as UTC and convert it to local time.
-    case localTime
-
-    /// Interpret the value as local time and convert it to UTC.
-    case utc
-
-    /// Render fractional seconds.
-    case subsecond
-
-    /// Exact dialect text for a modifier this vocabulary does not name.
-    case custom(String)
-}
-
-
-///
-/// A unit of time named by a date modifier.
-///
-public enum XLDateUnit: String, CaseIterable, Hashable, Sendable {
-    case seconds
-    case minutes
-    case hours
-    case days
-    case months
-    case years
 }
 
 
@@ -178,21 +69,24 @@ public enum XLRegexMatchOperator: Hashable, Sendable {
 /// keyword, so a second dialect changes the rendered SQL by conforming here
 /// rather than by editing every node.
 ///
+/// The vocabulary holds only the lexical set: operations that every dialect
+/// performs with identical semantics and that differ only in spelling. A
+/// vocabulary can spell a keyword; it cannot refuse an operation. An
+/// operation that one dialect lacks, or performs differently, therefore does
+/// not belong here, because a dialect that conformed would mis-render it
+/// instead of rejecting it (see the dialect surface separation decision
+/// record). Such an operation is declared by the dialect's own product, so a
+/// dialect that does not have it cannot reach it. The conflict clause of an
+/// insert, a collating sequence, and the date modifiers are SQLite's, and
+/// live in `SwiftQLSQLite`.
+///
 public protocol XLSQLVocabulary: Sendable {
 
     func spelling(for comparison: XLComparisonOperator) -> String
 
     func spelling(for test: XLNullTest) -> String
 
-    func spelling(for function: XLConditionalFunction) -> String
-
     func spelling(for prefix: XLCommonTablePrefix) -> String
-
-    func spelling(for target: XLInsertTarget) -> String
-
-    func spelling(for collation: XLCollationName) -> String
-
-    func spelling(for modifier: XLDateModifierTerm) -> String
 
     func spelling(for match: XLRegexMatchOperator) -> String
 

@@ -194,7 +194,8 @@ public protocol XLSQLDialect: Sendable {
     /// placeholders.
     associatedtype Formatter: XLFormatter
 
-    /// The vocabulary that spells this dialect's divergent SQL keywords.
+    /// The vocabulary that spells this dialect's lexical SQL keywords: the
+    /// operations every dialect performs, spelled differently.
     associatedtype Vocabulary: XLSQLVocabulary
 
     /// The rule this dialect uses to spell and number placeholders.
@@ -208,11 +209,11 @@ public protocol XLSQLDialect: Sendable {
     /// formatter rather than constructing one for a database it assumes.
     func makeFormatter() -> Formatter
 
-    /// Vends the vocabulary that spells this dialect's divergent keywords.
+    /// Vends the vocabulary that spells this dialect's lexical keywords.
     ///
-    /// A node names the operation it means -- a null-safe comparison, an
-    /// insert conflict clause, a regular-expression match -- and the
-    /// vocabulary decides the text.
+    /// A node names the operation it means -- a null-safe comparison, a null
+    /// test, a regular-expression match -- and the vocabulary decides the
+    /// text. Only operations every dialect performs belong here.
     func makeVocabulary() -> Vocabulary
 
     /// Vends the placeholder assigner for one statement.

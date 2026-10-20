@@ -582,6 +582,10 @@ final class DialectTypeParameterTests: XCTestCase {
             Values(DialectSecondPerson.MetaInsert(id: 1, name: name, nickname: nil as String?))
         }
         XCTAssertEqual(try secondSQL(secondInsert), try sqliteSQL(sqliteInsert))
+        // The shared insert opens with the standard keywords. A conflict
+        // algorithm is SQLite's own and is reachable only from its product
+        // (issue #791), so no other dialect renders one.
+        XCTAssertTrue(try secondSQL(secondInsert).hasPrefix(#"INSERT INTO "person""#))
     }
 
     func testAReadOfANullableSlotKeepsItsOptionalType() throws {

@@ -7783,7 +7783,7 @@
         },
         {
           "symbol": "XLInsertOrAction",
-          "source_path": "Sources/SwiftQLCore/SQLVocabulary.swift",
+          "source_path": "Sources/SwiftQLSQLite/SQLWriteStatements+SQLite.swift",
           "source_tokens": [
             "XLInsertOrAction"
           ]
@@ -8381,7 +8381,7 @@
         "https://www.sqlite.org/lang_expr.html#the_case_expression"
       ],
       "not_sqlite_syntax_reason": null,
-      "minimum_sqlite_version": "3.32.0",
+      "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
       "required_capabilities": [
@@ -8398,7 +8398,7 @@
         "evidence.syntax.expression.sqlite-searched-case"
       ],
       "deviations": [
-        "The SQLite 3.32.0 minimum is set by IIF; CASE and COALESCE are available in older releases."
+        "SwiftQL renders iif as CASE WHEN since issue #791, so the rendered SQL needs no IIF function, which SQLite added in 3.32.0; CASE and COALESCE are available in every release."
       ],
       "follow_up_issues": [],
       "deferral": null,

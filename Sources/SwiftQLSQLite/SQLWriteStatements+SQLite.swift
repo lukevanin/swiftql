@@ -12,6 +12,27 @@ import Foundation
 // MARK: - Insert
 
 
+///
+/// A conflict-resolution algorithm applied by an `INSERT OR ...` statement.
+///
+/// SQLite parses the algorithm as part of the `INSERT` keyword, immediately
+/// before `INTO`. `replace` is the same algorithm reached by the standalone
+/// `REPLACE` statement.
+///
+/// The algorithm is SQLite's own. PostgreSQL has no equivalent opening: it
+/// resolves a conflict with a trailing `ON CONFLICT` clause, so the
+/// algorithm lives in this product and not in the shared vocabulary (issue
+/// #791).
+///
+public enum XLInsertOrAction: String, CaseIterable, Hashable, Sendable {
+    case rollback = "ROLLBACK"
+    case abort = "ABORT"
+    case fail = "FAIL"
+    case ignore = "IGNORE"
+    case replace = "REPLACE"
+}
+
+
 extension Insert {
 
     ///
@@ -24,7 +45,7 @@ extension Insert {
     /// (issue #789).
     ///
     public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
-        self.init(table: meta._dependency, target: .insertOr(action))
+        self.init(table: meta._dependency, opening: "INSERT OR \(action.rawValue) INTO")
     }
 }
 
@@ -42,7 +63,7 @@ public struct Replace<Row>: XLEncodable, XLRowWritable {
     let insert: Insert<Row>
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row, T.XLModelDialect == XLSQLiteDialect {
-        self.insert = Insert(table: meta._dependency, target: .replace)
+        self.insert = Insert(table: meta._dependency, opening: "REPLACE INTO")
     }
 
     public func makeSQL(context: inout XLBuilder) {

@@ -1,6 +1,11 @@
 # Dialect surface separation
 
 **Status:** accepted, 18 September 2026. Shapes the v2.0 public API.
+The vocabulary reduction under [Consequences](#consequences) was delivered by
+issue #791: `XLInsertTarget`, `XLCollationName`, and `XLConditionalFunction`
+are gone, `XLInsertOrAction`, the collations, and the date modifiers
+(`XLDateModifierTerm`) live in `SwiftQLSQLite`, and `XLSQLVocabulary` holds
+only the lexical set.
 
 SwiftQL does not translate one dialect's SQL into another. A query written
 against PostgreSQL is written in PostgreSQL's vocabulary, and an operation
@@ -122,10 +127,12 @@ compile cost.
 
 - `XLCollationName` and `XLInsertTarget` leave the shared vocabulary. They are
   surface, and belong to their dialect's product.
-- `XLConditionalForm` is removed. `CASE WHEN` is standard and SQLite accepts
-  it, so emitting it for every dialect removes the translation rather than
-  abstracting it. This changes SQLite's rendered bytes, which is a deliberate
-  v2.0 change.
+- `XLConditionalForm` (`XLConditionalFunction` in the code) is removed.
+  `CASE WHEN` is standard and SQLite accepts it, so emitting it for every
+  dialect removes the translation rather than abstracting it. This changes
+  SQLite's rendered bytes, which is a deliberate v2.0 change.
+- `XLDateModifierTerm` moves to the SQLite product. SQLite's modifier list and
+  PostgreSQL's interval arithmetic are different surfaces, not two spellings.
 - The vocabulary keeps only the lexical set: comparisons, null tests, the
   common-table prefix, and the regular-expression match operator.
 - The formatter and placeholder seams delivered by #673 and #674 are unchanged.

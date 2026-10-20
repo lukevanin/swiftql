@@ -39,28 +39,21 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
     public init(rawValue: String) {
         self.rawValue = rawValue
         self.isBuiltIn = false
-        self.builtInName = nil
     }
 
-    /// The vocabulary case for a built-in sequence, or `nil` for a name the
-    /// application registered. A registered name is an identifier, so it goes
-    /// through the formatter rather than through the vocabulary.
-    let builtInName: XLCollationName?
-
-    private init(builtIn name: XLCollationName) {
-        // The SQLite spelling, retained so that two values naming the same
-        // sequence still compare equal. Rendering reads `builtInName` and
-        // asks the target dialect's vocabulary instead.
-        self.rawValue = XLiteVocabulary().spelling(for: name)
+    /// One of the three sequences SQLite defines. The collations are SQLite's
+    /// own: `NOCASE` and `RTRIM` have no PostgreSQL equivalent, so they are
+    /// declared here and not in the shared vocabulary (issue #791).
+    private init(builtIn name: String) {
+        self.rawValue = name
         self.isBuiltIn = true
-        self.builtInName = name
     }
 
-    public static let binary = XLCollation(builtIn: .binary)
+    public static let binary = XLCollation(builtIn: "BINARY")
 
-    public static let nocase = XLCollation(builtIn: .noCase)
+    public static let nocase = XLCollation(builtIn: "NOCASE")
 
-    public static let rtrim = XLCollation(builtIn: .rTrim)
+    public static let rtrim = XLCollation(builtIn: "RTRIM")
 
     // Two values are equal when they name the same collating sequence.
     //
@@ -99,8 +92,12 @@ private struct XLCollationExpression<T>: XLSQLiteExpression {
 
     func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
-            if let builtInName = collation.builtInName {
-                context.collate(builtInName, expression: operand.makeSQL)
+            if collation.isBuiltIn {
+                // A built-in name is a grammar token, not an identifier.
+                context.unarySuffix(
+                    "COLLATE " + collation.rawValue,
+                    expression: operand.makeSQL
+                )
             }
             else {
                 // Two tokens rather than one interpolated string: the name goes
