@@ -217,16 +217,18 @@ in `SwiftQLQuery/Expression Builder/` or `SwiftQLQuery/Statements/`.
 | B-23 | `scalarCommonTableExpression(...)` | result builder | stays |
 | B-24 | `recursiveScalarCommonTableExpression(...)` | result builder | stays |
 
-The functional member and its builder twin share their construction in three
-different ways:
+A functional member and its builder twin relate in one of four ways:
 
 - `recursiveCommonTable` and `recursiveCommonTableExpression` (B-11, B-13) both
   call the private `makeRecursiveCommonTable`.
 - `scalarCommonTableExpression` and `recursiveScalarCommonTableExpression`
   (B-23, B-24) call `scalarCommonTable` and `recursiveScalarCommonTable` (B-21,
   B-22). The builder twins depend on the functional members.
-- The rest (B-09, B-10, B-14, B-16 to B-20) repeat the construction in each body
-  with the same logic.
+- B-09 and B-10 (with B-12), B-14 (B-15), B-17 (B-20), and B-18 (B-19, scalar
+  forms) repeat the construction in each body with the same logic.
+- B-16 and its twin (B-19, table form) do not match: the twin builds a
+  `MetaResult` for an `XLTable`, and B-16 builds a `MetaNamedResult` for an
+  `XLResult` (P-1). B-16 is not a thin forward.
 
 The second point matters to #323. B-23 and B-24 stay, and B-21 and B-22 go, so
 B-23 and B-24 must be made self-contained first. They need the scalar common
@@ -308,13 +310,14 @@ builder twin is `commonTableExpression` (B-12).
 
 ## F. Types and requirements that stay
 
-None of these is removable under #323.
+None of these is removable under #323, by the issue's rule that the statement
+family and the components types stay.
 
 | ID | Symbol | Disposition | Notes |
 | --- | --- | --- | --- |
 | F-01 | `XLQueryStatementComponents`, `XLInsertStatementComponents`, `XLUpdateStatementComponents`, `XLDeleteStatementComponents`, `XLCreateTableStatementComponents` | shared | The values both spellings build. |
 | F-02 | The `XLQuery*Statement`, `XLInsert*Statement`, `XLUpdate*Statement`, `XLDelete*Statement`, `XLCreate*Statement`, and `XLWithStatement` families and their protocols (`XLQueryStatement`, `XLDialectQueryStatement`, `XLSimpleSelectQueryStatement`, `XLInsertStatement`, `XLUpdateStatement`, `XLDeleteStatement`, `XLCreateStatement`) | shared | Most are produced by the result builders as well. |
-| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` (five structs), and the `XLReturningStatement` protocol | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. It stays under the issue's rule that the statement family is not removable, but its only producer (C-13) and its only members (C-10 to C-12) are fluent, so after #323 SwiftQL would keep a type that nothing in SwiftQL builds or extends. Whether it stays or moves with the chain is for #319 and #321, with P-3. |
+| F-03 | `XLQueryUnionStatement`, `XLInsertOnConflictStatement`, `XLInsertReturningStatement`, `XLUpdateReturningStatement`, `XLDeleteReturningStatement` (five structs), and the `XLReturningStatement` protocol | shared | Produced only by the fluent chain today (finding 5). The on-conflict and returning types gain a producer when #834 and #835 close; `XLQueryUnionStatement` does not. It stays under the issue's rule that the statement family is not removable, but its only producer (C-13) and its only members (C-10 to C-12) are fluent, so after #323 SwiftQL would keep a type that nothing in SwiftQL builds or extends. It stays; what remains open, with P-3, is whether SwiftQL gives it a producer. |
 | F-04 | `Returning`, `OnConflict`, `XLConflictResolution` | shared | Public clause types used only by the chain today. They are the natural tokens for #834 and #835. |
 | F-05 | `XLSelectResultDependency` and the `makeSQLAnonymousResult` and `makeSQLAnonymousNamedResult` requirements of `XLResult`, including the `iterator:` variants | shared | `@SQLResult`'s generated `columns(...)` uses the `iterator:` variant (`Tests/SQLMacrosTests/SQLTests.swift`). #90 owns retiring them. |
 | F-06 | `XLNamespace`, `XLName`, `XLCommonTableDependency`, `XLFromTableDependency`, `XLSubqueryDependency`, `XLUpdateFromTableDependency`, `XLExcludedTableDependency` | shared | The dependency model both spellings use. |
@@ -357,18 +360,24 @@ ones, and the unlabelled ones take a value and name no query spelling. No
 rename is needed. #33 owns any later naming change; neither carries the `XL`
 prefix.
 
-Evidence, counted with `git grep -o -E` at the baseline over `README.md`,
-`SKILL.md`, the DocC catalog, `Documentation`, `Examples`, `Benchmarks`,
-`IntegrationTests`, `Tests`, and `Conformance`:
+Evidence, counted with `git grep -o -E` over the paths in the first bullet of
+[Method and verification](#method-and-verification), at the baseline. A match is
+any occurrence in code, comments, or prose:
 
-| Spelling | Occurrences |
+| Pattern | Matches |
 | --- | --- |
-| `sqlInsert(row)` (unlabelled) | about 290 |
-| `sqlInsert { ... }` or `sqlInsert(builder:)` | 2 |
-| `sqlCreate(Type.self)` (unlabelled) | about 164 |
-| `sqlCreate { ... }` or `sqlCreate(builder:)` | 1 |
-| `sqlQuery { ... }` | about 74 |
-| `sql { ... }` | about 771 |
+| `sqlInsert(` | 299 (23 are the prose `sqlInsert(_:)`; none is `builder:`) |
+| `sqlInsert {` | 2 |
+| `sqlCreate(` | 164 (none is `builder:`) |
+| `sqlCreate {` | 1 |
+| `sqlQuery {` or `sqlQuery(` | 74 |
+| `sqlUpdate {` or `sqlUpdate(` | 5 |
+| `sql {` | 771 |
+
+Restricted to `Examples`, `Benchmarks`, `IntegrationTests`, and `Tests`, there are
+254 matches for `sqlInsert(` and 138 for `sqlCreate(`. The point is the ratio,
+two orders of magnitude between the whole-row form and the closure form, not the
+exact figures.
 
 The unlabelled forms are the README quick start, the `SKILL.md` agent guide, and
 most of the test corpus, whichever query spelling the surrounding test uses.
@@ -502,8 +511,10 @@ needs a compiling test, which is #318's job.
   `InOperator.swift.template`, and must be rewritten when E-01, E-02, and E-05
   leave, as the `Limit` and `Offset` comments must be.
 - **P-3.** The builder's compound operators take an inline `Select`. The chained
-  `union { ... }` (C-13) takes any already-built statement. Combining two
-  statements built elsewhere has no builder token. The inline form replaces the
+  `union`, `unionAll`, `intersect`, and `except` (C-13) take a closure that
+  returns any `XLDialectQueryStatement` of the same row and dialect, so the
+  branch can be a statement built earlier. A statement built elsewhere has no
+  builder token. The inline form replaces the
   spelling, so C-13 names a builder spelling as the issue's rule asks, but the
   narrower capability would be lost with the chain. Whether it belongs in
   SwiftQL, FluentQL, or DynamicQL (combining statements built elsewhere is
@@ -589,11 +600,13 @@ The extraction also moves `scripts/dialect-surface/Templates/QueryStatements.swi
 SwiftQL generator, plus the `InOperator.swift.template` overloads E-01, E-02, and
 E-05.
 
-`scripts/ci/check-query-clause-ordering-type-safety.sh` proves clause ordering
-with fixtures that call chain methods on `XLQueryTableStatement`:
-`HavingWithoutGroupBy.swift`, `OffsetWithoutLimit.swift`,
-`WhereAfterOrderBy.swift`, and `WhereRequiresBoolean.swift` (negative), and
-`QueryClauseOrderingValid.swift` (positive). No negative fixture in
+`scripts/ci/check-query-clause-ordering-type-safety.sh` runs fixtures that call
+chain methods on `XLQueryTableStatement`. Three negative fixtures prove clause
+ordering: `HavingWithoutGroupBy.swift`, `OffsetWithoutLimit.swift`, and
+`WhereAfterOrderBy.swift`. `WhereRequiresBoolean.swift` is a fourth negative
+fixture, for the predicate's type, not for ordering; #324 should check whether
+the builder's `Where` has a negative fixture for a non-Boolean predicate.
+`QueryClauseOrderingValid.swift` is the positive one. No negative fixture in
 `Tests/CompileFail` writes a clause out of order inside a `sql { }` body. Builder
 tokens do appear in negative fixtures, but those test the dialect check (for
 example `DialectClauseWhereForeignExpression.swift`); a search for `Having`,
@@ -627,8 +640,8 @@ after the templates change fails `generate.py --check`.
 - Enumerated every extension on the statement types, not only the methods the
   issue names, by reading `Statements/`, `Generated/`, and the templates.
 - Counted usage with `git grep -o -E`, for example
-  `git grep -o -E 'sqlInsert[(][^b]' 66b9fa18 -- README.md SKILL.md Sources/SwiftQL/SwiftQL.docc Documentation Examples Benchmarks IntegrationTests Tests Conformance | wc -l`.
-  The counts are approximate: a pattern can match a comment or a doc example.
+  `git grep -o -E 'sqlInsert[(]' 66b9fa18 -- README.md SKILL.md Sources/SwiftQL/SwiftQL.docc Documentation Examples Benchmarks IntegrationTests Tests Conformance | wc -l`.
+  The counts include comments and prose.
 - Checked that every `Sources/`, `Tests/`, `scripts/`, and `Documentation/` path
   in this note exists at the baseline (the quoted old links excepted), and that
   every named symbol appears in the tree.
