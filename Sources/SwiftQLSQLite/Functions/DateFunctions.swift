@@ -20,7 +20,7 @@ public enum XLDateFunctionModifiers {
 
     case subseconds
 
-    /// The vocabulary term this legacy case names.
+    /// The date modifier term this legacy case names.
     var term: XLDateModifierTerm {
         switch self {
         case .subseconds:

@@ -2,7 +2,7 @@ import Foundation
 
 
 ///
-/// Spells the divergent SQL vocabulary the way SQLite does.
+/// Spells the lexical SQL vocabulary the way SQLite does.
 ///
 /// Every spelling here is the text SwiftQL rendered before the vocabulary
 /// existed. The pinned SQLite corpus is the proof: moving a keyword behind a
