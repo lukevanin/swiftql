@@ -3,10 +3,14 @@ import XCTest
 
 
 ///
-/// Spells the eight divergent categories the way PostgreSQL does.
+/// Spells the four lexical categories the way PostgreSQL does.
 ///
 /// This exists to prove the seam: the encoder, the builder, and every node
-/// stay the same, and only this type decides the rendered keywords.
+/// stay the same, and only this type decides the rendered keywords. It
+/// conforms with nothing but the lexical set, which is the whole of
+/// `XLSQLVocabulary` (issue #791): there is no requirement here for a conflict
+/// clause, a collation, a conditional form, or a date modifier, so a dialect
+/// cannot spell one it does not have.
 ///
 private struct ProbeVocabulary: XLSQLVocabulary {
 
@@ -32,62 +36,12 @@ private struct ProbeVocabulary: XLSQLVocabulary {
         }
     }
 
-    func spelling(for function: XLConditionalFunction) -> String {
-        switch function {
-        case .immediateIf:
-            return "CASEWHEN"
-        }
-    }
-
     func spelling(for prefix: XLCommonTablePrefix) -> String {
         switch prefix {
         case .with:
             return "WITH"
         case .withRecursive:
             return "WITH RECURSIVE"
-        }
-    }
-
-    func spelling(for target: XLInsertTarget) -> String {
-        switch target {
-        case .insert:
-            return "INSERT INTO"
-        case .insertOr, .replace:
-            return "INSERT INTO"
-        }
-    }
-
-    func spelling(for collation: XLCollationName) -> String {
-        switch collation {
-        case .binary:
-            return "\"C\""
-        case .noCase:
-            return "\"und-x-icu\""
-        case .rTrim:
-            return "\"POSIX\""
-        }
-    }
-
-    func spelling(for modifier: XLDateModifierTerm) -> String {
-        switch modifier {
-        case .offset(let count, let unit):
-            return "\(count) \(unit.rawValue)"
-        case .startOf(let unit):
-            return "date_trunc \(unit.rawValue)"
-        case .weekday(let day):
-            return "dow \(day)"
-        case .ceiling:
-            return "ceil"
-        case .floor:
-            return "floor"
-        case .localTime:
-            return "at time zone local"
-        case .utc:
-            return "at time zone utc"
-        case .subsecond:
-            return "microseconds"
-        case .custom(let text):
-            return text
         }
     }
 
@@ -190,12 +144,29 @@ private struct RegexProbe: XLEncodable {
 }
 
 
-private struct DateModifierProbe: XLEncodable {
+private struct IntegerProbe<Value>: XLExpression {
 
-    let term: XLDateModifierTerm
+    typealias T = Value
+
+    let value: Int
 
     func makeSQL(context: inout XLBuilder) {
-        context.dateModifier(term)
+        context.integer(value)
+    }
+}
+
+
+/// A conditional expression, which has no vocabulary case: it renders the
+/// standard `CASE WHEN` for every dialect (issue #791).
+private struct ConditionalProbe: XLEncodable {
+
+    func makeSQL(context: inout XLBuilder) {
+        XLIfExpression<Int>(
+            condition: IntegerProbe<Bool>(value: 1),
+            trueResult: IntegerProbe<Int>(value: 2),
+            falseResult: IntegerProbe<Int>(value: 3)
+        )
+        .makeSQL(context: &context)
     }
 }
 
@@ -204,7 +175,7 @@ final class SQLDialectVocabularyTests: XCTestCase {
 
     // MARK: - SQLite keeps its spelling
 
-    func testSQLiteSpellsEveryDivergentCategoryAsBefore() {
+    func testSQLiteSpellsEveryLexicalCategoryAsBefore() {
         let encoder = XLiteEncoder(formatter: XLiteFormatter())
 
         XCTAssertEqual(encoder.makeSQL(ComparisonProbe(comparison: .equal)).sql, "1 == 2")
@@ -217,13 +188,38 @@ final class SQLDialectVocabularyTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(NullTestProbe(test: .isNull)).sql, "1 ISNULL")
         XCTAssertEqual(encoder.makeSQL(NullTestProbe(test: .isNotNull)).sql, "1 NOTNULL")
         XCTAssertEqual(encoder.makeSQL(RegexProbe()).sql, #""subject" REGEXP '^a'"#)
+    }
+
+    // MARK: - SQLite's own surface is spelled by SQLite's product
+
+    func testSQLiteSpellsItsDateModifiersWithoutTheVocabulary() {
+        XCTAssertEqual(XLDateModifier.days(3).rawValue, "+3 days")
+        XCTAssertEqual(XLDateModifier.days(-3).rawValue, "-3 days")
+        XCTAssertEqual(XLDateModifier.startOfMonth.rawValue, "start of month")
+        XCTAssertEqual(XLDateModifier.weekday(1).rawValue, "weekday 1")
+        XCTAssertEqual(XLDateModifier.subsecond.rawValue, "subsec")
+        XCTAssertEqual(XLDateModifier("unixepoch").rawValue, "unixepoch")
+    }
+
+    func testSQLiteSpellsTheConflictAlgorithmAndCollationsInItsOwnProduct() {
+        XCTAssertEqual(XLInsertOrAction.ignore.rawValue, "IGNORE")
+        XCTAssertEqual(XLCollation.nocase.rawValue, "NOCASE")
+        XCTAssertEqual(XLCollation.rtrim.rawValue, "RTRIM")
+        XCTAssertEqual(XLCollation.binary.rawValue, "BINARY")
+    }
+
+    // MARK: - A conditional is not a spelling difference
+
+    func testEveryDialectRendersTheStandardCaseWhen() {
+        let expected = "CASE WHEN 1 THEN 2 ELSE 3 END"
+
         XCTAssertEqual(
-            encoder.makeSQL(DateModifierProbe(term: .offset(count: 3, unit: .days))).sql,
-            "'+3 days'"
+            XLiteEncoder(formatter: XLiteFormatter()).makeSQL(ConditionalProbe()).sql,
+            expected
         )
         XCTAssertEqual(
-            encoder.makeSQL(DateModifierProbe(term: .startOf(.months))).sql,
-            "'start of month'"
+            XLDialectEncoder(dialect: ProbeDialect()).makeSQL(ConditionalProbe()).sql,
+            expected
         )
     }
 
@@ -245,14 +241,6 @@ final class SQLDialectVocabularyTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(NullTestProbe(test: .isNull)).sql, "1 IS NULL")
         XCTAssertEqual(encoder.makeSQL(NullTestProbe(test: .isNotNull)).sql, "1 IS NOT NULL")
         XCTAssertEqual(encoder.makeSQL(RegexProbe()).sql, #""subject" ~ '^a'"#)
-        XCTAssertEqual(
-            encoder.makeSQL(DateModifierProbe(term: .offset(count: 3, unit: .days))).sql,
-            "'3 days'"
-        )
-        XCTAssertEqual(
-            encoder.makeSQL(DateModifierProbe(term: .startOf(.months))).sql,
-            "'date_trunc months'"
-        )
     }
 
     // MARK: - The vocabulary owns the function requirement

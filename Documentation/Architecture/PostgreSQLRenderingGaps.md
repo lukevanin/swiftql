@@ -38,6 +38,10 @@ SQLite. Only the dialect differs.
 | Placeholders | `:name` and `?5` | `$1`, `$2`, `$3` |
 | Collation | `COLLATE BINARY` | `COLLATE "C"` |
 
+The conditional and collation rows describe the spike, not the shipped
+vocabulary. Issue #791 removed both from `XLSQLVocabulary`: every dialect
+renders `CASE WHEN`, and the collations are SQLite's own.
+
 A statement written with named parameters renders positionally for
 PostgreSQL and reports only `.indexedBindings`. The logical key stays named,
 so application code still binds by name.

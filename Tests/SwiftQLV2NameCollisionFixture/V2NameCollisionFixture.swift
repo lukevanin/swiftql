@@ -63,7 +63,6 @@ enum V2NameCollisionFixture {
     typealias Check_Boolean = Boolean
     typealias Check_Builder = Builder
     typealias Check_Collation = Collation
-    typealias Check_CollationName = CollationName
     typealias Check_ColumnDefinitionsBuilder = ColumnDefinitionsBuilder
     typealias Check_ColumnDependency = ColumnDependency
     typealias Check_ColumnReadError = ColumnReadError
@@ -78,7 +77,6 @@ enum V2NameCollisionFixture {
     typealias Check_ComparisonExpression = ComparisonExpression
     typealias Check_ComparisonOperator = ComparisonOperator
     typealias Check_ConcatenationExpression = ConcatenationExpression
-    typealias Check_ConditionalFunction = ConditionalFunction
     typealias Check_ConflictResolution = ConflictResolution
     typealias Check_ContextualBindingReference = ContextualBindingReference
     typealias Check_CreateExpressionBuilder = CreateExpressionBuilder
@@ -162,7 +160,6 @@ enum V2NameCollisionFixture {
     typealias Check_InsertStatementComponents = InsertStatementComponents
     typealias Check_InsertTableStatement = InsertTableStatement
     typealias Check_InsertTableValuesStatement = InsertTableValuesStatement
-    typealias Check_InsertTarget = InsertTarget
     typealias Check_InvocationBinding = InvocationBinding
     typealias Check_InvocationBindingError = InvocationBindingError
     typealias Check_InvocationBindingPacket = InvocationBindingPacket

@@ -1,6 +1,11 @@
 # Dialect surface separation
 
 **Status:** accepted, 18 September 2026. Shapes the v2.0 public API.
+The vocabulary reduction under [Consequences](#consequences) was delivered by
+issue #791: `XLInsertTarget`, `XLCollationName`, and `XLConditionalFunction`
+are gone, `XLInsertOrAction`, the collations, and the date modifiers
+(`XLDateModifierTerm`) live in `SwiftQLSQLite`, and `XLSQLVocabulary` holds
+only the lexical set.
 
 SwiftQL does not translate one dialect's SQL into another. A query written
 against PostgreSQL is written in PostgreSQL's vocabulary, and an operation

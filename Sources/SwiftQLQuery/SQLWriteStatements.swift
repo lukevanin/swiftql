@@ -84,23 +84,35 @@ public struct Setting<Row>: XLEncodable {
 ///
 /// Insert statement.
 ///
+/// Renders the standard `INSERT INTO`. How an insert resolves a conflict is
+/// not part of the shared surface: SQLite carries the algorithm in the
+/// opening keywords, and PostgreSQL uses a trailing `ON CONFLICT` clause. A
+/// dialect that has an opening of its own supplies it through the `package`
+/// initializer from its own product, so a dialect that has none cannot reach
+/// one (issue #791).
+///
 public struct Insert<Row>: XLEncodable, XLRowWritable {
 
     private let table: any XLEncodable
 
-    private let target: XLInsertTarget
+    private let opening: String
 
-    package init(table: any XLEncodable, target: XLInsertTarget) {
+    /// The keywords that open an insert statement, ahead of the table.
+    private static var standardOpening: String { "INSERT INTO" }
+
+    /// Creates an insert whose opening keywords the calling dialect product
+    /// spells, such as SQLite's `INSERT OR IGNORE INTO`.
+    package init(table: any XLEncodable, opening: String) {
         self.table = table
-        self.target = target
+        self.opening = opening
     }
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
-        self.init(table: meta._dependency, target: .insert)
+        self.init(table: meta._dependency, opening: Self.standardOpening)
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        context.insertTarget(target, table: table.makeSQL)
+        context.unaryPrefix(opening, expression: table.makeSQL)
     }
 }
 

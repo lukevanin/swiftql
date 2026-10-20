@@ -210,9 +210,9 @@ public protocol XLSQLDialect: Sendable {
 
     /// Vends the vocabulary that spells this dialect's divergent keywords.
     ///
-    /// A node names the operation it means -- a null-safe comparison, an
-    /// insert conflict clause, a regular-expression match -- and the
-    /// vocabulary decides the text.
+    /// A node names the operation it means -- a null-safe comparison, a null
+    /// test, a regular-expression match -- and the vocabulary decides the
+    /// text. Only operations every dialect performs belong here.
     func makeVocabulary() -> Vocabulary
 
     /// Vends the placeholder assigner for one statement.

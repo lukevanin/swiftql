@@ -7783,7 +7783,7 @@
         },
         {
           "symbol": "XLInsertOrAction",
-          "source_path": "Sources/SwiftQLCore/SQLVocabulary.swift",
+          "source_path": "Sources/SwiftQLSQLite/SQLWriteStatements+SQLite.swift",
           "source_tokens": [
             "XLInsertOrAction"
           ]

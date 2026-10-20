@@ -273,11 +273,7 @@ extension XLSQLiteExpression {
 /// followed by each modifier's rendered text, in order.
 ///
 ///
-/// Renders one date or time modifier through the dialect's vocabulary.
-///
-/// A modifier used to be appended as its pre-rendered SQLite text. It is now
-/// appended as this node, so the dialect that renders the statement decides
-/// the spelling.
+/// Renders one date or time modifier as a text literal of its SQLite spelling.
 ///
 private struct XLDateModifierExpression: XLSQLiteExpression {
 
@@ -286,7 +282,7 @@ private struct XLDateModifierExpression: XLSQLiteExpression {
     let modifier: XLDateModifier
 
     func makeSQL(context: inout XLBuilder) {
-        context.dateModifier(modifier.term)
+        context.text(modifier.rawValue)
     }
 }
 

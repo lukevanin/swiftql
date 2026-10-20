@@ -47,10 +47,10 @@ final class XLScalarFunctionTests: XCTestCase {
         let optionalFalse = condition.iif(then: "yes", else: optionalElse)
         let optionalBoth = condition.iif(then: optionalThen, else: optionalElse)
 
-        assertSQL(required, "IIF(:condition, 'yes', 'no')")
-        assertSQL(optionalTrue, "IIF(:condition, :optionalThen, 'no')")
-        assertSQL(optionalFalse, "IIF(:condition, 'yes', :optionalElse)")
-        assertSQL(optionalBoth, "IIF(:condition, :optionalThen, :optionalElse)")
+        assertSQL(required, "CASE WHEN :condition THEN 'yes' ELSE 'no' END")
+        assertSQL(optionalTrue, "CASE WHEN :condition THEN :optionalThen ELSE 'no' END")
+        assertSQL(optionalFalse, "CASE WHEN :condition THEN 'yes' ELSE :optionalElse END")
+        assertSQL(optionalBoth, "CASE WHEN :condition THEN :optionalThen ELSE :optionalElse END")
 
         assertExpressionType(required, String.self)
         assertExpressionType(optionalTrue, String?.self)

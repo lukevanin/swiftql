@@ -44,6 +44,10 @@ This statement returns the person's name in the `person` column, and the word
 `Unemployed` in the `occupation` column if the person's occupation is `NULL`,
 or `Employed` if the person's occupation is not `NULL`.
 
+SwiftQL renders the expression as the standard
+`CASE WHEN condition THEN a ELSE b END`, which is the same expression as
+SQLite's `IIF(condition, a, b)`. Before SwiftQL 2 it rendered `IIF`.
+
 > Note: `condition.iif(then:else:)` is the method-style spelling v1.5.4
 > introduced. The free function `iif(_:then:else:)` still compiles with a
 > deprecation warning and will be removed in SwiftQL 2. Migrate by moving the
