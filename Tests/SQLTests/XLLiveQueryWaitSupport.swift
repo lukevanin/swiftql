@@ -26,6 +26,7 @@ import XCTest
 import Observation
 #endif
 @testable import SwiftQL
+@testable import SwiftQLRuntime
 
 
 // MARK: - Awaitable state

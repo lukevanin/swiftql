@@ -132,7 +132,7 @@ extension MetaBuilder {
             // Instance parameter.
             context.block("public init(_ instance: \(structName))") { context in
                 for property in properties {
-                    context.line("\(property.name) = SwiftQL._xlLegacyValueExpression(instance.\(property.name))")
+                    context.line("\(property.name) = \(EmittedModule.query)._xlLegacyValueExpression(instance.\(property.name))")
                 }
             }
             
@@ -182,10 +182,10 @@ extension MetaBuilder {
             context.block("public struct Columns") { context in
                 for property in properties {
                     if property.optional {
-                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>(_xlColumn: SwiftQL.XLName(\"\(property.alias)\"), of: Columns.self)")
+                        context.line("public var \(property.name) = \(EmittedModule.query).XLNullableColumnUpdate<\(property.type)>(_xlColumn: \(EmittedModule.query).XLName(\"\(property.alias)\"), of: Columns.self)")
                     }
                     else {
-                        context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>()")
+                        context.line("public var \(property.name) = \(EmittedModule.query).XLColumnUpdate<\(property.qualifiedType)>()")
                     }
                 }
                 context.block("public init()") { _ in
@@ -206,11 +206,11 @@ extension MetaBuilder {
             // The coercion is spelled `as` because the compiler's message for
             // a plain return of the wrong type is "failed to produce
             // diagnostic".
-            context.block("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: SwiftQL.XLTypeAffinityExpression<Wrapped>) -> \(dialectExpressionType("Wrapped"))") { context in
+            context.block("private static func _xlDialectExpressionMustIncludeXLTypeAffinityExpression<Wrapped>(_ expression: \(EmittedModule.query).XLTypeAffinityExpression<Wrapped>) -> \(dialectExpressionType("Wrapped"))") { context in
                 context.line("return expression as \(dialectExpressionType("Wrapped"))")
             }
 
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, \(EmittedModule.query).XLColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 emitSlotRead(read: "_xlReadExpression", untyped: "_xlReadUntypedExpression", valueType: "Wrapped", isOptional: false, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].expression = newValue")
@@ -229,7 +229,7 @@ extension MetaBuilder {
             // a plain `Wrapped?` value, which both overloads accept with
             // identical rendered SQL, resolve to the optional-typed overload.
             context.line("@_disfavoredOverload")
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, \(EmittedModule.query).XLNullableColumnUpdate<Wrapped>>) -> Optional<\(dialectExpressionType("Wrapped"))>") { context in
                 context.line("@available(*, unavailable, message: \"a nullable column can be NULL, so it is read only as an optional-typed expression\")")
                 context.block("get") { context in
                     context.line("Swift.fatalError()")
@@ -239,7 +239,7 @@ extension MetaBuilder {
                 }
             }
 
-            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, \(EmittedModule.query).XLNullableColumnUpdate<Wrapped>>) -> \(dialectExpressionType("Optional<Wrapped>"))") { context in
                 emitSlotRead(read: "_xlReadOptionalExpression", untyped: "_xlReadUntypedOptionalExpression", valueType: "Optional<Wrapped>", isOptional: true, into: &context)
                 context.block("set") { context in
                     context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")
@@ -353,7 +353,7 @@ extension MetaBuilder {
                     // statement is built (issue #651).
                     for property in mutableProperties {
                         context.block("if let value = \(property.name)") { context in
-                            context.line("output._xlColumns.\(property.name).expression = SwiftQL._xlLegacyValueExpression(value)")
+                            context.line("output._xlColumns.\(property.name).expression = \(EmittedModule.query)._xlLegacyValueExpression(value)")
                         }
                     }
                     context.line("return output")

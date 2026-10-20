@@ -24,6 +24,8 @@ let package = Package(
             name: "FixtureQueries",
             dependencies: [
                 .product(name: "SwiftQL", package: "SwiftQL"),
+                // Schema.swift imports only SwiftQLSQLite (issue #790).
+                .product(name: "SwiftQLSQLite", package: "SwiftQL"),
             ],
             plugins: [
                 .plugin(name: "SwiftQLDeclaredQueryRegistryPlugin", package: "SwiftQL"),

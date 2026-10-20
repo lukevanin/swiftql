@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import SwiftQL
+import SwiftQLSQLite
 import XCTest
 
 

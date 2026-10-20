@@ -8,6 +8,7 @@
 import XCTest
 import GRDB
 @testable import SwiftQL
+@testable import SwiftQLQuery
 
     
 final class QueryBuilderTests: XLEncoderTestCase {

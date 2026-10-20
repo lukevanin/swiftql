@@ -18,6 +18,16 @@ let package = Package(
                 .product(name: "SwiftQLSQLiteBuildValidationValidator", package: "SwiftQL"),
             ]
         ),
+        // Issue #790: a client of the SQLite product alone, with no GRDB.
+        // Its models expand the dialect-less model macros, so it proves the
+        // macros' expansions resolve in a file that imports only
+        // SwiftQLSQLite.
+        .executableTarget(
+            name: "SwiftQLSwift5SQLiteClient",
+            dependencies: [
+                .product(name: "SwiftQLSQLite", package: "SwiftQL"),
+            ]
+        ),
     ],
     swiftLanguageVersions: [.v5]
 )

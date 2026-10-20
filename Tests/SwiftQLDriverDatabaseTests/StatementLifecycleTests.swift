@@ -9,7 +9,7 @@
 //
 
 import Foundation
-@testable import SwiftQL
+@testable import SwiftQLSQLite
 import XCTest
 
 

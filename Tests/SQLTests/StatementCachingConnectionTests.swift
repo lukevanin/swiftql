@@ -12,6 +12,7 @@ import Foundation
 import GRDB
 import XCTest
 @testable import SwiftQL
+@testable import SwiftQLSQLite
 
 
 final class StatementCachingConnectionTests: XCTestCase {

@@ -380,6 +380,9 @@ public final class XLRegexpPatternCache: @unchecked Sendable {
         return entries.count
     }
 
+    /// Creates an empty cache.
+    public init() {}
+
     /// The compiled form of one pattern, compiling it only the first time.
     ///
     /// - Parameter pattern: The pattern text SQLite passed to the function.
@@ -387,8 +390,6 @@ public final class XLRegexpPatternCache: @unchecked Sendable {
     /// - Throws: ``XLRegexpFunctionError/invalidPattern(pattern:message:)`` if
     ///   the pattern does not compile, on this call and on every later call for
     ///   the same pattern.
-    public init() {}
-
     public func regex(for pattern: String) throws -> Regex<AnyRegexOutput> {
         try entry(for: pattern).get()
     }

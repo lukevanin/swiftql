@@ -10,7 +10,7 @@
 //
 
 import Foundation
-import SwiftQL
+import SwiftQLSQLite
 
 
 /// What the driver's connections share: the scripted rows, the record of

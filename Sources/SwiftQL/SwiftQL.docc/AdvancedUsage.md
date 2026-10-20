@@ -78,7 +78,7 @@ executes the statement, and reads SQLite values from the result. GRDB is the
 current SQLite driver, but it does not define the SQLite syntax or the logical
 policy for converting application values.
 
-``GRDBDatabase`` runs its requests on the GRDB driver. ``XLDriverDatabase``
+``GRDBDatabase`` runs its requests on the GRDB driver. `XLDriverDatabase`
 runs the same requests on any driver that implements SwiftQL's driver contract
 (issue #682), so a driver from outside SwiftQL needs no GRDB types. Such a
 driver conforms to three SwiftQLCore protocols:
@@ -90,11 +90,11 @@ driver conforms to three SwiftQLCore protocols:
 - `XLObservingDatabaseDriver`, whose `observe(_:fetch:)` serves `stream()` and
   the publish members.
 
-Its dialect must be `XLSQLiteDialect`. ``XLDriverDatabase`` conforms to
-``XLDatabase`` but not yet to ``XLTransactionalDatabase``: a portable way for a
+Its dialect must be `XLSQLiteDialect`. `XLDriverDatabase` conforms to
+`XLDatabase` but not yet to `XLTransactionalDatabase`: a portable way for a
 driver to pin one connection for a transaction scope is issue #808.
 
-Both databases conform to ``XLValueCodingDatabase``, which gives them one
+Both databases conform to `XLValueCodingDatabase`, which gives them one
 implementation of `contextualBinding(_:expressedAs:...)` and
 `queryCapture(_:...)` (issue #113). Code that declares contextual bindings or
 captures can take `some XLValueCodingDatabase<XLSQLiteDialect>` and work with
@@ -271,7 +271,7 @@ physical preparation in both paths.
 
 For cross-task raw-value execution, call `GRDBDatabase.prepareInvocation(with:)`
 or `XLDriverDatabase.prepareInvocation(with:)`.
-Its ``XLPreparedInvocation`` result is `Sendable`, is also still named
+Its `XLPreparedInvocation` result is `Sendable`, is also still named
 `GRDBPreparedInvocation`, and accepts an independent packet in
 `fetchAllValues`, `fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
 values instead of retaining the legacy typed row-reader graph.

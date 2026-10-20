@@ -18,14 +18,14 @@ package enum XLSQLiteValueReading {
     package static func checkIndex(
         _ index: Int,
         count: Int,
-        expectedType: String?
+        expectedType: @autoclosure () -> String?
     ) throws {
         guard index < 0 || index >= count else {
             return
         }
         throw XLColumnReadError(
             index: index,
-            expectedType: expectedType,
+            expectedType: expectedType(),
             failure: .indexOutOfBounds(valueCount: count)
         )
     }

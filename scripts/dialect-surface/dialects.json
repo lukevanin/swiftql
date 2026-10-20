@@ -5,7 +5,8 @@
             "Dialect": "XLSQLiteDialect",
             "Expression": "XLSQLiteExpression",
             "filePrefix": "SQLite",
-            "output": "Sources/SwiftQL/Dialects/SQLite/Generated",
+            "output": "Sources/SwiftQLSQLite/Generated",
+            "imports": ["SwiftQLQuery"],
             "access": "public"
         },
         {
@@ -27,6 +28,15 @@
             "imports": ["SwiftQL"],
             "access": "internal",
             "disfavored": true
+        },
+        {
+            "DialectName": "the query-only compile-fail dialect",
+            "Dialect": "QueryOnlyDialect",
+            "Expression": "QueryOnlyDialectExpression",
+            "filePrefix": "QueryOnlyDialect",
+            "output": "Tests/CompileFail/Support/Generated/QueryOnlyDialect",
+            "imports": ["SwiftQLQuery"],
+            "access": "internal"
         }
     ]
 }

@@ -83,8 +83,20 @@ main() {
     esac
 
     # See https://swiftlang.github.io/swift-docc-plugin/documentation/swiftdoccplugin/publishing-to-github-pages
+    #
+    # One site for every module a client imports (issue #790, decision D5):
+    # each target's archive is built, then merged. The SwiftQL catalog keeps
+    # its path, /documentation/swiftql. Swift 6.1's DocC links no page of one
+    # module from another's, so the docs write another module's symbol in
+    # code font rather than as a symbol link.
     swift package --allow-writing-to-directory "$output" \
-        generate-documentation --target SwiftQL \
+        generate-documentation \
+        --target SwiftQL \
+        --target SwiftQLSQLite \
+        --target SwiftQLRuntime \
+        --target SwiftQLQuery \
+        --target SwiftQLCore \
+        --enable-experimental-combined-documentation \
         --warnings-as-errors \
         --disable-indexing \
         --transform-for-static-hosting \

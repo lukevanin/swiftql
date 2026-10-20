@@ -4,14 +4,14 @@ Store a closed set of values as a type-safe Swift enum.
 
 ## Overview
 
-An enum that conforms to ``XLEnum`` can be used anywhere its raw value could be
+An enum that conforms to `XLEnum` can be used anywhere its raw value could be
 used: as a table column, a query result, a literal, or a bound parameter. SwiftQL
 provides the raw-value encoding and decoding implementations.
 
 A conforming enum must:
 
 - use a supported intrinsic raw type such as `Int`, `Double`, or `String`;
-- conform to ``XLEnum`` and declare its ``XLExpression/T`` associated type as
+- conform to `XLEnum` and declare its `XLExpression.T` associated type as
   `Self`.
 
 An explicit `sqlDefault()` value is needed only for legacy `SQLReader` result
@@ -62,7 +62,7 @@ enum JobState: String, XLEnum {
 ```
 
 The raw-value declaration supplies `RawRepresentable`. `XLEnum` supplies
-``XLLiteral/init(reader:)``, ``XLBindable/bind(context:)``, and SQL literal
+`XLLiteral.init(reader:)`, `XLBindable.bind(context:)`, and SQL literal
 encoding by delegating to the enum's raw value.
 
 ## Use enums in tables and query results

@@ -55,9 +55,9 @@ extension GRDBDatabaseDriver: XLObservingDatabaseDriver {
     /// and decodes its typed rows afterwards: `GRDBInvocationExecutor` is `Sendable`, while the row
     /// reader graph behind `XLRowReadable` is not.
     ///
-    /// - Throws: ``XLDatabaseContractError/driverMismatch(expectedDatabase:actualDatabase:driver:)``
+    /// - Throws: `XLDatabaseContractError.driverMismatch(expectedDatabase:actualDatabase:driver:)`
     ///   when `statement` belongs to another database, and
-    ///   ``XLTransactionScopeError/liveQueriesUnsupportedInTransaction`` for a driver pinned to a
+    ///   `XLTransactionScopeError.liveQueriesUnsupportedInTransaction` for a driver pinned to a
     ///   transaction scope (issue #284), which has no pool to track.
     func observationBridge<Value: Sendable>(
         _ statement: XLLogicalPreparedStatement,

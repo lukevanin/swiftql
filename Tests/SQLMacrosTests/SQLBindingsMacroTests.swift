@@ -46,21 +46,21 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<Int?>(name: "age")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
-                    try XLInvocationBindings<XLSQLiteDialect.Value>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(self.age, named: "age", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.age, named: "age", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -127,20 +127,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "id")
                 }
 
-                public func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
-                    try XLInvocationBindings<XLSQLiteDialect.Value>(
+                public func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                public func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                public func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                public func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                public func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -167,20 +167,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "id")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
-                    try XLInvocationBindings<XLSQLiteDialect.Value>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.id, named: "id", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -207,20 +207,20 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                     XLNamedBindingReference<String>(name: "default")
                 }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
-                    try XLInvocationBindings<XLSQLiteDialect.Value>(
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(self.`default`, named: "default", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(self.`default`, named: "default", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -242,15 +242,15 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
             struct NoBindings {
                 func describe() -> String { "" }
 
-                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
-                    try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                func bindings(in __xlLayout: XLParameterLayout) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
+                    try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                 }
 
-                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
 
-                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteDialect.Value> {
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }

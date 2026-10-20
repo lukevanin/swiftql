@@ -7,13 +7,13 @@ semantics.
 
 SQLite does not define bare numeric literal tokens for NaN or positive and
 negative infinity. SwiftQL therefore renders only finite `Double` values
-inline. ``XLDialectEncoder/makeValidatedSQL(_:)`` throws
-``XLSQLValueEncodingError/nonFiniteRealLiteral(value:expressionType:)`` for
+inline. `XLDialectEncoder.makeValidatedSQL(_:)` throws
+`XLSQLValueEncodingError.nonFiniteRealLiteral(value:expressionType:)` for
 all three non-finite values before SQLite parses the statement.
 
-The source-compatible nonthrowing ``XLDialectEncoder/makeSQL(_:)`` overload never
+The source-compatible nonthrowing `XLDialectEncoder.makeSQL(_:)` overload never
 emits `nan` or `inf`. It retains the failure in
-``XLEncoding/valueEncodingError``; every SwiftQL execution and static-descriptor
+`XLEncoding.valueEncodingError`; every SwiftQL execution and static-descriptor
 boundary checks that error before preparing SQL.
 
 Use validated rendering when constructing standalone encodings:
@@ -35,7 +35,7 @@ catch let error as XLSQLValueEncodingError {
 SQLite's C binding API preserves positive and negative infinity as `REAL`, so
 SwiftQL permits both values through bound parameters. SQLite converts a bound
 IEEE 754 NaN to SQL `NULL`; SwiftQL rejects that value with
-``XLSQLValueEncodingError/realBindingWouldBecomeNull(value:valueType:context:)``
+`XLSQLValueEncodingError.realBindingWouldBecomeNull(value:valueType:context:)`
 instead of silently changing its meaning. The error retains the parameter or
 property coding context.
 

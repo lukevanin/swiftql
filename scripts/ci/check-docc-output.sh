@@ -21,6 +21,12 @@ main() {
     require_file "$output/documentation/swiftql/index.html"
     require_page "$output/data/documentation/swiftql.json" "SwiftQL"
 
+    # Issue #790: the combined site holds every module a client imports.
+    for module_page in swiftqlsqlite swiftqlruntime swiftqlquery swiftqlcore; do
+        require_file "$output/documentation/$module_page/index.html"
+        require_file "$output/data/documentation/$module_page.json"
+    done
+
     while IFS='|' read -r slug title; do
         require_page "$output/data/documentation/swiftql/$slug.json" "$title"
         require_file "$output/documentation/swiftql/$slug/index.html"

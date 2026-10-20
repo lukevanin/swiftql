@@ -15,6 +15,7 @@ import Foundation
 import XCTest
 import GRDB
 @_spi(GRDB) @testable import SwiftQL
+@testable import SwiftQLRuntime
 
 
 ///

@@ -14,17 +14,17 @@ import Foundation
 extension FakeSecondDialectExpression {
 
     @_disfavoredOverload
-    func toRawValue() -> some FakeSecondDialectExpression<Int> where T: XLEnum, T.RawValue == Int {
+    func toRawValue() -> some FakeSecondDialectExpression<Int> where T: XLEnumRepresentable, T.RawValue == Int {
         XLTypeAffinityExpression(expression: self)
     }
 
     @_disfavoredOverload
-    func toRawValue() -> some FakeSecondDialectExpression<Double> where T: XLEnum, T.RawValue == Double {
+    func toRawValue() -> some FakeSecondDialectExpression<Double> where T: XLEnumRepresentable, T.RawValue == Double {
         XLTypeAffinityExpression(expression: self)
     }
 
     @_disfavoredOverload
-    func toRawValue() -> some FakeSecondDialectExpression<String> where T: XLEnum, T.RawValue == String {
+    func toRawValue() -> some FakeSecondDialectExpression<String> where T: XLEnumRepresentable, T.RawValue == String {
         XLTypeAffinityExpression(expression: self)
     }
 }

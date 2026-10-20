@@ -18,7 +18,7 @@ This example defines a table with one generic parameter. Each generic column
 must satisfy the same `XLLiteral` and `XLExpression` requirements as a concrete
 column type. Generic code that passes a value of the generic type to one of
 the model's value slots, such as `MetaInsert(...)`, `columns(...)`, or an
-assignment in `Setting`, also constrains it to ``XLSQLiteExpression``, because
+assignment in `Setting`, also constrains it to `XLSQLiteExpression`, because
 a SQLite model's slots take SQLite expressions.
 
 <!-- test: XLDocumentationTests.testDocumentationGenericTableParameters -->
@@ -40,7 +40,7 @@ extension GenericTable: Sendable where Value: Sendable {
 The `Sendable` conformance is written by hand because the model is generic.
 `@SQLTable` writes the conformance for a concrete model, but it cannot write
 the `where` clause a generic one needs. A row must be `Sendable`, because
-``XLRequest`` hands each row to an observer across an isolation boundary.
+`XLRequest` hands each row to an observer across an isolation boundary.
 
 We can now create, insert into, and query the table using a `String` generic
 parameter.

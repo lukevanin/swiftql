@@ -197,7 +197,7 @@ internal struct MetaModel {
     init(
         structName: String,
         tableName: String,
-        dialectType: String = MacroDialectArgument.defaultModelDialectType,
+        dialectType: String = MacroDialectArgument.defaultDialectType,
         genericParameterNames: [String] = [],
         properties: [MetaProperty]
     ) {

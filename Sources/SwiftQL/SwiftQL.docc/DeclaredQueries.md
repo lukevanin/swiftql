@@ -201,7 +201,7 @@ let matches = try database.withTransaction { scope in
 Since v1.9 ([#660](https://github.com/lukevanin/swiftql/issues/660)) a
 declared query has a **prepared form** that a live query can observe, so a
 read that a view observes is written once. The prepared form takes the same
-arguments as the executor and returns an ``XLPreparedQuery``: the request from
+arguments as the executor and returns an `XLPreparedQuery`: the request from
 the declaration's render-once cache and the binding packet for those arguments.
 
 | Form | Executor | Prepared form |
@@ -238,7 +238,7 @@ let model = XLObservableQuery(query)
   a new observation.
 - **Cardinality.** Use `stream()` or `publish()` for a declaration that
   returns `[Row]`. Use `streamOne()`, `publishOne()`, or
-  ``XLObservableQueryRow`` for one that returns `Row?` or `Row`. An observation
+  `XLObservableQueryRow` for one that returns `Row?` or `Row`. An observation
   does not enforce the exactly-one cardinality of a `Row` declaration: when the
   row goes away, `streamOne()` delivers `nil` instead of throwing.
 - **Prepare an observed query on the database.** A transaction scope is also a
@@ -248,8 +248,8 @@ let model = XLObservableQuery(query)
   `publishOne()` on a query prepared from a scope fail with
   `XLTransactionScopeError.liveQueriesUnsupportedInTransaction`. They never
   observe the scope's connection.
-- **Not `Sendable`.** ``XLPreparedQuery`` holds an `any XLRequest<Row>`, and
-  ``XLRequest`` is not `Sendable`. It is a public protocol, and SwiftQL cannot
+- **Not `Sendable`.** `XLPreparedQuery` holds an `any XLRequest<Row>`, and
+  `XLRequest` is not `Sendable`. It is a public protocol, and SwiftQL cannot
   promise that every conforming request is safe to share across tasks. With
   strict concurrency checking, prepare the query in the isolation domain that
   observes it, for example in the initializer of a `@MainActor` model. Send the
@@ -362,7 +362,7 @@ rendered SQL text never changes between calls, the underlying GRDB
 connection's own statement cache reuses one physical prepared statement too.
 
 The cache key is `(databaseIdentifier, dialectIdentifier)`
-(``XLPreparedQueryCacheKey``): rendering depends only on the dialect, so a
+(`XLPreparedQueryCacheKey`): rendering depends only on the dialect, so a
 second dialect would render into its own entry, and the database identifier
 keeps one static cache from ever handing one database's prepared request to
 another. `GRDBDatabase.preparedQueryCacheKey` supplies a fresh identifier per

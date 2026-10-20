@@ -38,12 +38,12 @@ extension GRDBDatabase: XLTransactionalDatabase {
     /// `runTransaction(on:kind:_:)` opens the transaction on the pool's
     /// writer, hands `body` a `GRDBDatabase` pinned to that connection,
     /// commits when `body` returns normally, and rolls back — preserving the
-    /// original error — when `body` throws. See ``XLTransactionalDatabase``
+    /// original error — when `body` throws. See `XLTransactionalDatabase`
     /// for the full ordering, atomicity, and lifetime contract.
     ///
     /// Use the scope only on the thread and dispatch queue that run `body`: a
     /// statement run through it, or through a request made from it, on
-    /// another thread throws ``XLTransactionScopeError/scopeEscaped``. So
+    /// another thread throws `XLTransactionScopeError.scopeEscaped`. So
     /// does one in a block that another queue runs on the body's thread,
     /// unless this database wraps a pool you opened yourself, which is
     /// checked by thread only. A request made from
@@ -56,7 +56,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
     /// Rejects two cases before any transaction work happens:
     /// - calling `withTransaction(_:)` again from inside an already-active
     ///   body on this database throws
-    ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` without
+    ///   `XLTransactionScopeError.nestedTransactionUnsupported` without
     ///   touching the pool;
     /// - a task that is already cancelled when this is called throws
     ///   `CancellationError` before opening the transaction. The body itself

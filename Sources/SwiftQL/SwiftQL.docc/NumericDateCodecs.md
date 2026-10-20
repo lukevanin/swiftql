@@ -9,11 +9,11 @@ doc-only `Date` example. This article documents three named, versioned,
 production `Date` presets that SwiftQL ships for `XLSQLiteDialect`, all
 defined in `XLSQLiteNumericDateCodec`:
 
-- ``XLSQLiteNumericDateCodec/UnixMilliseconds``: `INTEGER` milliseconds since
+- `XLSQLiteNumericDateCodec.UnixMilliseconds`: `INTEGER` milliseconds since
   the Unix epoch.
-- ``XLSQLiteNumericDateCodec/UnixSeconds``: `REAL` seconds since the Unix
+- `XLSQLiteNumericDateCodec.UnixSeconds`: `REAL` seconds since the Unix
   epoch (the same value `Date.timeIntervalSince1970` returns).
-- ``XLSQLiteNumericDateCodec/JulianDay``: `REAL` Julian day number, using the
+- `XLSQLiteNumericDateCodec.JulianDay`: `REAL` Julian day number, using the
   same linear relationship SQLite's own `julianday()` function uses.
 
 None of the three is installed as an implicit default. Select a preset at the
@@ -161,12 +161,12 @@ fixed-width formatting, unlike a text preset (see
 Every preset rejects a non-finite `Date` (`timeIntervalSince1970` is NaN or
 infinite) at encode time, and rejects a non-finite stored `REAL` at decode
 time, with a structured
-``XLSQLiteNumericDateCodecError/nonFiniteDate(preset:value:)`` or
-``XLSQLiteNumericDateCodecError/nonFiniteStoredValue(preset:value:)``
+`XLSQLiteNumericDateCodecError.nonFiniteDate(preset:value:)` or
+`XLSQLiteNumericDateCodecError.nonFiniteStoredValue(preset:value:)`
 wrapped as `XLValueCodecError.encodingFailed`/`.decodingFailed`.
 `UnixMilliseconds` additionally rejects a millisecond count that would
 overflow `Int64` with
-``XLSQLiteNumericDateCodecError/millisecondsOutOfRange(preset:timeIntervalSince1970:)``.
+`XLSQLiteNumericDateCodecError.millisecondsOutOfRange(preset:timeIntervalSince1970:)`.
 None of the three presets truncates, saturates, or silently changes a value
 that does not fit.
 

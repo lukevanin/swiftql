@@ -70,10 +70,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -84,10 +84,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -245,11 +245,11 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleInCohortStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -260,11 +260,11 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleInCohortStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -334,10 +334,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleByNicknameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -348,10 +348,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleByNicknameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -420,10 +420,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -434,10 +434,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -506,10 +506,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         rowsForKindStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -520,10 +520,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         rowsForKindStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -589,7 +589,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         allPeopleStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
@@ -598,7 +598,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         allPeopleStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
@@ -676,7 +676,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleForTenantStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
@@ -685,7 +685,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleForTenantStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(layout: __xlLayout, bindings: []).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
@@ -755,10 +755,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleNamedStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -769,10 +769,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleNamedStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -842,10 +842,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -856,10 +856,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -938,12 +938,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleMatchingStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -954,12 +954,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         peopleMatchingStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout, using: XLSQLiteDialect.self),
-                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -1040,10 +1040,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -1054,10 +1054,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -1147,7 +1147,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
             "    let __xlRequest = Self.__xlPersonNamedCache.request(for: self) {"
         )
         XCTAssertTrue(sharedPreparation.contains(
-            "            try _xlQueryParameterBinding(minimumAge, named: \"minimumAge\", in: __xlLayout, using: XLSQLiteDialect.self),"
+            "            try _xlQueryParameterBinding(minimumAge, named: \"minimumAge\", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),"
         ))
         XCTAssertEqual(
             executor[sharedCount + 1],
@@ -1203,10 +1203,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByExactNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchOne(bindings: __xlPacket)
@@ -1217,10 +1217,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         personByExactNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -1295,10 +1295,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         theOnlyPersonStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     let __xlRows = try __xlRequest.fetchAtMost(2, bindings: __xlPacket)
@@ -1317,10 +1317,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         theOnlyPersonStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -1398,10 +1398,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         auditedPersonByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -1412,10 +1412,10 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         auditedPersonByNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
@@ -1680,10 +1680,10 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                         personByExactNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return try await __xlRequest.async.fetchOne(bindings: __xlPacket)
@@ -1694,10 +1694,10 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                         personByExactNameStatement()
                     }
                     let __xlLayout = __xlRequest.parameterLayout
-                    let __xlPacket = try XLInvocationBindings<XLSQLiteDialect.Value>(
+                    let __xlPacket = try XLInvocationBindings<SwiftQLSQLite.XLSQLiteDialect.Value>(
                         layout: __xlLayout,
                         bindings: [
-                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: XLSQLiteDialect.self),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout, using: SwiftQLSQLite.XLSQLiteDialect.self),
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)

@@ -152,7 +152,7 @@ struct XLOperationErrorSlot {
 
     /// Runs the caller's code, keeping any error it throws before
     /// rethrowing it. Each run clears what an earlier run kept, as
-    /// ``XLTransactionOperationError`` does.
+    /// `XLTransactionOperationError` does.
     mutating func recording<Result>(_ operation: () throws -> Result) throws -> Result {
         error = nil
         do {
@@ -186,7 +186,7 @@ func xlMappedScopeError(
 }
 
 
-/// `error` as an ``XLDatabaseError`` when it is a GRDB `DatabaseError`,
+/// `error` as an `XLDatabaseError` when it is a GRDB `DatabaseError`,
 /// otherwise `error` itself. Every GRDB-to-portable conversion goes through
 /// here.
 func xlPortableError(_ error: any Error, driver: XLDriverIdentifier) -> any Error {

@@ -241,7 +241,7 @@ public struct GRDBDatabase: XLDatabase {
     /// keeps a per-declaration `static` cache from binding one database's
     /// request to another. The driver assigns a fresh identifier per init, so
     /// the scope is per `GRDBDatabase` instance rather than per `DatabasePool`
-    /// (see ``XLPreparedQueryCacheKey``).
+    /// (see `XLPreparedQueryCacheKey`).
     ///
     /// A transaction scope returns the key of the database it was opened on,
     /// not a key of its own (issue #642). Its pinned driver still has a fresh

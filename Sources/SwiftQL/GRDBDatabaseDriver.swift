@@ -18,13 +18,13 @@ internal import GRDBSQLite
 /// A driver is either pool-backed (the default: every connection access
 /// leases from the `DatabasePool`, exactly as before issue #284) or pinned to
 /// one already-open connection for the duration of one
-/// ``XLTransactionalDatabase/withTransaction(_:)`` scope. Pinned-mode
+/// `XLTransactionalDatabase.withTransaction(_:)` scope. Pinned-mode
 /// connection access never touches the pool, so it cannot re-enter it and
 /// cannot deadlock waiting on a writer access the enclosing scope already
 /// holds.
 ///
-/// The driver conforms to the asynchronous ``XLDatabaseDriver`` contract, and
-/// to ``XLBlockingDatabaseDriver`` for the synchronous request members
+/// The driver conforms to the asynchronous `XLDatabaseDriver` contract, and
+/// to `XLBlockingDatabaseDriver` for the synchronous request members
 /// (issue #682). Both share the connection type and every connection
 /// primitive, so the two differ only in how the caller waits. The blocking
 /// scopes have their own names, `withBlocking...`, so that they never shadow
@@ -42,9 +42,9 @@ package struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
 
     package let dialect: XLSQLiteDialect
 
-    /// GRDB's own default: ``XLTransactionKind/immediate`` for a writable
+    /// GRDB's own default: `XLTransactionKind.immediate` for a writable
     /// database, so a second writer conflicts at `BEGIN` rather than partway
-    /// through a transaction, and ``XLTransactionKind/deferred`` for a
+    /// through a transaction, and `XLTransactionKind.deferred` for a
     /// read-only one, where GRDB notes SQLite can refuse a non-deferred
     /// transaction.
     package let defaultTransactionKind: XLTransactionKind
@@ -340,10 +340,10 @@ package struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
     /// asynchronous scope makes before it lends a connection.
     ///
     /// A pinned driver has no asynchronous scope. Its connection belongs to
-    /// one synchronous ``XLTransactionalDatabase/withTransaction(_:)`` body,
+    /// one synchronous `XLTransactionalDatabase.withTransaction(_:)` body,
     /// which cannot suspend, so reaching the connection from asynchronous code
     /// means the scope value has left that body. That is reported as
-    /// ``XLTransactionScopeError/scopeEscaped`` rather than touching a GRDB
+    /// `XLTransactionScopeError.scopeEscaped` rather than touching a GRDB
     /// `Database` off its writer queue.
     ///
     private func asynchronousPool(
@@ -415,7 +415,7 @@ package struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
 
 ///
 /// Holds the one physical connection lent to a
-/// ``XLTransactionalDatabase/withTransaction(_:)`` scope for its entire
+/// `XLTransactionalDatabase.withTransaction(_:)` scope for its entire
 /// duration, and invalidates it the instant that scope's body returns.
 ///
 /// GRDB's `Database` is explicitly *not* `Sendable` — it must only be used
@@ -428,7 +428,7 @@ package struct GRDBDatabaseDriver: XLBlockingDatabaseDriver, Sendable {
 /// through public API.
 ///
 /// Invalidation is what turns an escaped transaction-scoped value into a
-/// predictable ``XLTransactionScopeError/scopeEscaped`` instead of a data
+/// predictable `XLTransactionScopeError.scopeEscaped` instead of a data
 /// race or a crash: once `invalidate()` runs, every later `connection(...)`
 /// call throws rather than touching a connection GRDB may already have
 /// reused for unrelated work.
@@ -960,8 +960,8 @@ package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     }
 
     /// Installs the custom SQLite functions referenced by the statement about to execute, once per
-    /// physical connection. This is the connection's ``XLDatabaseDriverConnection/installRequiredFunctions(_:)``,
-    /// which ``XLDatabaseDriverConnection/prepare(_:)`` calls with the statement's required
+    /// physical connection. This is the connection's `XLDatabaseDriverConnection.installRequiredFunctions(_:)`,
+    /// which `XLDatabaseDriverConnection.prepare(_:)` calls with the statement's required
     /// functions (issue #683).
     ///
     /// This runs before every execution, because `DatabasePool` hands a statement to any of several
@@ -986,7 +986,7 @@ package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     /// cannot be SwiftQL's own. The bundled decision -- install or defer -- is recorded too, so the
     /// probe runs once per connection and signature rather than once per execution.
     ///
-    /// A registration from the application's own ``XLCustomFunction`` keeps its separate record, so
+    /// A registration from the application's own `XLCustomFunction` keeps its separate record, so
     /// it still wins over a bundled function of the same signature: the bundled registration defers
     /// to it, and it installs over a bundled function that SwiftQL installed first. It also installs
     /// over a SQLite built-in of the same signature, such as `lower/1`, because the statement
@@ -1000,7 +1000,7 @@ package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     ///
     /// The record is kept per signature, not per Swift type. Registrations that share a
     /// `XLCustomFunctionRegistration.definition` are interchangeable, as that property documents,
-    /// so the first application ``XLCustomFunction`` installed for a signature serves every later
+    /// so the first application `XLCustomFunction` installed for a signature serves every later
     /// statement on the connection that calls any type with that signature.
     ///
     /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
@@ -1169,7 +1169,7 @@ package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     ///
     /// SQLite answers a replacement during an active statement with `SQLITE_BUSY`, and GRDB 6 calls
     /// `fatalError` on any failed `sqlite3_create_function_v2`, so it has to be refused before
-    /// `add(function:)` runs. The way to get here is an application ``XLCustomFunction`` that
+    /// `add(function:)` runs. The way to get here is an application `XLCustomFunction` that
     /// reuses a bundled or built-in signature, called for the first time on a connection from
     /// inside a `withResultSet` callback.
     private func checkNoActiveStatementBlocksReplacing(
@@ -1387,7 +1387,7 @@ package struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
 /// callback that received it returns or the stepper that returned it is
 /// called again.
 ///
-/// It is an ``XLStaticColumnReader`` too, so a static row layout reads a raw
+/// It is an `XLStaticColumnReader` too, so a static row layout reads a raw
 /// value from it directly. The value comes from the same
 /// `xlDialectValue(at:of:as:)` the row reader uses for a third-party handle.
 ///
@@ -1993,10 +1993,10 @@ struct GRDBInstalledFunctionMarker {
         /// implementation, or found the application's and deferred to it.
         case bundled
         /// SwiftQL installed its own bundled implementation on this connection. Read only the
-        /// first time an application ``XLCustomFunction`` of the same signature runs there, to tell
+        /// first time an application `XLCustomFunction` of the same signature runs there, to tell
         /// SwiftQL's implementation apart from one the application installed itself.
         case bundledImplementation
-        /// The application's own ``XLCustomFunction`` is on this connection: SwiftQL installed it,
+        /// The application's own `XLCustomFunction` is on this connection: SwiftQL installed it,
         /// or found that the application had already installed that signature itself.
         case custom
     }

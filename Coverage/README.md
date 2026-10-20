@@ -69,6 +69,9 @@ generated files. `scripts/ci/source-coverage-report.py` includes only tracked
 - `Sources/SQLMacros`
 - `Sources/SwiftQL`
 - `Sources/SwiftQLCore`
+- `Sources/SwiftQLQuery`
+- `Sources/SwiftQLRuntime`
+- `Sources/SwiftQLSQLite`
 - `Sources/SwiftQLSQLiteBuildValidationManifest`
 - `Sources/SwiftQLSQLiteBuildValidationValidator`
 - `Sources/SwiftQLSQLiteIndexAdvisor`
@@ -111,11 +114,18 @@ reports a region for one. `Tests/SQLTests/SQLDocumentationCatalogTests.swift`
 checks each snapshot against the compiled walkthrough it was cut from, which is
 where their type checking comes from.
 
-LLVM does not currently report executable regions for `Sources/SwiftQL/SQL.swift`,
-`Sources/SwiftQL/SQLRowMacro.swift`, `Sources/SwiftQL/SQLRowResult.swift`,
-`Sources/SwiftQL/SQLScalarResult.swift`, or the import-only
-`Sources/SwiftQL/SwiftQLCore.swift` compatibility shim. They are explicit
-exceptions in the configuration. Any other production source missing from LLVM
+LLVM does not currently report executable regions for the macro declarations
+in `Sources/SwiftQLQuery/SQL.swift`, `Sources/SwiftQLSQLite/SQL.swift`, and
+`Sources/SwiftQLSQLite/SQLRowMacro.swift`, for the macro-expanded row types in
+`Sources/SwiftQLSQLite/SQLRowResult.swift` and
+`Sources/SwiftQLSQLite/SQLScalarResult.swift`, for the typealias-only
+`Sources/SwiftQLSQLite/SQLExpression+SQLite.swift` and
+`Sources/SwiftQLSQLite/Builders/QueryBuilder+SQLite.swift`, for the
+protocol-only `Sources/SwiftQLQuery/SQLLiteralValueDialect.swift`, or for each
+module's import-only `Exports.swift`, which re-exports the module below it
+(issue #790). The dialect-surface generator owns the allowance for its own
+declaration-only file, `Sources/SwiftQLSQLite/Generated/SQLiteExpression.swift`.
+They are explicit exceptions in the configuration. Any other production source missing from LLVM
 data fails the report, and an exception that starts reporting coverage also
 fails until the stale allowance is removed.
 

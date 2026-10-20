@@ -43,6 +43,30 @@ public enum DeclaredQueryRegistryRenderer {
     }
 
     ///
+    /// Whether `declaredImport` imports a whole module in
+    /// `DeclaredQueryModules.names` visibly to the registry's public API: not
+    /// a scoped import of one declaration, not `@_implementationOnly`, and not
+    /// with an access level below `public`.
+    ///
+    static func importsWholeDeclaringModule(_ declaredImport: DeclaredQueryImport) -> Bool {
+        guard DeclaredQueryModules.names.contains(declaredImport.module) else {
+            return false
+        }
+        let tokens = declaredImport.declaration.split(whereSeparator: \.isWhitespace)
+        let hiddenFromPublicAPI: Set<Substring> = [
+            "@_implementationOnly", "package", "internal", "fileprivate", "private",
+        ]
+        guard
+            !tokens.contains(where: hiddenFromPublicAPI.contains),
+            let importIndex = tokens.firstIndex(of: "import"),
+            importIndex + 1 < tokens.count
+        else {
+            return false
+        }
+        return tokens[importIndex + 1] == declaredImport.module[...]
+    }
+
+    ///
     /// The registry source for `targetName`.
     ///
     /// The registry is a public enum whose one method takes database
@@ -84,16 +108,40 @@ public enum DeclaredQueryRegistryRenderer {
 
         // One import per module and condition. Two spellings of one import
         // in a file (`import SwiftQL` and `internal import SwiftQL`) are an
-        // "ambiguous implicit access level" error, so the first one found
-        // wins, and SwiftQL is added only when no file imports it.
+        // "ambiguous implicit access level" error, so each module and
+        // condition keeps one: the first found, except that a whole-module
+        // one the registry's public API can use replaces a scoped or hidden
+        // one, so an earlier file's `internal import` or scoped import does
+        // not hide a later file's plain one.
+        //
+        // The registry names `XLDeclaredQuery`, which SwiftQLSQLite declares
+        // and SwiftQL re-exports, so when no file imports either of them
+        // whole, unconditionally, and visibly (issue #790), the registry
+        // imports one of them itself: the one a scanned file imports
+        // unconditionally in some other spelling, since the target then
+        // declares it, else SwiftQLSQLite, which brings in no GRDB. An import
+        // inside `#if`, a scoped import of one declaration, an
+        // `@_implementationOnly` one, and one below `public` do not cover the
+        // registry's unconditional, public uses. The registry's own import
+        // then replaces every spelling of that module a file wrote, so that
+        // no file's spelling stands beside it.
         var imports: [DeclaredQueryImport] = []
-        for declaredImport in scan.imports where !imports.contains(where: {
-            $0.module == declaredImport.module && $0.condition == declaredImport.condition
-        }) {
-            imports.append(declaredImport)
+        for declaredImport in scan.imports {
+            guard let index = imports.firstIndex(where: {
+                $0.module == declaredImport.module && $0.condition == declaredImport.condition
+            }) else {
+                imports.append(declaredImport)
+                continue
+            }
+            if !Self.importsWholeDeclaringModule(imports[index]) && Self.importsWholeDeclaringModule(declaredImport) {
+                imports[index] = declaredImport
+            }
         }
-        if !imports.contains(where: { $0.module == "SwiftQL" }) {
-            imports.append(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil, module: "SwiftQL"))
+        let covered = imports.contains { $0.condition == nil && Self.importsWholeDeclaringModule($0) }
+        if !covered {
+            let fallback = DeclaredQueryModules.fallbackModule(importedAs: Set(imports.filter { $0.condition == nil }.map(\.module)))
+            imports.removeAll { $0.module == fallback }
+            imports.append(DeclaredQueryImport(declaration: "import \(fallback)", condition: nil, module: fallback))
         }
         for declaredImport in imports where declaredImport.condition == nil {
             lines.append(declaredImport.declaration)

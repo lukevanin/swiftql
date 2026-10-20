@@ -34,11 +34,11 @@ struct Note: Identifiable {
 }
 ```
 
-Use ``XLSQLiteExpression/validJSONOrNull()`` in a `CHECK` constraint or a test if
+Use `XLSQLiteExpression.validJSONOrNull()` in a `CHECK` constraint or a test if
 the column must hold well-formed JSON. SQLite does not enforce that by itself.
 That check reads JSON text only: it reports false for every JSONB blob, even
 a well-formed one. For a column that can hold JSONB, use
-``XLSQLiteExpression/validJSONOrJSONBOrNull()``, which renders `json_valid(X, 9)`,
+`XLSQLiteExpression.validJSONOrJSONBOrNull()`, which renders `json_valid(X, 9)`,
 checks text as JSON, accepts a blob as JSONB or as JSON text, and needs
 SQLite 3.45.0.
 
@@ -54,7 +54,7 @@ let firstTag = XLJSONPath.root.key("tags").index(0)  // $.tags[0]
 let lastTag = XLJSONPath.root.key("tags").last   // $.tags[#-1]
 ```
 
-``XLJSONPath`` quotes a key only where SQLite's path grammar needs it, so
+`XLJSONPath` quotes a key only where SQLite's path grammar needs it, so
 `key("a.b")` names the single key `a.b` instead of reading as "b inside a".
 See the type's documentation for the one key shape that is not portable across
 SQLite versions.
@@ -77,16 +77,16 @@ let statement = sql { schema in
 }
 ```
 
-``XLSQLiteExpression/jsonValue(at:as:)`` renders SQLite's `->>` operator and returns
+`XLSQLiteExpression.jsonValue(at:as:)` renders SQLite's `->>` operator and returns
 a SQL value in the type you ask for. A selected string arrives without its
 JSON quotes.
 
-``XLSQLiteExpression/jsonElement(at:)`` renders `->` and returns JSON text instead,
+`XLSQLiteExpression.jsonElement(at:)` renders `->` and returns JSON text instead,
 so a selected string keeps its quotes and a JSON `null` arrives as the four
 characters `null`. Reach for it when the element is itself a document you want
 to pass to another JSON function.
 
-``XLSQLiteExpression/jsonExtract(at:as:)`` is the function form of `->>`. Its
+`XLSQLiteExpression.jsonExtract(at:as:)` is the function form of `->>`. Its
 value is that it also takes more than one path, in which case SQLite collects
 the results into a JSON array:
 
@@ -109,9 +109,9 @@ in all three. A JSON `null` is where they part:
 
 | Read | A path that matches nothing | A JSON `null` |
 | --- | --- | --- |
-| ``XLSQLiteExpression/jsonValue(at:as:)`` | SQL `NULL` | SQL `NULL` |
-| ``XLSQLiteExpression/jsonExtract(at:as:)`` | SQL `NULL` | SQL `NULL` |
-| ``XLSQLiteExpression/jsonElement(at:)`` | SQL `NULL` | the text `null` |
+| `XLSQLiteExpression.jsonValue(at:as:)` | SQL `NULL` | SQL `NULL` |
+| `XLSQLiteExpression.jsonExtract(at:as:)` | SQL `NULL` | SQL `NULL` |
+| `XLSQLiteExpression.jsonElement(at:)` | SQL `NULL` | the text `null` |
 
 The multiple-path `jsonExtract(at:_:_:)` is different again: it returns an
 array, so a path that matches nothing contributes a JSON `null` entry rather
@@ -145,9 +145,9 @@ document gives a `String?` result. The JSONB twins follow the same rule for a
 Two functions are exceptions. `json_remove` also returns `NULL` when it
 removes the root, so the non-optional `jsonRemoving(at:_:)`
 reports a root path as
-``XLSQLValueEncodingError/jsonRootRemoval(function:)`` before SQLite prepares
+`XLSQLValueEncodingError.jsonRootRemoval(function:)` before SQLite prepares
 the statement. `json_patch` also returns `NULL` for a `NULL` patch, so
-``XLSQLiteExpression/jsonPatched(with:)`` is always optional. Add `coalesce` to
+`XLSQLiteExpression.jsonPatched(with:)` is always optional. Add `coalesce` to
 store its result in a non-optional column.
 
 The five functions differ only in when they write:
@@ -158,7 +158,7 @@ The five functions differ only in when they write:
 | `jsonReplacing(_:_:)` | Only where something is there |
 | `jsonSetting(_:_:)` | Either way |
 | `jsonRemoving(at:_:)` | Deletes each named path |
-| ``XLSQLiteExpression/jsonPatched(with:)`` | Applies an RFC 7396 merge patch |
+| `XLSQLiteExpression.jsonPatched(with:)` | Applies an RFC 7396 merge patch |
 
 ## Writing a Bool or a blob
 
@@ -172,16 +172,16 @@ other `Bool` expression, such as a column or a bound parameter, renders
 through a `CASE` that reads it once and keeps SQL `NULL` as JSON `null`.
 
 JSON has no form for a blob. A `Data` value written into JSON fails with
-``XLSQLValueEncodingError/blobInJSONValue(valueType:function:)`` before SQLite
+`XLSQLValueEncodingError.blobInJSONValue(valueType:function:)` before SQLite
 prepares the statement. The one exception is the result of a `jsonb`
 function: that is JSONB, and SQLite nests it as a document. To nest JSONB held
 in a `Data` column or parameter, pass it through
-``XLSQLiteExpression/minifiedJSONB()`` first.
+`XLSQLiteExpression.minifiedJSONB()` first.
 
 The check reads the value's static type, not its value at run time. A `Data?`
 column or parameter is therefore rejected even for a row where it is SQL
 `NULL`, which SQLite would have written as JSON `null`. Pass such a column
-through ``XLSQLiteExpression/minifiedJSONB()``, which keeps `NULL` as `NULL`, or
+through `XLSQLiteExpression.minifiedJSONB()`, which keeps `NULL` as `NULL`, or
 leave it out of the document.
 
 ## Building JSON in a query
@@ -198,7 +198,7 @@ let summary = sql { schema in
 ```
 
 A value that is already JSON is added as a quoted string, not as a nested
-document. Pass it through ``XLSQLiteExpression/minifiedJSON()`` first to nest it.
+document. Pass it through `XLSQLiteExpression.minifiedJSON()` first to nest it.
 
 Two aggregates collect a whole result set:
 
@@ -211,18 +211,18 @@ let titles = sql { schema in
 }
 ```
 
-``jsonGroupObject(name:value:)`` does the same for name/value pairs. Neither
+`jsonGroupObject(name:value:)` does the same for name/value pairs. Neither
 returns `NULL`: an empty group gives `[]` and `{}`.
 
 ## Inspecting a document
 
-``XLSQLiteExpression/jsonType()`` reports what is at the root or at a path,
-``XLSQLiteExpression/jsonArrayLength()`` counts an array (a value that is not an
+`XLSQLiteExpression.jsonType()` reports what is at the root or at a path,
+`XLSQLiteExpression.jsonArrayLength()` counts an array (a value that is not an
 array counts as `0`, and only a path that selects nothing gives `NULL`),
-``XLSQLiteExpression/validJSONOrNull()`` reports whether the text parses, and
-``XLSQLiteExpression/jsonErrorPosition()`` says where it stopped parsing when it
-does not. ``XLSQLiteExpression/minifiedJSON()`` and ``XLSQLiteExpression/prettyJSON()``
-normalise the layout, and ``XLSQLiteExpression/jsonQuoted()`` turns a SQL value into
+`XLSQLiteExpression.validJSONOrNull()` reports whether the text parses, and
+`XLSQLiteExpression.jsonErrorPosition()` says where it stopped parsing when it
+does not. `XLSQLiteExpression.minifiedJSON()` and `XLSQLiteExpression.prettyJSON()`
+normalise the layout, and `XLSQLiteExpression.jsonQuoted()` turns a SQL value into
 its JSON form.
 
 <!-- test: XLDocumentationTests.testDocumentationJSON -->
@@ -260,7 +260,7 @@ The functions whose result is a SQL value rather than JSON — `json_type`,
 `json_valid`, `json_array_length`, `json_quote`, `json_error_position` and
 `json_pretty` — have no JSONB twin. They read a JSONB input directly, with one
 exception: `json_valid` without a flag reports false for every JSONB blob. Use
-``XLSQLiteExpression/validJSONOrJSONBOrNull()`` to check a value that can be JSONB.
+`XLSQLiteExpression.validJSONOrJSONBOrNull()` to check a value that can be JSONB.
 
 ## SQLite versions
 
