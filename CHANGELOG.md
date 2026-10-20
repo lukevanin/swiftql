@@ -804,9 +804,10 @@
     that took them, `XLBuilder.insertTarget(_:table:)`,
     `XLBuilder.collate(_:expression:)`, and
     `XLBuilder.conditional(_:parameters:)`. A custom `XLSQLVocabulary` loses
-    three requirements, and the comparison, null test, common-table prefix,
-    and regular-expression match spellings are all it conforms with. Delete
-    the `spelling(for:)` overloads that took the removed types.
+    four requirements, the `spelling(for:)` overloads for the three removed
+    types and for `XLDateModifierTerm`, which moves (below). The comparison,
+    null test, common-table prefix, and regular-expression match spellings are
+    all it conforms with. Delete those four overloads.
   - The conflict clause and the collations are SQLite's, and `SwiftQLSQLite`
     declares them. `XLInsertOrAction` moves from `SwiftQLCore` to
     `SwiftQLSQLite`. `Insert(_:or:)`, `insert(_:or:)`, and `replace(_:)` render
