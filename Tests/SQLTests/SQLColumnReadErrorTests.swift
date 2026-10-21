@@ -154,19 +154,20 @@ final class XLColumnReadErrorTests: XCTestCase {
     }
 
     func testAdaptersUseStorageClassConversionsConsistently() throws {
-        let rowReader = functionArgumentReader(row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
-        )
+        let rowReader = functionArgumentReader(row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob', 42.0, 1e30"))
         let valuesReader = functionArgumentReader(values: [
             42.databaseValue,
             42.75.databaseValue,
             Data("text".utf8).databaseValue,
             "blob".databaseValue,
+            (42.0).databaseValue,
+            (1e30).databaseValue,
         ])
 
         // The GRDB adapter's row handle reads a cursor's row one column at a
         // time (issue #678), by the same rules.
         let rowHandle = GRDBRowHandle(
-            row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
+            row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob', 42.0, 1e30")
         )
 
         for reader in [
@@ -175,7 +176,26 @@ final class XLColumnReadErrorTests: XCTestCase {
             rowHandle as any XLColumnReader,
         ] {
             XCTAssertEqual(try reader.readReal(at: 0), 42)
-            XCTAssertEqual(try reader.readInteger(at: 1), 42)
+            // An integer read accepts a REAL only when it is exactly an
+            // integer in range (issue #690), so 42.0 reads as 42 and 42.75
+            // and 1e30 throw rather than truncate or overflow.
+            XCTAssertEqual(try reader.readInteger(at: 4), 42)
+            assertColumnReadError(
+                try reader.readInteger(at: 1),
+                equals: XLColumnReadError(
+                    index: 1,
+                    expectedType: "Int",
+                    failure: .typeMismatch(actualType: "REAL")
+                )
+            )
+            assertColumnReadError(
+                try reader.readInteger(at: 5),
+                equals: XLColumnReadError(
+                    index: 5,
+                    expectedType: "Int",
+                    failure: .typeMismatch(actualType: "REAL")
+                )
+            )
             XCTAssertEqual(try reader.readText(at: 2), "text")
             XCTAssertEqual(try reader.readBlob(at: 3), Data("blob".utf8))
             assertColumnReadError(

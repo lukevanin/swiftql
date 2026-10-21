@@ -26,7 +26,7 @@ final class XLCreateExpressionBuilderTests: XLEncoderTestCase {
             let t = schema.create(TestTable.self)
             Create(t)
         }
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Test (id NOT NULL, value NOT NULL)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Test (id TEXT NOT NULL, value INTEGER NOT NULL)")
     }
     
     func testCreateNullablesTable() {
@@ -34,7 +34,7 @@ final class XLCreateExpressionBuilderTests: XLEncoderTestCase {
             let t = schema.create(TestNullablesTable.self)
             Create(t)
         }
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS TestNullables (id NOT NULL, value)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS TestNullables (id TEXT NOT NULL, value INTEGER)")
     }
     
     func testCreateGenericValueTable() {
@@ -42,7 +42,7 @@ final class XLCreateExpressionBuilderTests: XLEncoderTestCase {
             let t = schema.create(GenericTable<String>.self)
             Create(t)
         }
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Generic (id NOT NULL, type NOT NULL, value NOT NULL)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Generic (id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL)")
     }
     
     

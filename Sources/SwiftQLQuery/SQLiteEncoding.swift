@@ -898,17 +898,52 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     }
 
     ///
-    /// Append a column to a table CREATE statement.
-    /// SwiftQL does not emit a declared SQLite type for the column. Values are
-    /// encoded and decoded using the column's Swift literal type.
+    /// Append a column with no declared type to a table CREATE statement.
     ///
     public mutating func column(name: XLName, nullable: Bool) {
+        column(name: name, nullable: nullable, storage: nil)
+    }
+
+    ///
+    /// Append a column of known storage to a table CREATE statement.
+    ///
+    /// The column declares the SQLite type of that name: `INTEGER`, `REAL`,
+    /// `TEXT`, or `BLOB`, so SQLite converts a value to the column's affinity
+    /// when it writes it, as it converts an integer written to a `REAL`
+    /// column (issue #690). The affinity is advisory: the table is not
+    /// `STRICT`, and SQLite stores a value it cannot convert as it is. A
+    /// column with no storage declares no type.
+    ///
+    public mutating func column(name: XLName, nullable: Bool, storage: XLValueStorageIdentifier?) {
 
         var components: [String] = []
         components.append(formatter.name(name.rawValue))
+        if let declaredType = Self.declaredType(for: storage) {
+            components.append(declaredType)
+        }
         if !nullable {
             components.append("NOT NULL")
         }
         _tokens.append(components.joined(separator: XLSeparator.tuple.rawValue))
+    }
+
+    /// The SQLite type that gives a column the affinity of `storage`, or
+    /// `nil` when the column declares no type.
+    private static func declaredType(for storage: XLValueStorageIdentifier?) -> String? {
+        guard let storage, let storageClass = XLSQLiteStorageClass(rawValue: storage.rawValue) else {
+            return nil
+        }
+        switch storageClass {
+        case .integer:
+            return "INTEGER"
+        case .real:
+            return "REAL"
+        case .text:
+            return "TEXT"
+        case .blob:
+            return "BLOB"
+        case .null:
+            return nil
+        }
     }
 }

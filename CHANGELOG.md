@@ -823,6 +823,49 @@
   - A file that imports `SwiftQLCore` alone and named one of the moved types
     imports `SwiftQLSQLite` instead.
 
+- **An integer read of a REAL throws unless the REAL is exactly an integer, and
+  a generated `CREATE TABLE` declares its columns' types** (issue #690). Two
+  changes to what SwiftQL reads and writes, which together mean one row reads
+  the same on every path.
+  - Reading a REAL as an `Int` used to truncate toward zero, so 42.75 read as
+    42 through `fetchAll(Select)` and threw through a static layout. Every read
+    now follows one rule. An `Int` or `Bool` read accepts an INTEGER, or a REAL
+    that is finite, whole, and within `Int` range: 42.0 reads as 42, and 42.75
+    or 1e30 throws `XLColumnReadError` with `.typeMismatch(actualType: "REAL")`.
+    A `Double` read accepts an INTEGER as well as a REAL, converting it as
+    SQLite's REAL affinity does. This covers `fetchAll`, `fetchOne`, live
+    queries, and the arguments of a custom function. If you relied on the
+    truncation, round in SQL (`round(x)` or `cast(x AS INTEGER)`) or read the
+    column as a `Double`.
+  - A static layout's intrinsic fields (those without a codec) apply the same
+    rule, so an INTEGER stored in a `Double` field and a whole REAL stored in
+    an `Int` field now decode instead of throwing `storageMismatch`, as they
+    did before only through a select. A REAL with a fractional part in an `Int`
+    field still throws, now as `storageMismatch` with `real` as the actual
+    storage, or as `XLStaticQueryInvocationError.resultStorageMismatch` through
+    a prepared static query. A field with a codec still reads only the storage
+    its codec names. Static queries' value-level `fetch...Values` members
+    return an intrinsic numeric value already converted to its slot's storage.
+  - `@SQLTable` generated `CREATE TABLE` with no column types, so SQLite
+    applied no affinity and kept whatever storage class a value was written
+    with. It now declares `INTEGER` for `Bool` and `Int`, `REAL` for `Double`,
+    `TEXT` for `String`, and `BLOB` for `Data` (and an optional of each). A
+    column of any other type, and a property that selects a codec with
+    `@SQLCodec`, still declares no type. The rendered statement changes, for
+    example `CREATE TABLE IF NOT EXISTS Test (id TEXT NOT NULL, value INTEGER
+    NOT NULL)`. The affinity is advisory: tables are not `STRICT`, and SQLite
+    stores a value it cannot convert, such as text in an `INTEGER` column, as
+    it is. An existing table is not altered, because `CREATE TABLE IF NOT
+    EXISTS` leaves it as it is: a table created before 2.0 keeps its untyped
+    columns, and the read rule above is what makes those readable.
+  - `XLColumnDefinitionsBuilder` has a new requirement,
+    `column(name:nullable:storage:)`, with a default that drops the storage and
+    calls `column(name:nullable:)`, so a builder you wrote keeps compiling and
+    declares no types. `XLValueCodingDialect` has a new requirement,
+    `intrinsicReadValue(_:as:)`, with a default that accepts only a value
+    already of the requested storage, so a dialect that does not convert
+    between its numeric storages changes nothing.
+
 ### Added
 
 - **A product for each layer of SwiftQL** (issue #790). See "The query
@@ -1043,6 +1086,14 @@
 
 ### Fixed
 
+- **One row decodes the same through a select and through a static layout**
+  (issue #690). An INTEGER stored in a `Double` property, and a whole REAL
+  stored in an `Int` property, used to decode through `fetchAll(Select)` and
+  throw `storageMismatch` through a static layout, while a REAL with a
+  fractional part in an `Int` property was silently truncated by the select.
+  Both paths now read a number by one rule, and a lossy read throws. See the
+  Migration entry "An integer read of a REAL throws unless the REAL is exactly
+  an integer".
 - **`row.nickname = row.nickname` keeps a nullable column's value** (issue
   #828). In a `Setting` closure, `set(_:)`, or `onConflict(_:doUpdate:)`,
   reading a nullable column and assigning it back set the column to `NULL`

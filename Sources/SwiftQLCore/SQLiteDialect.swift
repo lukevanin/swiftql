@@ -129,6 +129,22 @@ public struct XLSQLiteDialect: XLValueCodingDialect, Hashable, Sendable {
         XLValueStorageIdentifier(rawValue: value.storageType.rawValue)
     }
 
+    /// SQLite reads a numeric value by the rule its readers share (issue
+    /// #690): a REAL that is exactly an integer reads as an INTEGER, and an
+    /// INTEGER reads as a REAL.
+    public func intrinsicReadValue(
+        _ value: XLSQLiteValue,
+        as storage: XLValueStorageIdentifier
+    ) -> XLSQLiteValue? {
+        if stableStorageIdentifier(for: value) == storage {
+            return value
+        }
+        guard let storageClass = XLSQLiteStorageClass(rawValue: storage.rawValue) else {
+            return nil
+        }
+        return XLSQLiteValueReading.coerced(value, to: storageClass)
+    }
+
     private static func doubleQuoted(_ identifier: String) -> String {
         "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
     }

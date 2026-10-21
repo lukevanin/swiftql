@@ -474,3 +474,12 @@ Descriptor construction rejects result slots on a command and rejects an empty
 result layout for every row-returning cardinality. Prepared execution also
 rejects calling an operation that does not match the descriptor cardinality,
 then validates every returned row's column count, storage, and nullability.
+
+A result slot with no codec reads a number the way the default readers do, so
+one row decodes the same through a select and through a static query. An
+`INTEGER` in a `Double` slot becomes a `REAL`, and a `REAL` that is exactly an
+integer, within `Int` range, in a `Bool` or `Int` slot becomes an `INTEGER`. The
+values the `fetch...Values` operations return are already converted. A `REAL`
+with a fractional part, or one outside `Int` range, in an integer slot is a
+storage mismatch, not a truncation. No other storage converts, and a slot with a
+codec accepts only the storage its codec names.

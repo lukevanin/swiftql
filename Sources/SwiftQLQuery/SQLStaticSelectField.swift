@@ -131,6 +131,9 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
             metadata: field,
             validate: { value in
                 try validate(value, field: field)
+            },
+            validateRead: { value in
+                try validate(readValue(value, field: field), field: field)
             }
         )
     }
@@ -146,8 +149,9 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
             at: field.result.index.rawValue,
             using: dialect
         )
-        try validate(value, field: field)
-        return try decodeValue(value)
+        let readable = readValue(value, field: field)
+        try validate(readable, field: field)
+        return try decodeValue(readable)
     }
 
     /// Encodes one property value with the field's selected codec.
@@ -160,6 +164,32 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
         let encoded = try encodeValue(value)
         try validate(encoded, field: field)
         return encoded
+    }
+
+    /// The value this field decodes when it reads `value` (issue #690).
+    ///
+    /// An intrinsic field, one with no codec, reads a number by the rule the
+    /// dialect's default readers apply, so a row decodes the same through a
+    /// layout as through a select. SQLite reads an INTEGER stored in a REAL
+    /// field, and a REAL that is exactly an integer in an INTEGER field. A
+    /// value that cannot be read as the field's storage is returned as it is,
+    /// and `validate` rejects it. A field with a codec reads only the storage
+    /// its codec names, and an encoded value is never converted.
+    func readValue(
+        _ value: Dialect.Value,
+        field: XLStaticRowField
+    ) -> Dialect.Value {
+        guard
+            selectedCodecIdentity == nil,
+            !dialect.isNull(value),
+            dialect.stableStorageIdentifier(for: value) != field.result.storageIdentifier
+        else {
+            return value
+        }
+        return dialect.intrinsicReadValue(
+            value,
+            as: field.result.storageIdentifier
+        ) ?? value
     }
 
     func validate(
@@ -199,14 +229,21 @@ where Dialect: XLValueCodingDialect {
     let expression: any XLEncodable
     let validateValue: (Dialect.Value) throws -> Void
 
+    /// Validates a value read from a row, after the field's read conversion
+    /// (issue #690). `validateValue` validates an encoded value, which is
+    /// never converted.
+    let validateReadValue: (Dialect.Value) throws -> Void
+
     init(
         expression: any XLEncodable,
         metadata: XLStaticRowField,
-        validate: @escaping (Dialect.Value) throws -> Void
+        validate: @escaping (Dialect.Value) throws -> Void,
+        validateRead: @escaping (Dialect.Value) throws -> Void
     ) {
         self.expression = expression
         self.metadata = metadata
         self.validateValue = validate
+        self.validateReadValue = validateRead
     }
 }
 
@@ -342,7 +379,8 @@ extension XLAnyStaticSelectField {
         return Self(
             expression: expression,
             metadata: shiftedField,
-            validate: validateValue
+            validate: validateValue,
+            validateRead: validateReadValue
         )
     }
 }

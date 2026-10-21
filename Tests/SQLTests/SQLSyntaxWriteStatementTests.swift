@@ -244,21 +244,21 @@ final class XLSyntaxWriteStatementTests: XLSyntaxTestCase {
         let schema = XLSchema()
         let t = schema.create(TestTable.self)
         let expression = create(t)
-        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS Test (id NOT NULL, value NOT NULL)")
+        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS Test (id TEXT NOT NULL, value INTEGER NOT NULL)")
     }
     
     func testCreateNullablesTable() {
         let schema = XLSchema()
         let t = schema.create(TestNullablesTable.self)
         let expression = create(t)
-        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS TestNullables (id NOT NULL, value)")
+        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS TestNullables (id TEXT NOT NULL, value INTEGER)")
     }
     
     func testCreateGenericValueTable() {
         let schema = XLSchema()
         let t = schema.create(GenericTable<String>.self)
         let expression = create(t)
-        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS Generic (id NOT NULL, type NOT NULL, value NOT NULL)")
+        assertRenders(expression, as: "CREATE TABLE IF NOT EXISTS Generic (id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL)")
     }
     
     

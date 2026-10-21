@@ -19,10 +19,15 @@ import Foundation
 /// Used when reading results of a query returned by SQLite.
 ///
 /// Readers use SQLite storage classes consistently for query results and
-/// custom-function arguments. Integer reads accept INTEGER and representable
-/// REAL values; real reads accept INTEGER and REAL; text reads accept TEXT and
-/// UTF-8 BLOB; and BLOB reads accept BLOB and the UTF-8 bytes of TEXT. Other
-/// storage-class conversions throw `XLColumnReadError`.
+/// custom-function arguments. Integer reads accept INTEGER, and a REAL only
+/// when it is exactly an integer in `Int` range: 42.0 reads as 42, and 42.75
+/// throws rather than truncating (issue #690). Real reads accept INTEGER and
+/// REAL, converting an INTEGER as SQLite's REAL affinity does. Text reads
+/// accept TEXT and UTF-8 BLOB; and BLOB reads accept BLOB and the UTF-8 bytes
+/// of TEXT. Other storage-class conversions throw `XLColumnReadError`.
+///
+/// A static row layout applies the same numeric rule to its intrinsic fields,
+/// so one row decodes the same through a select and through a layout.
 ///
 public protocol XLColumnReader {
 

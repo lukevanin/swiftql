@@ -105,7 +105,7 @@ final class ConnectionStreamingDefaultsTests: XCTestCase {
 
     func testValuesRowHandleReadsBySQLiteStorageClassRules() throws {
         let row = XLValuesRowHandle<XLSQLiteValue>([
-            .integer(42), .real(42.75), .blob(Data("text".utf8)), .text("blob"), .null,
+            .integer(42), .real(42.0), .blob(Data("text".utf8)), .text("blob"), .null,
         ])
 
         XCTAssertEqual(row.columnCount, 5)

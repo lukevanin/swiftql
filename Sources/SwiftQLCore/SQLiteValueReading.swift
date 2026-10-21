@@ -48,8 +48,14 @@ package enum XLSQLiteValueReading {
         return false
     }
 
-    /// `value` read as an integer: INTEGER, or a REAL whose truncation fits
-    /// in `Int64`. NULL and every other storage class are errors.
+    /// `value` read as an integer: INTEGER, or a REAL that is exactly an
+    /// integer in `Int` range (issue #690). A REAL with a fractional part, an
+    /// infinity, or a magnitude beyond `Int` is an error, not a truncation.
+    /// NULL and every other storage class are errors.
+    ///
+    /// This is the numeric rule every read path shares. A static layout's
+    /// intrinsic fields apply it through `coerced(_:to:)`, so one row reads
+    /// the same on either path.
     package static func integer(_ value: XLSQLiteValue, at index: Int) throws -> Int {
         switch value {
         case .integer(let integer):
@@ -58,16 +64,10 @@ package enum XLSQLiteValueReading {
             }
             return result
         case .real(let real):
-            let truncated = real.rounded(.towardZero)
-            let upperBound = -Double(Int64.min)
-            guard
-                truncated.isFinite,
-                truncated >= Double(Int64.min),
-                truncated < upperBound
-            else {
+            guard let result = Int(exactly: real) else {
                 throw typeMismatch(value, at: index, expectedType: "Int")
             }
-            return Int(Int64(truncated))
+            return result
         case .null:
             throw nullValue(at: index, expectedType: "Int")
         case .text, .blob:
@@ -75,8 +75,9 @@ package enum XLSQLiteValueReading {
         }
     }
 
-    /// `value` read as a real number: INTEGER or REAL. NULL and every other
-    /// storage class are errors.
+    /// `value` read as a real number: INTEGER or REAL. An INTEGER converts
+    /// as SQLite's REAL affinity converts it (issue #690). NULL and every
+    /// other storage class are errors.
     package static func real(_ value: XLSQLiteValue, at index: Int) throws -> Double {
         switch value {
         case .integer(let integer):
@@ -87,6 +88,31 @@ package enum XLSQLiteValueReading {
             throw nullValue(at: index, expectedType: "Double")
         case .text, .blob:
             throw typeMismatch(value, at: index, expectedType: "Double")
+        }
+    }
+
+    /// `value` as a value of `storage`, by the numeric rule `integer(_:at:)`
+    /// and `real(_:at:)` share, or `nil` when it cannot be (issue #690).
+    ///
+    /// A value already of `storage` is returned as it is. A REAL that is
+    /// exactly an integer becomes the INTEGER, and an INTEGER becomes the
+    /// REAL, which is the conversion SQLite applies on write to a column of
+    /// INTEGER or REAL affinity. Nothing else converts: TEXT, BLOB, NULL, and
+    /// a REAL that is not exactly an `Int` return `nil`.
+    package static func coerced(
+        _ value: XLSQLiteValue,
+        to storage: XLSQLiteStorageClass
+    ) -> XLSQLiteValue? {
+        if value.storageType == storage {
+            return value
+        }
+        switch (value, storage) {
+        case (.real(let real), .integer):
+            return Int64(exactly: real).map(XLSQLiteValue.integer)
+        case (.integer(let integer), .real):
+            return .real(Double(integer))
+        default:
+            return nil
         }
     }
 

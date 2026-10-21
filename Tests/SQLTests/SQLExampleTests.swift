@@ -1304,7 +1304,7 @@ extension XLDocumentationTests {
         let createPersonStatement = sqlCreate(Person.self)
         XCTAssertEqual(
             encoder.makeSQL(createPersonStatement).sql,
-            "CREATE TABLE IF NOT EXISTS Person (id NOT NULL, occupationId, name NOT NULL, age NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS Person (id TEXT NOT NULL, occupationId TEXT, name TEXT NOT NULL, age INTEGER NOT NULL)"
         )
         try database.makeRequest(with: createPersonStatement).execute()
 

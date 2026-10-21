@@ -423,7 +423,16 @@ extension MetaBuilder {
 
                 context.block("context.createTable(self.name)") { context in
                     for property in properties {
-                        context.line("$0.column(name: XLName(\"\(property.alias)\"), nullable: \(property.optional))")
+                        // A property that selects a codec declares no type
+                        // (issue #690): the codec chooses the storage, which
+                        // may differ from the Swift type's own, and a type's
+                        // affinity could convert what the codec wrote.
+                        if property.codecKeyExpression != nil {
+                            context.line("$0.column(name: XLName(\"\(property.alias)\"), nullable: \(property.optional))")
+                        }
+                        else {
+                            context.line("$0.column(name: XLName(\"\(property.alias)\"), nullable: \(property.optional), storage: \(EmittedModule.query)._xlColumnStorage(of: (\(property.type)).self, in: \(dialectType).self))")
+                        }
                     }
                 }
             }

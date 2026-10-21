@@ -1989,7 +1989,7 @@ final class MetaBuilderTests: XCTestCase {
         // MetaInsert / MetaUpdate / SQLReader-facing column name literal.
         XCTAssertTrue(source.contains("XLName(\"class\")"))
         // MetaCreate's rendered column definition.
-        XCTAssertTrue(source.contains("column(name: XLName(\"class\"), nullable: false)"))
+        XCTAssertTrue(source.contains("column(name: XLName(\"class\"), nullable: false, storage: SwiftQLQuery._xlColumnStorage(of: (Int).self, in: SwiftQLSQLite.XLSQLiteDialect.self))"))
         // The Swift-side property name keeps its backticks everywhere it is
         // referenced as an identifier.
         XCTAssertTrue(source.contains("`class`"))

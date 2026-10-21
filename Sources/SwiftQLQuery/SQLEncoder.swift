@@ -683,4 +683,44 @@ public protocol XLColumnDefinitionsBuilder {
     /// - Parameter nullable: Indicates whether the column is optional (`true`) or non-optional (`false`).
     ///
     mutating func column(name: XLName, nullable: Bool)
+
+    ///
+    /// Adds a column of known storage (issue #690).
+    ///
+    /// - Parameter name: Name of the column.
+    /// - Parameter nullable: Indicates whether the column is optional (`true`) or non-optional (`false`).
+    /// - Parameter storage: The storage the column holds, in the builder's
+    ///   dialect, or `nil` for a column with no declared type. The builder
+    ///   spells it as its dialect declares a column's type, so the database
+    ///   converts a value to the storage when it writes it.
+    ///
+    /// The default declares no type, so a builder written before the storage
+    /// existed keeps compiling and renders the columns it always did.
+    ///
+    mutating func column(name: XLName, nullable: Bool, storage: XLValueStorageIdentifier?)
+}
+
+
+extension XLColumnDefinitionsBuilder {
+
+    public mutating func column(name: XLName, nullable: Bool, storage: XLValueStorageIdentifier?) {
+        column(name: name, nullable: nullable)
+    }
+}
+
+
+///
+/// The storage the generated `CREATE TABLE` declares for a column of Swift
+/// type `type` in `dialect` (issue #690), or `nil` for a column with no
+/// declared type.
+///
+/// A dialect that is not an ``XLLiteralValueDialect`` does not know a type's
+/// storage statically, and declares no type, as does a type that only a codec
+/// stores. The generated `makeSQLCreate()` calls this.
+///
+public func _xlColumnStorage<Dialect>(
+    of type: Any.Type,
+    in dialect: Dialect.Type
+) -> XLValueStorageIdentifier? where Dialect: XLSQLDialect {
+    (dialect as? any XLLiteralValueDialect.Type)?.literalStorageIdentifier(for: type)
 }

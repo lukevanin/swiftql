@@ -246,6 +246,36 @@ public protocol XLValueCodingDialect: XLSQLDialect {
 
     /// A stable identifier for the value's dialect-owned storage representation.
     func stableStorageIdentifier(for value: Value) -> XLValueStorageIdentifier
+
+    /// The value an intrinsic field of `storage` reads `value` as, or `nil`
+    /// when it cannot read it as that storage (issue #690).
+    ///
+    /// An intrinsic field is one with no codec: a plain number, string, or
+    /// blob. It reads a value by the same numeric rule the dialect's default
+    /// readers apply, so one row decodes the same through a static layout as
+    /// through a select. A field with a codec does not use this: its codec
+    /// names the exact storage it decodes, and a different storage is an
+    /// error.
+    ///
+    /// The default accepts only a value already of `storage`. A dialect
+    /// whose readers convert between numeric storage classes overrides it.
+    /// SQLite converts a REAL that is exactly an integer to an INTEGER, and
+    /// an INTEGER to a REAL. The caller handles `NULL` before it asks.
+    func intrinsicReadValue(
+        _ value: Value,
+        as storage: XLValueStorageIdentifier
+    ) -> Value?
+}
+
+
+extension XLValueCodingDialect {
+
+    public func intrinsicReadValue(
+        _ value: Value,
+        as storage: XLValueStorageIdentifier
+    ) -> Value? {
+        stableStorageIdentifier(for: value) == storage ? value : nil
+    }
 }
 
 
