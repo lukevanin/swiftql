@@ -111,7 +111,9 @@ where Dialect: XLValueCodingDialect {
                 actual: values.count
             )
         }
-        try validate(values)
+        for (field, value) in zip(fields, values) {
+            try field.validateReadValue(value)
+        }
         let reader = _XLStaticDialectValuesRowReader(
             values: values,
             dialect: Dialect.self

@@ -164,10 +164,12 @@ func runSkillLifecycle(in database: GRDBDatabase) throws -> [SkillPerson] {
 }
 ```
 
-Use `sqlCreate` only for basic table creation. It adds no declared SQLite type
-names, primary keys, uniqueness, foreign keys, indexes, or migrations, and it
-never upgrades an existing table. Keep schema evolution in an explicit
-application-owned migration system such as GRDB's `DatabaseMigrator`.
+Use `sqlCreate` only for basic table creation. It declares each column's type
+for `Bool`, `Int`, `Double`, `String`, and `Data` properties, so SQLite applies
+that column affinity on write, but it adds no primary keys, uniqueness, foreign
+keys, indexes, or migrations, and it never upgrades an existing table. Keep
+schema evolution in an explicit application-owned migration system such as
+GRDB's `DatabaseMigrator`.
 
 Read the [declared-queries guide](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/)
 and [getting started](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)

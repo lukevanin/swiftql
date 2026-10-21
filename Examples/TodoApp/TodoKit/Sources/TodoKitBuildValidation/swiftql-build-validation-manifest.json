@@ -902,10 +902,10 @@
   ],
   "schema_snapshot" : {
     "database_byte_count" : 57344,
-    "database_sha256" : "7ec4f6eecca30c9e4ebafc4e4ce8d70d160ff275b32e22e8f327b8fbb66cf3dd",
+    "database_sha256" : "19fa6c84f77d0d08f510fe7c925287400bba9d13c9bd9dd4a1c2e08e8411a1cc",
     "identifier" : "todo-demo.schema",
     "kind" : "checked-in-snapshot",
-    "schema_fingerprint" : "3e08fbb7add3584b",
+    "schema_fingerprint" : "8e0460b2a3014c82",
     "schema_row_count" : 13
   }
 }

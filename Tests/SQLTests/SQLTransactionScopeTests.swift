@@ -476,9 +476,10 @@ final class SQLTransactionScopeTests: XCTestCase {
         try createTestTable()
         // Seed a row outside the transaction under test whose `value` column
         // holds TEXT instead of the INTEGER `TestTable.value` expects. The
-        // default `sqlCreate`-derived schema declares no column type, so
-        // SQLite stores this value with its own affinity instead of
-        // coercing it, and a typed `TestTable` read of it decode-fails.
+        // `sqlCreate`-derived schema declares `value INTEGER`, but SQLite's
+        // INTEGER affinity converts only text that looks like a number, and
+        // stores this value as it is, so a typed `TestTable` read of it
+        // decode-fails.
         try databasePool.write { db in
             try db.execute(
                 sql: "INSERT INTO Test (id, value) VALUES ('corrupt', 'not-a-number')"

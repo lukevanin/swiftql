@@ -99,17 +99,22 @@ This is equivalent to the following SQL:
 
 ```sql
 CREATE TABLE IF NOT EXISTS Person (
-    id NOT NULL,
-    occupationId,
-    name NOT NULL,
-    age NOT NULL
+    id TEXT NOT NULL,
+    occupationId TEXT,
+    name TEXT NOT NULL,
+    age INTEGER NOT NULL
 )
 ```
 
-The current `sqlCreate` implementation omits declared SQLite type names, so
-SQLite assigns the generated columns BLOB affinity. It also does not infer
-primary keys, uniqueness constraints, foreign keys, indexes, or migrations.
-Manage those schema details explicitly when your application needs them.
+Each column declares the SQLite type of its Swift type: `INTEGER` for `Bool`
+and `Int`, `REAL` for `Double`, `TEXT` for `String`, and `BLOB` for `Data`. So
+SQLite converts a value to the column's affinity when it writes it, and an
+integer written to a `Double` column is stored as a `REAL`. The affinity is
+advisory: the table is not `STRICT`, and SQLite stores a value it cannot
+convert as it is. A property of any other type, including one a codec stores,
+declares no type. `sqlCreate` does not infer primary keys, uniqueness
+constraints, foreign keys, indexes, or migrations. Manage those schema details
+explicitly when your application needs them.
 
 The `IF NOT EXISTS` clause makes this statement safe to run when the table
 already exists. It does not migrate an existing table when the Swift type

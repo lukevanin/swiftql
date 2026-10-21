@@ -68,10 +68,10 @@ try database.makeRequest(with: createPerson).execute()
 
  ```sql
  CREATE TABLE IF NOT EXISTS Person (
-     id NOT NULL,
-     occupationId,
-     name NOT NULL,
-     age NOT NULL
+     id TEXT NOT NULL,
+     occupationId TEXT,
+     name TEXT NOT NULL,
+     age INTEGER NOT NULL
  )
  ```
 
@@ -79,8 +79,8 @@ try database.makeRequest(with: createPerson).execute()
  does not migrate an existing table when the Swift type changes, so schema
  changes still need an explicit migration strategy of your own.
 
- The current `sqlCreate` implementation omits declared SQLite type names, so
- SQLite assigns the generated columns BLOB affinity, and it infers no primary
+ Each column declares the SQLite type of its Swift type, so SQLite converts a
+ value to the column's affinity when it writes it. `sqlCreate` infers no primary
  keys, uniqueness constraints, foreign keys, or indexes. Manage those
  explicitly when your application needs them.
 

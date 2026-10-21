@@ -510,8 +510,7 @@ public struct XLPreparedStaticQuery: Sendable {
                 actual: rows.count
             )
         }
-        try validate(row: row, at: 0)
-        return row
+        return try validated(row: row, at: 0)
     }
 
     /// Fetches zero or one row and rejects an excess-row result.
@@ -532,8 +531,7 @@ public struct XLPreparedStaticQuery: Sendable {
         guard let row = rows.first else {
             return nil
         }
-        try validate(row: row, at: 0)
-        return row
+        return try validated(row: row, at: 0)
     }
 
     /// Fetches every row from a descriptor declared with many cardinality.
@@ -559,9 +557,9 @@ public struct XLPreparedStaticQuery: Sendable {
         let packet = try validatedBindings(bindings)
         var index = 0
         try invocation.forEachValueRow(bindings: packet) { row in
-            try validate(row: row, at: index)
+            let validated = try validated(row: row, at: index)
             index += 1
-            return try body(row)
+            return try body(validated)
         }
     }
 
@@ -620,10 +618,18 @@ public struct XLPreparedStaticQuery: Sendable {
         return validatedPacket
     }
 
-    private func validate(
+    /// Checks a row against the result slots, and returns it with each
+    /// intrinsic numeric value read as its slot's storage (issue #690).
+    ///
+    /// A slot with no codec reads a number by the rule the default readers
+    /// apply: an INTEGER in a REAL slot becomes a REAL, and a REAL that is
+    /// exactly an integer in an INTEGER slot becomes an INTEGER. A REAL with
+    /// a fractional part in an INTEGER slot is a storage mismatch. A slot
+    /// with a codec accepts only the storage its codec names.
+    private func validated(
         row: [XLSQLiteValue],
         at rowIndex: Int
-    ) throws {
+    ) throws -> [XLSQLiteValue] {
         let slots = descriptor.results.slots
         guard row.count == slots.count else {
             throw XLStaticQueryInvocationError.resultColumnCountMismatch(
@@ -634,7 +640,8 @@ public struct XLPreparedStaticQuery: Sendable {
             )
         }
 
-        for (slot, value) in zip(slots, row) {
+        var validated = row
+        for (position, (slot, value)) in zip(slots, row).enumerated() {
             if dialect.isNull(value) {
                 guard slot.nullability == .nullable else {
                     throw XLStaticQueryInvocationError.nullForRequiredResult(
@@ -644,7 +651,17 @@ public struct XLPreparedStaticQuery: Sendable {
                 }
                 continue
             }
-            let actualStorage = dialect.stableStorageIdentifier(for: value)
+            let readable: XLSQLiteValue
+            if slot.codecIdentity == nil {
+                readable = dialect.intrinsicReadValue(
+                    value,
+                    as: slot.storageIdentifier
+                ) ?? value
+            }
+            else {
+                readable = value
+            }
+            let actualStorage = dialect.stableStorageIdentifier(for: readable)
             guard actualStorage == slot.storageIdentifier else {
                 throw XLStaticQueryInvocationError.resultStorageMismatch(
                     identity: descriptor.identity,
@@ -652,7 +669,9 @@ public struct XLPreparedStaticQuery: Sendable {
                     actual: actualStorage
                 )
             }
+            validated[position] = readable
         }
+        return validated
     }
 }
 
