@@ -898,14 +898,21 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     }
 
     ///
-    /// Append a column to a table CREATE statement.
+    /// Append a column with no declared type to a table CREATE statement.
     ///
-    /// A column of known storage declares the SQLite type of that name:
-    /// `INTEGER`, `REAL`, `TEXT`, or `BLOB`, so SQLite converts a value to
-    /// the column's affinity when it writes it, as it converts an integer
-    /// written to a `REAL` column (issue #690). The affinity is advisory:
-    /// the table is not `STRICT`, and SQLite stores a value it cannot convert
-    /// as it is. A column with no storage declares no type.
+    public mutating func column(name: XLName, nullable: Bool) {
+        column(name: name, nullable: nullable, storage: nil)
+    }
+
+    ///
+    /// Append a column of known storage to a table CREATE statement.
+    ///
+    /// The column declares the SQLite type of that name: `INTEGER`, `REAL`,
+    /// `TEXT`, or `BLOB`, so SQLite converts a value to the column's affinity
+    /// when it writes it, as it converts an integer written to a `REAL`
+    /// column (issue #690). The affinity is advisory: the table is not
+    /// `STRICT`, and SQLite stores a value it cannot convert as it is. A
+    /// column with no storage declares no type.
     ///
     public mutating func column(name: XLName, nullable: Bool, storage: XLValueStorageIdentifier?) {
 

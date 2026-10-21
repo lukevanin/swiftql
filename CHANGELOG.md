@@ -859,11 +859,12 @@
     EXISTS` leaves it as it is: a table created before 2.0 keeps its untyped
     columns, and the read rule above is what makes those readable.
   - `XLColumnDefinitionsBuilder` has a new requirement,
-    `column(name:nullable:storage:)`. The two-argument `column(name:nullable:)`
-    is now an extension method that declares no type. `XLValueCodingDialect`
-    has a new requirement, `intrinsicReadValue(_:as:)`, with a default that
-    accepts only a value already of the requested storage, so a dialect that
-    does not convert between its numeric storages changes nothing.
+    `column(name:nullable:storage:)`, with a default that drops the storage and
+    calls `column(name:nullable:)`, so a builder you wrote keeps compiling and
+    declares no types. `XLValueCodingDialect` has a new requirement,
+    `intrinsicReadValue(_:as:)`, with a default that accepts only a value
+    already of the requested storage, so a dialect that does not convert
+    between its numeric storages changes nothing.
 
 ### Added
 

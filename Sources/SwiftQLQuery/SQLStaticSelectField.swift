@@ -179,7 +179,11 @@ where Storage: XLLiteral, Dialect: XLValueCodingDialect {
         _ value: Dialect.Value,
         field: XLStaticRowField
     ) -> Dialect.Value {
-        guard selectedCodecIdentity == nil, !dialect.isNull(value) else {
+        guard
+            selectedCodecIdentity == nil,
+            !dialect.isNull(value),
+            dialect.stableStorageIdentifier(for: value) != field.result.storageIdentifier
+        else {
             return value
         }
         return dialect.intrinsicReadValue(

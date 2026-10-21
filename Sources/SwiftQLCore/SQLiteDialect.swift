@@ -136,6 +136,9 @@ public struct XLSQLiteDialect: XLValueCodingDialect, Hashable, Sendable {
         _ value: XLSQLiteValue,
         as storage: XLValueStorageIdentifier
     ) -> XLSQLiteValue? {
+        if stableStorageIdentifier(for: value) == storage {
+            return value
+        }
         guard let storageClass = XLSQLiteStorageClass(rawValue: storage.rawValue) else {
             return nil
         }

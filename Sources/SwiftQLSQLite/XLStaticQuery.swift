@@ -640,7 +640,9 @@ public struct XLPreparedStaticQuery: Sendable {
             )
         }
 
-        var validated = row
+        // Copied only when a value is converted, so a row that needs no
+        // conversion, the usual row, is returned without copying it.
+        var converted: [XLSQLiteValue]?
         for (position, (slot, value)) in zip(slots, row).enumerated() {
             if dialect.isNull(value) {
                 guard slot.nullability == .nullable else {
@@ -651,17 +653,21 @@ public struct XLPreparedStaticQuery: Sendable {
                 }
                 continue
             }
-            let readable: XLSQLiteValue
-            if slot.codecIdentity == nil {
-                readable = dialect.intrinsicReadValue(
-                    value,
-                    as: slot.storageIdentifier
-                ) ?? value
+            var actualStorage = dialect.stableStorageIdentifier(for: value)
+            if actualStorage == slot.storageIdentifier {
+                continue
             }
-            else {
-                readable = value
+            if slot.codecIdentity == nil,
+               let readable = dialect.intrinsicReadValue(
+                   value,
+                   as: slot.storageIdentifier
+               ) {
+                if converted == nil {
+                    converted = row
+                }
+                converted?[position] = readable
+                actualStorage = dialect.stableStorageIdentifier(for: readable)
             }
-            let actualStorage = dialect.stableStorageIdentifier(for: readable)
             guard actualStorage == slot.storageIdentifier else {
                 throw XLStaticQueryInvocationError.resultStorageMismatch(
                     identity: descriptor.identity,
@@ -669,9 +675,8 @@ public struct XLPreparedStaticQuery: Sendable {
                     actual: actualStorage
                 )
             }
-            validated[position] = readable
         }
-        return validated
+        return converted ?? row
     }
 }
 

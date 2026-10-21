@@ -23,6 +23,31 @@ private struct NumericCoercionAffinity: Equatable {
 }
 
 
+/// A column builder written before `column(name:nullable:storage:)` existed:
+/// it implements only the two-argument requirement.
+private struct TwoArgumentColumnBuilder: XLColumnDefinitionsBuilder {
+    private var columns: [String] = []
+
+    func build() -> String {
+        columns.joined(separator: ", ")
+    }
+
+    mutating func column(name: XLName, nullable: Bool) {
+        columns.append(nullable ? name.rawValue : "\(name.rawValue) NOT NULL")
+    }
+}
+
+
+/// Names the storage of a column through a dialect known only as an
+/// `XLSQLDialect`, as generated code in a generic context sees it.
+private func columnStorage<Dialect>(
+    of type: Any.Type,
+    in dialect: Dialect.Type
+) -> XLValueStorageIdentifier? where Dialect: XLSQLDialect {
+    _xlColumnStorage(of: type, in: dialect)
+}
+
+
 /// Issue #690: the default fetch path and a static row layout read a number
 /// by one rule. An INTEGER read as a `Double`, and a REAL that is exactly an
 /// integer read as an `Int`, decode on both. A REAL that is not exactly an
@@ -274,5 +299,29 @@ final class NumericCoercionGRDBTests: XCTestCase {
                 ),
             ]
         )
+    }
+
+    func testABuilderWithoutStorageSupportKeepsCompilingAndDeclaresNoType() {
+        var builder = TwoArgumentColumnBuilder()
+        builder.column(name: XLName("a"), nullable: false)
+        builder.column(
+            name: XLName("b"),
+            nullable: true,
+            storage: XLValueStorageIdentifier(rawValue: "integer")
+        )
+
+        XCTAssertEqual(builder.build(), "a NOT NULL, b")
+    }
+
+    func testAColumnsStorageComesFromTheDialectEvenInAGenericContext() {
+        let integer = XLValueStorageIdentifier(rawValue: "integer")
+
+        XCTAssertEqual(columnStorage(of: Int.self, in: XLSQLiteDialect.self), integer)
+        XCTAssertEqual(columnStorage(of: Bool?.self, in: XLSQLiteDialect.self), integer)
+        XCTAssertEqual(
+            columnStorage(of: Double.self, in: XLSQLiteDialect.self),
+            XLValueStorageIdentifier(rawValue: "real")
+        )
+        XCTAssertNil(columnStorage(of: Date.self, in: XLSQLiteDialect.self))
     }
 }
