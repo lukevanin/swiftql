@@ -181,7 +181,9 @@ Build the v2.1 adapter directly against the SQLite C API, as originally planned.
    any particular compile flag, see
    [SQLiteCFeasibility.md §1.4–1.5](SQLiteCFeasibility.md).
    *Decided (#705, 2026-10-22): system SQLite is the default and the vendored
-   build is opt-in; see [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).*
+   build is opt-in, so decoupling the validator from GRDB's `CSQLite` is #704's
+   work and does not depend on vendoring; see
+   [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).*
 3. **Adopt sqlite-nio's hook-multiplexing design** for the observation layer.
 4. **Treat the sync→async driver-contract question as its own decision.** If
    SwiftQL is going async at v2/v3, do it deliberately in the core contract —

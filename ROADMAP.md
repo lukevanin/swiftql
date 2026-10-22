@@ -961,8 +961,9 @@ The reasons:
   reference.
 
 [#705](https://github.com/lukevanin/swiftql/issues/705) blocks
-[#136](https://github.com/lukevanin/swiftql/issues/136). Each research document
-carries a note that points here, and where they disagree this decision wins.
+[#136](https://github.com/lukevanin/swiftql/issues/136). The three SQLite
+research documents carry a note that points here, and where they disagree this
+decision wins.
 
 ### v2.5 — PostgreSQL Dialect and Adapter
 

@@ -21,7 +21,9 @@ proposal is sound and mostly pre-built. Without it, §1 is fatal.
 > (option (a), §8 item 2); and a SwiftPM package trait selects the vendored
 > build (§8 item 5), now that Swift 6.1 is the package's floor. #689 is the
 > mechanism for version differences between systems (§8 item 4). The decision
-> says nothing on §8 items 3 and 6. The analysis below is unchanged. See
+> does not settle §8 item 3, the weaker claim wording for the system build,
+> which the system default now makes the common case, or §8 item 6. The
+> analysis below is unchanged. See
 > [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 This is a deliberately adversarial reading of

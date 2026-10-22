@@ -18,9 +18,11 @@ SQLite provenance decision is made *before* the adapter is written, not after.
 > pinned build is opt-in and the conformance authority. The decision adds that
 > CI also runs the conformance suite against the system build, that no
 > vendored-exclusive SQL capability is adopted, and that a SwiftPM package
-> trait selects the vendored build, which this report left open. Condition 1
-> below is met. [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705) holds the
-> decision and its reasons.
+> trait selects the vendored build, which this report left open. The decision
+> that condition 1 asks for is made. The symbol-prefix proof it requires of a
+> vendored build is not part of the decision: it stays in the scope of #704.
+> [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705) holds the decision and its
+> reasons.
 
 This report is the follow-on to
 [SQLiteNIOFeasibility.md](SQLiteNIOFeasibility.md), whose §7.1 asserted that
@@ -302,8 +304,10 @@ policy and belong in the `onOpen` hook (§3.4), not baked into the library.
 
 ### 1.6 Provenance recommendation
 
-> **Decided (#705, 2026-10-22):** adopted as written, with the additions in the
-> note at the top of this report. See
+> **Decided (#705, 2026-10-22):** adopted, with the additions in the note at the
+> top of this report. One sentence below is amended: conformance evidence is
+> generated on the vendored target, which stays the authority, and CI also runs
+> the suite against the system build so that differences surface. See
 > [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 **Support both; default to system; make the vendored target the CI and
