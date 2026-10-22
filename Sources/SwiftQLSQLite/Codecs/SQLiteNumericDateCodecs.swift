@@ -49,7 +49,10 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
 /// `XLValueCodingConfiguration.defaultCodecKeys` or per parameter/result site
 /// via `XLValueCodecSelection`/`XLQueryCodecSelection`. A stored property can
 /// also select a preset directly with `@SQLCodec`; this file only defines
-/// the presets themselves, not that selection mechanism.
+/// the presets themselves, not that selection mechanism. A registry that holds
+/// only one preset has nothing to choose between, so that preset applies to
+/// every `Date` that selects nothing else; list its key in `defaultCodecKeys`
+/// to say so.
 ///
 /// Unix seconds, Unix milliseconds, and Julian day are three different
 /// numbers for the same instant. Treat a change from one preset to another,

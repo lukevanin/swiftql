@@ -268,6 +268,54 @@ final class CodecInferenceGRDBTests: XCTestCase {
         )
     }
 
+    /// The one difference that remains between a parameter and a result column:
+    /// a default is authoritative for a parameter, so a default whose storage is
+    /// not the literal's is rejected; a result column skips such a default and
+    /// narrows by storage. The first half is also pinned, for a database whose
+    /// only codec is a default, by `InvocationBindingsGRDBTests`.
+    func testADefaultOfAnotherStorageIsRejectedForAParameterAndSkippedForAResult() throws {
+        let fixture = try TemporaryDatabaseFixture.make(named: "codec-inference-default")
+        defer { fixture.tearDown() }
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry()
+                .registering(XLDateTextCodec.standard)
+                .registering(Self.epochCodec),
+            defaultCodecKeys: [XLDateTextCodec.standardKey]
+        )
+        let database = try GRDBDatabase(
+            databasePool: fixture.pool,
+            codingConfiguration: configuration,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+
+        XCTAssertThrowsError(
+            try database.contextualBinding(
+                Date.self,
+                expressedAs: Int.self,
+                named: "integer"
+            )
+        ) { error in
+            guard case .storageMismatch(let codec, _, _, _)? =
+                    error as? XLValueCodecError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertEqual(codec, XLDateTextCodec.standardKey)
+        }
+        XCTAssertEqual(
+            try configuration.resolvedCodec(
+                for: Date.self,
+                using: database.dialect,
+                context: XLValueCodingContext(
+                    site: .result,
+                    path: XLValueCodingPath(["codec-inference", "integer"])
+                ),
+                requiringStorage: XLValueStorageIdentifier(rawValue: "integer")
+            ).identity,
+            Self.epochCodec.identity
+        )
+    }
+
     func testMissingCodecNamesTheRegisteredCandidateForAMismatchedStorage() throws {
         let fixture = try TemporaryDatabaseFixture.make(named: "codec-inference-missing")
         defer { fixture.tearDown() }

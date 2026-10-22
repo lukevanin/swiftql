@@ -137,7 +137,7 @@ final class ValueCodecContractTests: XCTestCase {
         )
     }
 
-    func testRegistrationAloneNeverChangesRepresentationSelection() throws {
+    func testOnlyRegisteredCodecIsTheLastInferenceTier() throws {
         let first = makeMarkerCodec("only")
         let oneCodecConfiguration = try XLValueCodingConfiguration(
             registry: try register([first])
@@ -163,6 +163,28 @@ final class ValueCodecContractTests: XCTestCase {
             ).identity,
             first.identity
         )
+
+        // A selector that names an unregistered codec never falls through to
+        // the lone one, whichever tier it is in.
+        let unregistered = key("unregistered")
+        for selection in [
+            XLValueCodecSelection(explicitCodecKey: unregistered),
+            XLValueCodecSelection(queryCodecKey: unregistered),
+            XLValueCodecSelection(legacyCodecKey: unregistered),
+        ] {
+            XCTAssertThrowsError(
+                try oneCodecConfiguration.encode(
+                    CodecToken(rawValue: 1),
+                    using: dialect,
+                    context: parameterContext,
+                    selection: selection
+                )
+            ) { error in
+                guard case .unknownCodec? = error as? XLValueCodecError else {
+                    return XCTFail("Unexpected error: \(error)")
+                }
+            }
+        }
 
         // No codec at all is still an error, and says so.
         let emptyConfiguration = try XLValueCodingConfiguration()
