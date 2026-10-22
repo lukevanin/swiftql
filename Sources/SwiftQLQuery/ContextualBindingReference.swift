@@ -221,11 +221,15 @@ extension XLValueCodingConfiguration {
             site: .parameter,
             path: XLValueCodingPath(key.contextPathComponent)
         )
+        // The literal names the storage the parameter is bound as, so the
+        // last inference tier counts only the codecs that store it, as it does
+        // for a result column (issue #691).
         let codec = try resolvedCodec(
             for: valueType,
             using: dialect,
             context: codingContext,
-            selection: selection
+            selection: selection,
+            inferringForStorage: Dialect.literalStorageIdentifier(for: literalType)
         )
         try validateLiteralStorage(
             literalType,

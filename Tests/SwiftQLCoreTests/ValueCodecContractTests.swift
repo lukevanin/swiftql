@@ -255,6 +255,63 @@ final class ValueCodecContractTests: XCTestCase {
             ).identity,
             integer.identity
         )
+        // A parameter knows its literal's storage as well: it passes it, and
+        // the last tier then narrows to that storage exactly as a result does.
+        for storage in [CodecTestStorage.text, .integer] {
+            let expected = storage == .text ? only : integer
+            XCTAssertEqual(
+                try twoStorages.resolvedCodec(
+                    for: CodecToken.self,
+                    using: dialect,
+                    context: parameterContext,
+                    selection: XLValueCodecSelection(),
+                    inferringForStorage: storageIdentifier(storage)
+                ).identity,
+                expected.identity
+            )
+            XCTAssertEqual(
+                try twoStorages.resolvedCodec(
+                    for: CodecToken.self,
+                    using: dialect,
+                    context: resultContext,
+                    requiringStorage: storageIdentifier(storage)
+                ).identity,
+                expected.identity
+            )
+        }
+        // The narrowing reaches only the last tier: a default that stores
+        // another class is still the default, and its mismatch is the
+        // caller's to report.
+        let textDefault = try XLValueCodingConfiguration(
+            registry: try register([only, integer]),
+            defaultCodecKeys: [only.identity.key]
+        )
+        XCTAssertEqual(
+            try textDefault.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(),
+                inferringForStorage: storageIdentifier(.integer)
+            ).identity,
+            only.identity
+        )
+        // With nothing of that storage, the registered codecs are named.
+        assertCodecError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(),
+                inferringForStorage: storageIdentifier(.integer)
+            ),
+            equals: .missingCodec(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                candidates: [only.identity.key],
+                context: parameterContext
+            )
+        )
 
         let twoText = try XLValueCodingConfiguration(
             registry: try register([only, makeMarkerCodec("undefaulted-b")])

@@ -351,7 +351,8 @@ final class SQLQueryCaptureTests: XCTestCase {
     }
 
     /// Issue #691: a capture whose storage no registered codec stores names the
-    /// codecs that are registered for the type, instead of reporting none.
+    /// codecs registered for the type in its detail, instead of saying nothing.
+    /// `candidates` keeps meaning the codecs that tied, so it stays empty.
     func testStorageMismatchedCaptureNamesTheRegisteredCandidate() throws {
         let codec = captureTokenCodec(id: "tests.capture.listed")
         let configuration = try XLValueCodingConfiguration(
@@ -377,7 +378,7 @@ final class SQLQueryCaptureTests: XCTestCase {
             ) = error as? XLQueryCaptureError else {
                 return XCTFail("Unexpected error: \(error)")
             }
-            XCTAssertEqual(candidates, [codec.identity.key])
+            XCTAssertEqual(candidates, [])
             XCTAssertTrue(
                 detail.contains(codec.identity.key.description),
                 detail

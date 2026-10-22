@@ -13,6 +13,11 @@ private struct CodecInferenceEvent: Equatable {
 }
 
 
+private enum CodecInferenceFailure: Error {
+    case invalidValue
+}
+
+
 private struct CodecInferenceUnregistered: Equatable {
     let rawValue: Int
 }
@@ -133,6 +138,133 @@ final class CodecInferenceGRDBTests: XCTestCase {
             row.occurredAt.timeIntervalSince1970,
             occurredAt.timeIntervalSince1970,
             accuracy: 0.001
+        )
+    }
+
+    /// A second `Date` codec, storing an integer. The key is local to this test.
+    private static let epochCodec = XLValueCodec<Date, XLSQLiteDialect>(
+        key: XLValueCodecKey(id: "tests.codec-inference.epoch", version: 1),
+        valueTypeIdentifier: XLDateTextCodec.valueTypeIdentifier,
+        dialectIdentifier: XLSQLiteDialect.identity,
+        storageIdentifier: XLValueStorageIdentifier(
+            rawValue: XLSQLiteStorageClass.integer.rawValue
+        ),
+        encode: { value, _, _ in .integer(Int64(value.timeIntervalSince1970)) },
+        decode: { value, _, _ in
+            guard case .integer(let seconds) = value else {
+                throw CodecInferenceFailure.invalidValue
+            }
+            return Date(timeIntervalSince1970: TimeInterval(seconds))
+        }
+    )
+
+    func testContextualBindingNarrowsTheLastTierByTheLiteralStorage() throws {
+        let fixture = try TemporaryDatabaseFixture.make(named: "codec-inference-storage")
+        defer { fixture.tearDown() }
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry()
+                .registering(XLDateTextCodec.standard)
+                .registering(Self.epochCodec)
+        )
+        let database = try GRDBDatabase(
+            databasePool: fixture.pool,
+            codingConfiguration: configuration,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+
+        // No default, two codecs: the literal's storage tells them apart, for a
+        // parameter as for a result column.
+        let textParameter = try database.contextualBinding(
+            Date.self,
+            expressedAs: String.self,
+            named: "text"
+        )
+        let integerParameter = try database.contextualBinding(
+            Date.self,
+            expressedAs: Int.self,
+            named: "integer"
+        )
+        XCTAssertEqual(
+            textParameter.declaration.codecIdentity,
+            XLDateTextCodec.standard.identity
+        )
+        XCTAssertEqual(
+            integerParameter.declaration.codecIdentity,
+            Self.epochCodec.identity
+        )
+        for (storedAs, expected) in [
+            ("text", XLDateTextCodec.standard.identity),
+            ("integer", Self.epochCodec.identity),
+        ] {
+            XCTAssertEqual(
+                try configuration.resolvedCodec(
+                    for: Date.self,
+                    using: database.dialect,
+                    context: XLValueCodingContext(
+                        site: .result,
+                        path: XLValueCodingPath(["codec-inference", storedAs])
+                    ),
+                    requiringStorage: XLValueStorageIdentifier(rawValue: storedAs)
+                ).identity,
+                expected
+            )
+        }
+
+        // Without a literal, and so without a storage, the two stay ambiguous.
+        XCTAssertThrowsError(
+            try configuration.resolvedCodec(
+                for: Date.self,
+                using: database.dialect,
+                context: XLValueCodingContext(
+                    site: .parameter,
+                    path: XLValueCodingPath(["codec-inference", "unconstrained"])
+                )
+            )
+        ) { error in
+            guard case .ambiguousCodec? = error as? XLValueCodecError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+
+        // One codec, whose storage is not the literal's: it is named, not
+        // selected and then rejected.
+        let integerOnly = try GRDBDatabase(
+            databasePool: fixture.pool,
+            codingConfiguration: try XLValueCodingConfiguration(
+                registry: try XLValueCodecRegistry().registering(Self.epochCodec)
+            ),
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+        let context = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath(["codec-inference", "mismatch"])
+        )
+        XCTAssertThrowsError(
+            try integerOnly.contextualBinding(
+                Date.self,
+                expressedAs: String.self,
+                named: "mismatch",
+                context: context
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? XLValueCodecError,
+                .missingCodec(
+                    valueType: String(reflecting: Date.self),
+                    dialect: integerOnly.dialect.descriptor.identity,
+                    candidates: [Self.epochCodec.identity.key],
+                    context: context
+                )
+            )
+        }
+        XCTAssertNoThrow(
+            try integerOnly.contextualBinding(
+                Date.self,
+                expressedAs: Int.self,
+                named: "match"
+            )
         )
     }
 

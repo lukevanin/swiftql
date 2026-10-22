@@ -878,10 +878,21 @@
     use the only codec registered for the Swift type and dialect, as the last
     tier after an explicit key, a query key, a default, and a v1 adapter. Code
     that worked keeps working, and a call that threw `missingCodec` because
-    exactly one codec was registered now succeeds. Registering a second codec
-    for the same type makes the selection ambiguous until you list a default or
-    select one by key, so list the default you mean. The guide's selection
-    order in <doc:CustomTypes>, "Selection and errors", now has that tier.
+    exactly one codec was registered now succeeds. A codec you registered only
+    for `@SQLCodec` to select on one property is therefore also used by a
+    parameter of that type that names no codec, and registering a second codec
+    for the type makes the selection ambiguous until you list a default or
+    select one by key, so list the default you mean.
+  - `contextualBinding` now also narrows that last tier by its literal's
+    storage, as a result column and a capture always did. With a `TEXT` and an
+    `INTEGER` `Date` codec registered and no default,
+    `contextualBinding(Date.self, expressedAs: String.self, ...)` used to throw
+    `ambiguousCodec` and now selects the `TEXT` codec; a lone `INTEGER` codec
+    with a `String` literal throws `missingCodec` naming it, where it would
+    otherwise have been selected and then rejected as a `storageMismatch`. A
+    default or an explicit key is unchanged. The guide's selection order in
+    <doc:CustomTypes>, "Selection and errors", now has the tier and the storage
+    narrowing.
   - `XLValueCodecError.missingCodec` and
     `XLQueryCodecSelectionError.missingCodecForStorage` gained a `candidates`
     value: the keys of every codec registered for the Swift type, whatever its
@@ -889,8 +900,8 @@
     them, so a codec registered for another dialect or storage is discoverable.
     A `case .missingCodec(let valueType, let dialect, let context)` or
     `case .missingCodecForStorage(...)` pattern needs the extra binding, or a
-    `_` for it. `XLQueryCaptureError.codecSelectionFailed` reports the same
-    keys in its `candidates`.
+    `_` for it. `XLQueryCaptureError.codecSelectionFailed` carries the message
+    in its `detail`; its `candidates` is unchanged.
 
 ### Added
 

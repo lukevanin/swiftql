@@ -153,8 +153,8 @@ Intrinsic `Bool`, `Int`, finite `Double`, `String`, and `Data` inputs use
 configuration or database factory. Contextual inference filters codecs by the
 SQL literal's storage first. A matching configuration default wins; otherwise
 exactly one matching codec is required, the same last tier that
-`contextualBinding` applies without the storage constraint (see "Selection and
-errors" in the custom types guide). Use `.explicit(codecKey)` or
+`contextualBinding` applies to a parameter (see "Selection and errors" in the
+custom types guide). Use `.explicit(codecKey)` or
 `.query(codecKey)` when more than one codec represents the same Swift type in
 that storage class. This query-specific path never consults a legacy or
 process-global fallback. When no codec fits, the error lists the codecs

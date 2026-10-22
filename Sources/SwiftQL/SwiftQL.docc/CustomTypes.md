@@ -223,22 +223,25 @@ query key, default, or legacy adapter. Duplicate keys and duplicate defaults are
 also rejected deterministically.
 
 The fifth tier means a codec you register but do not list in `defaultCodecKeys`
-still represents its type wherever nothing else would. Registering a second
-codec for the same type and dialect makes that selection ambiguous until you
-list one in `defaultCodecKeys` or select one by key, so list the default you
-mean rather than relying on there being only one.
+still represents its type wherever nothing else would. That includes a codec
+you registered only so that `@SQLCodec` could select it for one property: a
+`Date` that names no codec uses it too, until a second `Date` codec is
+registered. Registering that second codec makes the selection ambiguous until
+you list one in `defaultCodecKeys` or select one by key, so list the default
+you mean rather than relying on there being only one.
 
 A parameter and a result column follow this order alike: `contextualBinding`
 for a parameter, and `staticResultField` and `queryCapture` for a result column
-or a captured value, pick the same codec whenever the storage class does not
-tell the registered codecs apart. The two
-entry points that know the SQL expression's storage class, `staticResultField`
-and `queryCapture`, add a storage constraint and nothing else: they skip the v1
-adapter tier, use a default only when it stores that class, and count only
-codecs that store it when applying the fifth tier. So with a `TEXT` and an
-`INTEGER` `Date` codec registered and no default, a `TEXT` result column
-selects the `TEXT` codec, while `contextualBinding(Date.self, ...)` without a
-codec key reports both as ambiguous.
+or a captured value. Each of them knows the storage class its SQL expression has
+(the literal type of a parameter, the stored type of a column), and applies it
+to the fifth tier: only codecs that store that class are counted. So with a
+`TEXT` and an `INTEGER` `Date` codec registered and no default, a `TEXT`
+parameter and a `TEXT` result column both select the `TEXT` codec, while
+`encode(_:using:context:)`, which knows no storage, reports both as ambiguous.
+Two differences remain, both deliberate. `staticResultField` and `queryCapture`
+skip the v1 adapter tier, and they ignore a default that stores another class,
+where `contextualBinding` selects the default and then rejects it for the
+mismatch.
 
 When no codec fits, `XLValueCodecError.missingCodec` and
 `XLQueryCodecSelectionError.missingCodecForStorage` list the codecs registered

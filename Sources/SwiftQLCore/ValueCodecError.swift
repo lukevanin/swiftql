@@ -65,7 +65,7 @@ private func _xlMissingCodecAdvice(
     guard !candidates.isEmpty else {
         return "No codec is registered for \(valueType)."
     }
-    return "Registered for \(valueType): \(candidates.map(\.description).joined(separator: ", ")). None of them fits this dialect and storage. Check the codec's dialect and storage, or register one that does, list its key in defaultCodecKeys, or select it explicitly."
+    return "Registered for \(valueType): \(candidates.map(\.description).joined(separator: ", ")). None of them applies here: a codec applies when it is registered for this dialect, stores the expression's storage class where there is one, and is selected by key, listed in defaultCodecKeys, or the only one for the type. Fix the one that is close, or register one that fits."
 }
 
 

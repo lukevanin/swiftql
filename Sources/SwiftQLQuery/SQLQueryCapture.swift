@@ -488,8 +488,8 @@ private func _xlQueryCaptureCodecCandidates(
     let candidates: [XLValueCodecKey]
     if let error = error as? XLQueryCodecSelectionError {
         switch error {
-        case .missingCodecForStorage(_, _, _, let registered, _):
-            candidates = registered
+        case .missingCodecForStorage:
+            candidates = []
         case .ambiguousCodecForStorage(_, _, _, let candidates, _):
             return _xlOrderedQueryCaptureCodecCandidates(candidates)
         }
@@ -500,7 +500,6 @@ private func _xlQueryCaptureCodecCandidates(
              .storageMismatch(let key, _, _, _):
             candidates = [key]
         case .duplicateDefault(_, _, let keys, _),
-             .missingCodec(_, _, let keys, _),
              .ambiguousCodec(_, _, let keys, _):
             candidates = keys
         default:

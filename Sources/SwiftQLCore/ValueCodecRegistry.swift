@@ -154,11 +154,35 @@ public struct XLValueCodingConfiguration: Sendable {
         selection: XLValueCodecSelection = XLValueCodecSelection()
     ) throws -> XLResolvedValueCodec<Value, Dialect>
     where Dialect: XLValueCodingDialect {
+        try resolvedCodec(
+            for: valueType,
+            using: dialect,
+            context: context,
+            selection: selection,
+            inferringForStorage: nil
+        )
+    }
+
+    /// Resolves like `resolvedCodec(for:using:context:selection:)`, except
+    /// that a caller that knows the storage class its SQL expression has
+    /// passes it, and the last inference tier then counts only the codecs
+    /// that store it. Every other tier is unchanged: a default or a v1 adapter
+    /// that stores another class is still selected, and its mismatch is for
+    /// the caller to report.
+    package func resolvedCodec<Value, Dialect>(
+        for valueType: Value.Type,
+        using dialect: Dialect,
+        context: XLValueCodingContext,
+        selection: XLValueCodecSelection,
+        inferringForStorage storage: XLValueStorageIdentifier?
+    ) throws -> XLResolvedValueCodec<Value, Dialect>
+    where Dialect: XLValueCodingDialect {
         let codec = try resolve(
             valueType: valueType,
             dialect: dialect,
             context: context,
-            selection: selection
+            selection: selection,
+            inferenceStorage: storage
         )
         return XLResolvedValueCodec(
             codec: codec,
@@ -259,7 +283,8 @@ public struct XLValueCodingConfiguration: Sendable {
         valueType: Value.Type,
         dialect: Dialect,
         context: XLValueCodingContext,
-        selection: XLValueCodecSelection
+        selection: XLValueCodecSelection,
+        inferenceStorage: XLValueStorageIdentifier?
     ) throws -> _XLAnyValueCodec where Dialect: XLValueCodingDialect {
         let target = _XLValueCodecTarget(
             valueType,
@@ -304,7 +329,7 @@ public struct XLValueCodingConfiguration: Sendable {
             )
         }
 
-        switch inferredCodec(for: target, storage: nil) {
+        switch inferredCodec(for: target, storage: inferenceStorage) {
         case .selected(let codec):
             return codec
         case .none(let registered):

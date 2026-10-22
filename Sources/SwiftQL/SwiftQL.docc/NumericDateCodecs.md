@@ -46,7 +46,9 @@ let numericDateCoding = try XLValueCodingConfiguration(
 
 `registeringSQLiteNumericDateCodecs()` registers all three presets without
 picking a default, so encoding or decoding a `Date` still requires an
-explicit selector:
+explicit selector. (A registry holding only one of them has no ambiguity, so
+that preset applies to every `Date` that selects nothing else; list its key in
+`defaultCodecKeys` to say so.)
 
 <!-- test: XLDocumentationTests.testDocumentationNumericDateCodecs -->
 ```swift
