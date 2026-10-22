@@ -329,7 +329,7 @@ patched, security-updated SQLite pick system. Clients who want the exact SQLite
 the conformance inventory was measured against pick vendored. Conformance
 evidence is only ever generated on the vendored target, so a claim in
 [Conformance/SQLite/REPORT.md](../Conformance/SQLite/REPORT.md) always names one
-library. The `SQLiteBuildValidationRuntime` capability capture
+library. *[Amended by #705: CI also runs the suite against the system build.]* The `SQLiteBuildValidationRuntime` capability capture
 ([SQLiteBuildValidationRuntime.swift:201-268](../Sources/SwiftQLSQLiteBuildValidationValidator/SQLiteBuildValidationRuntime.swift))
 already records `compile_options`, `sqlite_version`, and `sqlite_source_id` per
 run, so the machinery to *detect* a provenance mismatch at build-validation time

@@ -246,7 +246,10 @@ the objections above suggest:
 ## 8. Recommendation
 
 > **Superseded in part (#705, 2026-10-22):** item 1's default is not adopted;
-> the system SQLite library is the default. See the note at the top of this
+> the system SQLite library is the default, so the lead sentence below, "Invert
+> the report's default", is superseded with it. Item 5's fallback of shipping
+> the vendored target only no longer applies, because Swift 6.1 is the
+> package's floor and traits are available. See the note at the top of this
 > document and [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 **Support both. Invert the report's default. Justify vendoring by determinism,
