@@ -911,17 +911,61 @@ Provide a direct SQLite C adapter that can replace the GRDB adapter:
 - no GRDB dependency for clients selecting the native adapter.
 
 Four decisions are settled before the adapter is written, and each is recorded
-in [`Research/`](Research):
+in [`Research/`](Research), the last also in the subsection below:
 [the driver contract becomes async in scope and synchronous in cursor](Research/AsyncDriverContractFeasibility.md);
 [the multi-step contract stays, with a bundled convenience extension derived from it](Research/BundledDriverAPIAnalysis.md);
 [`vapor/sqlite-nio` is rejected as the adapter](Research/SQLiteNIOFeasibility.md);
-and [SQLite provenance is chosen on determinism and operational access rather than capabilities](Research/SQLiteProvenanceAdversarial.md),
-tracked as [#705](https://github.com/lukevanin/swiftql/issues/705). Observation
+and [SQLite provenance is decided](#sqlite-provenance-705), from two research
+documents that disagreed, tracked as
+[#705](https://github.com/lukevanin/swiftql/issues/705). Observation
 is the largest single slice and may ship reduced or deferred
 ([#711](https://github.com/lukevanin/swiftql/issues/711)); that is a
 pre-agreement, not a discovery to make late. The research documents predate the
 September 2026 renumbering: in them, v2.1 is this native adapter milestone, and
 v2.2 to v2.4 are the server dialects, now v2.5 to v2.7.
+
+#### SQLite provenance (#705)
+
+The maintainer decided on 22 October 2026 which SQLite library the native
+adapter links, and how a client chooses. It settles
+[`SQLiteCFeasibility.md`](Research/SQLiteCFeasibility.md) §1.6 against
+[`SQLiteProvenanceAdversarial.md`](Research/SQLiteProvenanceAdversarial.md) §8,
+which reached opposite defaults:
+
+- **Default: the system SQLite library**, reached through `CSwiftQLSQLite`,
+  SwiftQL's own C module over the system SQLite, which
+  [#704](https://github.com/lukevanin/swiftql/issues/704) adds. The vendored
+  SQLite is opt-in. It is a separate, future target (an amalgamation) that the
+  trait below selects, and no issue owns it yet.
+- **Conformance authority: the vendored, pinned build.** It is deterministic:
+  one known SQLite version everywhere. CI also runs the conformance suite
+  against the system build, so differences surface.
+- **No vendored-exclusive SQL capability.** SwiftQL does not adopt SQL
+  behaviour that only the vendored build supports, because the conformance
+  claim depends on both builds behaving the same.
+- **Selection: a SwiftPM package trait** opts in to the vendored build. Package
+  traits need Swift 6.1, which is the package's floor
+  (`swift-tools-version: 6.1`; see [COMPATIBILITY.md](COMPATIBILITY.md)).
+
+The reasons:
+
+- While GRDB is in use, until
+  [#71](https://github.com/lukevanin/swiftql/issues/71) and
+  [#136](https://github.com/lukevanin/swiftql/issues/136), GRDB links the
+  system SQLite. A vendored default could load two SQLite copies into one
+  process, and two copies do not share POSIX advisory locks, which can corrupt
+  databases.
+- A system default avoids compiling the amalgamation on every clean build.
+- [#689](https://github.com/lukevanin/swiftql/issues/689), which populates the
+  dialect version and gates feature minimums, is the mechanism for handling
+  version differences between systems.
+- Vendored determinism is kept where it matters most: as the conformance
+  reference.
+
+[#705](https://github.com/lukevanin/swiftql/issues/705) blocks
+[#136](https://github.com/lukevanin/swiftql/issues/136). The three SQLite
+research documents carry a note that points here, and where they disagree this
+decision wins.
 
 ### v2.5 — PostgreSQL Dialect and Adapter
 
