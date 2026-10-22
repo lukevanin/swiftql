@@ -141,7 +141,7 @@ Checked-in evidence (`Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteIndexAdv
 ### The one real improvement
 
 `c191.v1.select.j-left.w-injection-binding` is
-`SELECT t0.orderID FROM Orders AS t0 LEFT JOIN Employees AS employees_join ON (t0.employeeID == employees_join.employeeID) WHERE (t0.customerID == :customer_input)`
+`SELECT t0.orderID FROM Orders AS t0 LEFT JOIN Employees AS employees_join ON (t0.employeeID IS employees_join.employeeID) WHERE (t0.customerID == :customer_input)`
 - a genuine `WHERE` equality filter on `Orders`, the driving table of a
 `LEFT JOIN`. `CREATE INDEX ON Orders (CustomerID, EmployeeID)` changes the
 plan from `full_table_scan` to `index_search`, constrained by `["CustomerID"]`
@@ -149,8 +149,9 @@ plan from `full_table_scan` to `index_search`, constrained by `["CustomerID"]`
 join key, per the precedence rule) but doesn't narrow the seek itself, which
 the evidence records honestly rather than overclaiming.
 
-The evidence was captured when an optional `==` rendered `IS`. Since issue #692 it
-renders `==`, and the extractor reads either as a join key.
+That evidence was captured when an optional `==` rendered `IS`, as the query above
+shows. Since issue #692 the same join renders `==`, which the extractor reads as a
+join key too; the evidence was not re-measured.
 
 ### The five false positives, and why they're honest, not bugs
 
