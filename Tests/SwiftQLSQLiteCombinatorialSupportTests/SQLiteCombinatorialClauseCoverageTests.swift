@@ -119,8 +119,9 @@ final class SQLiteCombinatorialClauseCoverageTests: XCTestCase {
         // this harness rather than a skip, so a JSONB case would turn the
         // oldest supported cell red. Its coverage is runtime-gated execution
         // tests plus an inventory record. None of this changes the SELECT
-        // pairwise plan.
-        XCTAssertEqual(manifest.cases.count, 226)
+        // pairwise plan. Issue #692 then adds two NULL-safe comparison cases,
+        // taking 226 to 228.
+        XCTAssertEqual(manifest.cases.count, 228)
         let requiredStrengthCounts = Dictionary(
             grouping: try SQLiteCombinatorialSuite.makeDrafts(from: plan)
                 .filter { $0.strength.hasPrefix("required-") },

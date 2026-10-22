@@ -3304,7 +3304,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" ASC",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" ASC",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.o-ascending swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3368,7 +3368,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" DESC",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" DESC",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.o-descending swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3432,7 +3432,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN ())",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN ())",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-empty-in swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3496,7 +3496,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-in-list swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3571,7 +3571,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"customerID\" == :customer_input)",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"t0\".\"customerID\" == :customer_input)",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-injection-binding swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3635,7 +3635,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" == 10248)",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" == 10248)",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-literal swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3710,7 +3710,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-named-binding swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3774,7 +3774,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-precedence swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3850,7 +3850,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id))",
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id))",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.j-left.w-repeated-binding swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -3979,7 +3979,7 @@
         "northwind.aggregate.grouped-having",
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\")",
+      "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" == \"employees_join\".\"employeeID\")",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.p-aggregate-count.j-left swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -5115,7 +5115,7 @@
         "id" : "oracle.c191.left-null-grouped-pagination",
         "kind" : "raw-sql"
       },
-      "rendered_sql" : "SELECT \"orders_case\".\"shipRegion\" FROM \"Orders\" AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"orders_case\".\"shipRegion\" ISNULL) GROUP BY \"orders_case\".\"customerID\" HAVING (COUNT(\"orders_case\".\"orderID\") > 1) ORDER BY (\"orders_case\".\"customerID\" COLLATE NOCASE) ASC LIMIT 5 OFFSET 2",
+      "rendered_sql" : "SELECT \"orders_case\".\"shipRegion\" FROM \"Orders\" AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" == \"employees_join\".\"employeeID\") WHERE (\"orders_case\".\"shipRegion\" ISNULL) GROUP BY \"orders_case\".\"customerID\" HAVING (COUNT(\"orders_case\".\"orderID\") > 1) ORDER BY (\"orders_case\".\"customerID\" COLLATE NOCASE) ASC LIMIT 5 OFFSET 2",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -5715,7 +5715,7 @@
       "northwind_anchor_case_ids" : [
         "northwind.join.left-null-manager"
       ],
-      "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" IS \"employees_join\".\"employeeID\")",
+      "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" == \"employees_join\".\"employeeID\")",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.select.s-subquery-alias.j-left swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -10840,7 +10840,7 @@
         "id" : "oracle.c287.expression.equality-optional-shapes",
         "kind" : "raw-sql"
       },
-      "rendered_sql" : "SELECT (:int_left IS :int_optional) AS \"rightOptional\", (:int_optional IS :int_right) AS \"leftOptional\", (:int_optional IS :int_optional_b) AS \"bothOptional\", (:int_left IS :int_null) AS \"nullOperand\", (:int_null IS :int_null) AS \"bothNull\"",
+      "rendered_sql" : "SELECT (:int_left == :int_optional) AS \"rightOptional\", (:int_optional == :int_right) AS \"leftOptional\", (:int_optional == :int_optional_b) AS \"bothOptional\", (:int_left == :int_null) AS \"nullOperand\", (:int_null == :int_null) AS \"bothNull\"",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.equality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -10985,7 +10985,7 @@
         "id" : "oracle.c287.expression.inequality-optional-shapes",
         "kind" : "raw-sql"
       },
-      "rendered_sql" : "SELECT (:int_left IS NOT :int_optional) AS \"rightOptional\", (:int_optional IS NOT :int_right) AS \"leftOptional\", (:int_optional IS NOT :int_optional_b) AS \"bothOptional\", (:int_left IS NOT :int_null) AS \"nullOperand\", (:int_null IS NOT :int_null) AS \"bothNull\"",
+      "rendered_sql" : "SELECT (:int_left != :int_optional) AS \"rightOptional\", (:int_optional != :int_right) AS \"leftOptional\", (:int_optional != :int_optional_b) AS \"bothOptional\", (:int_left != :int_null) AS \"nullOperand\", (:int_null != :int_null) AS \"bothNull\"",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.inequality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
@@ -11352,6 +11352,172 @@
       ],
       "strength" : "targeted",
       "template" : "expression.integer-division-boundaries"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "null-safe-equality-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.null-safe-equality-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.null-safe-equality-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS :int_optional) AS \"rightOptional\", (:int_optional IS :int_right) AS \"leftOptional\", (:int_optional IS :int_optional_b) AS \"bothOptional\", (:int_left IS :int_null) AS \"nullOperand\", (:int_null IS :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.null-safe-equality-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.null-safe-equality-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "null-safe-inequality-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.null-safe-inequality-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.null-safe-inequality-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS NOT :int_optional) AS \"rightOptional\", (:int_optional IS NOT :int_right) AS \"leftOptional\", (:int_optional IS NOT :int_optional_b) AS \"bothOptional\", (:int_left IS NOT :int_null) AS \"nullOperand\", (:int_null IS NOT :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.null-safe-inequality-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.null-safe-inequality-shapes"
     },
     {
       "bindings" : [
@@ -13161,6 +13327,14 @@
         {
           "id" : "inequality-optional-shapes",
           "label" : "inequality-optional-shapes"
+        },
+        {
+          "id" : "null-safe-equality-shapes",
+          "label" : "null-safe-equality-shapes"
+        },
+        {
+          "id" : "null-safe-inequality-shapes",
+          "label" : "null-safe-inequality-shapes"
         },
         {
           "id" : "integer-arithmetic-required",

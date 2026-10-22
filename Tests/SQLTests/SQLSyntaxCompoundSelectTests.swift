@@ -244,7 +244,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
                 org.name.in(cte)
             )
         let finalResult = encoder.makeSQL(expression)
-        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT 'Alice' AS scalarValue UNION SELECT t1.name AS scalarValue FROM Org AS t1 CROSS JOIN cte0 AS t0 WHERE (t1.boss IS t0.scalarValue)) SELECT t0.name FROM Org AS t0 WHERE (t0.name IN cte0)")
+        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT 'Alice' AS scalarValue UNION SELECT t1.name AS scalarValue FROM Org AS t1 CROSS JOIN cte0 AS t0 WHERE (t1.boss == t0.scalarValue)) SELECT t0.name FROM Org AS t0 WHERE (t0.name IN cte0)")
     }
     
     
@@ -295,7 +295,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
             .orderBy(family.born.ascending())
         
         let finalResult = encoder.makeSQL(expression)
-        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t0.name AS name, t0.dad AS parent FROM Family AS t0), cte1 AS (SELECT t1.parent AS scalarValue FROM cte0 AS t1 WHERE (t1.name IS 'Alice') UNION ALL SELECT t1.parent AS scalarValue FROM cte0 AS t1 INNER JOIN cte1 AS t0 ON (t0.scalarValue IS t1.name)) SELECT t1.name FROM cte1 AS t0 CROSS JOIN Family AS t1 WHERE ((t0.scalarValue IS t1.name) AND (julianday(t1.died) ISNULL)) ORDER BY julianday(t1.born) ASC")
+        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t0.name AS name, t0.dad AS parent FROM Family AS t0), cte1 AS (SELECT t1.parent AS scalarValue FROM cte0 AS t1 WHERE (t1.name == 'Alice') UNION ALL SELECT t1.parent AS scalarValue FROM cte0 AS t1 INNER JOIN cte1 AS t0 ON (t0.scalarValue == t1.name)) SELECT t1.name FROM cte1 AS t0 CROSS JOIN Family AS t1 WHERE ((t0.scalarValue == t1.name) AND (julianday(t1.died) ISNULL)) ORDER BY julianday(t1.born) ASC")
     }
     
     
@@ -349,7 +349,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         // parentheses.
         assertRenders(
             expression,
-            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t0.id AS id, t0.name AS name, t0.companyId AS companyId, t0.managerEmployeeId AS managerEmployeeId FROM Employee AS t0) AS staff ON (staff.companyId IS t0.id)"
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t0.id AS id, t0.name AS name, t0.companyId AS companyId, t0.managerEmployeeId AS managerEmployeeId FROM Employee AS t0) AS staff ON (staff.companyId == t0.id)"
         )
     }
 
@@ -368,7 +368,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
             .leftJoin(employees, on: employees.companyId == company.id)
         assertRenders(
             expression,
-            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId == t0.id)"
         )
     }
 
@@ -405,7 +405,7 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
             .leftJoin(staff, on: staff.companyId == company.id)
         assertRenders(
             nullableForm,
-            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId == t0.id)"
         )
 
         let scalarForm = sql { schema in

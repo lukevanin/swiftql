@@ -125,7 +125,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 226)
+        XCTAssertEqual(manifest.cases.count, 228)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 256)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -277,6 +277,8 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "integer-arithmetic-required",
             "integer-arithmetic-right-optional",
             "integer-division-boundaries",
+            "null-safe-equality-shapes",
+            "null-safe-inequality-shapes",
             "optional-predicates",
             "real-arithmetic-both-optional",
             "real-arithmetic-left-optional",
@@ -297,7 +299,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         ]
 
         XCTAssertEqual(Set(bySuffix.keys), expectedSuffixes)
-        XCTAssertEqual(issue287Cases.count, 35)
+        XCTAssertEqual(issue287Cases.count, 37)
         XCTAssertTrue(issue287Cases.allSatisfy { $0.mode == .semantic })
         XCTAssertTrue(issue287Cases.allSatisfy { $0.oracle?.kind == .rawSQL })
         XCTAssertTrue(
@@ -330,8 +332,10 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "comparison-left-optional": [" < ", " <= ", " > ", " >= "],
             "comparison-both-optional": [" < ", " <= ", " > ", " >= "],
             "equality-required": [" == ", " != "],
-            "equality-optional-shapes": [" IS "],
-            "inequality-optional-shapes": [" IS NOT "],
+            "equality-optional-shapes": [" == "],
+            "inequality-optional-shapes": [" != "],
+            "null-safe-equality-shapes": [" IS "],
+            "null-safe-inequality-shapes": [" IS NOT "],
             "integer-arithmetic-required": [" + ", " - ", " * ", " / ", " % "],
             "integer-arithmetic-right-optional": [" + ", " - ", " * ", " / ", " % "],
             "integer-arithmetic-left-optional": [" + ", " - ", " * ", " / ", " % "],
@@ -377,8 +381,14 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             }
         }
 
-        // The optional equality overloads render IS / IS NOT, never == / !=.
+        // The optional equality overloads render == / !=, never IS / IS NOT,
+        // and the NULL-safe comparisons render IS / IS NOT, never == / !=
+        // (issue #692).
         for suffix in ["equality-optional-shapes", "inequality-optional-shapes"] {
+            let rendered = try XCTUnwrap(bySuffix[suffix]).renderedSQL
+            XCTAssertFalse(rendered.contains(" IS "), suffix)
+        }
+        for suffix in ["null-safe-equality-shapes", "null-safe-inequality-shapes"] {
             let rendered = try XCTUnwrap(bySuffix[suffix]).renderedSQL
             XCTAssertFalse(rendered.contains(" == "), suffix)
             XCTAssertFalse(rendered.contains(" != "), suffix)
@@ -407,9 +417,10 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
     ///
     /// The raw-SQL oracle already proves SwiftQL and hand-written SQL agree,
     /// but agreement alone cannot show *which* semantics they agree on. These
-    /// literals record SQLite's three-valued Boolean logic and the fact that
-    /// the optional equality overloads never yield NULL despite their
-    /// `Optional<Bool>` Swift result type.
+    /// literals record SQLite's three-valued Boolean logic, the NULL the
+    /// optional equality overloads yield for a NULL operand, as their
+    /// `Optional<Bool>` Swift result type says, and the NULL-safe comparisons
+    /// that never yield NULL.
     func testIssue287OperatorSemanticsMatchPinnedSQLiteResults() throws {
         let manifest = try SQLiteCombinatorialSuite.makeManifest()
         let expectations: [String: [DatabaseValue]] = [
@@ -447,13 +458,23 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "equality-required": [
                 0.databaseValue, 1.databaseValue, 1.databaseValue,
             ],
-            // IS is total: comparing against NULL yields 0 or 1, never NULL.
+            // 7 vs 3, 3 vs 3, 3 vs 5, then 7 vs NULL and NULL vs NULL: a NULL
+            // operand makes the result NULL (issue #692).
             "equality-optional-shapes": [
+                0.databaseValue, 1.databaseValue, 0.databaseValue,
+                .null, .null,
+            ],
+            "inequality-optional-shapes": [
+                1.databaseValue, 0.databaseValue, 1.databaseValue,
+                .null, .null,
+            ],
+            // IS is total: comparing against NULL yields 0 or 1, never NULL.
+            "null-safe-equality-shapes": [
                 0.databaseValue, 1.databaseValue, 0.databaseValue,
                 0.databaseValue, 1.databaseValue,
             ],
             // IS NOT is the exact complement of IS, and equally total.
-            "inequality-optional-shapes": [
+            "null-safe-inequality-shapes": [
                 1.databaseValue, 0.databaseValue, 1.databaseValue,
                 1.databaseValue, 0.databaseValue,
             ],
@@ -1586,13 +1607,29 @@ private extension SQLiteCombinatorialConformanceTests {
                 """
         case "equality-optional-shapes":
             return """
+                SELECT :int_left = :int_optional,
+                       :int_optional = :int_right,
+                       :int_optional = :int_optional_b,
+                       :int_left = :int_null,
+                       :int_null = :int_null
+                """
+        case "inequality-optional-shapes":
+            return """
+                SELECT :int_left <> :int_optional,
+                       :int_optional <> :int_right,
+                       :int_optional <> :int_optional_b,
+                       :int_left <> :int_null,
+                       :int_null <> :int_null
+                """
+        case "null-safe-equality-shapes":
+            return """
                 SELECT :int_left IS :int_optional,
                        :int_optional IS :int_right,
                        :int_optional IS :int_optional_b,
                        :int_left IS :int_null,
                        :int_null IS :int_null
                 """
-        case "inequality-optional-shapes":
+        case "null-safe-inequality-shapes":
             return """
                 SELECT :int_left IS NOT :int_optional,
                        :int_optional IS NOT :int_right,
