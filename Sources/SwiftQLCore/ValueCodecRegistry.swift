@@ -63,8 +63,9 @@ public struct XLValueCodingConfiguration: Sendable {
     private let defaults: [_XLValueCodecTarget: XLValueCodecKey]
 
     /// The registered codecs for each runtime target, sorted by key. The
-    /// registry is immutable, so this is built once and the inference tier is
-    /// a lookup rather than a scan of every codec on each resolution.
+    /// registry is immutable, so this is built once, and the inference tier
+    /// reads only the few codecs of one target rather than scanning and
+    /// sorting every registered codec on each resolution.
     private let codecsByTarget: [_XLValueCodecTarget: [_XLAnyValueCodec]]
 
     public init(

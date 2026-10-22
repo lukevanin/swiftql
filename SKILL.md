@@ -293,9 +293,12 @@ func observeSkillPeople(
   codec key or version change as a schema/data compatibility decision.
 - v1.5.3 ships named presets rather than implicit defaults: `XLDateTextCodec`,
   the `UnixMilliseconds`/`UnixSeconds`/`JulianDay` numeric `Date` codecs,
-  `XLJSONValueCodec`, and `XLUUIDValueCodec.text`/`.blob`. Encoding without an
-  explicit selector or a registered database default uses the only codec
-  registered for the type, and throws `.ambiguousCodec` when several are.
+  `XLJSONValueCodec`, and `XLUUIDValueCodec.text`/`.blob`. Registering a preset
+  does not make it a default, but a preset that is the only codec registered
+  for its type is used by every value of that type that selects nothing else.
+  Encoding without an explicit selector or a registered database default throws
+  `.ambiguousCodec` when several are registered, so list the default you mean
+  in `defaultCodecKeys`.
   `@SQLCodec(key)` selects a registered codec on one stored property; it does
   not register one, and an unregistered key fails like any explicit selection.
 
