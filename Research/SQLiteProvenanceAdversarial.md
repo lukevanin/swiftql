@@ -22,8 +22,9 @@ proposal is sound and mostly pre-built. Without it, §1 is fatal.
 > build (§8 item 5), now that Swift 6.1 is the package's floor. #689 is the
 > mechanism for version differences between systems (§8 item 4). The decision
 > does not settle §8 item 3, the weaker claim wording for the system build,
-> which the system default now makes the common case, or §8 item 6. The
-> analysis below is unchanged. See
+> which the system default now makes the common case. §8 item 6 is a point of
+> wording that nothing in the decision conflicts with. The analysis below is
+> unchanged. See
 > [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 This is a deliberately adversarial reading of
