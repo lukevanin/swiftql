@@ -33,7 +33,7 @@ statement's rendered SQL:
   deliberately more conservative than "does this `OR` actually change
   precedence" - or a conjunct that isn't a plain column/operator
   comparison, yields nothing for that clause rather than a guess).
-- `JOIN … ON` equality (or `IS`, for a nullable left join) key columns.
+- `JOIN … ON` equality (`==`, `=`, or the NULL-safe `IS`) key columns.
 - `ORDER BY` columns, ignoring `COLLATE`/`ASC`/`DESC`.
 - The alias→real-table-name map (`tableAliasMap`), which explicitly excludes
   two situations rather than resolving them wrong: a CTE name masquerading
@@ -141,13 +141,16 @@ Checked-in evidence (`Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteIndexAdv
 ### The one real improvement
 
 `c191.v1.select.j-left.w-injection-binding` is
-`SELECT t0.orderID FROM Orders AS t0 LEFT JOIN Employees AS employees_join ON (t0.employeeID IS employees_join.employeeID) WHERE (t0.customerID == :customer_input)`
+`SELECT t0.orderID FROM Orders AS t0 LEFT JOIN Employees AS employees_join ON (t0.employeeID == employees_join.employeeID) WHERE (t0.customerID == :customer_input)`
 - a genuine `WHERE` equality filter on `Orders`, the driving table of a
 `LEFT JOIN`. `CREATE INDEX ON Orders (CustomerID, EmployeeID)` changes the
 plan from `full_table_scan` to `index_search`, constrained by `["CustomerID"]`
 - `EmployeeID` rides along in the index (derived from the `LEFT JOIN`'s
 join key, per the precedence rule) but doesn't narrow the seek itself, which
 the evidence records honestly rather than overclaiming.
+
+The evidence was captured when an optional `==` rendered `IS`. Since issue #692 it
+renders `==`, and the extractor reads either as a join key.
 
 ### The five false positives, and why they're honest, not bugs
 

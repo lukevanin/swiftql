@@ -26,6 +26,100 @@ let query = sql { schema in
 SwiftQL supports the following Swift boolean operators: `==`, `!=`, `!`, `<`, 
 `>`, `>=`, `<=`, `&&`, `||`.
 
+## Comparing nullable values
+
+`==` and `!=` render SQL's equality and inequality, which follow three-valued
+logic: comparing anything with `NULL` yields `NULL`, not `true` or `false`. SQLite spells
+them `==` and `!=`. When either operand is optional, the Swift result is
+`Optional<Bool>`, as it is for `<`, `>`, `<=`, and `>=`. A `Where` clause drops a
+row whose condition is `NULL`, and a join does not match it.
+
+To compare `NULL` as a value, so that two `NULL`s are equal and a `NULL` is
+different from every other value, use `isNotDistinctFrom(_:)` and
+`isDistinctFrom(_:)`. They always yield `true` or `false`, so their result is
+`Bool`. SQLite spells them `IS` and `IS NOT`.
+
+| Swift | SQLite | Result | `NULL` operand |
+| --- | --- | --- | --- |
+| `a == b` | `(a == b)` | `Bool`, or `Bool?` if an operand is optional | `NULL` |
+| `a != b` | `(a != b)` | `Bool`, or `Bool?` if an operand is optional | `NULL` |
+| `a.isNotDistinctFrom(b)` | `(a IS b)` | `Bool` | `true` if both are `NULL` |
+| `a.isDistinctFrom(b)` | `(a IS NOT b)` | `Bool` | `true` if only one is `NULL` |
+| `a.isNull()` | `(a ISNULL)` | `Bool` | `true` |
+| `a.notNull()` | `(a NOTNULL)` | `Bool` | `false` |
+
+The difference matters most in a join on two nullable columns. A ticket and a
+redemption each have an optional voucher. Joining them with `==` matches a
+ticket to the redemptions that used its voucher, and a ticket with no voucher
+matches none:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+@SQLTable struct Ticket {
+    let id: String
+    let voucher: String?
+}
+
+@SQLTable struct Redemption {
+    let id: String
+    let voucher: String?
+}
+
+@SQLResult struct TicketRedemption {
+    var ticket: String
+    var redemption: String?
+}
+
+let query = sql { schema in
+    let ticket = schema.table(Ticket.self)
+    let redemption = schema.nullableTable(Redemption.self)
+    Select(
+        TicketRedemption.columns(
+            ticket: ticket.id,
+            redemption: redemption.id
+        )
+    )
+    From(ticket)
+    Join.Left(redemption, on: ticket.voucher == redemption.voucher)
+}
+```
+
+With two tickets and two redemptions that have no voucher, each ticket appears
+once, with no redemption. If a missing voucher should match a missing voucher,
+say so with `isNotDistinctFrom(_:)`; each ticket with no voucher then joins to
+every redemption with none:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let ticket = schema.table(Ticket.self)
+    let redemption = schema.nullableTable(Redemption.self)
+    Select(
+        TicketRedemption.columns(
+            ticket: ticket.id,
+            redemption: redemption.id
+        )
+    )
+    From(ticket)
+    Join.Left(
+        redemption,
+        on: ticket.voucher.isNotDistinctFrom(redemption.voucher)
+    )
+}
+```
+
+The same holds in a `Where` clause. `ticket.voucher != "V-1"` leaves out the
+tickets with no voucher, because `NULL != 'V-1'` is `NULL`;
+`ticket.voucher.isDistinctFrom("V-1")` keeps them.
+
+`column == nil` does not test for `NULL`: it is Swift's own comparison of the
+expression with `nil`. Use `isNull()` or `notNull()`.
+
+> Note: Before SwiftQL 2.0, `==` and `!=` with an optional operand rendered
+`IS` and `IS NOT`, so they behaved like `isNotDistinctFrom(_:)` and
+`isDistinctFrom(_:)` while their result was typed `Optional<Bool>`. See the
+Migration section of the changelog.
+
 ## Between operators
 
 Use `isBetween(_:_:)` for SQLite's inclusive `BETWEEN` predicate and
