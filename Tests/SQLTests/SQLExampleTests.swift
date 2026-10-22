@@ -1935,8 +1935,46 @@ extension XLDocumentationTests {
         let _: (XLSyntaxExpressionTests) -> () -> Void =
             XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
 
-        // Comparing nullable values (issue #692): the join example, the
-        // NULL-safe form, and the `Where` behaviour the guide describes.
+        // Comparing nullable values (issue #692): the guide's two joins, as
+        // written there, over the models of `XLOptionalEqualityTests`.
+        let ticketJoin = sql { schema in
+            let ticket = schema.table(Ticket.self)
+            let redemption = schema.nullableTable(Redemption.self)
+            Select(
+                TicketRedemption.columns(
+                    ticket: ticket.id,
+                    redemption: redemption.id
+                )
+            )
+            From(ticket)
+            Join.Left(redemption, on: ticket.voucher == redemption.voucher)
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(ticketJoin).sql.contains(
+                "LEFT JOIN OptionalEqualityRedemption AS t1 ON (t0.voucher == t1.voucher)"
+            )
+        )
+        let ticketNullSafeJoin = sql { schema in
+            let ticket = schema.table(Ticket.self)
+            let redemption = schema.nullableTable(Redemption.self)
+            Select(
+                TicketRedemption.columns(
+                    ticket: ticket.id,
+                    redemption: redemption.id
+                )
+            )
+            From(ticket)
+            Join.Left(
+                redemption,
+                on: ticket.voucher.isNotDistinctFrom(redemption.voucher)
+            )
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(ticketNullSafeJoin).sql.contains(
+                "LEFT JOIN OptionalEqualityRedemption AS t1 ON (t0.voucher IS t1.voucher)"
+            )
+        )
+        // The behaviour the guide describes, and the NULL-safe form.
         let _: (XLOptionalEqualityTests) -> () throws -> Void =
             XLOptionalEqualityTests.testALeftJoinOnTwoNullableColumnsNoLongerMatchesNullToNull
         let _: (XLOptionalEqualityTests) -> () throws -> Void =

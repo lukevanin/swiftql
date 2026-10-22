@@ -65,22 +65,22 @@ func !=<Wrapped>(lhs: any QueryOnlyDialectExpression<Optional<Wrapped>>, rhs: an
 
 extension QueryOnlyDialectExpression where T: XLEquatable {
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     func isNotDistinctFrom(_ other: any QueryOnlyDialectExpression<T>) -> some QueryOnlyDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     func isNotDistinctFrom(_ other: any QueryOnlyDialectExpression<Optional<T>>) -> some QueryOnlyDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     func isDistinctFrom(_ other: any QueryOnlyDialectExpression<T>) -> some QueryOnlyDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     func isDistinctFrom(_ other: any QueryOnlyDialectExpression<Optional<T>>) -> some QueryOnlyDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
@@ -89,22 +89,22 @@ extension QueryOnlyDialectExpression where T: XLEquatable {
 
 extension QueryOnlyDialectExpression {
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     func isNotDistinctFrom<Wrapped>(_ other: any QueryOnlyDialectExpression<Wrapped>) -> some QueryOnlyDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     func isNotDistinctFrom<Wrapped>(_ other: any QueryOnlyDialectExpression<Optional<Wrapped>>) -> some QueryOnlyDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     func isDistinctFrom<Wrapped>(_ other: any QueryOnlyDialectExpression<Wrapped>) -> some QueryOnlyDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     func isDistinctFrom<Wrapped>(_ other: any QueryOnlyDialectExpression<Optional<Wrapped>>) -> some QueryOnlyDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }

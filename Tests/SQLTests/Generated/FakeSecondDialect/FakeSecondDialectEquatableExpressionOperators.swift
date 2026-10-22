@@ -73,25 +73,25 @@ func !=<Wrapped>(lhs: any FakeSecondDialectExpression<Optional<Wrapped>>, rhs: a
 
 extension FakeSecondDialectExpression where T: XLEquatable {
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     @_disfavoredOverload
     func isNotDistinctFrom(_ other: any FakeSecondDialectExpression<T>) -> some FakeSecondDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     @_disfavoredOverload
     func isNotDistinctFrom(_ other: any FakeSecondDialectExpression<Optional<T>>) -> some FakeSecondDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     @_disfavoredOverload
     func isDistinctFrom(_ other: any FakeSecondDialectExpression<T>) -> some FakeSecondDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     @_disfavoredOverload
     func isDistinctFrom(_ other: any FakeSecondDialectExpression<Optional<T>>) -> some FakeSecondDialectExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
@@ -101,25 +101,25 @@ extension FakeSecondDialectExpression where T: XLEquatable {
 
 extension FakeSecondDialectExpression {
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     @_disfavoredOverload
     func isNotDistinctFrom<Wrapped>(_ other: any FakeSecondDialectExpression<Wrapped>) -> some FakeSecondDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     @_disfavoredOverload
     func isNotDistinctFrom<Wrapped>(_ other: any FakeSecondDialectExpression<Optional<Wrapped>>) -> some FakeSecondDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     @_disfavoredOverload
     func isDistinctFrom<Wrapped>(_ other: any FakeSecondDialectExpression<Wrapped>) -> some FakeSecondDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     @_disfavoredOverload
     func isDistinctFrom<Wrapped>(_ other: any FakeSecondDialectExpression<Optional<Wrapped>>) -> some FakeSecondDialectExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)

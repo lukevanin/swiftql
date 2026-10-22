@@ -925,7 +925,9 @@
     optional operand on either side, their result is `Bool`, never `NULL`, and
     SQLite spells them `IS` and `IS NOT` (PostgreSQL spells them `IS NOT
     DISTINCT FROM` and `IS DISTINCT FROM`). Replace `a == b` with
-    `a.isNotDistinctFrom(b)` and `a != b` with `a.isDistinctFrom(b)`. To test
+    `a.isNotDistinctFrom(b)` and `a != b` with `a.isDistinctFrom(b)`. The
+    result is `Bool`, where the old optional `==` was typed `Optional<Bool>`,
+    so a result column or property that held it as `Bool?` becomes `Bool`. To test
     for `NULL` itself, `isNull()` and `notNull()` are unchanged;
     `column == nil` is Swift's own comparison and does not test for `NULL`.
     Search your queries for `==` and `!=` whose operand is optional: a

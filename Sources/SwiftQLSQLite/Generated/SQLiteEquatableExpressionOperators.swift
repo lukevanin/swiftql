@@ -65,22 +65,22 @@ public func !=<Wrapped>(lhs: any XLSQLiteExpression<Optional<Wrapped>>, rhs: any
 
 extension XLSQLiteExpression where T: XLEquatable {
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     public func isNotDistinctFrom(_ other: any XLSQLiteExpression<T>) -> some XLSQLiteExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     public func isNotDistinctFrom(_ other: any XLSQLiteExpression<Optional<T>>) -> some XLSQLiteExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     public func isDistinctFrom(_ other: any XLSQLiteExpression<T>) -> some XLSQLiteExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     public func isDistinctFrom(_ other: any XLSQLiteExpression<Optional<T>>) -> some XLSQLiteExpression<Bool> {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
@@ -89,22 +89,22 @@ extension XLSQLiteExpression where T: XLEquatable {
 
 extension XLSQLiteExpression {
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     public func isNotDistinctFrom<Wrapped>(_ other: any XLSQLiteExpression<Wrapped>) -> some XLSQLiteExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value equals the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value equals the other or both are `NULL`, and `false` otherwise. Never `NULL`.
     public func isNotDistinctFrom<Wrapped>(_ other: any XLSQLiteExpression<Optional<Wrapped>>) -> some XLSQLiteExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     public func isDistinctFrom<Wrapped>(_ other: any XLSQLiteExpression<Wrapped>) -> some XLSQLiteExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
 
-    /// Returns whether this nullable value differs from the other, treating two `NULL`s as equal.
+    /// Returns `true` if this value differs from the other or only one is `NULL`, and `false` if they are equal or both are `NULL`. Never `NULL`.
     public func isDistinctFrom<Wrapped>(_ other: any XLSQLiteExpression<Optional<Wrapped>>) -> some XLSQLiteExpression<Bool> where T == Optional<Wrapped>, Wrapped: XLEquatable {
         XLComparisonExpression<Bool>(.nullSafeNotEqual, lhs: self, rhs: other)
     }
