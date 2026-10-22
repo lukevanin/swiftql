@@ -20,7 +20,8 @@ SQLite provenance decision is made *before* the adapter is written, not after.
 > vendored-exclusive SQL capability is adopted, and that a SwiftPM package
 > trait selects the vendored build, which this report left open. The decision
 > that condition 1 asks for is made. The symbol-prefix proof it requires of a
-> vendored build is not part of the decision: it stays in the scope of #704.
+> vendored build is not part of the decision: it applies to the vendored target,
+> which is separate from `CSwiftQLSQLite`, and #704 currently lists it.
 > [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705) holds the decision and its
 > reasons.
 
