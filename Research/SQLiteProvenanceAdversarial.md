@@ -12,6 +12,18 @@ conformance claim.** Vendoring should be justified by *determinism and
 operational access*, not by capabilities or speed. With that substitution the
 proposal is sound and mostly pre-built. Without it, §1 is fatal.
 
+> **Decision (#705, 2026-10-22).** The maintainer decided the question this
+> document and [SQLiteCFeasibility.md](SQLiteCFeasibility.md) answered
+> differently, and **this document's default verdict is superseded.** The system
+> SQLite library is the default; the vendored build is opt-in, not the default
+> (§8 item 1). Three parts of §8 stand as decided: the vendored, pinned build is
+> the conformance authority; there is no vendored-exclusive SQL capability
+> (option (a), §8 item 2); and a SwiftPM package trait selects the vendored
+> build (§8 item 5), now that Swift 6.1 is the package's floor. #689 is the
+> mechanism for version differences between systems (§8 item 4). The decision
+> says nothing on §8 items 3 and 6. The analysis below is unchanged. See
+> [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
+
 This is a deliberately adversarial reading of
 [SQLiteCFeasibility.md §1](SQLiteCFeasibility.md), which recommended "support
 both; default to system; make the vendored target the CI and conformance
@@ -229,6 +241,10 @@ the objections above suggest:
   are forced onto it regardless of preference.
 
 ## 8. Recommendation
+
+> **Superseded in part (#705, 2026-10-22):** item 1's default is not adopted;
+> the system SQLite library is the default. See the note at the top of this
+> document and [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 **Support both. Invert the report's default. Justify vendoring by determinism,
 not capability. Gate the whole thing on version wiring.**

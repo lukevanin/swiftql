@@ -13,6 +13,15 @@ The four conditions are stated in §7. The load-bearing ones are that observatio
 ships as its own slice with an explicit reduced-fidelity fallback, and that the
 SQLite provenance decision is made *before* the adapter is written, not after.
 
+> **Decision (#705, 2026-10-22).** The maintainer adopted this report's §1.6
+> recommendation: the system SQLite library is the default, and the vendored,
+> pinned build is opt-in and the conformance authority. The decision adds that
+> CI also runs the conformance suite against the system build, that no
+> vendored-exclusive SQL capability is adopted, and that a SwiftPM package
+> trait selects the vendored build, which this report left open. Condition 1
+> below is met. [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705) holds the
+> decision and its reasons.
+
 This report is the follow-on to
 [SQLiteNIOFeasibility.md](SQLiteNIOFeasibility.md), whose §7.1 asserted that
 "the prove-out already exists in-repo." §5.1 below tests that claim and finds it
@@ -292,6 +301,10 @@ options, matching GRDB's `Configuration` model: `journal_mode=WAL`,
 policy and belong in the `onOpen` hook (§3.4), not baked into the library.
 
 ### 1.6 Provenance recommendation
+
+> **Decided (#705, 2026-10-22):** adopted as written, with the additions in the
+> note at the top of this report. See
+> [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
 
 **Support both; default to system; make the vendored target the CI and
 conformance authority.**
