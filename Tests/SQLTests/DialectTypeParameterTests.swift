@@ -266,7 +266,7 @@ final class DialectTypeParameterTests: XCTestCase {
         }
         XCTAssertEqual(
             try secondSQL(statement),
-            #"SELECT "t0"."id" AS "id", "t0"."name" AS "name", "t0"."nickname" AS "nickname" FROM "person" AS "t0" WHERE ("t0"."id" IS (SELECT MAX("t1"."id") FROM "person" AS "t1"))"#
+            #"SELECT "t0"."id" AS "id", "t0"."name" AS "name", "t0"."nickname" AS "nickname" FROM "person" AS "t0" WHERE ("t0"."id" == (SELECT MAX("t1"."id") FROM "person" AS "t1"))"#
         )
     }
 

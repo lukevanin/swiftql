@@ -92,6 +92,17 @@ extension GRDBDatabase {
         }
     }
 
+    // Issue #692: the NULL-safe comparison takes a parameter like `==` does.
+    @SQLQuery
+    func nullableRowsNotDistinctFromValue(value: Int?) -> any XLQueryStatement<TestNullablesTable> {
+        sql { schema in
+            let table = schema.table(TestNullablesTable.self)
+            Select(table)
+            From(table)
+            Where(table.value.isNotDistinctFrom(value))
+        }
+    }
+
     // Issue #661: a parameter passed to a DSL matching method or to a clause
     // binds exactly like a comparison operand. `limit` is also a reminder that
     // a parameter only collides with a callee of the same spelling.
@@ -261,10 +272,28 @@ final class XLQueryPeerMacroTests: XCTestCase {
             try database.fetchNullableRowsMatchingValue(value: 42),
             [TestNullablesTable(id: "with-value", value: 42)]
         )
-        // Optional equality renders as SQL `IS`, which is null-safe: a nil
-        // binding matches the row whose column is NULL.
+        // Optional equality renders as SQL equality, which is NULL for a NULL
+        // operand (issue #692): a nil binding matches no row, not even the
+        // row whose column is NULL.
         XCTAssertEqual(
             try database.fetchNullableRowsMatchingValue(value: nil),
+            []
+        )
+    }
+
+    func testNotDistinctFromParameterExecutorMatchesSQLNull() throws {
+        try createNullablesTable()
+        try insert(TestNullablesTable(id: "with-value", value: 42))
+        try insert(TestNullablesTable(id: "without-value", value: nil))
+
+        XCTAssertEqual(
+            try database.fetchNullableRowsNotDistinctFromValue(value: 42),
+            [TestNullablesTable(id: "with-value", value: 42)]
+        )
+        // The NULL-safe comparison renders `IS`: a nil binding matches the row
+        // whose column is NULL.
+        XCTAssertEqual(
+            try database.fetchNullableRowsNotDistinctFromValue(value: nil),
             [TestNullablesTable(id: "without-value", value: nil)]
         )
     }

@@ -854,7 +854,7 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(occupation)
         }
         let rows = try database.makeRequest(with: statement).fetchAll()
-        XCTAssertEqual(encoder.makeSQL(statement).sql, "SELECT t0.name AS occupation, (SELECT COUNT(t1.id) FROM Person AS t1 WHERE (t1.occupationId IS t0.id)) AS numberOfPeople FROM Occupation AS t0")
+        XCTAssertEqual(encoder.makeSQL(statement).sql, "SELECT t0.name AS occupation, (SELECT COUNT(t1.id) FROM Person AS t1 WHERE (t1.occupationId == t0.id)) AS numberOfPeople FROM Occupation AS t0")
         XCTAssertEqual(rows, [
             OccupationCount(occupation: "Engineer", numberOfPeople: 1),
             OccupationCount(occupation: "Scientist", numberOfPeople: 1),
@@ -875,7 +875,7 @@ final class XLDocumentationTests: XCTestCase {
             Join.Left(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [
             PersonOptionalOccupation(person: "John Doe", occupation: "Engineer"),
@@ -896,7 +896,7 @@ final class XLDocumentationTests: XCTestCase {
             Join.Left(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
         XCTAssertEqual(rows.map { $0._1 }, ["Engineer", "Scientist", nil])
@@ -913,7 +913,7 @@ final class XLDocumentationTests: XCTestCase {
             Where(row._0 != "Fred")
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId) WHERE (_0 != 'Fred')")
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId) WHERE (_0 != 'Fred')")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
     }
@@ -930,7 +930,7 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [
             PersonOptionalOccupation(person: "John Doe", occupation: "Engineer"),
@@ -950,7 +950,7 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS person, CASE WHEN (t1.name ISNULL) THEN 'Unemployed' ELSE 'Employed' END AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS person, CASE WHEN (t1.name ISNULL) THEN 'Unemployed' ELSE 'Employed' END AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [
             PersonOccupation(person: "John Doe", occupation: "Employed"),
@@ -970,7 +970,7 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
-        XCTAssertEqual(sql, "SELECT t0.name AS person, COALESCE(t1.name, 'No occupation') AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        XCTAssertEqual(sql, "SELECT t0.name AS person, COALESCE(t1.name, 'No occupation') AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id == t0.occupationId)")
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [
             PersonOccupation(person: "John Doe", occupation: "Engineer"),
@@ -1934,6 +1934,53 @@ extension XLDocumentationTests {
             XLSyntaxExpressionTests.test_TextBinding_In_Subquery
         let _: (XLSyntaxExpressionTests) -> () -> Void =
             XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
+
+        // Comparing nullable values (issue #692): the guide's two joins, as
+        // written there, over the models of `XLOptionalEqualityTests`.
+        let ticketJoin = sql { schema in
+            let ticket = schema.table(Ticket.self)
+            let redemption = schema.nullableTable(Redemption.self)
+            Select(
+                TicketRedemption.columns(
+                    ticket: ticket.id,
+                    redemption: redemption.id
+                )
+            )
+            From(ticket)
+            Join.Left(redemption, on: ticket.voucher == redemption.voucher)
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(ticketJoin).sql.contains(
+                "LEFT JOIN OptionalEqualityRedemption AS t1 ON (t0.voucher == t1.voucher)"
+            )
+        )
+        let ticketNullSafeJoin = sql { schema in
+            let ticket = schema.table(Ticket.self)
+            let redemption = schema.nullableTable(Redemption.self)
+            Select(
+                TicketRedemption.columns(
+                    ticket: ticket.id,
+                    redemption: redemption.id
+                )
+            )
+            From(ticket)
+            Join.Left(
+                redemption,
+                on: ticket.voucher.isNotDistinctFrom(redemption.voucher)
+            )
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(ticketNullSafeJoin).sql.contains(
+                "LEFT JOIN OptionalEqualityRedemption AS t1 ON (t0.voucher IS t1.voucher)"
+            )
+        )
+        // The behaviour the guide describes, and the NULL-safe form.
+        let _: (XLOptionalEqualityTests) -> () throws -> Void =
+            XLOptionalEqualityTests.testALeftJoinOnTwoNullableColumnsNoLongerMatchesNullToNull
+        let _: (XLOptionalEqualityTests) -> () throws -> Void =
+            XLOptionalEqualityTests.testAJoinOnTheNullSafeComparisonMatchesNullToNull
+        let _: (XLOptionalEqualityTests) -> () throws -> Void =
+            XLOptionalEqualityTests.testWhereOnAPlainComparisonExcludesNullRows
     }
 
     func testDocumentationRealValues() throws {

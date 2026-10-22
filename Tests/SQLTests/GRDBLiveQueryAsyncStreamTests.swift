@@ -666,7 +666,9 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             let table = schema.table(AsyncStreamNullableRecord.self)
             Select(table)
             From(table)
-            Where(table.value == valueParameter)
+            // A NULL binding matches the NULL row only through the NULL-safe
+            // comparison; `==` is NULL for it (issue #692).
+            Where(table.value.isNotDistinctFrom(valueParameter))
             OrderBy(table.id.ascending())
         }
         let request = database.makeRequest(with: statement)

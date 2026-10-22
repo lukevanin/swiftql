@@ -276,7 +276,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         }
         assertRenders(
             closureForm,
-            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId IS t0.companyId)))"
+            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId == t0.companyId)))"
         )
 
         let builderSchema = XLSchema()
@@ -290,7 +290,7 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         }
         assertRenders(
             builderForm,
-            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId IS t0.companyId)))"
+            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId == t0.companyId)))"
         )
     }
     

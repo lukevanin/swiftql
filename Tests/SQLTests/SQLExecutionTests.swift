@@ -1158,9 +1158,10 @@ final class XLExecutionTests: XCTestCase {
         var request = database.makeRequest(with: statement)
         request.set(parameter: parameter, value: nil)
         
+        // Equality with NULL is NULL, so no row matches, not even the row whose
+        // column is NULL (issue #692). `isNotDistinctFrom` is the form that does.
         let results = try request.fetchAll()
-        XCTAssertEqual(results.count, 1)
-        XCTAssertEqual(results[0], EmployeeTable(id: "emp01", name: "Boss", companyId: nil, managerEmployeeId: nil))
+        XCTAssertEqual(results, [])
     }
     
     
@@ -1180,11 +1181,62 @@ final class XLExecutionTests: XCTestCase {
         }
         
         var request = database.makeRequest(with: statement)
+        request.set(parameter: parameter, value: "emp01")
+        
+        let results = try request.fetchAll()
+        XCTAssertEqual(results.count, 2)
+        XCTAssertEqual(results[0], EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "emp01"))
+        XCTAssertEqual(results[1], EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "emp01"))
+    }
+    
+    
+    func testSelectWhereNotDistinctFromNullOptionalParameter() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "emp01", name: "Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "emp01"))
+        try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "emp01"))
+
+        let parameter = XLNamedBindingReference<Optional<String>>(name: "p")
+        
+        let statement = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.isNotDistinctFrom(parameter))
+        }
+        
+        var request = database.makeRequest(with: statement)
         request.set(parameter: parameter, value: nil)
         
+        // The NULL-safe comparison treats NULL as a value, so a NULL parameter
+        // matches the row whose column is NULL, as `==` did before issue #692.
         let results = try request.fetchAll()
         XCTAssertEqual(results.count, 1)
         XCTAssertEqual(results[0], EmployeeTable(id: "emp01", name: "Boss", companyId: nil, managerEmployeeId: nil))
+    }
+    
+    
+    func testSelectWhereDistinctFromNullOptionalParameter() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "emp01", name: "Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "emp01"))
+        try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "emp01"))
+
+        let parameter = XLNamedBindingReference<Optional<String>>(name: "p")
+        
+        let statement = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.isDistinctFrom(parameter))
+            OrderBy(t.id.ascending())
+        }
+        
+        var request = database.makeRequest(with: statement)
+        request.set(parameter: parameter, value: nil)
+        
+        let results = try request.fetchAll()
+        XCTAssertEqual(results.map(\.id), ["emp02", "emp03"])
     }
     
     
@@ -1781,7 +1833,7 @@ final class XLExecutionTests: XCTestCase {
 
         XCTAssertEqual(
             encoder.makeSQL(statement).sql,
-            "INSERT INTO `Temp` AS `t0` SELECT `t1`.`id` AS `id`, `t1`.`name` AS `value` FROM `Company` AS `t1` INNER JOIN `Employee` AS `t2` ON (`t2`.`companyId` IS `t1`.`id`) WHERE (`t2`.`name` != 'skip') GROUP BY `t1`.`id`, `t1`.`name` HAVING (COUNT(`t2`.`id`) >= 1) ORDER BY `t1`.`name` ASC LIMIT 1 OFFSET 1"
+            "INSERT INTO `Temp` AS `t0` SELECT `t1`.`id` AS `id`, `t1`.`name` AS `value` FROM `Company` AS `t1` INNER JOIN `Employee` AS `t2` ON (`t2`.`companyId` == `t1`.`id`) WHERE (`t2`.`name` != 'skip') GROUP BY `t1`.`id`, `t1`.`name` HAVING (COUNT(`t2`.`id`) >= 1) ORDER BY `t1`.`name` ASC LIMIT 1 OFFSET 1"
         )
 
         try database.makeRequest(with: statement).execute()

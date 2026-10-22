@@ -147,6 +147,18 @@ struct C287OptionalEqualityRow: Equatable {
 }
 
 
+/// The NULL-safe comparisons are never NULL, so unlike the optional `==` and
+/// `!=` their columns are not optional (issue #692).
+@SQLResult
+struct C692NullSafeEqualityRow: Equatable {
+    let rightOptional: Bool
+    let leftOptional: Bool
+    let bothOptional: Bool
+    let nullOperand: Bool
+    let bothNull: Bool
+}
+
+
 @SQLResult
 struct C287IntegerArithmeticRow: Equatable {
     let add: Int
@@ -1021,9 +1033,11 @@ public enum SQLiteTypedCombinatorialCases {
                 )),
                 bindings: [leftBinding, rightBinding, textBinding]
             ),
-            // The optional `==` overloads render SQLite `IS`, which is never
-            // NULL even though the Swift result type is `Optional<Bool>`. The
-            // last two columns pin that deviation.
+            // The optional `==` and `!=` overloads render SQLite's equality,
+            // which is NULL when either operand is NULL, as the ordering
+            // operators are. They were `IS` and `IS NOT` until issue #692, which
+            // are never NULL and made a join on two nullable columns match
+            // NULL to NULL. The last two columns pin that NULL.
             issue287Case(
                 id: "equality-optional-shapes",
                 featureID: "syntax.expression.operator-prepare-gap",
@@ -1042,7 +1056,7 @@ public enum SQLiteTypedCombinatorialCases {
                     nullIntBinding,
                 ]
             ),
-            // The same deviation for `IS NOT`.
+            // The same for `!=`.
             issue287Case(
                 id: "inequality-optional-shapes",
                 featureID: "syntax.expression.operator-prepare-gap",
@@ -1052,6 +1066,46 @@ public enum SQLiteTypedCombinatorialCases {
                     bothOptional: intOptional != intOptionalB,
                     nullOperand: intLeft != intNull,
                     bothNull: intNull != intNull
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+            // The NULL-safe comparison, under its own name. SQLite spells it
+            // `IS`, which is never NULL: the last two columns are 0 and 1
+            // where the plain comparison is NULL.
+            issue287Case(
+                id: "null-safe-equality-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C692NullSafeEqualityRow.columns(
+                    rightOptional: intLeft.isNotDistinctFrom(intOptional),
+                    leftOptional: intOptional.isNotDistinctFrom(intRight),
+                    bothOptional: intOptional.isNotDistinctFrom(intOptionalB),
+                    nullOperand: intLeft.isNotDistinctFrom(intNull),
+                    bothNull: intNull.isNotDistinctFrom(intNull)
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+            // The same for `IS NOT`, the exact complement.
+            issue287Case(
+                id: "null-safe-inequality-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C692NullSafeEqualityRow.columns(
+                    rightOptional: intLeft.isDistinctFrom(intOptional),
+                    leftOptional: intOptional.isDistinctFrom(intRight),
+                    bothOptional: intOptional.isDistinctFrom(intOptionalB),
+                    nullOperand: intLeft.isDistinctFrom(intNull),
+                    bothNull: intNull.isDistinctFrom(intNull)
                 )),
                 bindings: [
                     leftBinding,

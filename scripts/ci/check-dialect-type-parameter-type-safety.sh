@@ -70,6 +70,8 @@ refusal_fixtures=(
     "$source_root/Tests/CompileFail/DialectTypeParameterSQLiteOperationOnComposed.swift"
     "$source_root/Tests/CompileFail/DialectTypeParameterMixedComparison.swift"
     "$source_root/Tests/CompileFail/DialectTypeParameterMixedComposed.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterNullSafeMixedDialects.swift"
+    "$source_root/Tests/CompileFail/DialectTypeParameterNullSafeMismatchedTypes.swift"
     "$source_root/Tests/CompileFail/DialectTypeParameterForeignModel.swift"
     "$source_root/Tests/CompileFail/DialectTypeParameterInsertOr.swift"
     "$source_root/Tests/CompileFail/DialectClauseWhereForeignExpression.swift"
