@@ -911,7 +911,7 @@ Provide a direct SQLite C adapter that can replace the GRDB adapter:
 - no GRDB dependency for clients selecting the native adapter.
 
 Four decisions are settled before the adapter is written, and each is recorded
-in [`Research/`](Research):
+in [`Research/`](Research), the last also in the subsection below:
 [the driver contract becomes async in scope and synchronous in cursor](Research/AsyncDriverContractFeasibility.md);
 [the multi-step contract stays, with a bundled convenience extension derived from it](Research/BundledDriverAPIAnalysis.md);
 [`vapor/sqlite-nio` is rejected as the adapter](Research/SQLiteNIOFeasibility.md);
