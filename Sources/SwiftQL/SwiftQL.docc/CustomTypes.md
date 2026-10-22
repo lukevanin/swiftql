@@ -100,12 +100,12 @@ static property, parameter, or result slot retained by a prepared handle. The
 resulting `XLResolvedValueCodec` is immutable and reusable across invocations or
 rows. There is no process-global registry or mutable capture to synchronize.
 
-Registering a codec never changes an existing representation by itself: an
-explicit key, a query key, a default, or a v1 adapter that already selects one
-is never displaced. A codec
+Registering a codec never displaces a representation that an explicit key, a
+query key, a default, or a v1 adapter already selects. A codec
 becomes a database default only when its key is listed in `defaultCodecKeys`.
 A registered codec that nothing else selects is still used when it is the only
-one for its Swift type (see "Selection and errors" below).
+one for its Swift type, so registering one can decide what an unqualified
+value of that type is stored as (see "Selection and errors" below).
 Treat changes to a codec key or version, stable Swift type identifier, dialect,
 or storage identifier as a schema/data migration. These values are also the
 stable components available to schema and query fingerprinting; do not derive
