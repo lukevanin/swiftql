@@ -932,12 +932,18 @@
     `column == nil` is Swift's own comparison and does not test for `NULL`.
     Search your queries for `==` and `!=` whose operand is optional: a
     nullable column, a left-joined table's column, a `String?` parameter, or an
-    optional `XLNamedBindingReference`.
+    optional `XLNamedBindingReference`. That includes a declared query
+    (`@SQLQuery`, `sqlResult`) with an optional parameter, whose generated
+    executor called with `nil` now returns no row where it returned the
+    `NULL` ones.
   - The rendered SQL changes, so the pinned expectations of a test that
     compares a query's text change too: `t1.id IS t0.occupationId` is now
     `t1.id == t0.occupationId`. A declared query that compares an optional
     operand renders different SQL, so regenerate its build-validation manifest
-    and snapshot.
+    and snapshot. The build validator's index and plan advice can change too: its
+    `WHERE` reader takes `==` and `=` but not `IS`, so an optional `==` predicate
+    can now yield advice it did not, and a predicate you move to
+    `isNotDistinctFrom(_:)` yields none.
   - `XLComparisonOperator.nullSafeEqual` and `.nullSafeNotEqual` are now
     reached only through the two new methods; the optional `==` and `!=` build
     `.equal` and `.notEqual`. The vocabulary protocol is unchanged.

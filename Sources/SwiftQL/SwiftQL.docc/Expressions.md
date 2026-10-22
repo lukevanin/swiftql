@@ -86,8 +86,8 @@ let query = sql { schema in
 
 With two tickets and two redemptions that have no voucher, each ticket appears
 once, with no redemption. If a missing voucher should match a missing voucher,
-say so with `isNotDistinctFrom(_:)`; each ticket with no voucher then joins to
-every redemption with none:
+say so with `isNotDistinctFrom(_:)`. With the same models, each ticket with no
+voucher then joins to every redemption with none:
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
