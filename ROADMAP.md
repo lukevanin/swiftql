@@ -932,9 +932,11 @@ adapter links, and how a client chooses. It settles
 [`SQLiteProvenanceAdversarial.md`](Research/SQLiteProvenanceAdversarial.md) §8,
 which reached opposite defaults:
 
-- **Default: the system SQLite library.** The vendored SQLite, the
-  `CSwiftQLSQLite` target that [#704](https://github.com/lukevanin/swiftql/issues/704)
-  adds, is opt-in.
+- **Default: the system SQLite library**, reached through `CSwiftQLSQLite`,
+  SwiftQL's own C module over the system SQLite, which
+  [#704](https://github.com/lukevanin/swiftql/issues/704) adds. The vendored
+  SQLite is opt-in. It is a separate, future target (an amalgamation) that the
+  trait below selects, and no issue owns it yet.
 - **Conformance authority: the vendored, pinned build.** It is deterministic:
   one known SQLite version everywhere. CI also runs the conformance suite
   against the system build, so differences surface.
