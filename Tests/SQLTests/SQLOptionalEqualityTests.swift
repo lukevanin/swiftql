@@ -73,10 +73,11 @@ final class XLOptionalEqualityTests: XCTestCase {
 
     var databasePool: DatabasePool!
     var database: GRDBDatabase!
+    var fileURL: URL!
 
     override func setUp() {
         let formatter = XLiteFormatter(identifierFormattingOptions: .mysqlCompatible)
-        let fileURL = FileManager.default.temporaryDirectory
+        fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: false)
             .appendingPathExtension("sqlite")
         databasePool = try! DatabasePool(path: fileURL.path)
@@ -87,6 +88,12 @@ final class XLOptionalEqualityTests: XCTestCase {
         try? databasePool?.close()
         databasePool = nil
         database = nil
+        if let fileURL {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: fileURL.path + suffix)
+            }
+        }
+        fileURL = nil
     }
 
     private func encode(_ statement: any XLEncodable) throws -> String {

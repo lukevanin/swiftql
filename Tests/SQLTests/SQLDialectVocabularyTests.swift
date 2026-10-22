@@ -243,6 +243,38 @@ final class SQLDialectVocabularyTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(RegexProbe()).sql, #""subject" ~ '^a'"#)
     }
 
+    // MARK: - The operator surface reaches the vocabulary (issue #692)
+
+    /// The comparison nodes above are built by hand. These are built by the
+    /// operators and methods a query calls, so a mistake in which comparison an
+    /// operator builds shows in the spelling of a dialect that does not share
+    /// SQLite's.
+    func testTheOperatorSurfaceSpellsEqualityAndTheNullSafeComparisonPerDialect() {
+        let left = XLNamedBindingReference<Int?>(name: "left")
+        let right = XLNamedBindingReference<Int?>(name: "right")
+        let sqlite = XLiteEncoder(formatter: XLiteFormatter())
+        let probe = XLDialectEncoder(dialect: ProbeDialect())
+
+        // An optional operand is plain equality: `==` in SQLite, `=` elsewhere.
+        XCTAssertEqual(sqlite.makeSQL(left == right).sql, "(:left == :right)")
+        XCTAssertEqual(probe.makeSQL(left == right).sql, "(:left = :right)")
+        XCTAssertEqual(sqlite.makeSQL(left != right).sql, "(:left != :right)")
+        XCTAssertEqual(probe.makeSQL(left != right).sql, "(:left <> :right)")
+
+        // The NULL-safe comparison is `IS` in SQLite and the standard
+        // spelling elsewhere.
+        XCTAssertEqual(sqlite.makeSQL(left.isNotDistinctFrom(right)).sql, "(:left IS :right)")
+        XCTAssertEqual(
+            probe.makeSQL(left.isNotDistinctFrom(right)).sql,
+            "(:left IS NOT DISTINCT FROM :right)"
+        )
+        XCTAssertEqual(sqlite.makeSQL(left.isDistinctFrom(right)).sql, "(:left IS NOT :right)")
+        XCTAssertEqual(
+            probe.makeSQL(left.isDistinctFrom(right)).sql,
+            "(:left IS DISTINCT FROM :right)"
+        )
+    }
+
     // MARK: - The vocabulary owns the function requirement
 
     func testTheVocabularyDecidesWhichFunctionsAMatchRequires() {
