@@ -224,16 +224,16 @@ extension XLValueCodingConfiguration {
         // The literal names the storage the parameter is bound as, so the
         // last inference tier counts only the codecs that store it, as it does
         // for a result column (issue #691).
+        let literalStorage = Dialect.literalStorageIdentifier(for: literalType)
         let codec = try resolvedCodec(
             for: valueType,
             using: dialect,
             context: codingContext,
             selection: selection,
-            inferringForStorage: Dialect.literalStorageIdentifier(for: literalType)
+            inferringForStorage: literalStorage
         )
         try validateLiteralStorage(
-            literalType,
-            in: Dialect.self,
+            literalStorage,
             codecIdentity: codec.identity,
             context: codingContext
         )
@@ -244,13 +244,12 @@ extension XLValueCodingConfiguration {
         )
     }
 
-    private func validateLiteralStorage<Literal, Dialect>(
-        _ literalType: Literal.Type,
-        in _: Dialect.Type,
+    private func validateLiteralStorage(
+        _ literalStorage: XLValueStorageIdentifier?,
         codecIdentity: XLValueCodecIdentity,
         context: XLValueCodingContext
-    ) throws where Literal: XLLiteral, Dialect: XLLiteralValueDialect {
-        guard let actual = Dialect.literalStorageIdentifier(for: literalType) else {
+    ) throws {
+        guard let actual = literalStorage else {
             return
         }
         guard codecIdentity.storageIdentifier == actual else {

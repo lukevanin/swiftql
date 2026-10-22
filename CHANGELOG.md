@@ -887,10 +887,9 @@
     storage, as a result column and a capture always did. With a `TEXT` and an
     `INTEGER` `Date` codec registered and no default,
     `contextualBinding(Date.self, expressedAs: String.self, ...)` used to throw
-    `ambiguousCodec` and now selects the `TEXT` codec; a lone `INTEGER` codec
-    with a `String` literal throws `missingCodec` naming it, where it would
-    otherwise have been selected and then rejected as a `storageMismatch`. A
-    default or an explicit key is unchanged. The guide's selection order in
+    `ambiguousCodec` and now selects the `TEXT` codec. A lone `INTEGER` codec
+    with a `String` literal still throws `missingCodec`, now naming that codec.
+    A default or an explicit key is unchanged. The guide's selection order in
     <doc:CustomTypes>, "Selection and errors", now has the tier and the storage
     narrowing.
   - `XLValueCodecError.missingCodec` and

@@ -13,9 +13,10 @@ import Foundation
 /// see "Custom Types" in SwiftQL's documentation.
 ///
 /// Both presets are named, versioned `XLValueCodec` values, not database
-/// defaults. Registering a preset never changes existing storage by itself,
-/// though a registered preset that is the only codec for `UUID` is used by
-/// every parameter and result that selects nothing else.
+/// defaults. Registering a preset never rewrites or reinterprets rows
+/// already stored. It does decide what a `UUID` that selects no codec is
+/// stored as when the preset is the only codec registered for `UUID`: list a
+/// default, or select by key, so the choice is deliberate.
 /// Adding a preset's `identity.key` to `defaultCodecKeys`, or switching an
 /// existing default between ``text`` and ``blob``, is a data migration: rows
 /// already written keep their prior representation until they are rewritten

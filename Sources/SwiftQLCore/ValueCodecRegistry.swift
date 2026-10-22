@@ -62,6 +62,11 @@ public struct XLValueCodingConfiguration: Sendable {
 
     private let defaults: [_XLValueCodecTarget: XLValueCodecKey]
 
+    /// The registered codecs for each runtime target, sorted by key. The
+    /// registry is immutable, so this is built once and the inference tier is
+    /// a lookup rather than a scan of every codec on each resolution.
+    private let codecsByTarget: [_XLValueCodecTarget: [_XLAnyValueCodec]]
+
     public init(
         registry: XLValueCodecRegistry = XLValueCodecRegistry(),
         defaultCodecKeys: [XLValueCodecKey] = []
@@ -100,9 +105,20 @@ public struct XLValueCodingConfiguration: Sendable {
             defaults[target] = key
         }
 
+        var codecsByTarget: [_XLValueCodecTarget: [_XLAnyValueCodec]] = [:]
+        for codec in registry.codecs.values {
+            codecsByTarget[codec.runtimeTarget, default: []].append(codec)
+        }
+        for target in Array(codecsByTarget.keys) {
+            codecsByTarget[target]?.sort { lhs, rhs in
+                _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
+            }
+        }
+
         self.registry = registry
         self.defaultCodecKeys = defaultCodecKeys.sorted(by: _xlCodecKeyIsOrdered)
         self.defaults = defaults
+        self.codecsByTarget = codecsByTarget
     }
 
     public func codecIdentity<Value, Dialect>(
@@ -332,7 +348,7 @@ public struct XLValueCodingConfiguration: Sendable {
         switch inferredCodec(for: target, storage: inferenceStorage) {
         case .selected(let codec):
             return codec
-        case .none(let registered):
+        case .missing(let registered):
             throw XLValueCodecError.missingCodec(
                 valueType: String(reflecting: Value.self),
                 dialect: dialect.descriptor.identity,
@@ -390,7 +406,7 @@ public struct XLValueCodingConfiguration: Sendable {
                 switch inferredCodec(for: target, storage: storage) {
                 case .selected(let codec):
                     selected = codec
-                case .none(let registered):
+                case .missing(let registered):
                     throw XLQueryCodecSelectionError.missingCodecForStorage(
                         valueType: String(reflecting: Value.self),
                         dialect: dialect.descriptor.identity,
@@ -434,15 +450,9 @@ public struct XLValueCodingConfiguration: Sendable {
         for target: _XLValueCodecTarget,
         storage: XLValueStorageIdentifier?
     ) -> _XLCodecInference {
-        let candidates = registry.codecs.values
-            .filter {
-                $0.runtimeTarget == target
-                    && (storage == nil
-                        || $0.identity.storageIdentifier == storage)
-            }
-            .sorted { lhs, rhs in
-                _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
-            }
+        let candidates = (codecsByTarget[target] ?? []).filter {
+            storage == nil || $0.identity.storageIdentifier == storage
+        }
         switch candidates.count {
         case 0:
             // Nothing is eligible. Name every codec registered for the Swift
@@ -452,7 +462,7 @@ public struct XLValueCodingConfiguration: Sendable {
                 .filter { $0.runtimeTarget.valueType == target.valueType }
                 .map { $0.identity.key }
                 .sorted(by: _xlCodecKeyIsOrdered)
-            return .none(registered: registered)
+            return .missing(registered: registered)
         case 1:
             return .selected(candidates[0])
         default:
@@ -522,7 +532,7 @@ enum _XLCodecInference {
 
     case selected(_XLAnyValueCodec)
 
-    case none(registered: [XLValueCodecKey])
+    case missing(registered: [XLValueCodecKey])
 
     case ambiguous([XLValueCodecKey])
 }
