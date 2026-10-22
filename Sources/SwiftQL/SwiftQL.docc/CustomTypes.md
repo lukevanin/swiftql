@@ -100,8 +100,12 @@ static property, parameter, or result slot retained by a prepared handle. The
 resulting `XLResolvedValueCodec` is immutable and reusable across invocations or
 rows. There is no process-global registry or mutable capture to synchronize.
 
-Registering a codec never changes an existing representation by itself. A codec
+Registering a codec never changes an existing representation by itself: an
+explicit key, a query key, a default, or a v1 adapter that already selects one
+is never displaced. A codec
 becomes a database default only when its key is listed in `defaultCodecKeys`.
+A registered codec that nothing else selects is still used when it is the only
+one for its Swift type (see "Selection and errors" below).
 Treat changes to a codec key or version, stable Swift type identifier, dialect,
 or storage identifier as a schema/data migration. These values are also the
 stable components available to schema and query fingerprinting; do not derive
@@ -210,12 +214,37 @@ Codec selection uses one deterministic order:
 2. A query-level codec key.
 3. The database default for the stable Swift type and dialect.
 4. A selected v1 literal adapter.
-5. A structured missing- or ambiguous-codec error.
+5. The only codec registered for the stable Swift type and dialect.
+6. A structured missing- or ambiguous-codec error.
 
 The first populated tier is authoritative. An unknown or incompatible explicit
 key throws at the explicit tier; SwiftQL does not silently fall through to a
 query key, default, or legacy adapter. Duplicate keys and duplicate defaults are
 also rejected deterministically.
+
+The fifth tier means a codec you register but do not list in `defaultCodecKeys`
+still represents its type wherever nothing else would. Registering a second
+codec for the same type and dialect makes that selection ambiguous until you
+list one in `defaultCodecKeys` or select one by key, so list the default you
+mean rather than relying on there being only one.
+
+A parameter and a result column follow this order alike: `contextualBinding`
+for a parameter, and `staticResultField` and `queryCapture` for a result column
+or a captured value, pick the same codec whenever the storage class does not
+tell the registered codecs apart. The two
+entry points that know the SQL expression's storage class, `staticResultField`
+and `queryCapture`, add a storage constraint and nothing else: they skip the v1
+adapter tier, use a default only when it stores that class, and count only
+codecs that store it when applying the fifth tier. So with a `TEXT` and an
+`INTEGER` `Date` codec registered and no default, a `TEXT` result column
+selects the `TEXT` codec, while `contextualBinding(Date.self, ...)` without a
+codec key reports both as ambiguous.
+
+When no codec fits, `XLValueCodecError.missingCodec` and
+`XLQueryCodecSelectionError.missingCodecForStorage` list the codecs registered
+for the Swift type in `candidates` and say so in their messages, so a codec
+registered for another dialect or storage class is named instead of leaving
+you to guess. They list none when nothing is registered for the type.
 
 <!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
 ```swift

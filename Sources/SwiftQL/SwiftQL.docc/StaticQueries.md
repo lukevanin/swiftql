@@ -152,10 +152,13 @@ Intrinsic `Bool`, `Int`, finite `Double`, `String`, and `Data` inputs use
 `intrinsic(identifiedBy:)`. Contextual inputs use an immutable coding
 configuration or database factory. Contextual inference filters codecs by the
 SQL literal's storage first. A matching configuration default wins; otherwise
-exactly one matching codec is required. Use `.explicit(codecKey)` or
+exactly one matching codec is required, the same last tier that
+`contextualBinding` applies without the storage constraint (see "Selection and
+errors" in the custom types guide). Use `.explicit(codecKey)` or
 `.query(codecKey)` when more than one codec represents the same Swift type in
 that storage class. This query-specific path never consults a legacy or
-process-global fallback.
+process-global fallback. When no codec fits, the error lists the codecs
+registered for the Swift type.
 
 When a typed column or other `XLExpression` is available, use
 `queryCapture(_:matching:identifiedBy:)`. Its associated literal type supplies

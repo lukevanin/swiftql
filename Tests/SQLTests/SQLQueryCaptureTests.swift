@@ -350,6 +350,41 @@ final class SQLQueryCaptureTests: XCTestCase {
         }
     }
 
+    /// Issue #691: a capture whose storage no registered codec stores names the
+    /// codecs that are registered for the type, instead of reporting none.
+    func testStorageMismatchedCaptureNamesTheRegisteredCandidate() throws {
+        let codec = captureTokenCodec(id: "tests.capture.listed")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(codec)
+        )
+        let identity = try XLQuerySlotIdentity(path: ["diagnostic", "listed"])
+
+        XCTAssertThrowsError(try configuration.queryCapture(
+            CaptureToken.self,
+            expressedAs: Int.self,
+            identifiedBy: identity,
+            using: XLSQLiteDialect()
+        )) { error in
+            guard case .codecSelectionFailed(
+                _,
+                _,
+                _,
+                _,
+                .inferred,
+                let candidates,
+                _,
+                let detail
+            ) = error as? XLQueryCaptureError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertEqual(candidates, [codec.identity.key])
+            XCTAssertTrue(
+                detail.contains(codec.identity.key.description),
+                detail
+            )
+        }
+    }
+
     func testSameIdentityWithConflictingStorageFailsRendering() throws {
         let identity = try XLQuerySlotIdentity(path: ["conflict"])
         let integer = try XLQueryCapture<Int, Int, XLSQLiteDialect>.intrinsic(
