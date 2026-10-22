@@ -137,14 +137,59 @@ final class ValueCodecContractTests: XCTestCase {
         )
     }
 
-    func testRegistrationAloneNeverChangesRepresentationSelection() throws {
+    func testOnlyRegisteredCodecIsTheLastInferenceTier() throws {
         let first = makeMarkerCodec("only")
         let oneCodecConfiguration = try XLValueCodingConfiguration(
             registry: try register([first])
         )
 
-        assertCodecError(
+        // The only registered codec is the last inference tier (issue #691):
+        // nothing else would select a representation, so it does, on the
+        // unconstrained path and on the storage-constrained one alike.
+        XCTAssertEqual(
             try oneCodecConfiguration.encode(
+                CodecToken(rawValue: 1),
+                using: dialect,
+                context: parameterContext
+            ),
+            .text("only")
+        )
+        XCTAssertEqual(
+            try oneCodecConfiguration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: resultContext,
+                requiringStorage: storageIdentifier(.text)
+            ).identity,
+            first.identity
+        )
+
+        // A selector that names an unregistered codec never falls through to
+        // the lone one, whichever tier it is in.
+        let unregistered = key("unregistered")
+        for selection in [
+            XLValueCodecSelection(explicitCodecKey: unregistered),
+            XLValueCodecSelection(queryCodecKey: unregistered),
+            XLValueCodecSelection(legacyCodecKey: unregistered),
+        ] {
+            XCTAssertThrowsError(
+                try oneCodecConfiguration.encode(
+                    CodecToken(rawValue: 1),
+                    using: dialect,
+                    context: parameterContext,
+                    selection: selection
+                )
+            ) { error in
+                guard case .unknownCodec? = error as? XLValueCodecError else {
+                    return XCTFail("Unexpected error: \(error)")
+                }
+            }
+        }
+
+        // No codec at all is still an error, and says so.
+        let emptyConfiguration = try XLValueCodingConfiguration()
+        assertCodecError(
+            try emptyConfiguration.encode(
                 CodecToken(rawValue: 1),
                 using: dialect,
                 context: parameterContext
@@ -152,6 +197,7 @@ final class ValueCodecContractTests: XCTestCase {
             equals: .missingCodec(
                 valueType: String(reflecting: CodecToken.self),
                 dialect: CodecTestDialect.identity,
+                candidates: [],
                 context: parameterContext
             )
         )
@@ -173,6 +219,241 @@ final class ValueCodecContractTests: XCTestCase {
                 context: parameterContext
             )
         )
+    }
+
+    func testRegisteredButUndefaultedCodecResolvesAlikeOnParameterAndResultPaths() throws {
+        let only = makeMarkerCodec("undefaulted")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try register([only])
+        )
+
+        for context in [parameterContext, resultContext] {
+            let unconstrained = try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: context
+            )
+            let constrained = try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: context,
+                requiringStorage: storageIdentifier(.text)
+            )
+            XCTAssertEqual(unconstrained.identity, only.identity)
+            XCTAssertEqual(constrained.identity, only.identity)
+        }
+
+        // A second codec for the same type makes both paths ambiguous, naming
+        // the same keys, unless the storage tells them apart.
+        let integer = makeCodec(
+            key: key("undefaulted-integer"),
+            storage: .integer,
+            encode: { .integer($0.rawValue) },
+            decode: { _ in CodecToken(rawValue: 0) }
+        )
+        let twoStorages = try XLValueCodingConfiguration(
+            registry: try register([only, integer])
+        )
+        assertCodecError(
+            try twoStorages.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext
+            ),
+            equals: .ambiguousCodec(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                candidates: [only.identity.key, integer.identity.key]
+                    .sorted(by: codecKeyOrder),
+                context: parameterContext
+            )
+        )
+        XCTAssertEqual(
+            try twoStorages.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: resultContext,
+                requiringStorage: storageIdentifier(.integer)
+            ).identity,
+            integer.identity
+        )
+        // A parameter knows its literal's storage as well: it passes it, and
+        // the last tier then narrows to that storage exactly as a result does.
+        for storage in [CodecTestStorage.text, .integer] {
+            let expected = storage == .text ? only : integer
+            XCTAssertEqual(
+                try twoStorages.resolvedCodec(
+                    for: CodecToken.self,
+                    using: dialect,
+                    context: parameterContext,
+                    selection: XLValueCodecSelection(),
+                    inferringForStorage: storageIdentifier(storage)
+                ).identity,
+                expected.identity
+            )
+            XCTAssertEqual(
+                try twoStorages.resolvedCodec(
+                    for: CodecToken.self,
+                    using: dialect,
+                    context: resultContext,
+                    requiringStorage: storageIdentifier(storage)
+                ).identity,
+                expected.identity
+            )
+        }
+        // The narrowing reaches only the last tier: a default that stores
+        // another class is still the default, and its mismatch is the
+        // caller's to report.
+        let textDefault = try XLValueCodingConfiguration(
+            registry: try register([only, integer]),
+            defaultCodecKeys: [only.identity.key]
+        )
+        XCTAssertEqual(
+            try textDefault.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(),
+                inferringForStorage: storageIdentifier(.integer)
+            ).identity,
+            only.identity
+        )
+        // With nothing of that storage, the registered codecs are named.
+        assertCodecError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(),
+                inferringForStorage: storageIdentifier(.integer)
+            ),
+            equals: .missingCodec(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                candidates: [only.identity.key],
+                context: parameterContext
+            )
+        )
+
+        let twoText = try XLValueCodingConfiguration(
+            registry: try register([only, makeMarkerCodec("undefaulted-b")])
+        )
+        for expression in [
+            { () throws -> Void in
+                _ = try twoText.resolvedCodec(
+                    for: CodecToken.self,
+                    using: self.dialect,
+                    context: self.parameterContext
+                )
+            },
+            { () throws -> Void in
+                _ = try twoText.resolvedCodec(
+                    for: CodecToken.self,
+                    using: self.dialect,
+                    context: self.resultContext,
+                    requiringStorage: storageIdentifier(.text)
+                )
+            },
+        ] {
+            XCTAssertThrowsError(try expression()) { error in
+                let keys: [XLValueCodecKey]
+                switch error {
+                case let error as XLValueCodecError:
+                    guard case .ambiguousCodec(_, _, let candidates, _) = error else {
+                        return XCTFail("Unexpected error: \(error)")
+                    }
+                    keys = candidates
+                case let error as XLQueryCodecSelectionError:
+                    guard case .ambiguousCodecForStorage(_, _, _, let candidates, _) = error else {
+                        return XCTFail("Unexpected error: \(error)")
+                    }
+                    keys = candidates
+                default:
+                    return XCTFail("Unexpected error: \(error)")
+                }
+                XCTAssertEqual(
+                    keys,
+                    [only.identity.key, key("undefaulted-b")]
+                        .sorted(by: codecKeyOrder)
+                )
+            }
+        }
+    }
+
+    func testMissingCodecDiagnosticsListTheRegisteredCandidates() throws {
+        let text = makeMarkerCodec("listed")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try register([text])
+        )
+
+        // A codec for another dialect type is registered for the Swift type
+        // but cannot serve this dialect: it is named, not inferred.
+        let alternate = AlternateCodecTestDialect()
+        XCTAssertThrowsError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: alternate,
+                context: parameterContext
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? XLValueCodecError,
+                .missingCodec(
+                    valueType: String(reflecting: CodecToken.self),
+                    dialect: alternate.descriptor.identity,
+                    candidates: [text.identity.key],
+                    context: parameterContext
+                )
+            )
+            XCTAssertTrue(
+                error.localizedDescription.contains(text.identity.key.description),
+                "The message must name the registered codec: \(error.localizedDescription)"
+            )
+        }
+
+        // A codec of the wrong storage is registered: the storage-constrained
+        // path says which one exists.
+        assertQueryCodecSelectionError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: resultContext,
+                requiringStorage: storageIdentifier(.integer)
+            ),
+            equals: .missingCodecForStorage(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                storage: storageIdentifier(.integer),
+                candidates: [text.identity.key],
+                context: resultContext
+            )
+        )
+        XCTAssertThrowsError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: resultContext,
+                requiringStorage: storageIdentifier(.integer)
+            )
+        ) { error in
+            XCTAssertTrue(
+                error.localizedDescription.contains(text.identity.key.description)
+            )
+        }
+
+        // Nothing registered: the message says that instead.
+        XCTAssertThrowsError(
+            try XLValueCodingConfiguration().resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext
+            )
+        ) { error in
+            XCTAssertTrue(
+                error.localizedDescription.contains("No codec is registered"),
+                error.localizedDescription
+            )
+        }
     }
 
     func testQueryInferenceFiltersByStorageBeforeApplyingDefaults() throws {
@@ -250,6 +531,9 @@ final class ValueCodecContractTests: XCTestCase {
                 valueType: String(reflecting: CodecToken.self),
                 dialect: CodecTestDialect.identity,
                 storage: storageIdentifier(.integer),
+                candidates: [textA.identity.key, textB.identity.key].sorted(
+                    by: codecKeyOrder
+                ),
                 context: parameterContext
             )
         )

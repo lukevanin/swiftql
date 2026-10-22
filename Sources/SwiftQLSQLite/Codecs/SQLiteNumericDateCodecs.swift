@@ -49,7 +49,10 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
 /// `XLValueCodingConfiguration.defaultCodecKeys` or per parameter/result site
 /// via `XLValueCodecSelection`/`XLQueryCodecSelection`. A stored property can
 /// also select a preset directly with `@SQLCodec`; this file only defines
-/// the presets themselves, not that selection mechanism.
+/// the presets themselves, not that selection mechanism. A registry that holds
+/// only one preset has nothing to choose between, so that preset applies to
+/// every `Date` that selects nothing else; list its key in `defaultCodecKeys`
+/// to say so.
 ///
 /// Unix seconds, Unix milliseconds, and Julian day are three different
 /// numbers for the same instant. Treat a change from one preset to another,
@@ -350,8 +353,9 @@ extension XLValueCodecRegistry {
     ///
     /// This is a convenience for applications that want every preset
     /// available for explicit per-database, per-query, or per-parameter
-    /// selection. It never adds a default: none of these presets becomes the
-    /// implicit codec for `Date` just by being registered. Pass one preset's
+    /// selection. It never adds a default: with all three registered, no one
+    /// preset becomes the implicit codec for `Date`, and a `Date` that selects
+    /// nothing is ambiguous. Pass one preset's
     /// key in `defaultCodecKeys`, or select a preset explicitly with
     /// `XLValueCodecSelection`/`XLQueryCodecSelection`, before encoding or
     /// decoding a `Date` without an explicit selector.

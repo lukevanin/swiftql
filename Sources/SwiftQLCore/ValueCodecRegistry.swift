@@ -62,6 +62,12 @@ public struct XLValueCodingConfiguration: Sendable {
 
     private let defaults: [_XLValueCodecTarget: XLValueCodecKey]
 
+    /// The registered codecs for each runtime target, sorted by key. The
+    /// registry is immutable, so this is built once, and the inference tier
+    /// reads only the few codecs of one target rather than scanning and
+    /// sorting every registered codec on each resolution.
+    private let codecsByTarget: [_XLValueCodecTarget: [_XLAnyValueCodec]]
+
     public init(
         registry: XLValueCodecRegistry = XLValueCodecRegistry(),
         defaultCodecKeys: [XLValueCodecKey] = []
@@ -100,9 +106,20 @@ public struct XLValueCodingConfiguration: Sendable {
             defaults[target] = key
         }
 
+        var codecsByTarget: [_XLValueCodecTarget: [_XLAnyValueCodec]] = [:]
+        for codec in registry.codecs.values {
+            codecsByTarget[codec.runtimeTarget, default: []].append(codec)
+        }
+        for target in Array(codecsByTarget.keys) {
+            codecsByTarget[target]?.sort { lhs, rhs in
+                _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
+            }
+        }
+
         self.registry = registry
         self.defaultCodecKeys = defaultCodecKeys.sorted(by: _xlCodecKeyIsOrdered)
         self.defaults = defaults
+        self.codecsByTarget = codecsByTarget
     }
 
     public func codecIdentity<Value, Dialect>(
@@ -139,6 +156,12 @@ public struct XLValueCodingConfiguration: Sendable {
 
     /// Resolves one static coding slot against this immutable configuration.
     ///
+    /// Selection takes the first populated tier of: the selection's explicit
+    /// key, its query key, the configuration default for the runtime type and
+    /// dialect, its legacy key, and finally the only codec registered for that
+    /// type and dialect. No registered codec, or several, throw
+    /// `XLValueCodecError.missingCodec` or `XLValueCodecError.ambiguousCodec`.
+    ///
     /// Retain the returned value on a query descriptor or prepared handle and
     /// reuse it for each invocation or row.
     public func resolvedCodec<Value, Dialect>(
@@ -148,11 +171,35 @@ public struct XLValueCodingConfiguration: Sendable {
         selection: XLValueCodecSelection = XLValueCodecSelection()
     ) throws -> XLResolvedValueCodec<Value, Dialect>
     where Dialect: XLValueCodingDialect {
+        try resolvedCodec(
+            for: valueType,
+            using: dialect,
+            context: context,
+            selection: selection,
+            inferringForStorage: nil
+        )
+    }
+
+    /// Resolves like `resolvedCodec(for:using:context:selection:)`, except
+    /// that a caller that knows the storage class its SQL expression has
+    /// passes it, and the last inference tier then counts only the codecs
+    /// that store it. Every other tier is unchanged: a default or a v1 adapter
+    /// that stores another class is still selected, and its mismatch is for
+    /// the caller to report.
+    package func resolvedCodec<Value, Dialect>(
+        for valueType: Value.Type,
+        using dialect: Dialect,
+        context: XLValueCodingContext,
+        selection: XLValueCodecSelection,
+        inferringForStorage storage: XLValueStorageIdentifier?
+    ) throws -> XLResolvedValueCodec<Value, Dialect>
+    where Dialect: XLValueCodingDialect {
         let codec = try resolve(
             valueType: valueType,
             dialect: dialect,
             context: context,
-            selection: selection
+            selection: selection,
+            inferenceStorage: storage
         )
         return XLResolvedValueCodec(
             codec: codec,
@@ -166,7 +213,9 @@ public struct XLValueCodingConfiguration: Sendable {
     ///
     /// This overload deliberately has no legacy fallback. For inference, a
     /// matching configuration default wins; otherwise exactly one registered
-    /// codec for the runtime type, dialect, and storage is required.
+    /// codec for the runtime type, dialect, and storage is required. That
+    /// lone-candidate step is the same rule the overload above applies, which
+    /// differs only in not knowing the storage to narrow by.
     public func resolvedCodec<Value, Dialect>(
         for valueType: Value.Type,
         using dialect: Dialect,
@@ -251,7 +300,8 @@ public struct XLValueCodingConfiguration: Sendable {
         valueType: Value.Type,
         dialect: Dialect,
         context: XLValueCodingContext,
-        selection: XLValueCodecSelection
+        selection: XLValueCodecSelection,
+        inferenceStorage: XLValueStorageIdentifier?
     ) throws -> _XLAnyValueCodec where Dialect: XLValueCodingDialect {
         let target = _XLValueCodecTarget(
             valueType,
@@ -296,23 +346,21 @@ public struct XLValueCodingConfiguration: Sendable {
             )
         }
 
-        let candidates = registry.codecs.values
-            .filter { $0.runtimeTarget == target }
-            .sorted { lhs, rhs in
-                _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
-            }
-        switch candidates.count {
-        case 0, 1:
+        switch inferredCodec(for: target, storage: inferenceStorage) {
+        case .selected(let codec):
+            return codec
+        case .missing(let registered):
             throw XLValueCodecError.missingCodec(
                 valueType: String(reflecting: Value.self),
                 dialect: dialect.descriptor.identity,
+                candidates: registered,
                 context: context
             )
-        default:
+        case .ambiguous(let candidates):
             throw XLValueCodecError.ambiguousCodec(
                 valueType: String(reflecting: Value.self),
                 dialect: dialect.descriptor.identity,
-                candidates: candidates.map { $0.identity.key },
+                candidates: candidates,
                 context: context
             )
         }
@@ -350,36 +398,29 @@ public struct XLValueCodingConfiguration: Sendable {
                 context: context
             )
         case .inferred:
-            let candidates = registry.codecs.values
-                .filter {
-                    $0.runtimeTarget == target
-                        && $0.identity.storageIdentifier == storage
-                }
-                .sorted { lhs, rhs in
-                    _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
-                }
             if let defaultKey = defaults[target],
                let defaultCodec = registry.codecs[defaultKey],
                defaultCodec.identity.storageIdentifier == storage {
                 selected = defaultCodec
             }
             else {
-                switch candidates.count {
-                case 1:
-                    selected = candidates[0]
-                case 0:
+                switch inferredCodec(for: target, storage: storage) {
+                case .selected(let codec):
+                    selected = codec
+                case .missing(let registered):
                     throw XLQueryCodecSelectionError.missingCodecForStorage(
                         valueType: String(reflecting: Value.self),
                         dialect: dialect.descriptor.identity,
                         storage: storage,
+                        candidates: registered,
                         context: context
                     )
-                default:
+                case .ambiguous(let candidates):
                     throw XLQueryCodecSelectionError.ambiguousCodecForStorage(
                         valueType: String(reflecting: Value.self),
                         dialect: dialect.descriptor.identity,
                         storage: storage,
-                        candidates: candidates.map { $0.identity.key },
+                        candidates: candidates,
                         context: context
                     )
                 }
@@ -395,6 +436,39 @@ public struct XLValueCodingConfiguration: Sendable {
             )
         }
         return selected
+    }
+
+    /// The one inference rule, shared by the unconstrained and the
+    /// storage-constrained paths (issue #691).
+    ///
+    /// It runs after every explicit, query, default, and legacy tier has had
+    /// its say. A codec that is the only one registered for the stable Swift
+    /// type and dialect is the answer; none or several are not. A path that
+    /// knows the SQL expression's storage passes it, which narrows the
+    /// candidates to that storage first, so the only difference between the
+    /// two paths is what the caller knows, never how a candidate is chosen.
+    private func inferredCodec(
+        for target: _XLValueCodecTarget,
+        storage: XLValueStorageIdentifier?
+    ) -> _XLCodecInference {
+        let candidates = (codecsByTarget[target] ?? []).filter {
+            storage == nil || $0.identity.storageIdentifier == storage
+        }
+        switch candidates.count {
+        case 0:
+            // Nothing is eligible. Name every codec registered for the Swift
+            // type, whatever its dialect or storage, so a codec that exists
+            // but does not fit is discoverable.
+            let registered = registry.codecs.values
+                .filter { $0.runtimeTarget.valueType == target.valueType }
+                .map { $0.identity.key }
+                .sorted(by: _xlCodecKeyIsOrdered)
+            return .missing(registered: registered)
+        case 1:
+            return .selected(candidates[0])
+        default:
+            return .ambiguous(candidates.map { $0.identity.key })
+        }
     }
 
     private func resolve<Dialect>(
@@ -451,6 +525,17 @@ public struct XLValueCodingConfiguration: Sendable {
         }
         return codec
     }
+}
+
+
+/// The outcome of the shared inference rule in `XLValueCodingConfiguration`.
+enum _XLCodecInference {
+
+    case selected(_XLAnyValueCodec)
+
+    case missing(registered: [XLValueCodecKey])
+
+    case ambiguous([XLValueCodecKey])
 }
 
 

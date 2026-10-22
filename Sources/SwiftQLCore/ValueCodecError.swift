@@ -16,10 +16,15 @@ public enum XLQueryCodecSelectionError:
     Sendable,
     LocalizedError
 {
+    /// No default, explicit, query, or unique candidate represents the value in
+    /// `storage`. `candidates` lists every codec registered for the Swift type,
+    /// whatever its dialect or storage, so one that exists but does not fit
+    /// is named; it is empty when none is registered.
     case missingCodecForStorage(
         valueType: String,
         dialect: XLDialectIdentifier,
         storage: XLValueStorageIdentifier,
+        candidates: [XLValueCodecKey],
         context: XLValueCodingContext
     )
     case ambiguousCodecForStorage(
@@ -36,9 +41,10 @@ public enum XLQueryCodecSelectionError:
             let valueType,
             let dialect,
             let storage,
+            let candidates,
             let context
         ):
-            return "No codec represents \(valueType) as \(storage) for \(dialect) at \(context)."
+            return "No codec represents \(valueType) as \(storage) for \(dialect) at \(context). \(_xlMissingCodecAdvice(valueType: valueType, candidates: candidates))"
         case .ambiguousCodecForStorage(
             let valueType,
             let dialect,
@@ -49,6 +55,17 @@ public enum XLQueryCodecSelectionError:
             return "Codecs \(candidates.map(\.description).joined(separator: ", ")) are ambiguous for \(valueType) as \(storage) for \(dialect) at \(context)."
         }
     }
+}
+
+
+private func _xlMissingCodecAdvice(
+    valueType: String,
+    candidates: [XLValueCodecKey]
+) -> String {
+    guard !candidates.isEmpty else {
+        return "No codec is registered for \(valueType)."
+    }
+    return "Registered for \(valueType): \(candidates.map(\.description).joined(separator: ", ")). None of them applies here: a codec applies when it is registered for this dialect, stores the expression's storage class where there is one, and is selected by key, listed in defaultCodecKeys, or the only one for the type. Fix the one that is close, or register one that fits."
 }
 
 
@@ -90,9 +107,14 @@ public enum XLValueCodecError: Error, Equatable, Sendable, LocalizedError {
         actual: XLValueStorageIdentifier,
         context: XLValueCodingContext
     )
+    /// No explicit, query, default, legacy, or unique codec represents the
+    /// value. `candidates` lists every codec registered for the Swift type,
+    /// whatever its dialect, so one that exists but does not fit is named; it
+    /// is empty when none is registered.
     case missingCodec(
         valueType: String,
         dialect: XLDialectIdentifier,
+        candidates: [XLValueCodecKey],
         context: XLValueCodingContext
     )
     case ambiguousCodec(
@@ -129,8 +151,8 @@ public enum XLValueCodecError: Error, Equatable, Sendable, LocalizedError {
             return "Codec \(codec) expects dialect type \(expected), not \(actual), at \(context)."
         case .storageMismatch(let codec, let expected, let actual, let context):
             return "Codec \(codec) expects storage \(expected), not \(actual), at \(context)."
-        case .missingCodec(let valueType, let dialect, let context):
-            return "No codec is selected for \(valueType) and \(dialect) at \(context)."
+        case .missingCodec(let valueType, let dialect, let candidates, let context):
+            return "No codec is selected for \(valueType) and \(dialect) at \(context). \(_xlMissingCodecAdvice(valueType: valueType, candidates: candidates))"
         case .ambiguousCodec(let valueType, let dialect, let candidates, let context):
             return "Codecs \(candidates.map(\.description).joined(separator: ", ")) are ambiguous for \(valueType) and \(dialect) at \(context)."
         case .unexpectedNull(let codec, let context):

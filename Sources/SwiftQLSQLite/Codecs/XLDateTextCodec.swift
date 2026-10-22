@@ -109,7 +109,10 @@ public enum XLDateTextCodec {
     ///
     /// Register this codec's key in a database's `defaultCodecKeys` to make
     /// it the database-wide default for `Date`, or select it explicitly with
-    /// `XLValueCodecSelection(explicitCodecKey:)` at a call site.
+    /// `XLValueCodecSelection(explicitCodecKey:)` at a call site. A registered
+    /// codec that is the only one for `Date` is also used by every parameter
+    /// and result that selects nothing else, so list the key when that is what
+    /// you mean.
     public static var standard: XLValueCodec<Date, XLSQLiteDialect> {
         custom(
             key: standardKey,

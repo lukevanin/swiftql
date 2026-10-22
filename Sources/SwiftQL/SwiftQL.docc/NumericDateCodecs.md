@@ -16,7 +16,9 @@ defined in `XLSQLiteNumericDateCodec`:
 - `XLSQLiteNumericDateCodec.JulianDay`: `REAL` Julian day number, using the
   same linear relationship SQLite's own `julianday()` function uses.
 
-None of the three is installed as an implicit default. Select a preset at the
+None of the three is installed as an implicit default, though a registry that
+holds only one of them has no other `Date` codec to choose, so that one applies
+(see "Choose a preset" below). Select a preset at the
 database level (`defaultCodecKeys`), explicitly per parameter and result site
 with `XLValueCodecSelection`, or per stored property with `@SQLCodec`.
 
@@ -67,6 +69,10 @@ do {
     print(error)
 }
 ```
+
+That is because three presets leave the choice ambiguous. A registry holding
+only one of them has nothing to choose between, so that preset applies to every
+`Date` that selects nothing else; list its key in `defaultCodecKeys` to say so.
 
 Select one preset explicitly, either per call:
 

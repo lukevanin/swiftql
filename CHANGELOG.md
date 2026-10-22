@@ -866,6 +866,42 @@
     already of the requested storage, so a dialect that does not convert
     between its numeric storages changes nothing.
 
+- **A codec that is the only one registered for a type is used on every path,
+  and "no codec" errors name what is registered** (issue #691). A parameter and
+  a result column used to resolve codecs by different rules, and the guide
+  described only one of them.
+  - A codec you registered without listing it in `defaultCodecKeys` used to
+    represent its type when you read a column of that type through a static
+    layout or declared a `queryCapture`, and yet `contextualBinding` for a
+    parameter of the same type, and `encode`, `decode`, and `resolvedCodec`
+    without a storage, threw `XLValueCodecError.missingCodec`. All of them now
+    use the only codec registered for the Swift type and dialect, as the last
+    tier after an explicit key, a query key, a default, and a v1 adapter. Code
+    that worked keeps working, and a call that threw `missingCodec` because
+    exactly one codec was registered now succeeds. A codec you registered only
+    for `@SQLCodec` to select on one property is therefore also used by a
+    parameter of that type that names no codec, and registering a second codec
+    for the type makes the selection ambiguous until you list a default or
+    select one by key, so list the default you mean.
+  - `contextualBinding` now also narrows that last tier by its literal's
+    storage, as a result column and a capture always did. With a `TEXT` and an
+    `INTEGER` `Date` codec registered and no default,
+    `contextualBinding(Date.self, expressedAs: String.self, ...)` used to throw
+    `ambiguousCodec` and now selects the `TEXT` codec. A lone `INTEGER` codec
+    with a `String` literal still throws `missingCodec`, now naming that codec.
+    A default or an explicit key is unchanged. The guide's selection order in
+    <doc:CustomTypes>, "Selection and errors", now has the tier and the storage
+    narrowing.
+  - `XLValueCodecError.missingCodec` and
+    `XLQueryCodecSelectionError.missingCodecForStorage` gained a `candidates`
+    value: the keys of every codec registered for the Swift type, whatever its
+    dialect or storage class, and empty when none is. Their messages name
+    them, so a codec registered for another dialect or storage is discoverable.
+    A `case .missingCodec(let valueType, let dialect, let context)` or
+    `case .missingCodecForStorage(...)` pattern needs the extra binding, or a
+    `_` for it. `XLQueryCaptureError.codecSelectionFailed` carries the message
+    in its `detail`; its `candidates` is unchanged.
+
 ### Added
 
 - **A product for each layer of SwiftQL** (issue #790). See "The query
@@ -1086,6 +1122,13 @@
 
 ### Fixed
 
+- **A registered codec behaves the same for a parameter and a result column**
+  (issue #691). With `XLDateTextCodec.standard` registered and no default, a
+  `Date` column decoded through a static layout, while `contextualBinding` for a
+  parameter of the same type threw `missingCodec` with no hint that a codec
+  existed. Both paths now apply one rule through one implementation, and the
+  error lists the registered codecs. See the Migration entry "A codec that is
+  the only one registered for a type is used on every path".
 - **One row decodes the same through a select and through a static layout**
   (issue #690). An INTEGER stored in a `Double` property, and a whole REAL
   stored in an `Int` property, used to decode through `fetchAll(Select)` and
