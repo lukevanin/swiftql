@@ -9,18 +9,26 @@ import Foundation
 /// `IS NOT DISTINCT FROM`. A node names the comparison it means and the
 /// dialect decides the text.
 ///
+/// The two pairs differ in meaning as well as in spelling. Equality yields
+/// `NULL` when either operand is `NULL`; a null-safe comparison treats `NULL` as
+/// a value and yields `1` or `0`, never `NULL` (issue #692). SwiftQL renders an
+/// `==` or `!=` with an optional operand as equality, and
+/// `isNotDistinctFrom(_:)` or `isDistinctFrom(_:)` as the null-safe comparison.
+///
 public enum XLComparisonOperator: Hashable, Sendable {
 
-    /// Equality between two operands that cannot be `NULL`.
+    /// Equality, which is `NULL` when either operand is `NULL`.
     case equal
 
-    /// Inequality between two operands that cannot be `NULL`.
+    /// Inequality, which is `NULL` when either operand is `NULL`.
     case notEqual
 
-    /// Equality that treats `NULL` as a comparable value.
+    /// Equality that treats `NULL` as a comparable value, so two `NULL`s are
+    /// equal and a `NULL` is never equal to a value.
     case nullSafeEqual
 
-    /// Inequality that treats `NULL` as a comparable value.
+    /// Inequality that treats `NULL` as a comparable value: the exact
+    /// complement of `nullSafeEqual`.
     case nullSafeNotEqual
 }
 

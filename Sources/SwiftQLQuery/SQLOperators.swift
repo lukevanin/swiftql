@@ -120,7 +120,9 @@ public struct XLPostfixOperatorExpression<T>: XLExpression {
 /// Renders what ``XLBinaryOperatorExpression`` renders for the same operands,
 /// except that the operator text comes from ``XLBuilder/vocabulary`` instead
 /// of from this node. SQLite spells a null-safe equality `IS`, which is a
-/// syntax error in PostgreSQL.
+/// syntax error in PostgreSQL. The optional `==` and `!=` render the plain
+/// comparisons, which yield `NULL` for a `NULL` operand; the null-safe ones are
+/// `isNotDistinctFrom(_:)` and `isDistinctFrom(_:)` (issue #692).
 ///
 public struct XLComparisonExpression<T>: XLExpression {
 
