@@ -13,6 +13,18 @@ The four conditions are stated in §7. The load-bearing ones are that observatio
 ships as its own slice with an explicit reduced-fidelity fallback, and that the
 SQLite provenance decision is made *before* the adapter is written, not after.
 
+> **Decision (#705, 2026-10-22).** The maintainer adopted this report's §1.6
+> recommendation: the system SQLite library is the default, and the vendored,
+> pinned build is opt-in and the conformance authority. The decision adds that
+> CI also runs the conformance suite against the system build, that no
+> vendored-exclusive SQL capability is adopted, and that a SwiftPM package
+> trait selects the vendored build, which this report left open. The decision
+> that condition 1 asks for is made. The symbol-prefix proof it requires of a
+> vendored build is not part of the decision: it applies to the vendored target,
+> which is separate from `CSwiftQLSQLite`, and #704 currently lists it.
+> [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705) holds the decision and its
+> reasons.
+
 This report is the follow-on to
 [SQLiteNIOFeasibility.md](SQLiteNIOFeasibility.md), whose §7.1 asserted that
 "the prove-out already exists in-repo." §5.1 below tests that claim and finds it
@@ -293,6 +305,12 @@ policy and belong in the `onOpen` hook (§3.4), not baked into the library.
 
 ### 1.6 Provenance recommendation
 
+> **Decided (#705, 2026-10-22):** adopted, with the additions in the note at the
+> top of this report. One sentence below is amended: conformance evidence is
+> generated on the vendored target, which stays the authority, and CI also runs
+> the suite against the system build so that differences surface. See
+> [ROADMAP.md](../ROADMAP.md#sqlite-provenance-705).
+
 **Support both; default to system; make the vendored target the CI and
 conformance authority.**
 
@@ -312,7 +330,7 @@ patched, security-updated SQLite pick system. Clients who want the exact SQLite
 the conformance inventory was measured against pick vendored. Conformance
 evidence is only ever generated on the vendored target, so a claim in
 [Conformance/SQLite/REPORT.md](../Conformance/SQLite/REPORT.md) always names one
-library. The `SQLiteBuildValidationRuntime` capability capture
+library. *[Amended by #705: CI also runs the suite against the system build.]* The `SQLiteBuildValidationRuntime` capability capture
 ([SQLiteBuildValidationRuntime.swift:201-268](../Sources/SwiftQLSQLiteBuildValidationValidator/SQLiteBuildValidationRuntime.swift))
 already records `compile_options`, `sqlite_version`, and `sqlite_source_id` per
 run, so the machinery to *detect* a provenance mismatch at build-validation time
