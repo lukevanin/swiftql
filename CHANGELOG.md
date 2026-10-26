@@ -1178,7 +1178,8 @@
   the expression value itself with `nil`. The result was a constant, so
   `Where(column == nil)` rendered `WHERE 0` and returned no row, and
   `Where(column != nil)` rendered `WHERE 1` and filtered nothing. Swift only
-  warned that the comparison "always returns false". Now `expression == nil`
+  warned that the comparison "always returns false", or "always returns true"
+  for `!=`. Now `expression == nil`
   renders `(expression ISNULL)`, as `isNull()` does, and `expression != nil`
   renders `(expression NOTNULL)`, as `notNull()` does. `nil` can be on either
   side, the operand can be a required or optional column or a composed

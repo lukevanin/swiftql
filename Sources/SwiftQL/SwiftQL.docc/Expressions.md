@@ -122,7 +122,8 @@ and SQLite evaluates it, rather than Swift folding it to a constant.
 
 > Warning: Compared with `nil`, a column of another dialect is Swift's own
 comparison, which is the constant `false` or `true`, and the clause renders
-`WHERE 0` or `WHERE 1`. Swift warns that the comparison "always returns false".
+`WHERE 0` or `WHERE 1`. Swift warns that the comparison "always returns false",
+or "always returns true" for `!=`.
 The dialect check refuses another dialect's `isNull()` in the same place.
 
 > Note: A Swift value that is not optional, such as `3` or `"a"`, is an

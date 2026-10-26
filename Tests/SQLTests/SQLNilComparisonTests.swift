@@ -76,6 +76,14 @@ final class XLNilComparisonTests: XCTestCase {
         XCTAssertEqual(where_(try renderedPredicate { $0.left != nil }), #"("t0"."left" NOTNULL)"#)
     }
 
+    /// A named binding is its own expression type, so the test is pinned for
+    /// it too: `:value ISNULL` asks whether the bound value is NULL.
+    func testComparisonWithNilRendersANullTestOnANamedBinding() throws {
+        let value = XLNamedBindingReference<Int?>(name: "value")
+        XCTAssertEqual(where_(try renderedPredicate { _ in value == nil }), #"(:value ISNULL)"#)
+        XCTAssertEqual(where_(try renderedPredicate { _ in nil != value }), #"(:value NOTNULL)"#)
+    }
+
     func testComparisonWithNilOnTheLeftRendersTheSameNullTest() throws {
         XCTAssertEqual(where_(try renderedPredicate { nil == $0.left }), #"("t0"."left" ISNULL)"#)
         XCTAssertEqual(where_(try renderedPredicate { nil != $0.left }), #"("t0"."left" NOTNULL)"#)
