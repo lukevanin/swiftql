@@ -115,14 +115,20 @@ tickets with no voucher, because `NULL != 'V-1'` is `NULL`;
 `ticket.voucher.isDistinctFrom("V-1")` keeps them.
 
 `column == nil` tests `column` for `NULL`, as `column.isNull()` does, and
-`column != nil` is the same as `column.notNull()`. This holds for a column that
-is not optional too, because SQL can still yield `NULL` for it, for example on
-the outer side of a join.
+`column != nil` is the same as `column.notNull()`. A column or an expression
+that is not optional is tested too, so `name == nil` renders `(name ISNULL)`
+and SQLite evaluates it, rather than Swift folding it to a constant.
+`isNull()` and `notNull()` take an optional operand only.
 
 > Warning: Compared with `nil`, a column of another dialect is Swift's own
 comparison, which is the constant `false` or `true`, and the clause renders
 `WHERE 0` or `WHERE 1`. Swift warns that the comparison "always returns false".
 The dialect check refuses another dialect's `isNull()` in the same place.
+
+> Note: A Swift value that is not optional, such as `3` or `"a"`, is an
+expression too. Outside a context that needs a `Bool`, `3 == nil` is a `NULL`
+test of the literal, not Swift's `false`, and Swift does not warn. Inside a
+condition, such as an `if` or a `filter` closure, it is still Swift's `false`.
 
 > Note: Before SwiftQL 2.0, `==` and `!=` with an optional operand rendered
 `IS` and `IS NOT`, so they behaved like `isNotDistinctFrom(_:)` and

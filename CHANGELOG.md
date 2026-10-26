@@ -1191,6 +1191,10 @@
   - A column of another dialect compared with `nil` in a SQLite clause still
     resolves to Swift's comparison, because only Swift's `Bool` fits that
     clause, so it still renders a constant. Swift's warning still marks it.
+  - A Swift value that is not optional, such as `3`, is an expression too, so
+    outside a `Bool` context `3 == nil` is now a `NULL` test of the literal,
+    not Swift's `false`, and Swift no longer warns about it. In a condition,
+    such as an `if` or a `filter` closure, it is still Swift's comparison.
   - The conformance inventory records the comparison with `nil` in the
     current-operators feature, with two new evidence records.
     Of the 226 evidence records, 138 exercise real SQLite and

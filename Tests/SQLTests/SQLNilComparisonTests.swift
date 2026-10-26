@@ -81,9 +81,8 @@ final class XLNilComparisonTests: XCTestCase {
         XCTAssertEqual(where_(try renderedPredicate { nil != $0.left }), #"("t0"."left" NOTNULL)"#)
     }
 
-    /// A column that is not optional can still be NULL in SQL, for example on
-    /// the outer side of a join, so the test is rendered rather than folded to
-    /// a constant.
+    /// A column that is not optional is tested too: SQLite evaluates the test,
+    /// rather than Swift folding the comparison to a constant.
     func testComparisonWithNilRendersANullTestOnARequiredColumn() throws {
         XCTAssertEqual(where_(try renderedPredicate { $0.required == nil }), #"("t0"."required" ISNULL)"#)
         XCTAssertEqual(where_(try renderedPredicate { $0.required != nil }), #"("t0"."required" NOTNULL)"#)
@@ -135,16 +134,24 @@ final class XLNilComparisonTests: XCTestCase {
         )
     }
 
-    /// A NULL test is never NULL, so it is typed `Bool`.
-    func testComparisonWithNilIsTypedBool() {
-        let _ = sql { schema in
-            let pair = schema.table(OptionalEqualityPair.self)
-            let _: any XLSQLiteExpression<Bool> = pair.left == nil
-            let _: any XLSQLiteExpression<Bool> = pair.left != nil
-            let _: any XLSQLiteExpression<Bool> = nil == pair.required
-            Select(pair)
-            From(pair)
-        }
+    /// A NULL test is never NULL, so it is typed `Bool`. Swift's `Bool` is an
+    /// expression too, so the node's type is checked: a Swift `Bool` here
+    /// would mean that Swift's own `Optional == nil` won.
+    func testComparisonWithNilIsANullTestTypedBool() {
+        let pair = XLSchema(dialect: XLSQLiteDialect.self).table(OptionalEqualityPair.self)
+        XCTAssertTrue((pair.left == nil) is XLNullTestExpression<Bool>)
+        XCTAssertTrue((pair.left != nil) is XLNullTestExpression<Bool>)
+        XCTAssertTrue((nil == pair.required) is XLNullTestExpression<Bool>)
+        XCTAssertTrue((nil != (pair.required + 1)) is XLNullTestExpression<Bool>)
+    }
+
+    /// The second dialect's overloads are generated from the same template
+    /// with `@_disfavoredOverload`, and they still win over Swift's own
+    /// `Optional == nil` for that dialect's columns.
+    func testComparisonWithNilIsANullTestInADisfavoredDialect() {
+        let gauge = XLSchema(dialect: FakeSecondDialect.self).table(FakeDialectGauge.self)
+        XCTAssertTrue((gauge.label == nil) is XLNullTestExpression<Bool>)
+        XCTAssertTrue((gauge.code != nil) is XLNullTestExpression<Bool>)
     }
 
     // MARK: - Results
@@ -210,6 +217,9 @@ final class XLNilComparisonTests: XCTestCase {
         XCTAssertTrue(isPresent)
         XCTAssertTrue(nil == missing)
         XCTAssertEqual([missing, 3].filter { $0 != nil }.count, 1)
+        // A Swift value that is not optional is an expression too. In a
+        // condition it is still Swift's own comparison.
+        XCTAssertEqual([1, 2].filter { $0 != nil }.count, 2)
         guard present != nil else {
             return XCTFail("present is not nil")
         }
