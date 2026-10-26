@@ -928,8 +928,8 @@
     `a.isNotDistinctFrom(b)` and `a != b` with `a.isDistinctFrom(b)`. The
     result is `Bool`, where the old optional `==` was typed `Optional<Bool>`,
     so a result column or property that held it as `Bool?` becomes `Bool`. To test
-    for `NULL` itself, `isNull()` and `notNull()` are unchanged;
-    `column == nil` is Swift's own comparison and does not test for `NULL`.
+    for `NULL` itself, `isNull()` and `notNull()` are unchanged, and
+    `column == nil` and `column != nil` now render the same tests (issue #847).
     Search your queries for `==` and `!=` whose operand is optional: a
     nullable column, a left-joined table's column, a `String?` parameter, or an
     optional `XLNamedBindingReference`. That includes a declared query
@@ -1172,6 +1172,34 @@
     no asynchronous form yet. It accepts `throws`.
 
 ### Fixed
+
+- **`column == nil` tests the column for `NULL`** (issue #847). An expression
+  compared with `nil` resolved to Swift's own `Optional == nil`, which compared
+  the expression value itself with `nil`. The result was a constant, so
+  `Where(column == nil)` rendered `WHERE 0` and returned no row, and
+  `Where(column != nil)` rendered `WHERE 1` and filtered nothing. Swift only
+  warned that the comparison "always returns false", or "always returns true"
+  for `!=`. Now `expression == nil`
+  renders `(expression ISNULL)`, as `isNull()` does, and `expression != nil`
+  renders `(expression NOTNULL)`, as `notNull()` does. `nil` can be on either
+  side, the operand can be a required or optional column or a composed
+  expression, and the result is typed `Bool`.
+  - A query that compares an expression with `nil` renders different SQL and
+    returns different rows. Regenerate the build-validation manifest and
+    snapshot of a declared query that does this.
+  - A Swift optional compared with `nil` is still Swift's own comparison and
+    yields a `Bool`, inside a `sql { }` closure as well.
+  - A column of another dialect compared with `nil` in a SQLite clause still
+    resolves to Swift's comparison, because only Swift's `Bool` fits that
+    clause, so it still renders a constant. Swift's warning still marks it.
+  - A Swift value that is not optional, such as `3`, is an expression too, so
+    outside a `Bool` context `3 == nil` is now a `NULL` test of the literal,
+    not Swift's `false`, and Swift no longer warns about it. In a condition,
+    such as an `if` or a `filter` closure, it is still Swift's comparison.
+  - The conformance inventory records the comparison with `nil` in the
+    current-operators feature, with two new evidence records.
+    Of the 226 evidence records, 138 exercise real SQLite and
+    cite one captured SQLite 3.51.0 environment.
 
 - **A left join on two nullable columns no longer matches `NULL` to `NULL`**
   (issue #692). `a.fk == b.code` rendered `IS`, so every row with a `NULL` key

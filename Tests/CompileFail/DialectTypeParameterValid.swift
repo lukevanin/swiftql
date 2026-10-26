@@ -22,6 +22,8 @@ func sqliteQuery(name: String, minimumAge: Int) -> any XLQueryStatement<DialectP
                 && person.nickname.isNotDistinctFrom(person.nickname)
                 && person.nickname.isDistinctFrom("x")
                 && person.name.isNotDistinctFrom(name)
+                && person.nickname != nil
+                && nil != person.name
                 && person.name.like("a%")
                 && (person.name + person.name).collate(.nocase) == name
                 && person.name.collate(.nocase) == "abc"
