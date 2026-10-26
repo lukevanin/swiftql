@@ -153,14 +153,19 @@ final class XLNilComparisonTests: XCTestCase {
         XCTAssertTrue((nil != (pair.required + 1)) is XLNullTestExpression<Bool>)
     }
 
+    #if compiler(>=6.3)
     /// The second dialect's overloads are generated from the same template
-    /// with `@_disfavoredOverload`, and they still win over Swift's own
-    /// `Optional == nil` for that dialect's columns.
+    /// with `@_disfavoredOverload`. From Swift 6.3 they still win over Swift's
+    /// own `Optional == nil` for that dialect's columns. Swift 6.1 ranks a
+    /// disfavored overload below Swift's own, so there the comparison is
+    /// Swift's constant and the compiler warns. Only the test dialects are
+    /// disfavored; SQLite's overloads are not.
     func testComparisonWithNilIsANullTestInADisfavoredDialect() {
         let gauge = XLSchema(dialect: FakeSecondDialect.self).table(FakeDialectGauge.self)
         XCTAssertTrue((gauge.label == nil) is XLNullTestExpression<Bool>)
         XCTAssertTrue((gauge.code != nil) is XLNullTestExpression<Bool>)
     }
+    #endif
 
     // MARK: - Results
 
