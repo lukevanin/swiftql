@@ -60,7 +60,7 @@ final class FullOuterCrossJoinTests: XCTestCase {
         }
         XCTAssertEqual(
             encoder.makeSQL(statement).sql,
-            "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` FULL OUTER JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`)"
+            "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` FULL OUTER JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`)"
         )
     }
 
@@ -73,7 +73,7 @@ final class FullOuterCrossJoinTests: XCTestCase {
             .fullOuterJoin(employee, on: employee.companyId == company.id)
         XCTAssertEqual(
             encoder.makeSQL(statement).sql,
-            "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` FULL OUTER JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`)"
+            "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` FULL OUTER JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`)"
         )
     }
 

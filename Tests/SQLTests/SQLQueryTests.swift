@@ -47,7 +47,7 @@ final class XLQueryTests: XCTestCase {
         let t0 = s.nullableTable(TestTable.self)
         let t1 = s.table(TestTable.self)
         let expression = select(t1).from(t0).rightJoin(t1, on: t1.id == t0.id)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` RIGHT JOIN `Test` AS `t1` ON (`t1`.`id` IS `t0`.`id`)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` RIGHT JOIN `Test` AS `t1` ON (`t1`.`id` == `t0`.`id`)")
     }
 
     func testRightJoinExpressionBuilderRendersRightJoinKeyword() {
@@ -59,7 +59,7 @@ final class XLQueryTests: XCTestCase {
             Join.Right(employee, on: employee.companyId == company.id)
             OrderBy(employee.id.ascending())
         }
-        XCTAssertEqual(encoder.makeSQL(statement).sql, "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) ORDER BY `t1`.`id` ASC")
+        XCTAssertEqual(encoder.makeSQL(statement).sql, "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`) ORDER BY `t1`.`id` ASC")
     }
     
 
@@ -165,7 +165,7 @@ final class XLQueryTests: XCTestCase {
         let t0 = s.table(TestTable.self)
         let t1 = s.nullableTable(ct0)
         let expression = with(ct0).select(t1).from(t0).leftJoin(t1, on: t1.id == t0.id)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` LEFT JOIN `cte0` AS `t1` ON (`t1`.`id` IS `t0`.`id`)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` LEFT JOIN `cte0` AS `t1` ON (`t1`.`id` == `t0`.`id`)")
     }
 
     // A bare "OUTER JOIN" is not a valid SQLite join type. SQLite only accepts
@@ -233,7 +233,7 @@ final class XLQueryTests: XCTestCase {
         let s = XLSchema()
         let t = s.table(TestTable.self)
         let expression = select(t).from(t).where(x == true)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0` WHERE (:x IS 1)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0` WHERE (:x == 1)")
     }
     
     
@@ -242,7 +242,7 @@ final class XLQueryTests: XCTestCase {
         let s = XLSchema()
         let t = s.table(TestTable.self)
         let expression = select(t).from(t).where(x == false)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0` WHERE (:x IS 0)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0` WHERE (:x == 0)")
     }
     
     

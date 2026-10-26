@@ -115,7 +115,7 @@ final class XLSyntaxWriteStatementTests: XLSyntaxTestCase {
                     nullableEmployee,
                     on: nullableEmployee.companyId == company.id
                 ),
-                " LEFT JOIN Employee AS t2 ON (t2.companyId IS t1.id)"
+                " LEFT JOIN Employee AS t2 ON (t2.companyId == t1.id)"
             ),
             (
                 "FROM to GROUP BY",

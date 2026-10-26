@@ -188,7 +188,7 @@ final class QueryBuilderTests: XLEncoderTestCase {
         
         let finalResult = try encoder.makeSQL(query.build()).sql
         
-        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`)")
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`)")
     }
     
     
@@ -205,7 +205,7 @@ final class QueryBuilderTests: XLEncoderTestCase {
 
         let finalResult = try encoder.makeSQL(query.build()).sql
 
-        XCTAssertEqual(finalResult, "SELECT `t1`.`id` AS `id`, `t1`.`name` AS `name`, `t1`.`companyId` AS `companyId`, `t1`.`managerEmployeeId` AS `managerEmployeeId` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`)")
+        XCTAssertEqual(finalResult, "SELECT `t1`.`id` AS `id`, `t1`.`name` AS `name`, `t1`.`companyId` AS `companyId`, `t1`.`managerEmployeeId` AS `managerEmployeeId` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`)")
     }
 
 
@@ -223,7 +223,7 @@ final class QueryBuilderTests: XLEncoderTestCase {
         
         let finalResult = try encoder.makeSQL(query.build()).sql
         
-        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE (`t1`.`name` IS 'Tim')")
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`) WHERE (`t1`.`name` == 'Tim')")
     }
     
     
@@ -242,7 +242,7 @@ final class QueryBuilderTests: XLEncoderTestCase {
         
         let finalResult = try encoder.makeSQL(query.build()).sql
         
-        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE (`t1`.`name` IS 'Tim') ORDER BY `t1`.`name` ASC")
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`) WHERE (`t1`.`name` == 'Tim') ORDER BY `t1`.`name` ASC")
     }
 
     /// #657: `and` and `or` terms fold in call order. Before v1.8.1 every `and`
@@ -298,11 +298,11 @@ final class QueryBuilderTests: XLEncoderTestCase {
 
         XCTAssertEqual(
             originalSQL,
-            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` IS 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC LIMIT 10 OFFSET 5"
+            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` == 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC LIMIT 10 OFFSET 5"
         )
         XCTAssertEqual(
             copySQL,
-            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` IS 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC, `t0`.`id` DESC LIMIT 10 OFFSET 5"
+            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` == `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` == 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC, `t0`.`id` DESC LIMIT 10 OFFSET 5"
         )
     }
     

@@ -902,8 +902,59 @@
     `_` for it. `XLQueryCaptureError.codecSelectionFailed` carries the message
     in its `detail`; its `candidates` is unchanged.
 
+- **Optional `==` and `!=` render SQL equality, and the NULL-safe comparison
+  has its own name** (issue #692). `==` and `!=` with an optional operand
+  rendered SQLite's `IS` and `IS NOT`, which treat `NULL` as a value and are
+  never `NULL`, while their result was typed `Optional<Bool>`.
+  They now render equality and inequality, as the ordering operators `<`, `>`,
+  `<=`, and `>=` always did: the result is `NULL` when either operand is
+  `NULL`, and it is `Optional<Bool>` when either operand is optional. SQLite
+  spells them `==` and `!=`, as it does for a required operand, and a dialect
+  with `=` and `<>` spells those.
+  - The rows a query returns can change, and the compiler does not flag it,
+    because both forms compile. A join on two nullable columns no longer
+    matches `NULL` to `NULL`: with two `NULL` keys on each side and one real
+    match, `a.fk == b.code` returns 1 row where `IS` returned 5, and a left
+    join keeps each unmatched row once instead of joining it to every row
+    that also has no key. `fk != 5` no longer returns the rows where `fk` is
+    `NULL`. A `Where` clause drops a row whose condition is `NULL`, as it
+    does for every other `NULL` predicate. A nullable parameter bound to `nil`
+    and compared with `==` matches no row.
+  - To keep the old behaviour where `NULL` should equal `NULL`, use the new
+    `isNotDistinctFrom(_:)` and `isDistinctFrom(_:)`. They take a required or
+    optional operand on either side, their result is `Bool`, never `NULL`, and
+    SQLite spells them `IS` and `IS NOT` (PostgreSQL spells them `IS NOT
+    DISTINCT FROM` and `IS DISTINCT FROM`). Replace `a == b` with
+    `a.isNotDistinctFrom(b)` and `a != b` with `a.isDistinctFrom(b)`. The
+    result is `Bool`, where the old optional `==` was typed `Optional<Bool>`,
+    so a result column or property that held it as `Bool?` becomes `Bool`. To test
+    for `NULL` itself, `isNull()` and `notNull()` are unchanged;
+    `column == nil` is Swift's own comparison and does not test for `NULL`.
+    Search your queries for `==` and `!=` whose operand is optional: a
+    nullable column, a left-joined table's column, a `String?` parameter, or an
+    optional `XLNamedBindingReference`. That includes a declared query
+    (`@SQLQuery`, `sqlResult`) with an optional parameter, whose generated
+    executor called with `nil` now returns no row where it returned the
+    `NULL` ones.
+  - The rendered SQL changes, so the pinned expectations of a test that
+    compares a query's text change too: `t1.id IS t0.occupationId` is now
+    `t1.id == t0.occupationId`. A declared query that compares an optional
+    operand renders different SQL, so regenerate its build-validation manifest
+    and snapshot. The build validator's index and plan advice can change too: its
+    `WHERE` reader takes `==` and `=` but not `IS`, so an optional `==` predicate
+    can now yield advice it did not, and a predicate you move to
+    `isNotDistinctFrom(_:)` yields none.
+  - `XLComparisonOperator.nullSafeEqual` and `.nullSafeNotEqual` are now
+    reached only through the two new methods; the optional `==` and `!=` build
+    `.equal` and `.notEqual`. The vocabulary protocol is unchanged.
+
 ### Added
 
+- **`isNotDistinctFrom(_:)` and `isDistinctFrom(_:)`** (issue #692). The
+  NULL-safe comparison, under its own name: `true` when both operands are
+  `NULL` or equal, `false` otherwise, never `NULL`. It renders `IS` and
+  `IS NOT` in SQLite. See the Migration entry "Optional `==` and `!=` render
+  SQL equality" and <doc:Expressions>, "Comparing nullable values".
 - **A product for each layer of SwiftQL** (issue #790). See "The query
   surface, the runtime, and SQLite's surface are modules of their own" under
   "Migration".
@@ -1122,6 +1173,12 @@
 
 ### Fixed
 
+- **A left join on two nullable columns no longer matches `NULL` to `NULL`**
+  (issue #692). `a.fk == b.code` rendered `IS`, so every row with a `NULL` key
+  on one side joined every row with a `NULL` key on the other. It now renders
+  equality, and `isNotDistinctFrom(_:)` is the explicit form for a join that
+  wants the old match. See the Migration entry "Optional `==` and `!=` render
+  SQL equality".
 - **A registered codec behaves the same for a parameter and a result column**
   (issue #691). With `XLDateTextCodec.standard` registered and no default, a
   `Date` column decoded through a static layout, while `contextualBinding` for a

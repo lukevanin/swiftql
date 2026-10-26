@@ -257,7 +257,7 @@ final class XLQueryExpressionBuilderTests: XLEncoderTestCase {
             Where(org.name.in(cte))
         }
         let finalResult = encoder.makeSQL(expression)
-        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT 'Alice' AS scalarValue UNION SELECT t1.name AS scalarValue FROM Org AS t1 CROSS JOIN cte0 AS t0 WHERE (t1.boss IS t0.scalarValue)) SELECT t0.name FROM Org AS t0 WHERE (t0.name IN cte0)")
+        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT 'Alice' AS scalarValue UNION SELECT t1.name AS scalarValue FROM Org AS t1 CROSS JOIN cte0 AS t0 WHERE (t1.boss == t0.scalarValue)) SELECT t0.name FROM Org AS t0 WHERE (t0.name IN cte0)")
     }
     
     
@@ -299,7 +299,7 @@ final class XLQueryExpressionBuilderTests: XLEncoderTestCase {
         }
         
         let finalResult = encoder.makeSQL(expression)
-        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t0.name AS name, t0.dad AS parent FROM Family AS t0), cte1 AS (SELECT t1.parent AS scalarValue FROM cte0 AS t1 WHERE (t1.name IS 'Alice') UNION ALL SELECT t1.parent AS scalarValue FROM cte0 AS t1 INNER JOIN cte1 AS t0 ON (t0.scalarValue IS t1.name)) SELECT t1.name FROM cte1 AS t0 CROSS JOIN Family AS t1 WHERE ((t0.scalarValue IS t1.name) AND (julianday(t1.died) ISNULL)) ORDER BY julianday(t1.born) ASC")
+        XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t0.name AS name, t0.dad AS parent FROM Family AS t0), cte1 AS (SELECT t1.parent AS scalarValue FROM cte0 AS t1 WHERE (t1.name == 'Alice') UNION ALL SELECT t1.parent AS scalarValue FROM cte0 AS t1 INNER JOIN cte1 AS t0 ON (t0.scalarValue == t1.name)) SELECT t1.name FROM cte1 AS t0 CROSS JOIN Family AS t1 WHERE ((t0.scalarValue == t1.name) AND (julianday(t1.died) ISNULL)) ORDER BY julianday(t1.born) ASC")
     }
     
     

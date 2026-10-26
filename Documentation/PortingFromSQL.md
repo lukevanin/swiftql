@@ -72,6 +72,8 @@ and a rename leads the compiler to every query affected.
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |
 | `COALESCE(x, 0)` | `person.age.sumOrNull().coalesce(0)` |
 | `x IS NULL` / `x IS NOT NULL` | `family.died.isNull()` / `person.occupationId.notNull()` |
+| `x = y` / `x <> y` | `x == y` / `x != y`; the result is `NULL` if either operand is `NULL` |
+| `x IS y` / `x IS NOT y`, or `x IS NOT DISTINCT FROM y` / `x IS DISTINCT FROM y` | `x.isNotDistinctFrom(y)` / `x.isDistinctFrom(y)`; `NULL` equals `NULL` |
 | `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE`; `like(pattern)` takes a declared-query parameter |
 | `x GLOB y` | `person.name.glob("F*")` |
 | `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder`; `regexp(expression)` takes a declared-query parameter |

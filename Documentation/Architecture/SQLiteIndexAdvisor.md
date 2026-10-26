@@ -33,7 +33,7 @@ statement's rendered SQL:
   deliberately more conservative than "does this `OR` actually change
   precedence" - or a conjunct that isn't a plain column/operator
   comparison, yields nothing for that clause rather than a guess).
-- `JOIN … ON` equality (or `IS`, for a nullable left join) key columns.
+- `JOIN … ON` equality (`==`, `=`, or the NULL-safe `IS`) key columns.
 - `ORDER BY` columns, ignoring `COLLATE`/`ASC`/`DESC`.
 - The alias→real-table-name map (`tableAliasMap`), which explicitly excludes
   two situations rather than resolving them wrong: a CTE name masquerading
@@ -148,6 +148,10 @@ plan from `full_table_scan` to `index_search`, constrained by `["CustomerID"]`
 - `EmployeeID` rides along in the index (derived from the `LEFT JOIN`'s
 join key, per the precedence rule) but doesn't narrow the seek itself, which
 the evidence records honestly rather than overclaiming.
+
+That evidence was captured when an optional `==` rendered `IS`, as the query above
+shows. Since issue #692 the same join renders `==`, which the extractor reads as a
+join key too; the evidence was not re-measured.
 
 ### The five false positives, and why they're honest, not bugs
 
