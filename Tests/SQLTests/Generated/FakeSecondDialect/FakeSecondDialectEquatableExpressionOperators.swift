@@ -64,6 +64,36 @@ func !=<Wrapped>(lhs: any FakeSecondDialectExpression<Optional<Wrapped>>, rhs: a
 }
 
 
+// MARK: - Comparison with nil
+//
+// `expression == nil` tests the expression for `NULL` in SQL, as `isNull()`
+// does, and `expression != nil` tests it as `notNull()` does. Without these
+// overloads, Swift's own `Optional == nil` compares the expression value itself
+// with `nil`, which is a constant, so the clause rendered `WHERE 0` or
+// `WHERE 1` (issue #847).
+
+
+@_disfavoredOverload
+func ==<T>(lhs: any FakeSecondDialectExpression<T>, rhs: _OptionalNilComparisonType) -> some FakeSecondDialectExpression<Bool> {
+    XLNullTestExpression(.isNull, operand: lhs)
+}
+
+@_disfavoredOverload
+func ==<T>(lhs: _OptionalNilComparisonType, rhs: any FakeSecondDialectExpression<T>) -> some FakeSecondDialectExpression<Bool> {
+    XLNullTestExpression(.isNull, operand: rhs)
+}
+
+@_disfavoredOverload
+func !=<T>(lhs: any FakeSecondDialectExpression<T>, rhs: _OptionalNilComparisonType) -> some FakeSecondDialectExpression<Bool> {
+    XLNullTestExpression(.isNotNull, operand: lhs)
+}
+
+@_disfavoredOverload
+func !=<T>(lhs: _OptionalNilComparisonType, rhs: any FakeSecondDialectExpression<T>) -> some FakeSecondDialectExpression<Bool> {
+    XLNullTestExpression(.isNotNull, operand: rhs)
+}
+
+
 // MARK: - NULL-safe comparison
 //
 // These treat `NULL` as a comparable value, so they yield `true` or `false`

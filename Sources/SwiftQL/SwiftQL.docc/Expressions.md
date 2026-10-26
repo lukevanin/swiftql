@@ -47,6 +47,8 @@ different from every other value, use `isNotDistinctFrom(_:)` and
 | `a.isDistinctFrom(b)` | `(a IS NOT b)` | `Bool` | `true` if only one is `NULL` |
 | `a.isNull()` | `(a ISNULL)` | `Bool` | `true` |
 | `a.notNull()` | `(a NOTNULL)` | `Bool` | `false` |
+| `a == nil` | `(a ISNULL)` | `Bool` | `true` |
+| `a != nil` | `(a NOTNULL)` | `Bool` | `false` |
 
 The difference matters most in a join on two nullable columns. A ticket and a
 redemption each have an optional voucher. Joining them with `==` matches a
@@ -112,8 +114,15 @@ The same holds in a `Where` clause. `ticket.voucher != "V-1"` leaves out the
 tickets with no voucher, because `NULL != 'V-1'` is `NULL`;
 `ticket.voucher.isDistinctFrom("V-1")` keeps them.
 
-`column == nil` does not test for `NULL`: it is Swift's own comparison of the
-expression with `nil`. Use `isNull()` or `notNull()`.
+`column == nil` tests `column` for `NULL`, as `column.isNull()` does, and
+`column != nil` is the same as `column.notNull()`. This holds for a column that
+is not optional too, because SQL can still yield `NULL` for it, for example on
+the outer side of a join.
+
+> Warning: Compared with `nil`, a column of another dialect is Swift's own
+comparison, which is the constant `false` or `true`, and the clause renders
+`WHERE 0` or `WHERE 1`. Swift warns that the comparison "always returns false".
+The dialect check refuses another dialect's `isNull()` in the same place.
 
 > Note: Before SwiftQL 2.0, `==` and `!=` with an optional operand rendered
 `IS` and `IS NOT`, so they behaved like `isNotDistinctFrom(_:)` and
