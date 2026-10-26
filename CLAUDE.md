@@ -1,5 +1,24 @@
 # SwiftQL — working guide for Claude
 
+## Writing style: Simplified Technical English
+
+Write in ASD-STE100 Simplified Technical English (STE). The rules are in the
+project skill [`.claude/skills/asd-ste100-skill/SKILL.md`](.claude/skills/asd-ste100-skill/SKILL.md).
+Load that skill before you write the text below.
+
+Use STE for this text:
+
+- **Issues:** titles, bodies, and comments. This includes milestone
+  descriptions.
+- **Pull requests:** titles, descriptions, review rounds, replies, and
+  closing comments.
+- **Sessions:** chat replies to the user, plans, recaps, commit messages,
+  and briefs to other sessions or agents.
+
+Do not change code, identifiers, file paths, numbers, or quoted text.
+Do not rewrite existing issues or PRs only to apply STE. Apply it to the
+text that you write or change.
+
 ## Milestone & issue workflow
 
 Use this workflow when planning large or complex work on SwiftQL. It **scaffolds**
